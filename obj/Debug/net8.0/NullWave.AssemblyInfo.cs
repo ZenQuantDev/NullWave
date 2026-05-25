@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PackItPro Team")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+b9d408f44a505a17dcca23d47480d8b3f00a433e")]
 [assembly: System.Reflection.AssemblyProductAttribute("NullWave")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NullWave")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]
