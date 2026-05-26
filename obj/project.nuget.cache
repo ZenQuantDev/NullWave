@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "WkFAfrfc+rw0HSbPvew+IxpCVM4ffDmJ34ltPLDdwNLUtQN3KDzgo2cTgaxGA1fvyMFtSd1qEjAgAVP8PvJSAg==",
+  "dgSpecHash": "6a4QVHLCWlP/hnW9HUq9g+/fJdEQ5JUEcKleGdm+2eAy1BMSpnZjjbYENpcdpjkf8nsUMLp32n4yjybCKlM4uA==",
   "success": true,
   "projectFilePath": "/home/zenquant/Coding Projects/NullWave/NullWave.csproj",
   "expectedPackageFiles": [
@@ -28,6 +28,9 @@
     "/home/zenquant/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
     "/home/zenquant/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.0/microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
     "/home/zenquant/.nuget/packages/microsoft.io.recyclablememorystream/3.0.1/microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512",
+    "/home/zenquant/.nuget/packages/serilog/4.3.1/serilog.4.3.1.nupkg.sha512",
+    "/home/zenquant/.nuget/packages/serilog.sinks.console/6.1.1/serilog.sinks.console.6.1.1.nupkg.sha512",
+    "/home/zenquant/.nuget/packages/serilog.sinks.file/7.0.0/serilog.sinks.file.7.0.0.nupkg.sha512",
     "/home/zenquant/.nuget/packages/skiasharp/3.119.4-preview.1.1/skiasharp.3.119.4-preview.1.1.nupkg.sha512",
     "/home/zenquant/.nuget/packages/skiasharp.nativeassets.linux/3.119.4-preview.1.1/skiasharp.nativeassets.linux.3.119.4-preview.1.1.nupkg.sha512",
     "/home/zenquant/.nuget/packages/skiasharp.nativeassets.macos/3.119.4-preview.1.1/skiasharp.nativeassets.macos.3.119.4-preview.1.1.nupkg.sha512",

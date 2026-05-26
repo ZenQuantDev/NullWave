@@ -34,6 +34,9 @@
 /usr/lib64/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/Microsoft.Win32.Registry.dll
 /usr/lib64/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/mscorlib.dll
 /usr/lib64/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/netstandard.dll
+/home/zenquant/.nuget/packages/serilog/4.3.1/lib/net8.0/Serilog.dll
+/home/zenquant/.nuget/packages/serilog.sinks.console/6.1.1/lib/net8.0/Serilog.Sinks.Console.dll
+/home/zenquant/.nuget/packages/serilog.sinks.file/7.0.0/lib/net8.0/Serilog.Sinks.File.dll
 /home/zenquant/.nuget/packages/skiasharp/3.119.4-preview.1.1/ref/net6.0/SkiaSharp.dll
 /usr/lib64/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/System.AppContext.dll
 /usr/lib64/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/System.Buffers.dll
