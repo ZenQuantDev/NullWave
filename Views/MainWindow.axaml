@@ -29,7 +29,7 @@
                 CornerRadius="8"
                 Padding="12"
                 Margin="0,0,0,12">
-            <StackPanel Spacing="8">
+            <StackPanel Spacing="8" DataContext="{Binding Input}">
 
                 <TextBox Text="{Binding InputUrl}"
                          PlaceholderText="Paste URL (YouTube, Spotify...)"
@@ -73,7 +73,7 @@
 
         <!-- Search Bar -->
         <TextBox DockPanel.Dock="Top"
-                 Text="{Binding SearchQuery}"
+                 Text="{Binding Library.SearchQuery}"
                  PlaceholderText="🔍 Search by title or artist..."
                  Background="#16213e"
                  Foreground="White"
@@ -85,12 +85,12 @@
                 Margin="0,12,0,0">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0"
-                           Text="{Binding Tracks.Count, StringFormat='📦 {0} tracks in library'}"
+                           Text="{Binding Library.Tracks.Count, StringFormat='📦 {0} tracks in library'}"
                            Foreground="#666"
                            VerticalAlignment="Center"/>
                 <Button Grid.Column="1"
                         Content="Remove Selected"
-                        Command="{Binding RemoveTrackCommand}"
+                        Command="{Binding Library.RemoveTrackCommand}"
                         Background="#333"
                         Foreground="#e94560"
                         CornerRadius="4"/>
@@ -113,8 +113,8 @@
                     <TextBlock Grid.Column="3" Text="Date Added" Foreground="#888" FontWeight="Bold"/>
                 </Grid>
 
-                <ListBox ItemsSource="{Binding Tracks}"
-                         SelectedItem="{Binding SelectedTrack}"
+                <ListBox ItemsSource="{Binding Library.Tracks}"
+                         SelectedItem="{Binding Library.SelectedTrack}"
                          Background="Transparent">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Track">

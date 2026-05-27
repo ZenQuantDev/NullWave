@@ -1,5 +1,5 @@
 using NullWave.Models;
-
+using NullWave.ViewModels.Base;
 namespace NullWave.ViewModels;
 
 // Wraps a Track for UI-specific display logic

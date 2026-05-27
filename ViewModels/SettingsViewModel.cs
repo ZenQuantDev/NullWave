@@ -1,3 +1,4 @@
+using NullWave.ViewModels.Base;
 namespace NullWave.ViewModels;
 
 public class SettingsViewModel : ViewModelBase
