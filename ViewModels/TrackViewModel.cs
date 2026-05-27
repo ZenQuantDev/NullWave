@@ -26,8 +26,8 @@ public class TrackViewModel : ViewModelBase
     {
         TrackSource.YouTube => "▶ YouTube",
         TrackSource.Spotify => "♪ Spotify",
+        TrackSource.SoundCloud => "☁ SoundCloud",
         TrackSource.Local => "💾 Local",
-        TrackSource.Instagram => "📷 Instagram",
-        _ => "? Unknown"
+    _ => "? Unknown"
     };
 }

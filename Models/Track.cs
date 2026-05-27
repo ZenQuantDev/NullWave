@@ -31,7 +31,7 @@ public enum TrackSource
 {
     YouTube,
     Spotify,
+    SoundCloud,
     Local,
-    Instagram,
     Unknown
 }
