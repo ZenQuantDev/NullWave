@@ -5,135 +5,355 @@
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
-        Width="800" Height="600"
-        MinWidth="600" MinHeight="400"
+        Width="900" Height="650"
+        MinWidth="700" MinHeight="500"
         Background="#1a1a2e">
 
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
 
-    <DockPanel Margin="16">
+    <DockPanel>
 
-        <!-- Header -->
-        <TextBlock DockPanel.Dock="Top"
-                   Text="🎵 NullWave"
-                   FontSize="24"
-                   FontWeight="Bold"
-                   Foreground="#e94560"
-                   Margin="0,0,0,16"/>
+        <!-- ── Menu Bar ── -->
+        <Menu DockPanel.Dock="Top"
+              Background="#0f0f1a"
+              Foreground="White">
 
-        <!-- Input Panel -->
-        <Border DockPanel.Dock="Top"
-                Background="#16213e"
-                CornerRadius="8"
-                Padding="12"
-                Margin="0,0,0,12">
-            <StackPanel Spacing="8" DataContext="{Binding Input}">
+            <MenuItem Header="File">
+                <MenuItem Header="➕  Add Track"
+                          Command="{Binding Input.AddTrackCommand}"/>
+                <MenuItem Header="📂  Add Local File"
+                          Command="{Binding Input.AddLocalFileCommand}"/>
+                <Separator/>
+                <MenuItem Header="💾  Export as JSON"
+                          Command="{Binding Export.ExportJsonCommand}"/>
+                <MenuItem Header="💾  Export as CSV"
+                          Command="{Binding Export.ExportCsvCommand}"/>
+                <Separator/>
+                <MenuItem Header="✖  Exit"
+                          Command="{Binding ExitCommand}"/>
+            </MenuItem>
 
-                <TextBox Text="{Binding InputUrl}"
-                         PlaceholderText="Paste URL (YouTube, Spotify...)"
-                         Background="#0f3460"
-                         Foreground="White"
-                         CornerRadius="4"/>
+            <MenuItem Header="Library">
+                <MenuItem Header="🔍  Focus Search"
+                          Command="{Binding Library.FocusSearchCommand}"/>
+                <MenuItem Header="✖  Clear Search"
+                          Command="{Binding Library.ClearSearchCommand}"/>
+                <Separator/>
+                <MenuItem Header="Sort by Title"
+                          Command="{Binding Library.SortByTitleCommand}"/>
+                <MenuItem Header="Sort by Artist"
+                          Command="{Binding Library.SortByArtistCommand}"/>
+                <MenuItem Header="Sort by Date Added"
+                          Command="{Binding Library.SortByDateCommand}"/>
+                <MenuItem Header="Sort by Play Count"
+                          Command="{Binding Library.SortByPlayCountCommand}"/>
+            </MenuItem>
 
-                <Grid ColumnDefinitions="*,*,Auto,Auto">
+            <MenuItem Header="Settings">
+                <MenuItem Header="⚙  Open Settings"
+                          Command="{Binding OpenSettingsCommand}"/>
+                <Separator/>
+                <MenuItem Header="🗑  Delete API Keys"
+                          Command="{Binding Settings.DeleteApiKeysCommand}"/>
+                <MenuItem Header="🗑  Delete Logs"
+                          Command="{Binding Settings.DeleteLogsCommand}"/>
+                <Separator/>
+                <MenuItem Header="⚠  Wipe Everything"
+                          Command="{Binding Settings.DeleteEverythingCommand}"/>
+            </MenuItem>
+
+            <MenuItem Header="Help">
+                <MenuItem Header="📋  About NullWave"
+                          Command="{Binding AboutCommand}"/>
+                <MenuItem Header="📁  Open Data Folder"
+                          Command="{Binding OpenDataFolderCommand}"/>
+                <MenuItem Header="📜  View Logs"
+                          Command="{Binding OpenLogsCommand}"/>
+            </MenuItem>
+
+        </Menu>
+
+        <!-- ── Input Panel (bottom dock, above player) ── -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#0f0f1a"
+                Padding="12,8">
+            <StackPanel Spacing="8">
+
+                <!-- URL row -->
+                <Grid ColumnDefinitions="*,Auto">
                     <TextBox Grid.Column="0"
-                             Text="{Binding InputTitle}"
+                             Name="UrlInputBox"
+                             Text="{Binding Input.InputUrl, Mode=TwoWay}"
+                             PlaceholderText="🔗  Paste URL (YouTube, Spotify, SoundCloud...)"
+                             Background="#16213e"
+                             Foreground="White"
+                             CornerRadius="4"
+                             Margin="0,0,8,0"/>
+                    <Button Grid.Column="1"
+                            Content="📂  Add File"
+                            Command="{Binding Input.AddLocalFileCommand}"
+                            Background="#16213e"
+                            Foreground="White"
+                            CornerRadius="4"/>
+                </Grid>
+
+                <!-- Title / Artist / Source / Add row -->
+                <Grid ColumnDefinitions="*,*,140,Auto">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding Input.InputTitle, Mode=TwoWay}"
                              PlaceholderText="Title *"
-                             Background="#0f3460"
+                             Background="#16213e"
                              Foreground="White"
                              CornerRadius="4"
                              Margin="0,0,8,0"/>
-
                     <TextBox Grid.Column="1"
-                             Text="{Binding InputArtist}"
+                             Text="{Binding Input.InputArtist, Mode=TwoWay}"
                              PlaceholderText="Artist"
-                             Background="#0f3460"
+                             Background="#16213e"
                              Foreground="White"
                              CornerRadius="4"
                              Margin="0,0,8,0"/>
-
                     <ComboBox Grid.Column="2"
-                              ItemsSource="{Binding SourceOptions}"
-                              SelectedItem="{Binding SelectedSource}"
-                              Background="#0f3460"
+                              ItemsSource="{Binding Input.SourceOptions}"
+                              SelectedItem="{Binding Input.SelectedSource}"
+                              Background="#16213e"
                               Foreground="White"
                               Margin="0,0,8,0"/>
-
                     <Button Grid.Column="3"
-                            Content="Add Track"
-                            Command="{Binding AddTrackCommand}"
+                            Content="➕  Add Track"
+                            Command="{Binding Input.AddTrackCommand}"
                             Background="#e94560"
                             Foreground="White"
                             CornerRadius="4"/>
                 </Grid>
+
+                <!-- Fetching indicator -->
+                <TextBlock Text="⏳  Fetching metadata..."
+                           Foreground="#888"
+                           FontSize="11"
+                           IsVisible="{Binding Input.IsFetching}"/>
             </StackPanel>
         </Border>
 
-        <!-- Search Bar -->
-        <TextBox DockPanel.Dock="Top"
-                 Text="{Binding Library.SearchQuery}"
-                 PlaceholderText="🔍 Search by title or artist..."
-                 Background="#16213e"
-                 Foreground="White"
-                 CornerRadius="4"
-                 Margin="0,0,0,12"/>
-
-        <!-- Bottom Bar -->
+        <!-- ── Mini Player Bar ── -->
         <Border DockPanel.Dock="Bottom"
-                Margin="0,12,0,0">
-            <Grid ColumnDefinitions="*,Auto">
+                Background="#0a0a15"
+                Padding="12,6">
+            <Grid ColumnDefinitions="Auto,*,Auto">
                 <TextBlock Grid.Column="0"
-                           Text="{Binding Library.Tracks.Count, StringFormat='📦 {0} tracks in library'}"
+                           Text="♪"
+                           Foreground="#e94560"
+                           FontSize="16"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1"
+                           Text="No track playing"
+                           Foreground="#666"
+                           VerticalAlignment="Center"
+                           FontSize="12"/>
+                <TextBlock Grid.Column="2"
+                           Text="🔊"
                            Foreground="#666"
                            VerticalAlignment="Center"/>
-                <Button Grid.Column="1"
-                        Content="Remove Selected"
-                        Command="{Binding Library.RemoveTrackCommand}"
-                        Background="#333"
-                        Foreground="#e94560"
-                        CornerRadius="4"/>
             </Grid>
         </Border>
 
-        <!-- Track List -->
-        <Border Background="#16213e"
-                CornerRadius="8"
-                Padding="8">
-            <DockPanel>
+        <!-- ── Main Content: Sidebar + Track List ── -->
+        <Grid ColumnDefinitions="160,*">
 
-                <!-- List Header -->
+            <!-- Sidebar -->
+            <Border Grid.Column="0"
+                    Background="#0f0f1a"
+                    Padding="8">
+                <StackPanel Spacing="2">
+
+                    <TextBlock Text="NAVIGATE"
+                               Foreground="#444"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Margin="8,8,0,8"/>
+
+                    <Button Content="🎵  Library"
+                            Command="{Binding NavigateLibraryCommand}"
+                            Background="Transparent"
+                            Foreground="White"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="📋  Playlists"
+                            Command="{Binding NavigatePlaylistsCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="🎶  Queue"
+                            Command="{Binding NavigateQueueCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="📊  Stats"
+                            Command="{Binding NavigateStatsCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Separator Margin="8,12"/>
+
+                    <TextBlock Text="FILTERS"
+                               Foreground="#444"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Margin="8,0,0,8"/>
+
+                    <Button Content="⭐  Favorites"
+                            Command="{Binding Library.ShowFavoritesCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="🕐  Recent"
+                            Command="{Binding Library.ShowRecentCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="▶  YouTube"
+                            Command="{Binding Library.FilterYouTubeCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="♪  Spotify"
+                            Command="{Binding Library.FilterSpotifyCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="☁  SoundCloud"
+                            Command="{Binding Library.FilterSoundCloudCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                    <Button Content="💾  Local"
+                            Command="{Binding Library.FilterLocalCommand}"
+                            Background="Transparent"
+                            Foreground="#888"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            CornerRadius="4"
+                            Padding="8,6"/>
+
+                </StackPanel>
+            </Border>
+
+            <!-- Track List Panel -->
+            <DockPanel Grid.Column="1"
+                       Margin="0">
+
+                <!-- Search + Sort bar -->
                 <Grid DockPanel.Dock="Top"
-                      ColumnDefinitions="*,*,120,140"
-                      Margin="8,4">
-                    <TextBlock Grid.Column="0" Text="Title" Foreground="#888" FontWeight="Bold"/>
-                    <TextBlock Grid.Column="1" Text="Artist" Foreground="#888" FontWeight="Bold"/>
-                    <TextBlock Grid.Column="2" Text="Source" Foreground="#888" FontWeight="Bold"/>
-                    <TextBlock Grid.Column="3" Text="Date Added" Foreground="#888" FontWeight="Bold"/>
+                      ColumnDefinitions="*,160"
+                      Margin="12,10,12,6">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding Library.SearchQuery, Mode=TwoWay}"
+                             PlaceholderText="🔍  Search by title or artist..."
+                             Background="#16213e"
+                             Foreground="White"
+                             CornerRadius="4"
+                             Margin="0,0,8,0"/>
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding Library.SortOptions}"
+                              SelectedItem="{Binding Library.CurrentSort}"
+                              Background="#16213e"
+                              Foreground="White"/>
                 </Grid>
 
+                <!-- Track count + Remove button -->
+                <Grid DockPanel.Dock="Top"
+                      ColumnDefinitions="*,Auto"
+                      Margin="12,0,12,6">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding Library.Tracks.Count, StringFormat='📦 {0} tracks'}"
+                               Foreground="#555"
+                               FontSize="11"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1"
+                            Content="🗑  Remove"
+                            Command="{Binding Library.RemoveTrackCommand}"
+                            Background="Transparent"
+                            Foreground="#e94560"
+                            CornerRadius="4"
+                            Padding="8,4"/>
+                </Grid>
+
+                <!-- Column Headers -->
+                <Grid DockPanel.Dock="Top"
+                      ColumnDefinitions="*,160,100,120"
+                      Margin="20,0,12,4">
+                    <TextBlock Grid.Column="0" Text="Title" Foreground="#555" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="Artist" Foreground="#555" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="Source" Foreground="#555" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="3" Text="Date Added" Foreground="#555" FontSize="11" FontWeight="Bold"/>
+                </Grid>
+
+                <!-- Track List -->
                 <ListBox ItemsSource="{Binding Library.Tracks}"
                          SelectedItem="{Binding Library.SelectedTrack}"
-                         Background="Transparent">
+                         Background="Transparent"
+                         Margin="8,0,8,8">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Track">
-                            <Grid ColumnDefinitions="*,*,120,140" Margin="0,4">
+                            <Grid ColumnDefinitions="*,160,100,120"
+                                  Margin="0,3">
                                 <TextBlock Grid.Column="0"
                                            Text="{Binding Title}"
                                            Foreground="White"
+                                           FontSize="13"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Artist}"
                                            Foreground="#aaa"
+                                           FontSize="12"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding Source}"
                                            Foreground="#e94560"
+                                           FontSize="11"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="3"
                                            Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
-                                           Foreground="#666"
+                                           Foreground="#555"
+                                           FontSize="11"
                                            VerticalAlignment="Center"/>
                             </Grid>
                         </DataTemplate>
@@ -141,7 +361,7 @@
                 </ListBox>
 
             </DockPanel>
-        </Border>
+        </Grid>
 
     </DockPanel>
 </Window>
