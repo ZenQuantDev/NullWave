@@ -429,3 +429,7 @@ FodyWeavers.xsd
 *.msp
 obj/
 bin/
+appsettings.local.json
+appsettings*.local.json
+appsettings.local.json
+appsettings*.local.json
