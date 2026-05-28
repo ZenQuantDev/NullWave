@@ -30,4 +30,9 @@ public class ConfigService
         => _keyStore.GetKey("SoundCloud")
            ?? Environment.GetEnvironmentVariable("NULLWAVE_SOUNDCLOUD_CLIENT_ID")
            ?? string.Empty;
+
+    public string GetLastFmApiKey()
+        => _keyStore.GetKey("LastFm")
+           ?? Environment.GetEnvironmentVariable("NULLWAVE_LASTFM_KEY")
+           ?? string.Empty;
 }

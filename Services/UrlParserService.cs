@@ -45,4 +45,26 @@ public class UrlParserService
         var ext = GetFileExtension(path);
         return ext is ".mp3" or ".flac" or ".wav" or ".ogg" or ".m4a" or ".aac";
     }
+
+    public (string Title, string Artist)? ExtractLastFmTrack(string url)
+    {
+        // Matches: last.fm/music/Artist/_/Track
+        if (!url.Contains("last.fm/music/")) return null;
+
+        try
+        {
+            var uri = new Uri(url);
+            var segments = uri.AbsolutePath.Trim('/').Split('/');
+            // segments: ["music", "Tame+Impala", "_", "The+Less+I+Know+the+Better"]
+            if (segments.Length >= 4 && segments[0] == "music" && segments[2] == "_")
+            {
+                var artist = Uri.UnescapeDataString(segments[1]).Replace("+", " ");
+                var title = Uri.UnescapeDataString(segments[3]).Replace("+", " ");
+                return (title, artist);
+            }
+        }
+        catch { }
+
+        return null;
+    }
 }

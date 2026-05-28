@@ -15,6 +15,7 @@ public class SettingsViewModel : ViewModelBase
     private string _spotifyClientId = string.Empty;
     private string _spotifyClientSecret = string.Empty;
     private string _soundCloudClientId = string.Empty;
+    private string _lastFmApiKey = string.Empty;
     private string _defaultExportPath = string.Empty;
     private bool _autoFetchMetadata = true;
 
@@ -47,6 +48,12 @@ public class SettingsViewModel : ViewModelBase
         set { _soundCloudClientId = value; OnPropertyChanged(); }
     }
 
+    public string LastFmApiKey
+    {
+        get => _lastFmApiKey;
+        set { _lastFmApiKey = value; OnPropertyChanged(); }
+    }
+
     public string DefaultExportPath
     {
         get => _defaultExportPath;
@@ -69,6 +76,7 @@ public class SettingsViewModel : ViewModelBase
         _spotifyClientId = _keyStore.GetKey("Spotify:ClientId") ?? string.Empty;
         _spotifyClientSecret = _keyStore.GetKey("Spotify:ClientSecret") ?? string.Empty;
         _soundCloudClientId = _keyStore.GetKey("SoundCloud") ?? string.Empty;
+        _lastFmApiKey = _keyStore.GetKey("LastFm") ?? string.Empty;
 
         SaveKeysCommand = new RelayCommand(SaveKeys);
         DeleteApiKeysCommand = new RelayCommand(DeleteApiKeys);
@@ -86,6 +94,8 @@ public class SettingsViewModel : ViewModelBase
             _keyStore.SaveKey("Spotify:ClientSecret", SpotifyClientSecret);
         if (!string.IsNullOrWhiteSpace(SoundCloudClientId))
             _keyStore.SaveKey("SoundCloud", SoundCloudClientId);
+        if (!string.IsNullOrWhiteSpace(LastFmApiKey))
+            _keyStore.SaveKey("LastFm", LastFmApiKey);
 
         Log.Information("API keys saved from Settings");
     }
@@ -97,6 +107,7 @@ public class SettingsViewModel : ViewModelBase
         SpotifyClientId = string.Empty;
         SpotifyClientSecret = string.Empty;
         SoundCloudClientId = string.Empty;
+        LastFmApiKey = string.Empty;
         Log.Warning("All API keys deleted by user");
     }
 
@@ -113,6 +124,7 @@ public class SettingsViewModel : ViewModelBase
         SpotifyClientId = string.Empty;
         SpotifyClientSecret = string.Empty;
         SoundCloudClientId = string.Empty;
+        LastFmApiKey = string.Empty;
         Log.Warning("Full data wipe performed by user");
     }
 }

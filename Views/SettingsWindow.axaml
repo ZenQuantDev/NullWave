@@ -75,6 +75,22 @@
                                    FontSize="10"/>
                     </StackPanel>
 
+                    <!-- Last.fm -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="◎  Last.fm API Key"
+                                   Foreground="#aaa"
+                                   FontSize="12"/>
+                        <TextBox Text="{Binding LastFmApiKey, Mode=TwoWay}"
+                                 PlaceholderText="API key"
+                                 PasswordChar="●"
+                                 Background="#16213e"
+                                 Foreground="White"
+                                 CornerRadius="4"/>
+                        <TextBlock Text="Get a free key at last.fm/api — no account tier required"
+                                   Foreground="#444"
+                                   FontSize="10"/>
+                    </StackPanel>
+
                     <!-- Spotify -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="♪  Spotify Client ID"

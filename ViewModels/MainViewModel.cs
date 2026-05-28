@@ -18,6 +18,7 @@ public class MainViewModel : ViewModelBase
     private readonly ConfigService _config;
     private readonly LibraryService _library = new();
     private readonly PlaylistService _playlists = new();
+    private readonly LastFmService _lastFm;
     private readonly MetadataService _metadata;
     private readonly UrlParserService _urlParser = new();
     private readonly ExportService _export = new();
@@ -46,7 +47,8 @@ public class MainViewModel : ViewModelBase
     {
         _secureDelete = new SecureDeleteService(_keyStore);
         _config = new ConfigService(_keyStore);
-        _metadata = new MetadataService(_config);
+        _lastFm = new LastFmService(_config);
+        _metadata = new MetadataService(_config, _lastFm);
 
         Input = new TrackInputViewModel(_library, _metadata, _urlParser);
         Library = new LibraryViewModel(_library);

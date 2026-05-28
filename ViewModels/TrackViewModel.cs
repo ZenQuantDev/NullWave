@@ -27,7 +27,8 @@ public class TrackViewModel : ViewModelBase
         TrackSource.YouTube => "▶ YouTube",
         TrackSource.Spotify => "♪ Spotify",
         TrackSource.SoundCloud => "☁ SoundCloud",
+        TrackSource.LastFm => "◎ Last.fm",
         TrackSource.Local => "💾 Local",
-    _ => "? Unknown"
+        _ => "? Unknown"
     };
 }
