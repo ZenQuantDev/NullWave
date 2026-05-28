@@ -29,6 +29,8 @@ public class MainViewModel : ViewModelBase
     public PlaylistViewModel Playlist { get; }
     public ExportViewModel Export { get; }
     public SettingsViewModel Settings { get; }
+    public TrackDetailViewModel Detail { get; }
+    public ImportViewModel Import { get; }
 
     // Menu commands
     public ICommand ExitCommand { get; }
@@ -55,8 +57,12 @@ public class MainViewModel : ViewModelBase
         Playlist = new PlaylistViewModel(_playlists);
         Export = new ExportViewModel(_library, _export);
         Settings = new SettingsViewModel(_keyStore, _secureDelete);
+        Detail = new TrackDetailViewModel(_library);
+        Import = new ImportViewModel(_library, _metadata);
 
         Input.TrackAdded += Library.Refresh;
+        Library.TrackDetailRequested += Detail.OpenFor;
+        Import.ImportCompleted += Library.Refresh;
 
         ExitCommand = new RelayCommand(() =>
         {

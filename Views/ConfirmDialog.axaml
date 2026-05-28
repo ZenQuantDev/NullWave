@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NullWave.Views.ConfirmDialog"
+        Title="NullWave"
+        Width="340" Height="160"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#1a1a2e">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,16,0,0">
+            <Button Content="No"
+                    Click="OnNo"
+                    Background="#16213e"
+                    Foreground="White"
+                    Padding="16,8"
+                    CornerRadius="4"/>
+            <Button Content="Yes"
+                    Click="OnYes"
+                    Background="#e94560"
+                    Foreground="White"
+                    Padding="16,8"
+                    CornerRadius="4"/>
+        </StackPanel>
+        <TextBlock Name="MessageText"
+                   Foreground="White"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center"/>
+    </DockPanel>
+</Window>

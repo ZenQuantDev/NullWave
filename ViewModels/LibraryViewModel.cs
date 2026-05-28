@@ -6,6 +6,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
 using System.Collections.Generic;
+using Avalonia.Controls;
 
 namespace NullWave.ViewModels;
 
@@ -44,6 +45,14 @@ public class LibraryViewModel : ViewModelBase
     public ICommand FilterSpotifyCommand { get; }
     public ICommand FilterSoundCloudCommand { get; }
     public ICommand FilterLocalCommand { get; }
+    public ICommand FilterLastFmCommand { get; }
+
+    // Context menu commands
+    public ICommand CopyUrlCommand { get; }
+    public ICommand AddToPlaylistCommand { get; }
+    public ICommand OpenDetailCommand { get; }
+
+    public event Action<Track>? TrackDetailRequested;
 
     public string SearchQuery
     {
@@ -97,6 +106,11 @@ public class LibraryViewModel : ViewModelBase
         FilterSpotifyCommand = new RelayCommand(() => SetSourceFilter(TrackSource.Spotify));
         FilterSoundCloudCommand = new RelayCommand(() => SetSourceFilter(TrackSource.SoundCloud));
         FilterLocalCommand = new RelayCommand(() => SetSourceFilter(TrackSource.Local));
+        FilterLastFmCommand = new RelayCommand(() => SetSourceFilter(TrackSource.LastFm));
+
+        CopyUrlCommand = new RelayCommand(CopyUrl);
+        OpenDetailCommand = new RelayCommand(OpenDetail);
+        AddToPlaylistCommand = new RelayCommand(() => { });
     }
 
     public void Refresh()
@@ -170,5 +184,26 @@ public class LibraryViewModel : ViewModelBase
         if (SelectedTrack == null) return;
         _library.RecordPlay(SelectedTrack.Id);
         Refresh();
+    }
+
+    private void CopyUrl()
+    {
+        var url = SelectedTrack?.Url ?? SelectedTrack?.FilePath;
+        if (string.IsNullOrEmpty(url)) return;
+        // TODO: Implement clipboard support in Phase 3
+        // if (Avalonia.Application.Current?.ApplicationLifetime is
+        //     Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+        //     && desktop.MainWindow != null)
+        // {
+        //     var clipboard = Avalonia.Controls.TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
+        //     if (clipboard != null)
+        //         clipboard.SetText(url);
+        // }
+    }
+
+    private void OpenDetail()
+    {
+        if (SelectedTrack != null)
+            TrackDetailRequested?.Invoke(SelectedTrack);
     }
 }
