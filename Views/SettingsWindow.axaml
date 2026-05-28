@@ -1,10 +1,223 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels"
         x:Class="NullWave.Views.SettingsWindow"
-        Title="Settings"
-        Width="400" Height="300">
-    <TextBlock Text="Settings coming soon..."
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center"
-               Foreground="White"/>
+        x:DataType="vm:SettingsViewModel"
+        Title="NullWave — Settings"
+        Width="520" Height="600"
+        MinWidth="460" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#1a1a2e"
+        CanResize="False">
+
+    <DockPanel Margin="0">
+
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                Background="#0f0f1a"
+                Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="⚙  Settings"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           Foreground="White"/>
+                <TextBlock Text="Manage API keys, preferences, and data"
+                           FontSize="11"
+                           Foreground="#555"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Footer buttons -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#0f0f1a"
+                Padding="20,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="Keys stored encrypted at ~/.nullwave/keys.enc"
+                           Foreground="#444"
+                           FontSize="10"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="💾  Save Keys"
+                        Command="{Binding SaveKeysCommand}"
+                        Background="#e94560"
+                        Foreground="White"
+                        CornerRadius="4"
+                        Padding="16,8"/>
+            </Grid>
+        </Border>
+
+        <!-- Scrollable content -->
+        <ScrollViewer Padding="20">
+            <StackPanel Spacing="24">
+
+                <!-- API Keys Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="API KEYS"
+                               Foreground="#444"
+                               FontSize="10"
+                               FontWeight="Bold"/>
+
+                    <!-- YouTube -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="▶  YouTube Data API v3"
+                                   Foreground="#aaa"
+                                   FontSize="12"/>
+                        <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}"
+                                 PlaceholderText="AIza..."
+                                 PasswordChar="●"
+                                 Background="#16213e"
+                                 Foreground="White"
+                                 CornerRadius="4"/>
+                        <TextBlock Text="Get a free key at console.cloud.google.com → YouTube Data API v3"
+                                   Foreground="#444"
+                                   FontSize="10"/>
+                    </StackPanel>
+
+                    <!-- Spotify -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="♪  Spotify Client ID"
+                                   Foreground="#aaa"
+                                   FontSize="12"/>
+                        <TextBox Text="{Binding SpotifyClientId, Mode=TwoWay}"
+                                 PlaceholderText="Client ID"
+                                 PasswordChar="●"
+                                 Background="#16213e"
+                                 Foreground="White"
+                                 CornerRadius="4"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="♪  Spotify Client Secret"
+                                   Foreground="#aaa"
+                                   FontSize="12"/>
+                        <TextBox Text="{Binding SpotifyClientSecret, Mode=TwoWay}"
+                                 PlaceholderText="Client Secret"
+                                 PasswordChar="●"
+                                 Background="#16213e"
+                                 Foreground="White"
+                                 CornerRadius="4"/>
+                        <TextBlock Text="Get credentials at developer.spotify.com"
+                                   Foreground="#444"
+                                   FontSize="10"/>
+                    </StackPanel>
+
+                    <!-- SoundCloud -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="☁  SoundCloud Client ID"
+                                   Foreground="#aaa"
+                                   FontSize="12"/>
+                        <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}"
+                                 PlaceholderText="Client ID"
+                                 PasswordChar="●"
+                                 Background="#16213e"
+                                 Foreground="White"
+                                 CornerRadius="4"/>
+                        <TextBlock Text="Get credentials at soundcloud.com/you/apps"
+                                   Foreground="#444"
+                                   FontSize="10"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Separator Background="#222"/>
+
+                <!-- Preferences Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="PREFERENCES"
+                               Foreground="#444"
+                               FontSize="10"
+                               FontWeight="Bold"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Auto-fetch metadata"
+                                       Foreground="White"
+                                       FontSize="12"/>
+                            <TextBlock Text="Automatically fetch title and artist when a URL is pasted"
+                                       Foreground="#555"
+                                       FontSize="10"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1"
+                                  IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <Separator Background="#222"/>
+
+                <!-- Danger Zone -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="DANGER ZONE"
+                               Foreground="#e94560"
+                               FontSize="10"
+                               FontWeight="Bold"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Delete API Keys"
+                                       Foreground="White"
+                                       FontSize="12"/>
+                            <TextBlock Text="Securely wipes all stored API keys"
+                                       Foreground="#555"
+                                       FontSize="10"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="🗑  Delete"
+                                Command="{Binding DeleteApiKeysCommand}"
+                                Background="#2a0a0f"
+                                Foreground="#e94560"
+                                CornerRadius="4"
+                                Padding="12,6"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Delete Logs"
+                                       Foreground="White"
+                                       FontSize="12"/>
+                            <TextBlock Text="Securely wipes all log files from ~/.nullwave/logs"
+                                       Foreground="#555"
+                                       FontSize="10"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="🗑  Delete"
+                                Command="{Binding DeleteLogsCommand}"
+                                Background="#2a0a0f"
+                                Foreground="#e94560"
+                                CornerRadius="4"
+                                Padding="12,6"/>
+                    </Grid>
+
+                    <Border Background="#2a0a0f"
+                            CornerRadius="6"
+                            Padding="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="⚠  Wipe Everything"
+                                           Foreground="#e94560"
+                                           FontSize="12"
+                                           FontWeight="Bold"/>
+                                <TextBlock Text="Permanently deletes all keys, logs, and NullWave data. Cannot be undone."
+                                           Foreground="#888"
+                                           FontSize="10"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="⚠  Wipe"
+                                    Command="{Binding DeleteEverythingCommand}"
+                                    Background="#e94560"
+                                    Foreground="White"
+                                    FontWeight="Bold"
+                                    CornerRadius="4"
+                                    Padding="12,6"
+                                    Margin="12,0,0,0"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+    </DockPanel>
 </Window>

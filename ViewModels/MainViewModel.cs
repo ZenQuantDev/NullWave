@@ -68,7 +68,7 @@ public class MainViewModel : ViewModelBase
         AboutCommand = new RelayCommand(() =>
         {
             // TODO: open About dialog (Phase 4)
-            Serilog.Log.Information("About NullWave v0.1.0");
+            Serilog.Log.Information("About NullWave v0.1.1");
         });
 
         OpenDataFolderCommand = new RelayCommand(() =>
@@ -114,6 +114,12 @@ public class MainViewModel : ViewModelBase
         {
             DataContext = Settings
         };
-        win.Show();
+
+        if (Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop &&
+            desktop.MainWindow != null)
+            win.ShowDialog(desktop.MainWindow);
+        else
+            win.Show();
     }
 }
