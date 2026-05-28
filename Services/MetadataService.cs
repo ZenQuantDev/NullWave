@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
+using TagLib;
 
 namespace NullWave.Services;
 
@@ -165,8 +166,28 @@ public class MetadataService
 
     public (string Title, string Artist) FetchFromLocalFile(string filePath)
     {
-        var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
-        // TODO: TagLib# for proper ID3 tag reading (Phase 3)
-        return (fileName, "Unknown");
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            var title = file.Tag.Title;
+            var artist = file.Tag.FirstPerformer
+                         ?? (file.Tag.Performers.Length > 0
+                             ? string.Join(", ", file.Tag.Performers)
+                             : null);
+
+            // Fall back to filename if tags are empty
+            if (string.IsNullOrWhiteSpace(title))
+                title = System.IO.Path.GetFileNameWithoutExtension(filePath);
+            if (string.IsNullOrWhiteSpace(artist))
+                artist = "Unknown";
+
+            Log.Information("Local file tags read: {Title} by {Artist}", title, artist);
+            return (title, artist);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "TagLib failed for {Path}, falling back to filename", filePath);
+            return (System.IO.Path.GetFileNameWithoutExtension(filePath), "Unknown");
+        }
     }
 }
