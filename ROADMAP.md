@@ -11,8 +11,8 @@ A music organizer with ability to download and play tracks from YouTube, Spotify
 - [x] Playlists
 - [x] Tags and notes on tracks
 - [x] Export to JSON/CSV
-- [ ] Remove Instagram source (cleanup)
-- [ ] Fix URL input flow (better validation feedback, source detection)
+- [x] Remove Instagram source (cleanup)
+- [x] Fix URL input flow (better validation feedback, source detection)
 - [ ] Tag system UI (add/remove tags on tracks)
 - [ ] Track detail panel (click track → see/edit full info, notes, tags)
 - [ ] Filter bar (clickable column headers, filter by source/favorite/tag)
