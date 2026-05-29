@@ -22,6 +22,8 @@ public class MainViewModel : ViewModelBase
     private readonly MetadataService _metadata;
     private readonly UrlParserService _urlParser = new();
     private readonly ExportService _export = new();
+    private readonly PlaybackService _playbackService = new();
+    private readonly DownloadService _downloadService = new();
 
     // Child ViewModels
     public TrackInputViewModel Input { get; }
@@ -31,6 +33,7 @@ public class MainViewModel : ViewModelBase
     public SettingsViewModel Settings { get; }
     public TrackDetailViewModel Detail { get; }
     public ImportViewModel Import { get; }
+    public PlayerViewModel Player { get; }
 
     // Menu commands
     public ICommand ExitCommand { get; }
@@ -59,9 +62,11 @@ public class MainViewModel : ViewModelBase
         Settings = new SettingsViewModel(_keyStore, _secureDelete);
         Detail = new TrackDetailViewModel(_library);
         Import = new ImportViewModel(_library, _metadata);
+        Player = new PlayerViewModel(_playbackService, _downloadService, _library);
 
         Input.TrackAdded += Library.Refresh;
         Library.TrackDetailRequested += Detail.OpenFor;
+        Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += Library.Refresh;
 
         ExitCommand = new RelayCommand(() =>

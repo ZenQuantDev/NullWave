@@ -16,7 +16,8 @@
     </Window.DataContext>
 
     <Window.Styles>
-        <!-- Sidebar button style -->
+
+        <!-- Sidebar nav button -->
         <Style Selector="Button.nav">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#777"/>
@@ -36,7 +37,7 @@
             <Setter Property="TextElement.Foreground" Value="#c084fc"/>
         </Style>
 
-        <!-- Track row hover -->
+        <!-- Track row selection -->
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1a1a2e"/>
         </Style>
@@ -86,7 +87,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
-        <!-- Input style -->
+        <!-- Input -->
         <Style Selector="TextBox.input">
             <Setter Property="Background" Value="#1a1a2e"/>
             <Setter Property="Foreground" Value="White"/>
@@ -96,6 +97,7 @@
             <Setter Property="Padding" Value="10,7"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
+
     </Window.Styles>
 
     <Window.Resources>
@@ -111,38 +113,56 @@
               Padding="4,2">
 
             <MenuItem Header="File" Foreground="#aaa">
-                <MenuItem Header="➕  Add Track" Command="{Binding Input.AddTrackCommand}"/>
-                <MenuItem Header="📂  Add Local File" Command="{Binding Input.AddLocalFileCommand}"/>
-                <MenuItem Header="📁  Import Folder" Command="{Binding Import.ImportFolderCommand}"/>
+                <MenuItem Header="➕  Add Track"
+                          Command="{Binding Input.AddTrackCommand}"/>
+                <MenuItem Header="📂  Add Local File"
+                          Command="{Binding Input.AddLocalFileCommand}"/>
+                <MenuItem Header="📁  Import Folder"
+                          Command="{Binding Import.ImportFolderCommand}"/>
                 <Separator/>
-                <MenuItem Header="💾  Export as JSON" Command="{Binding Export.ExportJsonCommand}"/>
-                <MenuItem Header="💾  Export as CSV" Command="{Binding Export.ExportCsvCommand}"/>
+                <MenuItem Header="💾  Export as JSON"
+                          Command="{Binding Export.ExportJsonCommand}"/>
+                <MenuItem Header="💾  Export as CSV"
+                          Command="{Binding Export.ExportCsvCommand}"/>
                 <Separator/>
-                <MenuItem Header="✖  Exit" Command="{Binding ExitCommand}"/>
+                <MenuItem Header="✖  Exit"
+                          Command="{Binding ExitCommand}"/>
             </MenuItem>
 
             <MenuItem Header="Library" Foreground="#aaa">
-                <MenuItem Header="✖  Clear Search" Command="{Binding Library.ClearSearchCommand}"/>
+                <MenuItem Header="✖  Clear Search"
+                          Command="{Binding Library.ClearSearchCommand}"/>
                 <Separator/>
-                <MenuItem Header="Sort by Title" Command="{Binding Library.SortByTitleCommand}"/>
-                <MenuItem Header="Sort by Artist" Command="{Binding Library.SortByArtistCommand}"/>
-                <MenuItem Header="Sort by Date Added" Command="{Binding Library.SortByDateCommand}"/>
-                <MenuItem Header="Sort by Play Count" Command="{Binding Library.SortByPlayCountCommand}"/>
+                <MenuItem Header="Sort by Title"
+                          Command="{Binding Library.SortByTitleCommand}"/>
+                <MenuItem Header="Sort by Artist"
+                          Command="{Binding Library.SortByArtistCommand}"/>
+                <MenuItem Header="Sort by Date Added"
+                          Command="{Binding Library.SortByDateCommand}"/>
+                <MenuItem Header="Sort by Play Count"
+                          Command="{Binding Library.SortByPlayCountCommand}"/>
             </MenuItem>
 
             <MenuItem Header="Settings" Foreground="#aaa">
-                <MenuItem Header="⚙  Open Settings" Command="{Binding OpenSettingsCommand}"/>
+                <MenuItem Header="⚙  Open Settings"
+                          Command="{Binding OpenSettingsCommand}"/>
                 <Separator/>
-                <MenuItem Header="🗑  Delete API Keys" Command="{Binding Settings.DeleteApiKeysCommand}"/>
-                <MenuItem Header="🗑  Delete Logs" Command="{Binding Settings.DeleteLogsCommand}"/>
+                <MenuItem Header="🗑  Delete API Keys"
+                          Command="{Binding Settings.DeleteApiKeysCommand}"/>
+                <MenuItem Header="🗑  Delete Logs"
+                          Command="{Binding Settings.DeleteLogsCommand}"/>
                 <Separator/>
-                <MenuItem Header="⚠  Wipe Everything" Command="{Binding Settings.DeleteEverythingCommand}"/>
+                <MenuItem Header="⚠  Wipe Everything"
+                          Command="{Binding Settings.DeleteEverythingCommand}"/>
             </MenuItem>
 
             <MenuItem Header="Help" Foreground="#aaa">
-                <MenuItem Header="📋  About NullWave" Command="{Binding AboutCommand}"/>
-                <MenuItem Header="📁  Open Data Folder" Command="{Binding OpenDataFolderCommand}"/>
-                <MenuItem Header="📜  View Logs" Command="{Binding OpenLogsCommand}"/>
+                <MenuItem Header="📋  About NullWave"
+                          Command="{Binding AboutCommand}"/>
+                <MenuItem Header="📁  Open Data Folder"
+                          Command="{Binding OpenDataFolderCommand}"/>
+                <MenuItem Header="📜  View Logs"
+                          Command="{Binding OpenLogsCommand}"/>
             </MenuItem>
 
         </Menu>
@@ -152,29 +172,51 @@
                 Background="#0a0a12"
                 BorderBrush="#1e1e2e"
                 BorderThickness="0,1,0,0"
-                Padding="16,8">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0"
-                           Text="♪"
-                           Foreground="#7c3aed"
-                           FontSize="18"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,0"/>
-                <TextBlock Grid.Column="1"
-                           Text="No track playing — Phase 3 coming soon"
-                           Foreground="#444"
-                           FontSize="12"
-                           VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2"
-                           Text="🔊"
-                           Foreground="#444"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0"/>
+                Padding="12,6">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+
+                <Button Grid.Column="0"
+                        Classes="icon"
+                        Content="{Binding Player.PlayPauseIcon}"
+                        Command="{Binding Player.PlayPauseCommand}"
+                        FontSize="16"
+                        Margin="0,0,8,0"/>
+
+                <Button Grid.Column="1"
+                        Classes="icon"
+                        Content="⏹"
+                        Command="{Binding Player.StopCommand}"
+                        FontSize="14"
+                        Margin="0,0,12,0"/>
+
+                <StackPanel Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Spacing="1">
+                    <TextBlock Text="{Binding Player.CurrentTrackDisplay}"
+                               Foreground="White"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Player.StatusText}"
+                               Foreground="#555"
+                               FontSize="10"/>
+                </StackPanel>
+
                 <TextBlock Grid.Column="3"
-                           Text="v0.1.1"
-                           Foreground="#333"
+                           Text="{Binding Player.PositionDisplay}"
+                           Foreground="#555"
                            FontSize="10"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center"
+                           Margin="12,0"/>
+
+                <ProgressBar Grid.Column="4"
+                             Value="{Binding Player.DownloadProgress}"
+                             Maximum="1"
+                             Width="80"
+                             Height="3"
+                             IsVisible="{Binding Player.IsDownloading}"
+                             Foreground="#7c3aed"
+                             Background="#1e1e2e"
+                             VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
@@ -190,8 +232,8 @@
                     Padding="8,12">
                 <DockPanel>
 
-                    <!-- App title -->
-                    <StackPanel DockPanel.Dock="Top" Margin="8,0,0,16">
+                    <StackPanel DockPanel.Dock="Top"
+                                Margin="8,0,0,16">
                         <TextBlock Text="🎵 NullWave"
                                    Foreground="White"
                                    FontSize="16"
@@ -213,15 +255,12 @@
                         <Button Content="🎵  Library"
                                 Classes="nav active"
                                 Command="{Binding NavigateLibraryCommand}"/>
-
                         <Button Content="📋  Playlists"
                                 Classes="nav"
                                 Command="{Binding NavigatePlaylistsCommand}"/>
-
                         <Button Content="🎶  Queue"
                                 Classes="nav"
                                 Command="{Binding NavigateQueueCommand}"/>
-
                         <Button Content="📊  Stats"
                                 Classes="nav"
                                 Command="{Binding NavigateStatsCommand}"/>
@@ -236,7 +275,6 @@
                         <Button Content="⭐  Favorites"
                                 Classes="nav"
                                 Command="{Binding Library.ShowFavoritesCommand}"/>
-
                         <Button Content="🕐  Recent"
                                 Classes="nav"
                                 Command="{Binding Library.ShowRecentCommand}"/>
@@ -251,26 +289,21 @@
                         <Button Content="▶  YouTube"
                                 Classes="nav"
                                 Command="{Binding Library.FilterYouTubeCommand}"/>
-
                         <Button Content="♪  Spotify"
                                 Classes="nav"
                                 Command="{Binding Library.FilterSpotifyCommand}"/>
-
                         <Button Content="◎  Last.fm"
                                 Classes="nav"
                                 Command="{Binding Library.FilterLastFmCommand}"/>
-
                         <Button Content="☁  SoundCloud"
                                 Classes="nav"
                                 Command="{Binding Library.FilterSoundCloudCommand}"/>
-
                         <Button Content="💾  Local"
                                 Classes="nav"
                                 Command="{Binding Library.FilterLocalCommand}"/>
 
                     </StackPanel>
 
-                    <!-- Track count at bottom of sidebar -->
                     <TextBlock DockPanel.Dock="Bottom"
                                Text="{Binding Library.Tracks.Count, StringFormat='📦 {0} tracks'}"
                                Foreground="#333"
@@ -290,13 +323,11 @@
                         BorderBrush="#1e1e2e"
                         BorderThickness="0,0,0,1">
                     <Grid ColumnDefinitions="*,Auto,Auto">
-
                         <TextBox Grid.Column="0"
                                  Classes="input"
                                  Text="{Binding Library.SearchQuery, Mode=TwoWay}"
                                  PlaceholderText="🔍  Search tracks..."
                                  Margin="0,0,10,0"/>
-
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding Library.SortOptions}"
                                   SelectedItem="{Binding Library.CurrentSort}"
@@ -305,7 +336,6 @@
                                   BorderBrush="#2a2a3e"
                                   Margin="0,0,10,0"
                                   MinWidth="130"/>
-
                         <Button Grid.Column="2"
                                 Content="🗑  Remove"
                                 Classes="danger"
@@ -313,7 +343,7 @@
                     </Grid>
                 </Border>
 
-                <!-- Import progress bar -->
+                <!-- Import progress -->
                 <Border DockPanel.Dock="Top"
                         Background="#0d1a0d"
                         Padding="16,8"
@@ -332,20 +362,16 @@
 
                 <!-- Column headers -->
                 <Grid DockPanel.Dock="Top"
-                      ColumnDefinitions="24,*,160,90,110"
+                      ColumnDefinitions="24,*,160,90,110,32,32"
                       Margin="16,8,16,4">
                     <TextBlock Grid.Column="1" Text="TITLE / ARTIST"
-                               Foreground="#333" FontSize="9" FontWeight="Bold"
-                               LetterSpacing="1"/>
+                               Foreground="#333" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                     <TextBlock Grid.Column="2" Text="SOURCE"
-                               Foreground="#333" FontSize="9" FontWeight="Bold"
-                               LetterSpacing="1"/>
+                               Foreground="#333" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                     <TextBlock Grid.Column="3" Text="PLAYS"
-                               Foreground="#333" FontSize="9" FontWeight="Bold"
-                               LetterSpacing="1"/>
+                               Foreground="#333" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                     <TextBlock Grid.Column="4" Text="ADDED"
-                               Foreground="#333" FontSize="9" FontWeight="Bold"
-                               LetterSpacing="1"/>
+                               Foreground="#333" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                 </Grid>
 
                 <!-- Track List -->
@@ -354,12 +380,36 @@
                          Background="Transparent"
                          Margin="8,0,8,8"
                          SelectionChanged="OnTrackSelected">
+
+                    <ListBox.ItemContainerTheme>
+                        <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="ContextMenu">
+                                <ContextMenu>
+                                    <MenuItem Header="▶  Play"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.PlayTrackCommand}"
+                                              CommandParameter="{Binding $parent[ListBoxItem].Content}"/>
+                                    <MenuItem Header="🔍  View Details"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.OpenDetailCommand}"/>
+                                    <MenuItem Header="⭐  Toggle Favorite"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.ToggleFavoriteCommand}"/>
+                                    <MenuItem Header="🎶  Add to Queue"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.AddToQueueCommand}"/>
+                                    <MenuItem Header="🔗  Copy URL"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.CopyUrlCommand}"/>
+                                    <Separator/>
+                                    <MenuItem Header="🗑  Remove"
+                                              Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.RemoveTrackCommand}"/>
+                                </ContextMenu>
+                            </Setter>
+                        </ControlTheme>
+                    </ListBox.ItemContainerTheme>
+
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Track">
                             <Grid ColumnDefinitions="24,*,160,90,110,32,32"
                                   Margin="8,4">
 
-                                <!-- Favorite star -->
+                                <!-- Favorite indicator -->
                                 <TextBlock Grid.Column="0"
                                            Text="⭐"
                                            FontSize="13"
@@ -367,7 +417,7 @@
                                            Foreground="#f59e0b"
                                            Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
 
-                                <!-- Title + Artist stacked -->
+                                <!-- Title + Artist -->
                                 <StackPanel Grid.Column="1"
                                             VerticalAlignment="Center"
                                             Spacing="1">
@@ -382,14 +432,12 @@
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
 
-                                <!-- Source badge -->
-                                <Border Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        HorizontalAlignment="Left">
-                                    <TextBlock Text="{Binding Source}"
-                                               Foreground="#7c3aed"
-                                               FontSize="11"/>
-                                </Border>
+                                <!-- Source -->
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Source}"
+                                           Foreground="#7c3aed"
+                                           FontSize="11"
+                                           VerticalAlignment="Center"/>
 
                                 <!-- Play count -->
                                 <TextBlock Grid.Column="3"
@@ -405,20 +453,23 @@
                                            FontSize="11"
                                            VerticalAlignment="Center"/>
 
-                                <!-- Favorite toggle button -->
+                                <!-- Favorite toggle -->
                                 <Button Grid.Column="5"
                                         Classes="icon"
                                         Content="⭐"
                                         Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.ToggleFavoriteCommand}"
                                         ToolTip.Tip="Toggle Favorite"/>
 
-                                <!-- Three dot menu -->
+                                <!-- Three-dot menu -->
                                 <Button Grid.Column="6"
                                         Classes="icon"
                                         Content="⋮"
                                         ToolTip.Tip="More options">
                                     <Button.Flyout>
                                         <MenuFlyout>
+                                            <MenuItem Header="▶  Play"
+                                                      Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.PlayTrackCommand}"
+                                                      CommandParameter="{Binding}"/>
                                             <MenuItem Header="🔍  View Details"
                                                       Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).Library.OpenDetailCommand}"/>
                                             <MenuItem Header="⭐  Toggle Favorite"
@@ -458,7 +509,6 @@
                               IsVisible="{Binding Detail.IsOpen}">
                     <StackPanel Spacing="16" Width="280">
 
-                        <!-- Header -->
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0"
                                        Text="Track Details"
@@ -474,39 +524,20 @@
 
                         <Separator Background="#1e1e2e"/>
 
-                        <!-- Editable Title -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="TITLE"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
-                            <TextBox Classes="input"
-                                     Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
+                            <TextBlock Text="TITLE" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                            <TextBox Classes="input" Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
                         </StackPanel>
 
-                        <!-- Editable Artist -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="ARTIST"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
-                            <TextBox Classes="input"
-                                     Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
+                            <TextBlock Text="ARTIST" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                            <TextBox Classes="input" Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                         </StackPanel>
 
-                        <!-- Source + Favorite row -->
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="SOURCE"
-                                           Foreground="#444"
-                                           FontSize="9"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1"/>
-                                <TextBlock Text="{Binding Detail.DisplaySource}"
-                                           Foreground="#7c3aed"
-                                           FontSize="12"/>
+                                <TextBlock Text="SOURCE" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                                <TextBlock Text="{Binding Detail.DisplaySource}" Foreground="#7c3aed" FontSize="12"/>
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Classes="icon"
@@ -516,55 +547,28 @@
                                     ToolTip.Tip="Toggle Favorite"/>
                         </Grid>
 
-                        <!-- Stats row -->
                         <Grid ColumnDefinitions="*,*">
                             <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="PLAYS"
-                                           Foreground="#444"
-                                           FontSize="9"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1"/>
-                                <TextBlock Text="{Binding Detail.DisplayPlayCount}"
-                                           Foreground="White"
-                                           FontSize="13"/>
+                                <TextBlock Text="PLAYS" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                                <TextBlock Text="{Binding Detail.DisplayPlayCount}" Foreground="White" FontSize="13"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="2">
-                                <TextBlock Text="LAST PLAYED"
-                                           Foreground="#444"
-                                           FontSize="9"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1"/>
-                                <TextBlock Text="{Binding Detail.DisplayLastPlayed}"
-                                           Foreground="White"
-                                           FontSize="11"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="LAST PLAYED" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                                <TextBlock Text="{Binding Detail.DisplayLastPlayed}" Foreground="White" FontSize="11" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Grid>
 
-                        <!-- Date added -->
                         <StackPanel Spacing="2">
-                            <TextBlock Text="DATE ADDED"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
-                            <TextBlock Text="{Binding Detail.DisplayDateAdded}"
-                                       Foreground="White"
-                                       FontSize="12"/>
+                            <TextBlock Text="DATE ADDED" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                            <TextBlock Text="{Binding Detail.DisplayDateAdded}" Foreground="White" FontSize="12"/>
                         </StackPanel>
 
-                        <!-- URL / Path -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="URL / PATH"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
+                            <TextBlock Text="URL / PATH" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                             <TextBlock Text="{Binding Detail.DisplayUrl}"
                                        Foreground="#7c3aed"
                                        FontSize="10"
-                                       TextWrapping="Wrap"
-                                       TextTrimming="None"/>
+                                       TextWrapping="Wrap"/>
                             <Button Content="🔗  Copy"
                                     Classes="icon"
                                     Command="{Binding Detail.CopyUrlCommand}"
@@ -573,39 +577,32 @@
 
                         <Separator Background="#1e1e2e"/>
 
-                        <!-- Tags -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="TAGS"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
-                            <WrapPanel>
-                                <ItemsControl ItemsSource="{Binding Detail.Tags}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Classes="tag" Margin="0,0,4,4">
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <TextBlock Text="{Binding}"
-                                                               Foreground="#c084fc"
-                                                               FontSize="11"/>
-                                                    <Button Classes="icon"
-                                                            Content="✕"
-                                                            FontSize="9"
-                                                            Padding="2"
-                                                            Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
-                                                            CommandParameter="{Binding}"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </WrapPanel>
+                            <TextBlock Text="TAGS" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                            <ItemsControl ItemsSource="{Binding Detail.Tags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Classes="tag" Margin="0,0,4,4">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="{Binding}"
+                                                           Foreground="#c084fc"
+                                                           FontSize="11"/>
+                                                <Button Classes="icon"
+                                                        Content="✕"
+                                                        FontSize="9"
+                                                        Padding="2"
+                                                        Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBox Grid.Column="0"
                                          Classes="input"
@@ -622,13 +619,8 @@
 
                         <Separator Background="#1e1e2e"/>
 
-                        <!-- Notes -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="NOTES"
-                                       Foreground="#444"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"/>
+                            <TextBlock Text="NOTES" Foreground="#444" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
                             <TextBox Classes="input"
                                      Text="{Binding Detail.EditNotes, Mode=TwoWay}"
                                      PlaceholderText="Add notes..."
@@ -636,7 +628,6 @@
                                      Height="80"/>
                         </StackPanel>
 
-                        <!-- Save button -->
                         <Button Content="💾  Save Changes"
                                 Classes="primary"
                                 Command="{Binding Detail.SaveCommand}"

@@ -5,6 +5,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.1.2] - 2026-05-29
+
+### Added
+- LibVLCSharp local file playback (play/pause/stop/seek/volume)
+- yt-dlp download integration (audio download to ~/.nullwave/downloads/)
+- PlayerViewModel — mini player bar with track display, status, download progress
+- DownloadService — wraps yt-dlp as process, parses progress, fires completion events
+- PlaybackService — wraps LibVLCSharp MediaPlayer with event-driven state
+- TrackDetailViewModel — sliding right panel (0→320px animated) with editable fields
+- ImportViewModel — bulk folder import with progress bar and subfolder dialog
+- ConfirmDialog — reusable Yes/No dialog
+- BoolToOpacityConverter — favorite star opacity (full/dim)
+- Play command in ⋮ context menu per track row
+- Mini player bar wired to PlayerViewModel
+- FilterLastFmCommand in sidebar
+
+### Changed
+- MainViewModel wired: Library.PlayTrackRequested → Player.PlayTrack
+- MainWindow.axaml fully rewritten with sidebar, detail panel, floating ＋ button
+- Track rows now show stacked Title+Artist, play count, inline ⭐, ⋮ menu
+- Material.Avalonia removed (incompatible with Avalonia 12.0.3), pure custom styles used
+
+### Fixed
+- libVLC not found on Fedora (/usr/lib64) — symlinks + ldconfig config added
+- BoolConverters.ToObject unavailable in Avalonia 12 — replaced with custom converter
+- FilterLastFmCommand declared twice — duplicate removed
+- Mini player bar had no Player bindings — fully wired
+
+### Security
+- API key redaction in logs verified working
+- KeyStore encryption confirmed operational
+
 ## [0.1.1] - 2026-05-28
 
 ### Added

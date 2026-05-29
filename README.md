@@ -1,60 +1,73 @@
 # 🎵 NullWave
 
-A personal music collector and organizer desktop app built with C# and Avalonia UI on Linux.
+A personal music organizer with download and playback capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
 
 ## About
 
-NullWave lets you save, organize, and manage music from YouTube, Spotify, SoundCloud, and local
-files in one unified library. Organizer-first, player second.
+NullWave lets you save, organize, download, and play music from YouTube, Spotify, Last.fm, SoundCloud, and local files in one unified library. Organizer-first, player second.
 
 > ⚠️ Please read [DISCLAIMER.md](DISCLAIMER.md) before using NullWave.
 
 ## Features
 
-- Add tracks by URL (YouTube, Spotify, SoundCloud) or local file
-- Auto-fetch metadata from YouTube Data API v3
+### Organizer
+- Add tracks by URL (YouTube, Spotify, Last.fm, SoundCloud) or local file
+- Auto-fetch metadata from YouTube Data API v3 and Last.fm
+- Read ID3 tags from local audio files (MP3, FLAC, WAV, OGG, M4A, AAC)
 - Library with search, sort, favorites, play tracking, and queue
+- Bulk folder import with subfolder support and duplicate detection
+- Track detail panel with editable title, artist, notes, and tags
 - Playlist management
 - Export library to JSON or CSV
+- Source filters (YouTube, Spotify, Last.fm, SoundCloud, Local)
+
+### Security
 - Encrypted local API key storage (AES-256-GCM, machine-bound)
-- Secure data wipe (keys, logs, all data)
-- Serilog logging with API key redaction
-- Settings window with full key management
+- Secure 3-pass data wipe (keys, logs, everything)
+- Log redaction — API keys never appear in log output
+- Keys stored at `~/.nullwave/keys.enc`, never in project folder
+
+### Playback & Download
+- Local file playback via LibVLCSharp
+- YouTube audio download via yt-dlp (downloads to `~/.nullwave/downloads/`)
+- Mini player bar with play/pause/stop and progress display
 
 ## Tech Stack
 
-- .NET 8, C#
-- Avalonia UI 12 (MVVM)
-- Serilog (logging)
+- .NET 8, C#, Avalonia UI 12 (MVVM)
+- LibVLCSharp + system libVLC (playback)
+- yt-dlp (download)
+- TagLib# (ID3 tag reading)
+- Serilog (logging with redaction)
 - xUnit (23 tests passing)
 - YouTube Data API v3
-- Spotify Web API (coming soon)
-- SoundCloud API (coming soon)
-- SQLite + EF Core (coming soon)
-- yt-dlp (coming soon)
-- NAudio / LibVLCSharp (coming soon)
+- Last.fm API
+- SQLite + EF Core (coming — Phase 5)
 
 ## API Keys
 
-NullWave stores API keys encrypted on your machine at `~/.nullwave/keys.enc`.
-Keys never touch the project folder or git history.
+Keys are stored encrypted at `~/.nullwave/keys.enc` — never in the project folder.
+Manage them via **Settings → Open Settings** inside the app, or set environment variables as fallback:
 
-You can manage keys via **Settings → Open Settings** inside the app,
-or set them as environment variables as a fallback:
+```bash
+export NULLWAVE_YOUTUBE_KEY="your_key"
+export NULLWAVE_LASTFM_KEY="your_key"
+```
 
-```bashexport NULLWAVE_YOUTUBE_KEY="your_key_here"
-export NULLWAVE_SPOTIFY_CLIENT_ID="your_key_here"
-export NULLWAVE_SPOTIFY_CLIENT_SECRET="your_key_here"
-export NULLWAVE_SOUNDCLOUD_CLIENT_ID="your_key_here"
+## Requirements
+
+- .NET 8 SDK
+- libVLC (`sudo dnf install vlc-libs` on Fedora)
+- yt-dlp (`pip install yt-dlp`)
 
 ## Building
 
-```bashgit clone https://github.com/Alexsandrgardaphadze/NullWave.git
+```bash
+git clone https://github.com/Alexsandrgardaphadze/NullWave.git
 cd NullWave
 dotnet build
 dotnet run
-
-Requires .NET 8 SDK.
+```
 
 ## Roadmap
 
@@ -66,7 +79,7 @@ ZenQuant — PackItPro Team
 
 ## Version
 
-v0.1.1
+v0.1.2
 
 ## License
 

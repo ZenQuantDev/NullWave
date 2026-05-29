@@ -51,8 +51,10 @@ public class LibraryViewModel : ViewModelBase
     public ICommand CopyUrlCommand { get; }
     public ICommand AddToPlaylistCommand { get; }
     public ICommand OpenDetailCommand { get; }
+    public ICommand PlayTrackCommand { get; }
 
     public event Action<Track>? TrackDetailRequested;
+    public event Action<Track>? PlayTrackRequested;
 
     public string SearchQuery
     {
@@ -111,6 +113,7 @@ public class LibraryViewModel : ViewModelBase
         CopyUrlCommand = new RelayCommand(CopyUrl);
         OpenDetailCommand = new RelayCommand(OpenDetail);
         AddToPlaylistCommand = new RelayCommand(() => { });
+        PlayTrackCommand = new RelayCommand<Track>(t => { if (t != null) PlayTrackRequested?.Invoke(t); });
     }
 
     public void Refresh()
