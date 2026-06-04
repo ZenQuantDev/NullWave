@@ -1,0 +1,52 @@
+<Menu xmlns="https://github.com/avaloniaui"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:vm="using:NullWave.ViewModels"
+      x:Class="NullWave.Views.Controls.MenuBarView"
+      x:DataType="vm:MainViewModel"
+      Background="{StaticResource BrushSurface}"
+      Foreground="{StaticResource BrushTextSecondary}"
+      FontSize="{StaticResource FontSizeBase}"
+      Padding="6,3">
+
+  <!--
+    This Menu is hidden by default (IsVisible bound in MainWindow.axaml).
+    Press Alt to toggle it — handled in MainWindow.axaml.cs OnKeyDown.
+    It auto-hides when the window loses focus on the menu (handled in code-behind if needed).
+  -->
+
+  <MenuItem Header="File">
+    <MenuItem Header="Add Track"      Command="{Binding Input.AddTrackCommand}"/>
+    <MenuItem Header="Add Local File" Command="{Binding Input.AddLocalFileCommand}"/>
+    <MenuItem Header="Import Folder"  Command="{Binding Import.ImportFolderCommand}"/>
+    <Separator/>
+    <MenuItem Header="Export as JSON" Command="{Binding Export.ExportJsonCommand}"/>
+    <MenuItem Header="Export as CSV"  Command="{Binding Export.ExportCsvCommand}"/>
+    <Separator/>
+    <MenuItem Header="Exit"           Command="{Binding ExitCommand}"/>
+  </MenuItem>
+
+  <MenuItem Header="Library">
+    <MenuItem Header="Clear Search"      Command="{Binding Library.ClearSearchCommand}"/>
+    <Separator/>
+    <MenuItem Header="Sort by Title"     Command="{Binding Library.SortByTitleCommand}"/>
+    <MenuItem Header="Sort by Artist"    Command="{Binding Library.SortByArtistCommand}"/>
+    <MenuItem Header="Sort by Date"      Command="{Binding Library.SortByDateCommand}"/>
+    <MenuItem Header="Sort by Play Count" Command="{Binding Library.SortByPlayCountCommand}"/>
+  </MenuItem>
+
+  <MenuItem Header="Settings">
+    <MenuItem Header="Open Settings"   Command="{Binding OpenSettingsCommand}"/>
+    <Separator/>
+    <MenuItem Header="Delete API Keys" Command="{Binding Settings.DeleteApiKeysCommand}"/>
+    <MenuItem Header="Delete Logs"     Command="{Binding Settings.DeleteLogsCommand}"/>
+    <Separator/>
+    <MenuItem Header="Wipe Everything" Command="{Binding Settings.DeleteEverythingCommand}"/>
+  </MenuItem>
+
+  <MenuItem Header="Help">
+    <MenuItem Header="About NullWave"  Command="{Binding AboutCommand}"/>
+    <MenuItem Header="Open Data Folder" Command="{Binding OpenDataFolderCommand}"/>
+    <MenuItem Header="View Logs"       Command="{Binding OpenLogsCommand}"/>
+  </MenuItem>
+
+</Menu>

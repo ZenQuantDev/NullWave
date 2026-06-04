@@ -1,5 +1,5 @@
-using System.Linq;
 using System;
+using System.Linq;
 using LibVLCSharp.Shared;
 using Serilog;
 
@@ -9,6 +9,7 @@ public class PlaybackService : IDisposable
 {
     private readonly LibVLC _libVlc;
     private readonly MediaPlayer _player;
+    private Media? _currentMedia; // Keep reference alive while playing
     private bool _disposed;
 
     public event Action<float>? PositionChanged;
@@ -17,10 +18,11 @@ public class PlaybackService : IDisposable
 
     public bool IsPlaying => _player.IsPlaying;
     public bool IsPaused => !_player.IsPlaying && _player.Media != null;
+    
     public float Volume
     {
         get => _player.Volume / 100f;
-        set => _player.Volume = (int)(value * 100);
+        set => _player.Volume = (int)Math.Clamp(value * 100, 0, 100);
     }
 
     public TimeSpan Position => TimeSpan.FromMilliseconds(_player.Time);
@@ -32,18 +34,10 @@ public class PlaybackService : IDisposable
         _libVlc = new LibVLC();
         _player = new MediaPlayer(_libVlc);
 
-        _player.PositionChanged += (_, e) =>
-            PositionChanged?.Invoke(e.Position);
-
-        _player.Playing += (_, _) =>
-            StateChanged?.Invoke(PlaybackState.Playing);
-
-        _player.Paused += (_, _) =>
-            StateChanged?.Invoke(PlaybackState.Paused);
-
-        _player.Stopped += (_, _) =>
-            StateChanged?.Invoke(PlaybackState.Stopped);
-
+        _player.PositionChanged += (_, e) => PositionChanged?.Invoke(e.Position);
+        _player.Playing += (_, _) => StateChanged?.Invoke(PlaybackState.Playing);
+        _player.Paused += (_, _) => StateChanged?.Invoke(PlaybackState.Paused);
+        _player.Stopped += (_, _) => StateChanged?.Invoke(PlaybackState.Stopped);
         _player.EndReached += (_, _) =>
         {
             StateChanged?.Invoke(PlaybackState.Stopped);
@@ -55,12 +49,16 @@ public class PlaybackService : IDisposable
     {
         try
         {
-            var isUrl = path.StartsWith("http://") || path.StartsWith("https://");
-            using var media = isUrl
+            _currentMedia?.Dispose(); // Clean up previous media
+            
+            var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                        path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+            
+            _currentMedia = isUrl
                 ? new Media(_libVlc, new Uri(path))
                 : new Media(_libVlc, path);
-
-            _player.Media = media;
+                
+            _player.Media = _currentMedia;
             _player.Play();
             Log.Information("Playback started: {Path}", path);
         }
@@ -81,7 +79,7 @@ public class PlaybackService : IDisposable
 
     public void Resume()
     {
-        if (!_player.IsPlaying)
+        if (!_player.IsPlaying && _player.Media != null)
         {
             _player.Play();
             Log.Debug("Playback resumed");
@@ -103,15 +101,11 @@ public class PlaybackService : IDisposable
     {
         if (_disposed) return;
         _player.Stop();
+        _currentMedia?.Dispose();
         _player.Dispose();
         _libVlc.Dispose();
         _disposed = true;
     }
 }
 
-public enum PlaybackState
-{
-    Stopped,
-    Playing,
-    Paused
-}
+    public enum PlaybackState { Stopped, Playing, Paused }

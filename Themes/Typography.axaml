@@ -1,0 +1,28 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    NullWave Typography System
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Scale:  xs=11  sm=12  base=14  md=15  lg=17  xl=20  2xl=24  3xl=30
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  -->
+
+  <x:Double x:Key="FontSizeXs">  11</x:Double>
+  <x:Double x:Key="FontSizeSm">  12</x:Double>
+  <x:Double x:Key="FontSizeBase">14</x:Double>
+  <x:Double x:Key="FontSizeMd">  15</x:Double>
+  <x:Double x:Key="FontSizeLg">  17</x:Double>
+  <x:Double x:Key="FontSizeXl">  20</x:Double>
+  <x:Double x:Key="FontSize2xl"> 24</x:Double>
+  <x:Double x:Key="FontSize3xl"> 30</x:Double>
+
+  <!-- Semantic aliases (use these in markup for intent clarity) -->
+  <x:Double x:Key="FontSizeLabel">     11</x:Double>  <!-- section headers, badges -->
+  <x:Double x:Key="FontSizeBody">      14</x:Double>  <!-- default body text       -->
+  <x:Double x:Key="FontSizeBodyLarge"> 15</x:Double>  <!-- slightly larger body    -->
+  <x:Double x:Key="FontSizeSubtitle">  17</x:Double>  <!-- card subtitles          -->
+  <x:Double x:Key="FontSizeTitle">     20</x:Double>  <!-- section titles          -->
+  <x:Double x:Key="FontSizeHeading">   24</x:Double>  <!-- page headings           -->
+
+</ResourceDictionary>

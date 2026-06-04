@@ -5,7 +5,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.1.2] - 2026-05-29
+## [0.1.3] - 30-05-2026
+
+### Added
+- `Themes/` folder — design system split into four files:
+  - `Colors.axaml` — full color palette (dark blue, purple accent, surface layers) + all brushes
+  - `Typography.axaml` — type scale xs→3xl with semantic aliases (Label, Body, Title, Heading)
+  - `Shapes.axaml` — corner radii, spacing tokens, dimension constants (sidebar width, player height, avatar sizes)
+  - `ControlStyles.axaml` — all reusable styles: nav/icon-btn/primary/ghost buttons, ListBoxItem, TextBox, ProgressBar, Slider, Menu, ScrollBar
+- `App.axaml` reduced to thin shell — merges theme files via `ResourceInclude` and `StyleInclude`
+- `Helpers/NullWavePaths.cs` — single source of truth for all `~/.nullwave/*` paths; `EnsureDirectories()` called at startup
+- `Helpers/Logging/NullActionLogger.cs` — static structured logger for user actions and attributed errors
+- `Helpers/Logging/NullWaveLogConfig.cs` — Serilog configuration with three separate file sinks (System, UserActions, Errors)
+- `Services/StartupDiagnosticsService.cs` — logs structured startup block: version, runtime, OS, library load time, API key status, connectivity check, VLC + yt-dlp versions
+- `ViewModels/UserProfileViewModel.cs` — local profile (username, bio, avatar), persisted to `~/.nullwave/profile.json`, no auth required
+- `Program.cs` updated — `EnsureDirectories()` + `NullWaveLogConfig.Initialize()` called before anything else; top-level exception catch + `CloseAndFlush()` on exit
+- `MainViewModel` — `IsMenuBarVisible` + `ToggleMenuBar()` for Alt-key toggle; `Profile` child ViewModel; startup diagnostics wired
+- `PlayerViewModel` — `AlbumArtPath` / `HasAlbumArt` properties (Phase 6 placeholder); all playback actions now emit structured log entries via `NullActionLogger`
+- `MainWindow.axaml.cs` — `OnKeyDown` handler toggles menu bar on `Alt` press (Firefox-style)
+- `SidebarView.axaml` — Discord-style local profile bar at bottom (avatar circle, username, bio, gear → Settings); section labels use design tokens; emoji replaced with text labels
+- `MiniPlayerView.axaml` — Spotify-style 3-column layout: track info + art thumbnail left, controls + progress center, volume slider right
+- `MenuBarView.axaml` — hidden by default, shown/hidden via Alt key; all emoji removed from menu items
+
+### Changed
+- All hardcoded hex colors replaced with `{StaticResource Brush*}` tokens
+- All hardcoded font sizes replaced with `{StaticResource FontSize*}` tokens
+- All hardcoded corner radii replaced with `{StaticResource Radius*}` tokens
+- `ImportProgressView` shows track count fraction (x / total) alongside status text
+
+### Fixed
+- `MenuBarView.axaml` XAML parse error — missing space between `Header="Sort by Play Count"` and `Command=` attribute
+- `MenuBarView.axaml` same issue on `Header="Open Data Folder"` and `Command=`
+- `PlayerViewModel.AlbumArtPath` no longer reads from `Track` model (Phase 6 concern) — stored on ViewModel directly, cleared on each new track
+
+### Logging output after this version
+```
+~/.nullwave/logs/
+  NullWave-YYYYMMDD.log         ← all events
+  UserActions-YYYYMMDD.log      ← [ACTION] entries only
+  Errors-YYYYMMDD.log           ← errors with source attribution
+```
+
+---
+
+## [0.1.2] - 29-05-2026
 
 ### Added
 - LibVLCSharp local file playback (play/pause/stop/seek/volume)
@@ -37,7 +80,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - API key redaction in logs verified working
 - KeyStore encryption confirmed operational
 
-## [0.1.1] - 2026-05-28
+---
+
+## [0.1.1] - 28-05-2026
 
 ### Added
 - YouTube Data API v3 real metadata fetching (title + channel name)
@@ -62,7 +107,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Removed Instagram from TrackSource (replaced with SoundCloud)
 - MainViewModel refactored into focused child ViewModels
-  (TrackInputViewModel, LibraryViewModel, PlaylistViewModel, ExportViewModel)
 - ViewModelBase moved to ViewModels/Base/ namespace
 - RelayCommand updated with generic RelayCommand<T>
 - API keys moved from config files to environment variables, then to encrypted KeyStore
@@ -71,7 +115,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - Duplicate variable declaration in TrackInputViewModel.AddLocalFileAsync
-- Missing `using NullWave.ViewModels.Base` in SettingsViewModel and TrackViewModel
+- Missing using directives in SettingsViewModel and TrackViewModel
 - appsettings.json removed from .csproj to prevent build errors after file deletion
 - obj/bin removed from git tracking
 
@@ -83,19 +127,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.1.0] - 2026-05-26
+## [0.1.0] - 26-05-2026
 
 ### Added
 - Initial project setup with Avalonia UI (.NET 8)
 - Core track model: Title, Artist, URL, FilePath, Source, DateAdded
 - TrackSource enum (YouTube, Spotify, Local, Instagram, Unknown)
 - LibraryService with full in-memory track management
-  - Add, Remove, Search, Filter by source
-  - Duplicate detection (URL, FilePath, Title+Artist)
-  - Favorites, play count, LastPlayed tracking
-  - Recently added and recently played views
-  - Sorting by Title, Artist, DateAdded, Source, PlayCount, LastPlayed
-  - Queue system, history capped at 200 entries
 - PlaylistService (Create, Remove, Rename, Add/Remove/Reorder tracks)
 - MetadataService (placeholder, API-ready)
 - UrlParserService (YouTube ID, Spotify ID, local file support)

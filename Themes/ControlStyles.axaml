@@ -1,0 +1,256 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    NullWave Control Styles
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    All StaticResource keys are defined in:
+      Themes/Colors.axaml     → brushes and colors
+      Themes/Typography.axaml → font sizes
+      Themes/Shapes.axaml     → radii and spacing
+
+    Button classes:
+      .nav        — sidebar navigation item
+      .nav.active — currently selected nav item
+      .icon-btn   — borderless icon button (player controls, gear, etc.)
+      .primary    — accent-filled action button
+      .ghost      — border-only ghost button
+
+    Usage example:
+      <Button Classes="nav active" Content="Library" Command="..."/>
+      <Button Classes="icon-btn"   Content="⏸"       Command="..."/>
+      <Button Classes="primary"    Content="Save"     Command="..."/>
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       GLOBAL TEXT DEFAULTS
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SECTION LABEL  — tiny all-caps category headers in sidebar
+       Usage: <TextBlock Classes="section-label" Text="LIBRARY"/>
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBlock.section-label">
+    <Setter Property="Foreground"     Value="{StaticResource BrushTextMuted}"/>
+    <Setter Property="FontSize"       Value="{StaticResource FontSizeLabel}"/>
+    <Setter Property="FontWeight"     Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="2"/>
+    <Setter Property="Margin"         Value="12,16,0,6"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       NAV BUTTON
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.nav">
+    <Setter Property="Background"                 Value="Transparent"/>
+    <Setter Property="Foreground"                 Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="FontSize"                   Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="Padding"                    Value="12,8"/>
+    <Setter Property="CornerRadius"               Value="{StaticResource RadiusMd}"/>
+    <Setter Property="HorizontalAlignment"        Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Margin"                     Value="4,1"/>
+    <Setter Property="Cursor"                     Value="Hand"/>
+  </Style>
+  <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+  </Style>
+  <Style Selector="Button.nav:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+  <Style Selector="Button.nav.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ICON BUTTON  — borderless square icon buttons
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.icon-btn">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Foreground"   Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="Padding"      Value="8"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="FontSize"     Value="18"/>
+    <Setter Property="Cursor"       Value="Hand"/>
+  </Style>
+  <Style Selector="Button.icon-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+  </Style>
+  <Style Selector="Button.icon-btn:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PRIMARY BUTTON  — accent-filled
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background"   Value="{StaticResource BrushAccent}"/>
+    <Setter Property="Foreground"   Value="White"/>
+    <Setter Property="FontSize"     Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="FontWeight"   Value="SemiBold"/>
+    <Setter Property="Padding"      Value="18,9"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Cursor"       Value="Hand"/>
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SECONDARY BUTTON  — subtle, less prominent than primary
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.secondary">
+    <Setter Property="Background"   Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="Foreground"   Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="FontSize"     Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="FontWeight"   Value="Medium"/>
+    <Setter Property="Padding"      Value="18,9"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Cursor"       Value="Hand"/>
+  </Style>
+  <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       GHOST BUTTON  — border only
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.ghost">
+    <Setter Property="Background"        Value="Transparent"/>
+    <Setter Property="Foreground"        Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="BorderBrush"       Value="{StaticResource BrushBorderSub}"/>
+    <Setter Property="BorderThickness"   Value="1"/>
+    <Setter Property="FontSize"          Value="{StaticResource FontSizeBody}"/>
+    <Setter Property="Padding"           Value="14,7"/>
+    <Setter Property="CornerRadius"      Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Cursor"            Value="Hand"/>
+  </Style>
+  <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       LISTBOX + LISTBOXITEM  — track rows
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding"    Value="0"/>
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Padding"      Value="0"/>
+    <Setter Property="Margin"       Value="0"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
+  </Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TEXT INPUT
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBox">
+    <Setter Property="Background"        Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="Foreground"        Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="BorderBrush"       Value="{StaticResource BrushBorder}"/>
+    <Setter Property="BorderThickness"   Value="1"/>
+    <Setter Property="CornerRadius"      Value="{StaticResource RadiusMd}"/>
+    <Setter Property="FontSize"          Value="{StaticResource FontSizeBody}"/>
+    <Setter Property="Padding"           Value="10,7"/>
+  </Style>
+  <Style Selector="TextBox:focus /template/ Border">
+    <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PROGRESS BAR
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="ProgressBar">
+    <Setter Property="Foreground"    Value="{StaticResource BrushAccent}"/>
+    <Setter Property="Background"    Value="{StaticResource BrushBorder}"/>
+    <Setter Property="CornerRadius"  Value="{StaticResource RadiusFull}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SLIDER
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Slider /template/ Track /template/ Border#TrackBackground">
+    <Setter Property="Background" Value="{StaticResource BrushBorder}"/>
+  </Style>
+  <Style Selector="Slider /template/ Track /template/ Border#TrackForeground">
+    <Setter Property="Background" Value="{StaticResource BrushAccent}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       MENU / MENU ITEM
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Menu">
+    <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+    <Setter Property="Padding"    Value="10,6"/>
+  </Style>
+  <Style Selector="MenuItem:pointerover /template/ Border#root">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SCROLL VIEWER
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ScrollBar /template/ Border#VerticalRoot">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ScrollBar:vertical Thumb">
+    <Setter Property="Background"   Value="{StaticResource BrushBorderSub}"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+    <Setter Property="MinHeight"    Value="40"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       COMBOBOX
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="ComboBox">
+    <Setter Property="Background"      Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="Foreground"      Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="BorderBrush"     Value="{StaticResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius"    Value="{StaticResource RadiusMd}"/>
+    <Setter Property="FontSize"        Value="{StaticResource FontSizeBody}"/>
+    <Setter Property="Padding"         Value="10,7"/>
+  </Style>
+  <Style Selector="ComboBox:pointerover /template/ Border#border">
+    <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+  </Style>
+  <Style Selector="ComboBoxItem">
+    <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="Padding"    Value="10,6"/>
+  </Style>
+  <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+  </Style>
+  <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+</Styles>
