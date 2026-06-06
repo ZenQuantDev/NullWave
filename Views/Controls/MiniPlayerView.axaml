@@ -7,96 +7,132 @@
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,1,0,0"
         MinHeight="72"
-        Padding="16,0">
-    
+        Padding="12,0">
+
     <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Stretch">
-        
+
         <!-- LEFT: Track info -->
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
-            <Border Width="44" Height="44" CornerRadius="{StaticResource RadiusSm}" 
-                    Background="{StaticResource BrushElevated}" ClipToBounds="True">
+        <StackPanel Grid.Column="0" Orientation="Horizontal"
+                    VerticalAlignment="Center" Spacing="10">
+            <Border Width="44" Height="44"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    Background="{StaticResource BrushElevated}"
+                    ClipToBounds="True">
                 <Panel>
-                    <Image Source="{Binding Player.AlbumArtPath}" 
-                           IsVisible="{Binding Player.HasAlbumArt}" Stretch="UniformToFill"/>
-                    <TextBlock Text="♪" IsVisible="{Binding !Player.HasAlbumArt}" 
-                               Foreground="{StaticResource BrushTextMuted}" 
-                               FontSize="{StaticResource FontSizeLg}" 
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Image Source="{Binding Player.AlbumArtPath}"
+                           IsVisible="{Binding Player.HasAlbumArt}"
+                           Stretch="UniformToFill"/>
+                    <TextBlock Text="♪"
+                               IsVisible="{Binding !Player.HasAlbumArt}"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeLg}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
                 </Panel>
             </Border>
-            <StackPanel VerticalAlignment="Center" Spacing="2" MaxWidth="220">
-                <TextBlock Text="{Binding Player.CurrentTrackDisplay}" 
-                           Foreground="{StaticResource BrushTextPrimary}" 
-                           FontSize="{StaticResource FontSizeMd}" FontWeight="SemiBold" 
+            <StackPanel VerticalAlignment="Center" Spacing="2" MaxWidth="200">
+                <TextBlock Text="{Binding Player.CurrentTrackDisplay}"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           FontSize="{StaticResource FontSizeMd}"
+                           FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{Binding Player.StatusText}" 
-                           Foreground="{StaticResource BrushTextMuted}" 
-                           FontSize="{StaticResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Player.StatusText}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeSm}"
+                           TextTrimming="CharacterEllipsis"/>
             </StackPanel>
         </StackPanel>
 
-        <!-- CENTER: Controls + progress -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" MinWidth="280">
-            <!-- Control buttons row -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                <Button Classes="icon-btn" Content="⏮" FontSize="16" 
-                        Command="{Binding Player.PreviousTrackCommand}" ToolTip.Tip="Previous track"/>
-                <Button Classes="icon-btn" Content="" FontSize="14" 
-                        Command="{Binding Player.SeekBackwardCommand}" ToolTip.Tip="Skip back 5 seconds"/>
-                <Button Classes="icon-btn" Content="{Binding Player.PlayPauseIcon}" 
-                        Command="{Binding Player.PlayPauseCommand}" FontSize="22" 
-                        Width="42" Height="42" 
-                        Background="{StaticResource BrushAccentDim}" 
-                        Foreground="{StaticResource BrushAccent}" 
-                        CornerRadius="{StaticResource RadiusFull}" ToolTip.Tip="Play / Pause"/>
-                <Button Classes="icon-btn" Content="⏩" FontSize="14" 
-                        Command="{Binding Player.SeekForwardCommand}" ToolTip.Tip="Skip forward 5 seconds"/>
-                <Button Classes="icon-btn" Content="⏭" FontSize="16" 
-                        Command="{Binding Player.NextTrackCommand}" ToolTip.Tip="Next track"/>
-                <Button Classes="icon-btn" Content="⏹" FontSize="16" 
-                        Command="{Binding Player.StopCommand}" ToolTip.Tip="Stop"/>
+        <!-- CENTER: Controls + seek -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                    HorizontalAlignment="Center" Spacing="4"
+                    MinWidth="320" MaxWidth="520">
+
+            <!-- Buttons -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center" Spacing="2">
+                <Button Classes="icon-btn"
+                        Content="{Binding Player.ShuffleIcon}"
+                        Command="{Binding Player.ToggleShuffleCommand}"
+                        FontSize="13" Padding="6"
+                        ToolTip.Tip="Shuffle"/>
+                <Button Classes="icon-btn" Content="⏮" FontSize="15"
+                        Command="{Binding Player.PreviousTrackCommand}"
+                        ToolTip.Tip="Previous"/>
+                <Button Classes="icon-btn" Content="-5s" FontSize="11"
+                        Command="{Binding Player.SeekBackwardCommand}"
+                        ToolTip.Tip="Back 5s"/>
+                <Button Classes="icon-btn"
+                        Content="{Binding Player.PlayPauseIcon}"
+                        Command="{Binding Player.PlayPauseCommand}"
+                        FontSize="20" Width="40" Height="40"
+                        Background="{StaticResource BrushAccentDim}"
+                        Foreground="{StaticResource BrushAccent}"
+                        CornerRadius="{StaticResource RadiusFull}"
+                        ToolTip.Tip="Play / Pause"/>
+                <Button Classes="icon-btn" Content="+5s" FontSize="11"
+                        Command="{Binding Player.SeekForwardCommand}"
+                        ToolTip.Tip="Forward 5s"/>
+                <Button Classes="icon-btn" Content="⏭" FontSize="15"
+                        Command="{Binding Player.NextTrackCommand}"
+                        ToolTip.Tip="Next"/>
+                <Button Classes="icon-btn"
+                        Content="{Binding Player.RepeatIcon}"
+                        Command="{Binding Player.CycleRepeatCommand}"
+                        FontSize="13" Padding="6"
+                        ToolTip.Tip="Repeat mode"/>
             </StackPanel>
-            
-            <!-- Position + progress row (UPDATED) -->
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <TextBlock Grid.Column="0" Text="{Binding Player.PositionDisplay}" 
-                           Foreground="{StaticResource BrushTextMuted}" 
-                           FontSize="{StaticResource FontSizeXs}" 
-                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                
-                <!-- UPDATED SLIDER -->
-                <Slider Grid.Column="1" 
+
+            <!-- Seek row -->
+            <Grid ColumnDefinitions="38,*,38">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Player.PositionDisplay}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Right"
+                           Margin="0,0,6,0"/>
+                <Slider Grid.Column="1"
                         x:Name="SeekSlider"
-                        Value="{Binding Player.Position, Mode=OneWay}" 
-                        Minimum="0" Maximum="1" 
-                        Height="4" VerticalAlignment="Center"
+                        Value="{Binding Player.Position, Mode=OneWay}"
+                        Minimum="0" Maximum="1"
+                        VerticalAlignment="Center"
                         ToolTip.Tip="Drag to seek"
                         PointerPressed="OnSeekPressed"
                         PointerReleased="OnSeekReleased"/>
-                
-                <TextBlock Grid.Column="2" Text="{Binding Player.DurationDisplay}" 
-                           Foreground="{StaticResource BrushTextMuted}" 
-                           FontSize="{StaticResource FontSizeXs}" 
-                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock Grid.Column="2"
+                           Text="{Binding Player.DurationDisplay}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           Margin="6,0,0,0"/>
             </Grid>
         </StackPanel>
 
-        <!-- RIGHT: Volume + download progress -->
-        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" 
-                    VerticalAlignment="Center" Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="8" 
-                        IsVisible="{Binding Player.IsDownloading}" VerticalAlignment="Center">
-                <TextBlock Text="Downloading" Foreground="{StaticResource BrushTextMuted}" 
-                           FontSize="{StaticResource FontSizeSm}" VerticalAlignment="Center"/>
-                <ProgressBar Value="{Binding Player.DownloadProgress}" Maximum="1" 
-                             Width="80" Height="3" VerticalAlignment="Center"/>
+        <!-- RIGHT: Volume + download -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6"
+                        IsVisible="{Binding Player.IsDownloading}"
+                        VerticalAlignment="Center">
+                <TextBlock Text="Downloading"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeSm}"
+                           VerticalAlignment="Center"/>
+                <ProgressBar Value="{Binding Player.DownloadProgress}"
+                             Maximum="1" Width="70" Height="3"
+                             VerticalAlignment="Center"/>
             </StackPanel>
-            
-            <TextBlock Text="🔊" Foreground="{StaticResource BrushTextMuted}" 
-                       FontSize="{StaticResource FontSizeMd}" VerticalAlignment="Center"/>
-            <Slider Value="{Binding Player.Volume, Mode=TwoWay}" 
-                    Minimum="0" Maximum="1" Width="90" 
-                    VerticalAlignment="Center" ToolTip.Tip="Volume"/>
+            <TextBlock Text="vol"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeXs}"
+                       VerticalAlignment="Center"/>
+            <Slider Value="{Binding Player.Volume, Mode=TwoWay}"
+                    Minimum="0" Maximum="1" Width="90"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Volume"/>
         </StackPanel>
     </Grid>
 </Border>

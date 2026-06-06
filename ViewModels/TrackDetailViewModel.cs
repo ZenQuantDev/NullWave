@@ -5,7 +5,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;  // ← ADD THIS for IClipboard and TopLevel
+using Avalonia.Input;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
@@ -109,12 +109,30 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void LoadFromTrack(Track track)
     {
-        EditTitle = track.Title;
+        // Unsubscribe from previous track to avoid memory leaks
+        if (_track != null)
+            _track.PropertyChanged -= OnTrackPropertyChanged;
+
+        EditTitle  = track.Title;
         EditArtist = track.Artist;
-        EditNotes = track.Notes ?? string.Empty;
+        EditNotes  = track.Notes ?? string.Empty;
         Tags.Clear();
         foreach (var tag in track.Tags) Tags.Add(tag);
-        
+
+        // Subscribe so PlayCount/LastPlayed updates flow through automatically
+        track.PropertyChanged += OnTrackPropertyChanged;
+
+        RefreshDisplayProperties();
+    }
+
+    private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // When PlayCount or LastPlayed changes on the Track model, refresh our display strings
+        RefreshDisplayProperties();
+    }
+
+    private void RefreshDisplayProperties()
+    {
         OnPropertyChanged(nameof(DisplayUrl));
         OnPropertyChanged(nameof(DisplaySource));
         OnPropertyChanged(nameof(DisplayDateAdded));

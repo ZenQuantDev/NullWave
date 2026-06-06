@@ -84,6 +84,15 @@ public class MainViewModel : ViewModelBase
         Library.PlayTrackRequested    += Player.PlayTrack;
         Import.ImportCompleted        += Library.Refresh;
 
+        // When play is pressed with no current track, start the selected track
+        Player.PlaySelectedTrackRequested += () =>
+        {
+            if (Library.SelectedTrack != null)
+                Player.PlayTrack(Library.SelectedTrack);
+            else if (Library.Tracks.Count > 0)
+                Player.PlayTrack(Library.Tracks[0]);
+        };
+
         // ── Commands ──────────────────────────────────────────────────────────
         ExitCommand = new RelayCommand(() =>
         {

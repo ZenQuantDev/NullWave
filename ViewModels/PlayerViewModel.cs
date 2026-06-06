@@ -10,6 +10,8 @@ using Serilog;
 
 namespace NullWave.ViewModels;
 
+public enum RepeatMode { None, One, All }
+
 public class PlayerViewModel : ViewModelBase
 {
     private readonly PlaybackService _playback;
@@ -22,6 +24,9 @@ public class PlayerViewModel : ViewModelBase
     private bool          _isDownloading;
     private float         _downloadProgress;
     private string        _statusText    = "No track playing";
+    private bool          _isShuffle     = false;
+    private RepeatMode    _repeatMode    = RepeatMode.None;
+    private static readonly Random _rng  = new();
 
     public Track? CurrentTrack
     {
@@ -61,7 +66,7 @@ public class PlayerViewModel : ViewModelBase
         }
     }
 
-    public bool   IsPlaying    => _state == PlaybackState.Playing;
+    public bool   IsPlaying     => _state == PlaybackState.Playing;
     public string PlayPauseIcon => IsPlaying ? "⏸" : "▶";
 
     public float Position
@@ -123,7 +128,30 @@ public class PlayerViewModel : ViewModelBase
         private set { _statusText = value; OnPropertyChanged(); }
     }
 
-    // Commands
+    // ── Shuffle & Repeat ──────────────────────────────────────────────────────
+    public bool IsShuffle
+    {
+        get => _isShuffle;
+        set { _isShuffle = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShuffleIcon)); }
+    }
+
+    public RepeatMode RepeatMode
+    {
+        get => _repeatMode;
+        set { _repeatMode = value; OnPropertyChanged(); OnPropertyChanged(nameof(RepeatIcon)); OnPropertyChanged(nameof(IsRepeat)); }
+    }
+
+    public bool IsRepeat => _repeatMode != RepeatMode.None;
+
+    public string ShuffleIcon => IsShuffle ? "🔀" : "⇄";
+    public string RepeatIcon  => RepeatMode switch
+    {
+        RepeatMode.One => "🔂",
+        RepeatMode.All => "🔁",
+        _              => "↩"
+    };
+
+    // ── Commands ──────────────────────────────────────────────────────────────
     public ICommand PlayPauseCommand      { get; }
     public ICommand StopCommand           { get; }
     public ICommand PlayTrackCommand      { get; }
@@ -132,6 +160,8 @@ public class PlayerViewModel : ViewModelBase
     public ICommand SeekForwardCommand    { get; }
     public ICommand PreviousTrackCommand  { get; }
     public ICommand NextTrackCommand      { get; }
+    public ICommand ToggleShuffleCommand  { get; }
+    public ICommand CycleRepeatCommand    { get; }
 
     public PlayerViewModel(
         PlaybackService playback,
@@ -143,17 +173,13 @@ public class PlayerViewModel : ViewModelBase
         _library  = library;
         _playback.Volume = _volume;
 
-        _playback.PositionChanged += pos => Position = pos;
-        _playback.StateChanged += state => State = state;
-        _playback.TrackFinished += () =>
+        _playback.PositionChanged += pos =>
         {
-            StatusText = "Finished";
-            if (_currentTrack != null)
-            {
-                _library.RecordPlay(_currentTrack.Id);
-                NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
-            }
+            // Only update if not currently user-seeking
+            Position = pos;
         };
+        _playback.StateChanged += state => State = state;
+        _playback.TrackFinished += OnTrackFinished;
 
         _download.ProgressChanged += (_, pct) =>
         {
@@ -196,12 +222,15 @@ public class PlayerViewModel : ViewModelBase
             await _download.DownloadAsync(t.Id.ToString(), t.Url);
         });
 
-        // NEW: Seek commands
-        SeekBackwardCommand = new RelayCommand(() => SeekRelative(-5));
-        SeekForwardCommand  = new RelayCommand(() => SeekRelative(5));
+        SeekBackwardCommand  = new RelayCommand(() => SeekRelative(-5));
+        SeekForwardCommand   = new RelayCommand(() => SeekRelative(5));
         PreviousTrackCommand = new RelayCommand(PlayPrevious);
         NextTrackCommand     = new RelayCommand(PlayNext);
+        ToggleShuffleCommand = new RelayCommand(() => IsShuffle = !IsShuffle);
+        CycleRepeatCommand   = new RelayCommand(CycleRepeat);
     }
+
+    // ── Playback ──────────────────────────────────────────────────────────────
 
     public void PlayTrack(Track? track)
     {
@@ -229,6 +258,8 @@ public class PlayerViewModel : ViewModelBase
         StatusText = "No playable source found";
     }
 
+    public event Action? PlaySelectedTrackRequested;
+
     private void PlayPause()
     {
         if (IsPlaying)
@@ -246,6 +277,11 @@ public class PlayerViewModel : ViewModelBase
         {
             PlayTrack(_currentTrack);
         }
+        else
+        {
+            // Nothing loaded yet — ask MainViewModel to provide the selected track
+            PlaySelectedTrackRequested?.Invoke();
+        }
     }
 
     private void Stop()
@@ -255,14 +291,48 @@ public class PlayerViewModel : ViewModelBase
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
     }
 
-    // NEW: Seek relative (seconds)
+    private void OnTrackFinished()
+    {
+        if (_currentTrack != null)
+        {
+            _library.RecordPlay(_currentTrack.Id);
+            NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
+        }
+
+        switch (_repeatMode)
+        {
+            case RepeatMode.One:
+                // Replay the same track
+                if (_currentTrack != null) PlayTrack(_currentTrack);
+                break;
+
+            case RepeatMode.All:
+            case RepeatMode.None:
+                // Advance to next (PlayNext handles end-of-list wrapping for RepeatAll)
+                PlayNext();
+                break;
+        }
+    }
+
+    private void CycleRepeat()
+    {
+        RepeatMode = RepeatMode switch
+        {
+            RepeatMode.None => RepeatMode.All,
+            RepeatMode.All  => RepeatMode.One,
+            RepeatMode.One  => RepeatMode.None,
+            _               => RepeatMode.None
+        };
+    }
+
+    // ── Seeking ───────────────────────────────────────────────────────────────
+
     private void SeekRelative(int seconds)
     {
         var duration = _playback.Duration.TotalSeconds;
         if (duration <= 0) return;
-        
-        var currentPosition = Position * duration;
-        var newPosition = Math.Clamp(currentPosition + seconds, 0, duration);
+
+        var newPosition = Math.Clamp(Position * duration + seconds, 0, duration);
         Position = (float)(newPosition / duration);
         _playback.Seek(Position);
     }
@@ -273,31 +343,44 @@ public class PlayerViewModel : ViewModelBase
         _playback.Seek(Position);
     }
 
-     private void PlayPrevious()
+    // ── Navigation ────────────────────────────────────────────────────────────
+
+    private void PlayPrevious()
     {
-        // Convert to List so we can use FindIndex
-        var queue = _library.GetQueue().ToList();
+        var queue = _library.GetAll().ToList();
         if (queue.Count == 0 || _currentTrack == null) return;
-        
-        var currentIndex = queue.FindIndex(t => t.Id == _currentTrack.Id);
-        if (currentIndex > 0)
-            PlayTrack(queue[currentIndex - 1]);
+
+        var idx = queue.FindIndex(t => t.Id == _currentTrack.Id);
+        if (idx > 0)
+            PlayTrack(queue[idx - 1]);
+        else if (_repeatMode == RepeatMode.All)
+            PlayTrack(queue[^1]); // wrap to last
     }
 
     private void PlayNext()
     {
-        // Convert to List so we can use FindIndex
-        var queue = _library.GetQueue().ToList();
+        var queue = _library.GetAll().ToList();
         if (queue.Count == 0) return;
-        
-        if (_currentTrack == null)
+
+        if (_isShuffle)
         {
-            PlayTrack(queue[0]);
+            // Pick a random track that isn't the current one
+            if (queue.Count == 1) { PlayTrack(queue[0]); return; }
+            Track next;
+            do { next = queue[_rng.Next(queue.Count)]; }
+            while (next.Id == _currentTrack?.Id);
+            PlayTrack(next);
             return;
         }
-        
-        var currentIndex = queue.FindIndex(t => t.Id == _currentTrack.Id);
-        if (currentIndex < queue.Count - 1)
-            PlayTrack(queue[currentIndex + 1]);
+
+        if (_currentTrack == null) { PlayTrack(queue[0]); return; }
+
+        var idx = queue.FindIndex(t => t.Id == _currentTrack.Id);
+        if (idx < queue.Count - 1)
+            PlayTrack(queue[idx + 1]);
+        else if (_repeatMode == RepeatMode.All)
+            PlayTrack(queue[0]); // wrap to first
+        else
+            StatusText = "End of library";
     }
 }
