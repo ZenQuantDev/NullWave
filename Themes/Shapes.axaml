@@ -13,6 +13,7 @@
   <CornerRadius x:Key="RadiusLg">  10</CornerRadius>
   <CornerRadius x:Key="RadiusXl">  14</CornerRadius>
   <CornerRadius x:Key="RadiusFull">9999</CornerRadius>
+  <CornerRadius x:Key="RadiusArt">   6</CornerRadius>
 
   <!-- Spacing (used in Margin/Padding) -->
   <x:Double x:Key="Space1">  4</x:Double>

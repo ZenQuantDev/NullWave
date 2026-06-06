@@ -24,6 +24,25 @@
   -->
 
   <!-- ═══════════════════════════════════════════════════════════════════════
+       DANGER BUTTON  — destructive actions (remove, delete, wipe)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.danger">
+    <Setter Property="Background"   Value="{StaticResource BrushRedDim}"/>
+    <Setter Property="Foreground"   Value="{StaticResource BrushRed}"/>
+    <Setter Property="BorderBrush"  Value="{StaticResource BrushRed}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="FontSize"     Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="FontWeight"   Value="Medium"/>
+    <Setter Property="Padding"      Value="18,9"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Cursor"       Value="Hand"/>
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushRed}"/>
+    <Setter Property="Foreground" Value="White"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
        GLOBAL TEXT DEFAULTS
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="TextBlock">

@@ -267,6 +267,12 @@ public class PlayerViewModel : ViewModelBase
         _playback.Seek(Position);
     }
 
+    public void SeekTo(float position)
+    {
+        Position = Math.Clamp(position, 0f, 1f);
+        _playback.Seek(Position);
+    }
+
      private void PlayPrevious()
     {
         // Convert to List so we can use FindIndex
