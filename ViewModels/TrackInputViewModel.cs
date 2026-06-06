@@ -25,6 +25,7 @@ public class TrackInputViewModel : ViewModelBase
     private string      _inputArtist        = string.Empty;
     private TrackSource _selectedSource     = TrackSource.Unknown;
     private bool        _isFetching;
+    private bool        _isUrlInputVisible  = false;
 
     public Array    SourceOptions      => Enum.GetValues(typeof(TrackSource));
     public ICommand AddTrackCommand    { get; }
@@ -37,6 +38,14 @@ public class TrackInputViewModel : ViewModelBase
         get => _isFetching;
         set { _isFetching = value; OnPropertyChanged(); }
     }
+
+    public bool IsUrlInputVisible
+    {
+        get => _isUrlInputVisible;
+        set { _isUrlInputVisible = value; OnPropertyChanged(); }
+    }
+
+    public ICommand ShowUrlInputCommand { get; }
 
     public string InputUrl
     {
@@ -84,6 +93,7 @@ public class TrackInputViewModel : ViewModelBase
 
         AddTrackCommand     = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
+        ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
     }
 
     public void AddTrack()
