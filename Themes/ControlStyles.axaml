@@ -165,10 +165,16 @@
     <Setter Property="Padding"    Value="0"/>
   </Style>
   <Style Selector="ListBoxItem">
-    <Setter Property="Background"   Value="Transparent"/>
-    <Setter Property="Padding"      Value="0"/>
-    <Setter Property="Margin"       Value="0"/>
-    <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
+      <Setter Property="Background"   Value="Transparent"/>
+      <Setter Property="Padding"      Value="0"/>
+      <Setter Property="Margin"       Value="0"/>
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
+      <Setter Property="Opacity"      Value="1"/>
+      <Setter Property="Transitions">
+          <Transitions>
+              <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+          </Transitions>
+      </Setter>
   </Style>
   <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>

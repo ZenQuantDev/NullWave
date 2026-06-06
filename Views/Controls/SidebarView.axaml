@@ -7,15 +7,32 @@
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,0,1,0">
     <DockPanel>
-        <!-- App logo -->
-        <Border DockPanel.Dock="Top" Padding="16,20,16,12">
-            <StackPanel Spacing="2">
-                <TextBlock Text="NullWave" Foreground="{StaticResource BrushTextPrimary}" 
-                           FontSize="{StaticResource FontSizeXl}" FontWeight="Bold"/>
-                <TextBlock Text="music organizer" Foreground="{StaticResource BrushTextMuted}" 
-                           FontSize="{StaticResource FontSizeSm}"/>
+            <!-- App logo -->
+            <Border DockPanel.Dock="Top" Padding="16,20,16,12">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <!-- Logo placeholder — swap Border for Image when real asset is ready -->
+            <Border Width="32" Height="32"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    Background="{StaticResource BrushAccentDim}"
+                    ClipToBounds="True">
+                <TextBlock Text="N"
+                        Foreground="{StaticResource BrushAccent}"
+                        FontSize="{StaticResource FontSizeLg}"
+                        FontWeight="Bold"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="NullWave"
+                        Foreground="{StaticResource BrushTextPrimary}"
+                        FontSize="{StaticResource FontSizeXl}"
+                        FontWeight="Bold"/>
+                <TextBlock Text="music organizer"
+                        Foreground="{StaticResource BrushTextMuted}"
+                        FontSize="{StaticResource FontSizeSm}"/>
             </StackPanel>
-        </Border>
+        </StackPanel>
+    </Border>
 
         <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource BrushBorder}" Margin="12,0"/>
 

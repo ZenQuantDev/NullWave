@@ -1,6 +1,6 @@
 # NullWave — Roadmap
 
-> Last updated: 30-05-2026
+> Last updated: 06-Jun-2026
 
 ---
 
@@ -20,7 +20,7 @@
 
 **Goal:** Working music library with local file playback and metadata reading.
 
-- ✅ Track model + SQLite persistence (`LibraryService`)
+- ✅ Track model + in-memory `LibraryService`
 - ✅ TagLib# ID3 tag reading on import
 - ✅ LibVLC playback via `PlaybackService` (Fedora: symlinks in `/usr/lib`)
 - ✅ yt-dlp URL download to `~/.nullwave/downloads/` as MP3 (`DownloadService`)
@@ -110,6 +110,8 @@
 - 📋 Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
 - 📋 `OpacityTransition` on menu bar show/hide (150ms fade)
 - 📋 Profile edit UI (inline in sidebar or dedicated Settings tab)
+- ✅ Logo placeholder in `SidebarView` — 32×32 accent square beside wordmark
+- 📋 Replace placeholder with real SVG logo (`Assets/Icons/logo.svg`)
 - 📋 `TrackListView` — apply theme tokens, larger row height, better typography
 - 📋 `TrackDetailView` — apply theme tokens
 
@@ -182,7 +184,7 @@ Evaluate in order:
 - 💡 Theme switcher — light / dark / accent color picker
 - 💡 Global keyboard shortcuts — play/pause, next/prev, search focus
 - 💡 Export playlist (M3U format)
-- 💡 SQLite database persistence (replaces in-memory library)
+- 🔜 SQLite database persistence (replaces in-memory library) — packages installed, implementation next
 
 ---
 
@@ -227,7 +229,8 @@ main                  ← always stable, builds clean
 | LibVLCSharp | 3.9.7.1 | Fedora: symlinks to /usr/lib required |
 | TagLib# | 2.3.0 | |
 | Serilog | latest stable | + Serilog.Filters.Expressions |
-| SQLite-net | latest stable | In-memory for now; DB in Phase 7 |
+| sqlite-net-pcl | 1.9.172 | Packages installed, implementation next |
+| SQLitePCLRaw.bundle_green | 2.1.11 | Native SQLite provider for Linux |
 | CommunityToolkit.Mvvm | latest stable | RelayCommand, ObservableProperty |
 
 ---

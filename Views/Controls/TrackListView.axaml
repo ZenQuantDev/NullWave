@@ -57,11 +57,16 @@
             BorderThickness="0,0,0,1"
             Padding="12,8"
             IsVisible="{Binding Input.IsUrlInputVisible}">
+        <Border.Transitions>
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+            </Transitions>
+        </Border.Transitions>
         <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
             <TextBox Grid.Column="0"
-                     Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                     PlaceholderText="Paste URL, file path, or folder path here..."
-                     VerticalAlignment="Center"/>
+                    Text="{Binding Input.InputUrl, Mode=TwoWay}"
+                    PlaceholderText="Paste URL, file path, or folder path here..."
+                    VerticalAlignment="Center"/>
             <Button Grid.Column="2"
                     Classes="primary"
                     Content="Add"

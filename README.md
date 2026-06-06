@@ -26,8 +26,12 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 ### Player
 - Local file playback via LibVLCSharp
 - YouTube audio download via yt-dlp (to `~/.nullwave/downloads/`)
+- YouTube and SoundCloud playlist import (all tracks downloaded automatically)
 - Spotify-style now-playing bar — album art, controls, volume slider
-- Play/pause/stop with position display
+- Shuffle, Repeat One, Repeat All
+- Seek ±5 seconds, drag-to-seek progress bar
+- Autoplay next track on finish
+- Play/pause/stop with live position display
 
 ### UI
 - Dark theme — deep navy + purple accent color system
@@ -61,7 +65,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 | Logging | Serilog (3 sinks: system, user-actions, errors) |
 | Security | AES-256-GCM encrypted KeyStore |
 | Testing | xUnit (23 tests) |
-| Persistence | SQLite (coming — Phase 7) |
+| Persistence | SQLite-net-pcl (in progress) |
 
 ---
 
@@ -151,7 +155,7 @@ ZenQuant — PackItPro Team
 
 ## Version
 
-v0.1.3
+v0.2.0
 
 ## License
 
