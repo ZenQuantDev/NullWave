@@ -219,7 +219,7 @@ public class TrackInputViewModel : ViewModelBase
         TrackAdded?.Invoke();
     }
 
-    private async System.Threading.Tasks.Task AddFolderPathAsync(string folderPath)
+    private System.Threading.Tasks.Task AddFolderPathAsync(string folderPath)
     {
         var audioExtensions = new[] { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac" };
         var files = System.IO.Directory.EnumerateFiles(folderPath, "*.*",
@@ -244,6 +244,7 @@ public class TrackInputViewModel : ViewModelBase
         ClearInputs();
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
+        return System.Threading.Tasks.Task.CompletedTask;
     }
 
     private void ClearInputs()
