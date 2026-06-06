@@ -34,7 +34,7 @@
             <SplitButton Grid.Column="4"
                          Classes="primary"
                          Content="+ Add"
-                         Command="{Binding Input.AddTrackCommand}"
+                         Command="{Binding Input.ShowUrlInputCommand}"
                          VerticalAlignment="Center">
                 <SplitButton.Flyout>
                     <MenuFlyout>

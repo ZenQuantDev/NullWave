@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -98,32 +99,60 @@ public class TrackInputViewModel : ViewModelBase
 
     public void AddTrack()
     {
-        // Require at least a title OR a URL — don't silently do nothing
         var title = InputTitle.Trim();
         var url   = InputUrl.Trim();
 
-        if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url))
         {
-            Log.Warning("[{Source}] AddTrack called with no title and no URL — ignored",
-                nameof(TrackInputViewModel));
+            // Nothing to add — just show the input row
+            IsUrlInputVisible = true;
             return;
         }
 
-        // If no title, use URL as fallback title (metadata fetch may still fill it in)
+        // Auto-detect local file path pasted into the URL field
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            // Treat as local file or folder path
+            if (System.IO.Directory.Exists(url))
+            {
+                _ = AddFolderPathAsync(url);
+                return;
+            }
+            if (System.IO.File.Exists(url) && _urlParser.IsSupportedAudioFile(url))
+            {
+                var (t, a) = _metadata.FetchFromLocalFile(url);
+                var track = new Track
+                {
+                    Title    = string.IsNullOrWhiteSpace(title) ? t : title,
+                    Artist   = InputArtist.Trim().Length > 0 ? InputArtist.Trim() : a,
+                    FilePath = url,
+                    Source   = TrackSource.Local
+                };
+                _library.Add(track);
+                NullActionLogger.TrackAdded(track.Id.ToString(), url, nameof(TrackInputViewModel));
+                ClearInputs();
+                IsUrlInputVisible = false;
+                TrackAdded?.Invoke();
+                return;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(title))
             title = url;
 
-        var track = new Track
+        var newTrack = new Track
         {
             Title  = title,
             Artist = InputArtist.Trim(),
-            Url    = string.IsNullOrWhiteSpace(url) ? null : url,
+            Url    = url,
             Source = SelectedSource
         };
 
-        _library.Add(track);
-        NullActionLogger.TrackAdded(track.Id.ToString(), url, nameof(TrackInputViewModel));
+        _library.Add(newTrack);
+        NullActionLogger.TrackAdded(newTrack.Id.ToString(), url, nameof(TrackInputViewModel));
         ClearInputs();
+        IsUrlInputVisible = false;
         TrackAdded?.Invoke();
     }
 
@@ -187,6 +216,33 @@ public class TrackInputViewModel : ViewModelBase
 
         _library.Add(track);
         NullActionLogger.TrackAdded(track.Id.ToString(), filePath, nameof(TrackInputViewModel));
+        TrackAdded?.Invoke();
+    }
+
+    private async System.Threading.Tasks.Task AddFolderPathAsync(string folderPath)
+    {
+        var audioExtensions = new[] { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac" };
+        var files = System.IO.Directory.EnumerateFiles(folderPath, "*.*",
+            System.IO.SearchOption.AllDirectories)
+            .Where(f => audioExtensions.Contains(
+                System.IO.Path.GetExtension(f).ToLowerInvariant()));
+
+        foreach (var file in files)
+        {
+            var (t, a) = _metadata.FetchFromLocalFile(file);
+            var track = new Track
+            {
+                Title    = t,
+                Artist   = a,
+                FilePath = file,
+                Source   = TrackSource.Local
+            };
+            _library.Add(track);
+            NullActionLogger.TrackAdded(track.Id.ToString(), file, nameof(TrackInputViewModel));
+        }
+
+        ClearInputs();
+        IsUrlInputVisible = false;
         TrackAdded?.Invoke();
     }
 
