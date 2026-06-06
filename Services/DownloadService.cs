@@ -150,4 +150,136 @@ public class DownloadService
     }
 
     public string DownloadDirectory => _downloadDir;
+
+    public static bool IsPlaylistUrl(string url)
+{
+    return url.Contains("list=", StringComparison.OrdinalIgnoreCase) ||
+           url.Contains("/sets/", StringComparison.OrdinalIgnoreCase) ||   // SoundCloud playlists
+           url.Contains("/playlist/", StringComparison.OrdinalIgnoreCase); // general
+}
+
+    public async Task DownloadPlaylistAsync(
+        string playlistUrl,
+        Action<string, int, int> onTrackStarted,   // title, index, total
+        Action<string, string> onTrackCompleted,   // title, filePath
+        Action<string, string> onTrackFailed,      // title, error
+        CancellationToken ct = default)
+    {
+        Log.Information("Fetching playlist metadata: {Url}", playlistUrl);
+
+        // ── Step 1: get flat metadata (no download) ───────────────────────────
+        var metaArgs = $"\"{playlistUrl}\" --flat-playlist --dump-json --no-warnings";
+        var metaPsi = new ProcessStartInfo
+        {
+            FileName               = "yt-dlp",
+            Arguments              = metaArgs,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+            CreateNoWindow         = true
+        };
+
+        var entries = new List<(string Id, string Title)>();
+
+        using (var metaProc = new Process { StartInfo = metaPsi })
+        {
+            metaProc.Start();
+            string? line;
+            while ((line = await metaProc.StandardOutput.ReadLineAsync()) != null)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                try
+                {
+                    // Each line is a JSON object — extract id and title
+                    var idMatch    = Regex.Match(line, @"""id""\s*:\s*""([^""]+)""");
+                    var titleMatch = Regex.Match(line, @"""title""\s*:\s*""([^""]+)""");
+                    if (idMatch.Success)
+                    {
+                        var id    = idMatch.Groups[1].Value;
+                        var title = titleMatch.Success ? titleMatch.Groups[1].Value : id;
+                        entries.Add((id, title));
+                    }
+                }
+                catch { /* skip malformed lines */ }
+            }
+            await metaProc.WaitForExitAsync(ct);
+        }
+
+        if (entries.Count == 0)
+        {
+            Log.Warning("Playlist returned 0 entries: {Url}", playlistUrl);
+            onTrackFailed("playlist", "No tracks found in playlist");
+            return;
+        }
+
+        Log.Information("Playlist has {Count} tracks", entries.Count);
+
+        // ── Step 2: download each entry ───────────────────────────────────────
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (ct.IsCancellationRequested) break;
+
+            var (id, title) = entries[i];
+            var trackUrl = $"https://www.youtube.com/watch?v={id}";
+
+            onTrackStarted(title, i + 1, entries.Count);
+            Log.Information("Downloading playlist track {Index}/{Total}: {Title}", i + 1, entries.Count, title);
+
+            var outputTemplate = Path.Combine(_downloadDir, "%(title)s.%(ext)s");
+            var args = $"\"{trackUrl}\" --extract-audio --audio-format mp3 --audio-quality 0 " +
+                    $"--output \"{outputTemplate}\" --no-playlist --print after_move:filepath --no-warnings";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName               = "yt-dlp",
+                Arguments              = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
+            };
+
+            try
+            {
+                using var proc = new Process { StartInfo = psi };
+                string? filePath = null;
+
+                proc.OutputDataReceived += (_, e) =>
+                {
+                    if (string.IsNullOrEmpty(e.Data)) return;
+                    if (e.Data.StartsWith("/") || e.Data.StartsWith("~"))
+                        filePath = e.Data.Trim();
+                    Log.Debug("yt-dlp [{Title}]: {Line}", title, e.Data);
+                };
+                proc.ErrorDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        Log.Warning("yt-dlp stderr [{Title}]: {Line}", title, e.Data);
+                };
+
+                proc.Start();
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+                await proc.WaitForExitAsync(ct);
+
+                if (proc.ExitCode == 0 && filePath != null && File.Exists(filePath))
+                    onTrackCompleted(title, filePath);
+                else if (proc.ExitCode == 0)
+                {
+                    var recent = FindMostRecentDownload();
+                    if (recent != null) onTrackCompleted(title, recent);
+                    else onTrackFailed(title, "File not found after download");
+                }
+                else
+                    onTrackFailed(title, $"yt-dlp exit code {proc.ExitCode}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to download playlist track: {Title}", title);
+                onTrackFailed(title, ex.Message);
+            }
+        }
+
+        Log.Information("Playlist download complete: {Url}", playlistUrl);
+    }
 }

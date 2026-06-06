@@ -27,6 +27,7 @@ public class TrackInputViewModel : ViewModelBase
     private TrackSource _selectedSource     = TrackSource.Unknown;
     private bool        _isFetching;
     private bool        _isUrlInputVisible  = false;
+    private string      _statusMessage      = string.Empty;
 
     public Array    SourceOptions      => Enum.GetValues(typeof(TrackSource));
     public ICommand AddTrackCommand    { get; }
@@ -44,6 +45,12 @@ public class TrackInputViewModel : ViewModelBase
     {
         get => _isUrlInputVisible;
         set { _isUrlInputVisible = value; OnPropertyChanged(); }
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set { _statusMessage = value; OnPropertyChanged(); }
     }
 
     public ICommand ShowUrlInputCommand { get; }
@@ -106,6 +113,15 @@ public class TrackInputViewModel : ViewModelBase
         {
             // Nothing to add — just show the input row
             IsUrlInputVisible = true;
+            return;
+        }
+
+        // Auto-detect YouTube/SoundCloud playlist URL
+        if (DownloadService.IsPlaylistUrl(url))
+        {
+            IsUrlInputVisible = false;
+            ClearInputs();
+            _ = ImportPlaylistAsync(url);
             return;
         }
 
@@ -244,6 +260,43 @@ public class TrackInputViewModel : ViewModelBase
         ClearInputs();
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    private System.Threading.Tasks.Task ImportPlaylistAsync(string playlistUrl)
+    {
+        var download = new DownloadService();
+
+        _ = download.DownloadPlaylistAsync(
+            playlistUrl,
+            onTrackStarted: (title, index, total) =>
+            {
+                StatusMessage = $"Downloading {index}/{total}: {title}";
+                Log.Information("[{Source}] Playlist track started: {Title} ({Index}/{Total})",
+                    nameof(TrackInputViewModel), title, index, total);
+            },
+            onTrackCompleted: (title, filePath) =>
+            {
+                var (t, a) = _metadata.FetchFromLocalFile(filePath);
+                var track = new Track
+                {
+                    Title    = string.IsNullOrWhiteSpace(t) ? title : t,
+                    Artist   = a,
+                    FilePath = filePath,
+                    Source   = TrackSource.YouTube
+                };
+                _library.Add(track);
+                NullActionLogger.TrackAdded(track.Id.ToString(), filePath, nameof(TrackInputViewModel));
+                TrackAdded?.Invoke();
+                StatusMessage = $"Added: {track.Title}";
+            },
+            onTrackFailed: (title, error) =>
+            {
+                StatusMessage = $"Failed: {title}";
+                NullActionLogger.Error(nameof(TrackInputViewModel),
+                    $"Playlist track failed: {title} — {error}", playlistUrl);
+            });
+
         return System.Threading.Tasks.Task.CompletedTask;
     }
 
