@@ -1,103 +1,133 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:converters="using:NullWave.Helpers.Converters"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,1,0,0"
-        MinHeight="72"
-        Padding="12,0">
+        Height="90"
+        Padding="16,0">
+
+    <Border.Resources>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+    </Border.Resources>
 
     <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Stretch">
 
-        <!-- LEFT: Track info -->
-        <StackPanel Grid.Column="0" Orientation="Horizontal"
-                    VerticalAlignment="Center" Spacing="10">
-            <Border Width="44" Height="44"
+        <!-- ── LEFT: Art + track info + favorite ─────────────────────── -->
+        <StackPanel Grid.Column="0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center"
+                    Spacing="12">
+            <Border Width="52" Height="52"
                     CornerRadius="{StaticResource RadiusSm}"
                     Background="{StaticResource BrushElevated}"
                     ClipToBounds="True">
                 <Panel>
-                    <Image Source="{Binding Player.AlbumArtPath}"
+                    <Image Source="{Binding Player.AlbumArtPath,
+                               Converter={StaticResource PathToBitmap}}"
                            IsVisible="{Binding Player.HasAlbumArt}"
                            Stretch="UniformToFill"/>
                     <TextBlock Text="♪"
                                IsVisible="{Binding !Player.HasAlbumArt}"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeLg}"
+                               FontSize="{StaticResource FontSizeXl}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"/>
                 </Panel>
             </Border>
-            <StackPanel VerticalAlignment="Center" Spacing="2" MaxWidth="200">
+
+            <StackPanel VerticalAlignment="Center" Spacing="3" MaxWidth="200">
                 <TextBlock Text="{Binding Player.CurrentTrackDisplay}"
                            Foreground="{StaticResource BrushTextPrimary}"
-                           FontSize="{StaticResource FontSizeMd}"
+                           FontSize="{StaticResource FontSizeBody}"
                            FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{Binding Player.StatusText}"
                            Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeSm}"
+                           FontSize="{StaticResource FontSizeXs}"
                            TextTrimming="CharacterEllipsis"/>
             </StackPanel>
+
+            <Button Classes="player-btn"
+                    Content="★"
+                    Foreground="{StaticResource BrushAmber}"
+                    Command="{Binding Player.ToggleCurrentFavoriteCommand}"
+                    ToolTip.Tip="Toggle Favorite"
+                    VerticalAlignment="Center"/>
         </StackPanel>
 
-        <!-- CENTER: Controls + seek -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Center"
-                    HorizontalAlignment="Center" Spacing="4"
-                    MinWidth="320" MaxWidth="520">
+        <!-- ── CENTER: Controls + seek (fixed 440px) ─────────────────── -->
+        <StackPanel Grid.Column="1"
+                    Width="440"
+                    VerticalAlignment="Center"
+                    Spacing="8">
 
-            <!-- Buttons -->
+            <!-- Control buttons -->
             <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Center" Spacing="2">
-                <Button Classes="icon-btn"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+
+                <!-- UPDATED: Shuffle button with dynamic foreground -->
+                <Button Classes="player-btn"
                         Content="{Binding Player.ShuffleIcon}"
                         Command="{Binding Player.ToggleShuffleCommand}"
-                        FontSize="13" Padding="6"
+                        Foreground="{Binding Player.ShuffleForeground}"
                         ToolTip.Tip="Shuffle"/>
-                <Button Classes="icon-btn" Content="⏮" FontSize="15"
+
+                <Button Classes="player-btn"
+                        Content="⏮"
                         Command="{Binding Player.PreviousTrackCommand}"
-                        ToolTip.Tip="Previous"/>
-                <Button Classes="icon-btn" Content="-5s" FontSize="11"
+                        ToolTip.Tip="Previous (P)"/>
+
+                <Button Classes="player-btn"
+                        Content="-5"
                         Command="{Binding Player.SeekBackwardCommand}"
-                        ToolTip.Tip="Back 5s"/>
-                <Button Classes="icon-btn"
+                        FontSize="12"
+                        ToolTip.Tip="Back 5s (←)"/>
+
+                <!-- Play/pause — white circle, dark icon -->
+                <Button Classes="player-btn play"
                         Content="{Binding Player.PlayPauseIcon}"
                         Command="{Binding Player.PlayPauseCommand}"
-                        FontSize="20" Width="40" Height="40"
-                        Background="{StaticResource BrushAccentDim}"
-                        Foreground="{StaticResource BrushAccent}"
-                        CornerRadius="{StaticResource RadiusFull}"
-                        ToolTip.Tip="Play / Pause"/>
-                <Button Classes="icon-btn" Content="+5s" FontSize="11"
+                        ToolTip.Tip="Play / Pause (Space)"/>
+
+                <Button Classes="player-btn"
+                        Content="+5"
                         Command="{Binding Player.SeekForwardCommand}"
-                        ToolTip.Tip="Forward 5s"/>
-                <Button Classes="icon-btn" Content="⏭" FontSize="15"
+                        FontSize="12"
+                        ToolTip.Tip="Forward 5s (→)"/>
+
+                <Button Classes="player-btn"
+                        Content="⏭"
                         Command="{Binding Player.NextTrackCommand}"
-                        ToolTip.Tip="Next"/>
-                <Button Classes="icon-btn"
+                        ToolTip.Tip="Next (N)"/>
+
+                <!-- UPDATED: Repeat button with dynamic foreground -->
+                <Button Classes="player-btn"
                         Content="{Binding Player.RepeatIcon}"
                         Command="{Binding Player.CycleRepeatCommand}"
-                        FontSize="13" Padding="6"
+                        Foreground="{Binding Player.RepeatForeground}"
                         ToolTip.Tip="Repeat mode"/>
             </StackPanel>
 
             <!-- Seek row -->
-            <Grid ColumnDefinitions="38,*,38">
+            <Grid ColumnDefinitions="36,*,36">
                 <TextBlock Grid.Column="0"
                            Text="{Binding Player.PositionDisplay}"
                            Foreground="{StaticResource BrushTextMuted}"
                            FontSize="{StaticResource FontSizeXs}"
                            VerticalAlignment="Center"
                            HorizontalAlignment="Right"
-                           Margin="0,0,6,0"/>
+                           Margin="0,0,8,0"/>
                 <Slider Grid.Column="1"
                         x:Name="SeekSlider"
                         Value="{Binding Player.Position, Mode=OneWay}"
                         Minimum="0" Maximum="1"
                         VerticalAlignment="Center"
-                        ToolTip.Tip="Drag to seek"
                         PointerPressed="OnSeekPressed"
                         PointerReleased="OnSeekReleased"/>
                 <TextBlock Grid.Column="2"
@@ -106,29 +136,34 @@
                            FontSize="{StaticResource FontSizeXs}"
                            VerticalAlignment="Center"
                            HorizontalAlignment="Left"
-                           Margin="6,0,0,0"/>
+                           Margin="8,0,0,0"/>
             </Grid>
         </StackPanel>
 
-        <!-- RIGHT: Volume + download -->
-        <StackPanel Grid.Column="2" Orientation="Horizontal"
+        <!-- ── RIGHT: Volume ──────────────────────────────────────────── -->
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Center" Spacing="8">
+                    VerticalAlignment="Center"
+                    Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="6"
                         IsVisible="{Binding Player.IsDownloading}"
                         VerticalAlignment="Center">
                 <TextBlock Text="Downloading"
                            Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeSm}"
+                           FontSize="{StaticResource FontSizeXs}"
                            VerticalAlignment="Center"/>
                 <ProgressBar Value="{Binding Player.DownloadProgress}"
-                             Maximum="1" Width="70" Height="3"
+                             Maximum="1" Width="60" Height="2"
                              VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text="vol"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       FontSize="{StaticResource FontSizeXs}"
-                       VerticalAlignment="Center"/>
+
+            <Button Classes="player-btn"
+                    Content="{Binding Player.VolumeIcon}"
+                    Command="{Binding Player.ToggleMuteCommand}"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Mute / Unmute (M)"/>
+
             <Slider Value="{Binding Player.Volume, Mode=TwoWay}"
                     Minimum="0" Maximum="1" Width="90"
                     VerticalAlignment="Center"

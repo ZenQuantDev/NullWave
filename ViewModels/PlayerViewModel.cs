@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows.Input;
+using Avalonia.Media;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
@@ -27,6 +28,10 @@ public class PlayerViewModel : ViewModelBase
     private bool          _isShuffle     = false;
     private RepeatMode    _repeatMode    = RepeatMode.None;
     private static readonly Random _rng  = new();
+    
+    // Mute state
+    private float _volumeBeforeMute = 0.8f;
+    private bool  _isMuted          = false;
 
     public Track? CurrentTrack
     {
@@ -38,6 +43,7 @@ public class PlayerViewModel : ViewModelBase
             OnPropertyChanged(nameof(CurrentTrackDisplay));
             OnPropertyChanged(nameof(HasAlbumArt));
             OnPropertyChanged(nameof(AlbumArtPath));
+            OnPropertyChanged(nameof(IsCurrentFavorite));
         }
     }
 
@@ -107,6 +113,7 @@ public class PlayerViewModel : ViewModelBase
             _volume = value;
             _playback.Volume = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(VolumeIcon));
         }
     }
 
@@ -132,13 +139,26 @@ public class PlayerViewModel : ViewModelBase
     public bool IsShuffle
     {
         get => _isShuffle;
-        set { _isShuffle = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShuffleIcon)); }
+        set 
+        { 
+            _isShuffle = value; 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(ShuffleIcon)); 
+            OnPropertyChanged(nameof(ShuffleForeground)); // NEW
+        }
     }
 
     public RepeatMode RepeatMode
     {
         get => _repeatMode;
-        set { _repeatMode = value; OnPropertyChanged(); OnPropertyChanged(nameof(RepeatIcon)); OnPropertyChanged(nameof(IsRepeat)); }
+        set 
+        { 
+            _repeatMode = value; 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(RepeatIcon)); 
+            OnPropertyChanged(nameof(IsRepeat)); 
+            OnPropertyChanged(nameof(RepeatForeground)); // NEW
+        }
     }
 
     public bool IsRepeat => _repeatMode != RepeatMode.None;
@@ -151,6 +171,21 @@ public class PlayerViewModel : ViewModelBase
         _              => "↩"
     };
 
+    // NEW: Active state colors for shuffle/repeat buttons
+    public IBrush ShuffleForeground => _isShuffle
+        ? new SolidColorBrush(Color.Parse("#8B5CF6"))  // BrushAccent (purple)
+        : new SolidColorBrush(Color.Parse("#A8B4CC")); // BrushTextSecondary
+
+    public IBrush RepeatForeground => _repeatMode != RepeatMode.None
+        ? new SolidColorBrush(Color.Parse("#8B5CF6"))  // BrushAccent (purple)
+        : new SolidColorBrush(Color.Parse("#A8B4CC")); // BrushTextSecondary
+
+    // Volume icon
+    public string VolumeIcon => _isMuted || _volume == 0 ? "🔇" : "🔊";
+    
+    // Current track favorite state
+    public bool IsCurrentFavorite => _currentTrack?.IsFavorite ?? false;
+
     // ── Commands ──────────────────────────────────────────────────────────────
     public ICommand PlayPauseCommand      { get; }
     public ICommand StopCommand           { get; }
@@ -162,6 +197,8 @@ public class PlayerViewModel : ViewModelBase
     public ICommand NextTrackCommand      { get; }
     public ICommand ToggleShuffleCommand  { get; }
     public ICommand CycleRepeatCommand    { get; }
+    public ICommand ToggleMuteCommand            { get; }
+    public ICommand ToggleCurrentFavoriteCommand { get; }
 
     public PlayerViewModel(
         PlaybackService playback,
@@ -175,7 +212,6 @@ public class PlayerViewModel : ViewModelBase
 
         _playback.PositionChanged += pos =>
         {
-            // Only update if not currently user-seeking
             Position = pos;
         };
         _playback.StateChanged += state => State = state;
@@ -228,6 +264,29 @@ public class PlayerViewModel : ViewModelBase
         NextTrackCommand     = new RelayCommand(PlayNext);
         ToggleShuffleCommand = new RelayCommand(() => IsShuffle = !IsShuffle);
         CycleRepeatCommand   = new RelayCommand(CycleRepeat);
+        
+        ToggleMuteCommand = new RelayCommand(() =>
+        {
+            if (_isMuted)
+            {
+                _isMuted = false;
+                Volume   = _volumeBeforeMute;
+            }
+            else
+            {
+                _volumeBeforeMute = _volume > 0 ? _volume : 0.8f;
+                _isMuted          = true;
+                Volume            = 0;
+            }
+            OnPropertyChanged(nameof(VolumeIcon));
+        });
+
+        ToggleCurrentFavoriteCommand = new RelayCommand(() =>
+        {
+            if (_currentTrack == null) return;
+            _library.ToggleFavorite(_currentTrack.Id);
+            OnPropertyChanged(nameof(IsCurrentFavorite));
+        });
     }
 
     // ── Playback ──────────────────────────────────────────────────────────────
@@ -236,7 +295,7 @@ public class PlayerViewModel : ViewModelBase
     {
         if (track == null) return;
         CurrentTrack = track;
-        AlbumArtPath = null;
+        AlbumArtPath = track.AlbumArtPath;
 
         if (!string.IsNullOrEmpty(track.FilePath) && System.IO.File.Exists(track.FilePath))
         {
@@ -279,7 +338,6 @@ public class PlayerViewModel : ViewModelBase
         }
         else
         {
-            // Nothing loaded yet — ask MainViewModel to provide the selected track
             PlaySelectedTrackRequested?.Invoke();
         }
     }
@@ -302,13 +360,11 @@ public class PlayerViewModel : ViewModelBase
         switch (_repeatMode)
         {
             case RepeatMode.One:
-                // Replay the same track
                 if (_currentTrack != null) PlayTrack(_currentTrack);
                 break;
 
             case RepeatMode.All:
             case RepeatMode.None:
-                // Advance to next (PlayNext handles end-of-list wrapping for RepeatAll)
                 PlayNext();
                 break;
         }
@@ -354,7 +410,7 @@ public class PlayerViewModel : ViewModelBase
         if (idx > 0)
             PlayTrack(queue[idx - 1]);
         else if (_repeatMode == RepeatMode.All)
-            PlayTrack(queue[^1]); // wrap to last
+            PlayTrack(queue[^1]);
     }
 
     private void PlayNext()
@@ -364,7 +420,6 @@ public class PlayerViewModel : ViewModelBase
 
         if (_isShuffle)
         {
-            // Pick a random track that isn't the current one
             if (queue.Count == 1) { PlayTrack(queue[0]); return; }
             Track next;
             do { next = queue[_rng.Next(queue.Count)]; }
@@ -379,7 +434,7 @@ public class PlayerViewModel : ViewModelBase
         if (idx < queue.Count - 1)
             PlayTrack(queue[idx + 1]);
         else if (_repeatMode == RepeatMode.All)
-            PlayTrack(queue[0]); // wrap to first
+            PlayTrack(queue[0]);
         else
             StatusText = "End of library";
     }

@@ -3,10 +3,12 @@
            xmlns:vm="using:NullWave.ViewModels"
            xmlns:models="using:NullWave.Models"
            xmlns:helpers="using:NullWave.Helpers"
+           xmlns:converters="using:NullWave.Helpers.Converters"
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:MainViewModel">
     <DockPanel.Resources>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
     </DockPanel.Resources>
 
     <!-- ── TOOLBAR ─────────────────────────────────────────────────────────── -->
@@ -141,8 +143,10 @@
                         <MenuItem Header="Copy URL"
                                   Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
                         <Separator/>
+                        <!-- UPDATED: Added CommandParameter -->
                         <MenuItem Header="Remove"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"/>
+                                  Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
+                                  CommandParameter="{Binding}"/>
                     </ContextMenu>
                 </Setter>
             </ControlTheme>
@@ -158,7 +162,8 @@
                             ClipToBounds="True"
                             VerticalAlignment="Center">
                         <Panel>
-                            <Image Source="{Binding AlbumArtPath}"
+                            <!-- UPDATED: Using converter -->
+                            <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding AlbumArtPath,
                                        Converter={x:Static ObjectConverters.IsNotNull}}"/>
@@ -231,8 +236,10 @@
                                 <MenuItem Header="Copy URL"
                                           Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
                                 <Separator/>
+                                <!-- UPDATED: Added CommandParameter -->
                                 <MenuItem Header="Remove"
-                                          Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"/>
+                                          Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
+                                          CommandParameter="{Binding}"/>
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

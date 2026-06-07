@@ -18,7 +18,7 @@ public class MainViewModel : ViewModelBase
     private readonly KeyStoreService _keyStore = new();
     private readonly SecureDeleteService _secureDelete;
     private readonly ConfigService _config;
-    private readonly LibraryService _library = new();
+    private readonly LibraryService _library;
     private readonly PlaylistService _playlists = new();
     private readonly LastFmService _lastFm;
     private readonly MetadataService _metadata;
@@ -66,6 +66,7 @@ public class MainViewModel : ViewModelBase
         _config       = new ConfigService(_keyStore);
         _lastFm       = new LastFmService(_config);
         _metadata     = new MetadataService(_config, _lastFm);
+        _library      = new LibraryService(_metadata);
 
         // ── Construct child ViewModels ────────────────────────────────────────
         Input    = new TrackInputViewModel(_library, _metadata, _urlParser);

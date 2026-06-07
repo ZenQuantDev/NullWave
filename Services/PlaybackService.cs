@@ -35,7 +35,12 @@ public class PlaybackService : IDisposable
         _player = new MediaPlayer(_libVlc);
 
         _player.PositionChanged += (_, e) => PositionChanged?.Invoke(e.Position);
-        _player.Playing += (_, _) => StateChanged?.Invoke(PlaybackState.Playing);
+        _player.Playing += (_, _) =>
+        {
+            StateChanged?.Invoke(PlaybackState.Playing);
+            // Re-apply volume after pipeline initializes
+            _player.Volume = _player.Volume;
+        };
         _player.Paused += (_, _) => StateChanged?.Invoke(PlaybackState.Paused);
         _player.Stopped += (_, _) => StateChanged?.Invoke(PlaybackState.Stopped);
         _player.EndReached += (_, _) =>

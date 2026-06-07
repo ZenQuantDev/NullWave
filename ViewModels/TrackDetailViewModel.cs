@@ -76,6 +76,9 @@ public class TrackDetailViewModel : ViewModelBase
 
     public ObservableCollection<string> Tags { get; } = new();
 
+    // NEW: Album art path for binding
+    public string? CurrentTrackArtPath => _track?.AlbumArtPath;
+
     public string DisplayUrl => _track?.Url ?? _track?.FilePath ?? "—";
     public string DisplaySource => _track?.Source.ToString() ?? "—";
     public string DisplayDateAdded => _track?.DateAdded.ToString("MMMM dd, yyyy") ?? "—";
@@ -139,6 +142,8 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayLastPlayed));
         OnPropertyChanged(nameof(DisplayPlayCount));
         OnPropertyChanged(nameof(IsFavorite));
+        // NEW: Refresh album art path
+        OnPropertyChanged(nameof(CurrentTrackArtPath));
     }
 
     private void Save()
@@ -149,7 +154,7 @@ public class TrackDetailViewModel : ViewModelBase
         _track.Notes = EditNotes;
         _track.Tags.Clear();
         foreach (var tag in Tags) _track.Tags.Add(tag);
-        
+        _library.Update(_track); 
         Log.Information("Track details saved: {Title}", EditTitle);
     }
 

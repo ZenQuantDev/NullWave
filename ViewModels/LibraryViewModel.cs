@@ -84,7 +84,16 @@ public class LibraryViewModel : ViewModelBase
     {
         _library = library;
 
-        RemoveTrackCommand = new RelayCommand(RemoveTrack);
+        // UPDATED: Now accepts Track parameter
+        RemoveTrackCommand = new RelayCommand<Track>(t =>
+        {
+            var target = t ?? SelectedTrack;
+            if (target == null) return;
+            _library.Remove(target.Id);
+            if (SelectedTrack?.Id == target.Id) SelectedTrack = null;
+            Refresh();
+        });
+
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
         AddToQueueCommand = new RelayCommand(AddToQueue);
         RecordPlayCommand = new RelayCommand(RecordPlay);
@@ -161,13 +170,7 @@ public class LibraryViewModel : ViewModelBase
             Tracks.Add(track);
     }
 
-    private void RemoveTrack()
-    {
-        if (SelectedTrack == null) return;
-        _library.Remove(SelectedTrack.Id);
-        SelectedTrack = null;
-        Refresh();
-    }
+    // REMOVED: Old RemoveTrack() method
 
     private void ToggleFavorite()
     {
@@ -194,14 +197,6 @@ public class LibraryViewModel : ViewModelBase
         var url = SelectedTrack?.Url ?? SelectedTrack?.FilePath;
         if (string.IsNullOrEmpty(url)) return;
         // TODO: Implement clipboard support in Phase 3
-        // if (Avalonia.Application.Current?.ApplicationLifetime is
-        //     Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-        //     && desktop.MainWindow != null)
-        // {
-        //     var clipboard = Avalonia.Controls.TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
-        //     if (clipboard != null)
-        //         clipboard.SetText(url);
-        // }
     }
 
     private void OpenDetail()

@@ -1,6 +1,7 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:converters="using:NullWave.Helpers.Converters"
         x:Class="NullWave.Views.Controls.TrackDetailView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
@@ -10,6 +11,11 @@
         MaxWidth="500"
         IsVisible="{Binding Detail.IsOpen}"
         ClipToBounds="True">
+  
+  <Border.Resources>
+    <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+  </Border.Resources>
+
   <Border.Transitions>
     <Transitions>
       <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
@@ -27,11 +33,16 @@
               Background="{StaticResource BrushSurface2}"
               ClipToBounds="True">
         <Panel>
-          <!-- Art image (embedded or cached) -->
-          <!-- Placeholder when no art available -->
+          <!-- UPDATED: Using converter -->
+          <Image Source="{Binding Detail.CurrentTrackArtPath, Converter={StaticResource PathToBitmap}}"
+                 Stretch="UniformToFill"
+                 IsVisible="{Binding Detail.CurrentTrackArtPath,
+                     Converter={x:Static ObjectConverters.IsNotNull}}"/>
           <StackPanel HorizontalAlignment="Center"
                       VerticalAlignment="Center"
-                      Spacing="8">
+                      Spacing="8"
+                      IsVisible="{Binding Detail.CurrentTrackArtPath,
+                          Converter={x:Static ObjectConverters.IsNull}}">
             <TextBlock Text="♪"
                        FontSize="52"
                        Foreground="{StaticResource BrushTextMuted}"
@@ -125,18 +136,16 @@
                      FontSize="{StaticResource FontSizeBody}"/>
         </StackPanel>
 
-          <!-- URL / Path -->
-          <StackPanel Spacing="6">
-              <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
-              <TextBlock Text="{Binding Detail.DisplayUrl}" Foreground="{StaticResource BrushBlue}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
-              
-              <!-- UPDATED: Binds to CopyStatus so it says "Copied!" temporarily -->
-              <Button Classes="ghost" 
-                      Content="{Binding Detail.CopyStatus}" 
-                      Command="{Binding Detail.CopyUrlCommand}" 
-                      HorizontalAlignment="Left" 
-                      Padding="12,5"/>
-          </StackPanel>
+        <!-- URL / Path -->
+        <StackPanel Spacing="6">
+          <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
+          <TextBlock Text="{Binding Detail.DisplayUrl}" Foreground="{StaticResource BrushBlue}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+          <Button Classes="ghost" 
+                  Content="{Binding Detail.CopyStatus}" 
+                  Command="{Binding Detail.CopyUrlCommand}" 
+                  HorizontalAlignment="Left" 
+                  Padding="12,5"/>
+        </StackPanel>
 
         <Separator/>
 

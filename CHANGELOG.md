@@ -5,6 +5,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.1] - 07-Jun-2026
+
+### Added
+- `ControlStyles.axaml` — `.player-btn` style: Spotify-inspired borderless player buttons, no background box, subtle hover only
+- `.player-btn.play` — filled white circle for play/pause, dark icon inside
+- `PlayerViewModel` — `ShuffleForeground` property: accent color when shuffle is on, muted when off
+- `PlayerViewModel` — `RepeatForeground` property: accent color when repeat is active, muted when off
+- `PlayerViewModel` — `ToggleMuteCommand` with volume memory (`_volumeBeforeMute`)
+- `PlayerViewModel` — `ToggleCurrentFavoriteCommand` — favorite toggle for currently playing track
+- `PlayerViewModel` — `VolumeIcon` property — switches between muted/unmuted glyph
+- `PlayerViewModel` — `IsCurrentFavorite` property bound to current track
+- `MiniPlayerView` — favorite star button for current track in left section
+- `MiniPlayerView` — mute toggle button replaces static "vol" label
+- `DatabaseService` — SQLite-net backed storage: `LoadAll`, `Insert`, `Update`, `Delete`
+- `TrackRecord` — flat SQLite-mapped model, tags serialized as pipe-separated string
+- `LibraryService` — DB-backed: persists on `Add`, `Remove`, `Update`, `ToggleFavorite`, `RecordPlay`
+- `LibraryService` — `BackfillAlbumArt()` on startup: extracts embedded art for existing tracks
+- `MetadataService` — `ExtractAlbumArt()`: extracts embedded ID3 art, caches to `~/.nullwave/art/`
+- `Helpers/Converters/FilePathToBitmapConverter.cs` — converts file path string to `Bitmap` for Avalonia `Image`
+- `TrackDetailViewModel` — `CurrentTrackArtPath` property, refreshed via `RefreshDisplayProperties()`
+- `TrackDetailViewModel` — `Save()` now calls `_library.Update()` to persist edits to SQLite
+- `PlaybackService` — re-applies volume on `Playing` event to fix silent-start bug on LibVLC pipeline init
+- `MainWindow` — keyboard shortcuts: Space (play/pause), ←/→ (seek ±5s), M (mute), N (next), P (previous)
+
+### Fixed
+- Track list thumbnails not showing — `Image.Source` now uses `FilePathToBitmapConverter` instead of raw string binding
+- Track detail panel art not showing — same converter applied to `Detail.CurrentTrackArtPath`
+- Miniplayer album art not showing — converter applied to `Player.AlbumArtPath`
+- Tracks loaded from DB had no album art — `BackfillAlbumArt()` extracts and saves on startup
+- Remove track not working — `RemoveTrackCommand` now accepts `Track` parameter, context menu passes `CommandParameter="{Binding}"`
+- Silent start on playback — volume re-applied after LibVLC pipeline initializes
+- Shuffle/repeat buttons gave no visual feedback — now use accent color when active
+
+### Changed
+- Miniplayer buttons fully redesigned — Spotify-style `.player-btn` class replaces `.icon-btn`
+- Miniplayer layout switched from `StackPanel` to two-row `Grid` center section — eliminates vertical clipping
+- Miniplayer fixed `Height="90"`, fixed center `Width="440"` — consistent layout at all window sizes
+- `LibraryService` constructor now accepts optional `MetadataService` for art extraction
+- `MainViewModel` passes `_metadata` to `LibraryService` constructor
+
 ## [0.2.0] - 06-Jun-2026
 
 ### Added

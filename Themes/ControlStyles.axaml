@@ -108,6 +108,54 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
+     PLAYER BUTTON  — Spotify-style: no border, no background box,
+     icon centered, subtle hover glow only
+     ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.player-btn">
+    <Setter Property="Background"              Value="Transparent"/>
+    <Setter Property="Foreground"              Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="BorderThickness"         Value="0"/>
+    <Setter Property="Padding"                 Value="0"/>
+    <Setter Property="Width"                   Value="32"/>
+    <Setter Property="Height"                  Value="32"/>
+    <Setter Property="CornerRadius"            Value="{StaticResource RadiusFull}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
+    <Setter Property="Cursor"                  Value="Hand"/>
+    <Setter Property="FontSize"                Value="16"/>
+  </Style>
+  <Style Selector="Button.player-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background"  Value="Transparent"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushTextPrimary}"/>
+  </Style>
+  <Style Selector="Button.player-btn:pressed /template/ ContentPresenter">
+    <Setter Property="Background"  Value="Transparent"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+  <!-- Play/pause circle button -->
+  <Style Selector="Button.player-btn.play">
+    <Setter Property="Background"  Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
+    <Setter Property="Width"       Value="40"/>
+    <Setter Property="Height"      Value="40"/>
+    <Setter Property="FontSize"    Value="18"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+  </Style>
+  <Style Selector="Button.player-btn.play:pointerover /template/ ContentPresenter">
+    <Setter Property="Background"  Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
+  </Style>
+
+  <!-- Active state for shuffle/repeat — accent color -->
+  <Style Selector="Button.player-btn.active">
+    <Setter Property="Foreground"  Value="{StaticResource BrushAccent}"/>
+  </Style>
+  <Style Selector="Button.player-btn.active:pointerover /template/ ContentPresenter">
+    <Setter Property="Foreground"  Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
        PRIMARY BUTTON  — accent-filled
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.primary">

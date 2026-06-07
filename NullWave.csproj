@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>ZenQuant</Authors>
     <Company>PackItPro Team</Company>
     <Product>NullWave</Product>

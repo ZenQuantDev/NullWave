@@ -5,7 +5,7 @@
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
-        MinWidth="900" MinHeight="600"
+        MinWidth="1000" MinHeight="620"
         Width="1280" Height="780"
         Background="{StaticResource BrushBase}"
         KeyDown="OnKeyDown">

@@ -1,6 +1,6 @@
 # NullWave — Roadmap
 
-> Last updated: 06-Jun-2026
+> Last updated: 07-Jun-2026
 
 ---
 
@@ -20,7 +20,7 @@
 
 **Goal:** Working music library with local file playback and metadata reading.
 
-- ✅ Track model + in-memory `LibraryService`
+- ✅ Track model + `LibraryService` (SQLite-backed via `DatabaseService`)
 - ✅ TagLib# ID3 tag reading on import
 - ✅ LibVLC playback via `PlaybackService` (Fedora: symlinks in `/usr/lib`)
 - ✅ yt-dlp URL download to `~/.nullwave/downloads/` as MP3 (`DownloadService`)
@@ -184,7 +184,7 @@ Evaluate in order:
 - 💡 Theme switcher — light / dark / accent color picker
 - 💡 Global keyboard shortcuts — play/pause, next/prev, search focus
 - 💡 Export playlist (M3U format)
-- 🔜 SQLite database persistence (replaces in-memory library) — packages installed, implementation next
+- ✅ SQLite database persistence — `DatabaseService` + `TrackRecord`, fully wired into `LibraryService`
 
 ---
 
