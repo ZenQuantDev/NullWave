@@ -1,6 +1,8 @@
-﻿using Avalonia;
+﻿using System;
+using Avalonia;
 using NullWave.Helpers;
-using System;
+using NullWave.Helpers.Logging;
+using Serilog;
 
 namespace NullWave;
 
@@ -9,27 +11,32 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        AppLogger.Initialize();
+        // ── 1. Ensure ~/.nullwave/* directories exist ─────────────────────────
+        NullWavePaths.EnsureDirectories();
+
+        // ── 2. Initialize Serilog before anything else ────────────────────────
+        //      This must be first so every downstream exception is captured.
+        NullWaveLogConfig.Initialize();
+
         try
         {
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
-            Serilog.Log.Fatal(ex, "Application crashed");
+            // Last-resort catch — any unhandled exception from the UI thread
+            NullActionLogger.Error("Program", ex, "Unhandled top-level exception");
+            throw;
         }
         finally
         {
-            AppLogger.Shutdown();
+            NullWaveLogConfig.CloseAndFlush();
         }
     }
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            #if DEBUG
-            .WithDeveloperTools()
-            #endif
             .WithInterFont()
             .LogToTrace();
 }

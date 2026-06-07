@@ -8,27 +8,77 @@ namespace NullWave.Services;
 
 public class LibraryService
 {
-    private readonly List<Track> _tracks = new();
-    private readonly List<Track> _queue = new();
+    private readonly DatabaseService _db;
+    private readonly MetadataService? _metadata;
+    private readonly List<Track> _tracks;
+    private readonly List<Track> _queue   = new();
     private readonly List<Track> _history = new();
+
+    public LibraryService(MetadataService? metadata = null)
+    {
+        _db       = new DatabaseService();
+        _metadata = metadata;
+        _tracks   = _db.LoadAll();
+        Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+        BackfillAlbumArt();
+    }
+
+    private void BackfillAlbumArt()
+    {
+        if (_metadata == null) return;
+        bool anyUpdated = false;
+        foreach (var track in _tracks)
+        {
+            if (!string.IsNullOrEmpty(track.AlbumArtPath)) continue;
+            if (string.IsNullOrEmpty(track.FilePath)) continue;
+            if (!System.IO.File.Exists(track.FilePath)) continue;
+
+            var art = _metadata.ExtractAlbumArt(track.FilePath);
+            if (art == null) continue;
+
+            track.AlbumArtPath = art;
+            _db.Update(track);
+            anyUpdated = true;
+        }
+        if (anyUpdated)
+            Log.Information("[LibraryService] Album art backfill complete");
+    }
 
     // ── Core ──────────────────────────────────────────
     public IReadOnlyList<Track> GetAll() => _tracks.AsReadOnly();
 
-    public void Add(Track track)
-    {
-        if (IsDuplicate(track)) return;
-        _tracks.Add(track);
-    }
+        public void Add(Track track)
+        {
+            if (IsDuplicate(track)) return;
+
+            // Extract embedded album art for local files
+            if (!string.IsNullOrEmpty(track.FilePath) &&
+                string.IsNullOrEmpty(track.AlbumArtPath) &&
+                _metadata != null)
+            {
+                track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
+            }
+
+            _tracks.Add(track);
+            _db.Insert(track);
+        }
 
     public void Remove(Guid id)
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
-        if (track != null) _tracks.Remove(track);
+        if (track == null) return;
+        _tracks.Remove(track);
+        _db.Delete(id);
+    }
+
+    public void Update(Track track)
+    {
+        _db.Update(track);
     }
 
     // ── Search & Filter ───────────────────────────────
-    public IReadOnlyList<Track> Search(string query, SortField field = SortField.DateAdded, bool ascending = true)
+    public IReadOnlyList<Track> Search(
+        string query, SortField field = SortField.DateAdded, bool ascending = true)
     {
         if (string.IsNullOrWhiteSpace(query)) return GetSorted(field, ascending);
 
@@ -38,10 +88,10 @@ public class LibraryService
 
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title => results.OrderBy(t => t.Title),
-            SortField.Artist => results.OrderBy(t => t.Artist),
+            SortField.Title     => results.OrderBy(t => t.Title),
+            SortField.Artist    => results.OrderBy(t => t.Artist),
             SortField.DateAdded => results.OrderBy(t => t.DateAdded),
-            SortField.Source => results.OrderBy(t => t.Source),
+            SortField.Source    => results.OrderBy(t => t.Source),
             SortField.PlayCount => results.OrderBy(t => t.PlayCount),
             SortField.LastPlayed => results.OrderBy(t => t.LastPlayed),
             _ => results
@@ -67,10 +117,10 @@ public class LibraryService
     {
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title => _tracks.OrderBy(t => t.Title),
-            SortField.Artist => _tracks.OrderBy(t => t.Artist),
+            SortField.Title     => _tracks.OrderBy(t => t.Title),
+            SortField.Artist    => _tracks.OrderBy(t => t.Artist),
             SortField.DateAdded => _tracks.OrderBy(t => t.DateAdded),
-            SortField.Source => _tracks.OrderBy(t => t.Source),
+            SortField.Source    => _tracks.OrderBy(t => t.Source),
             SortField.PlayCount => _tracks.OrderBy(t => t.PlayCount),
             SortField.LastPlayed => _tracks.OrderBy(t => t.LastPlayed),
             _ => _tracks
@@ -83,7 +133,9 @@ public class LibraryService
     public void ToggleFavorite(Guid id)
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
-        if (track != null) track.IsFavorite = !track.IsFavorite;
+        if (track == null) return;
+        track.IsFavorite = !track.IsFavorite;
+        _db.Update(track);
     }
 
     // ── Play Tracking ─────────────────────────────────
@@ -94,8 +146,9 @@ public class LibraryService
 
         track.PlayCount++;
         track.LastPlayed = DateTime.Now;
-        _history.Add(track);
+        _db.Update(track);
 
+        _history.Add(track);
         if (_history.Count > 200)
             _history.RemoveAt(0);
     }
@@ -104,11 +157,11 @@ public class LibraryService
     public bool IsDuplicate(Track newTrack)
     {
         return _tracks.Any(t =>
-            (!string.IsNullOrWhiteSpace(newTrack.Url) && t.Url == newTrack.Url) ||
+            (!string.IsNullOrWhiteSpace(newTrack.Url)      && t.Url      == newTrack.Url) ||
             (!string.IsNullOrWhiteSpace(newTrack.FilePath) && t.FilePath == newTrack.FilePath) ||
             (!string.IsNullOrWhiteSpace(newTrack.Title) &&
              !string.IsNullOrWhiteSpace(newTrack.Artist) &&
-             t.Title.Equals(newTrack.Title, StringComparison.OrdinalIgnoreCase) &&
+             t.Title.Equals(newTrack.Title,   StringComparison.OrdinalIgnoreCase) &&
              t.Artist.Equals(newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
     }
 

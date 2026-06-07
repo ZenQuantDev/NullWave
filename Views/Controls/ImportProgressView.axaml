@@ -1,0 +1,19 @@
+<Border xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels"
+        x:Class="NullWave.Views.Controls.ImportProgressView"
+        x:DataType="vm:MainViewModel"
+        Background="#0d1a0d"
+        Padding="16,8"
+        IsVisible="{Binding Import.IsImporting}">
+    <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Import.ImportStatus}"
+                   Foreground="#4ade80"
+                   FontSize="12"/>
+        <ProgressBar Value="{Binding Import.ImportProgress}"
+                     Maximum="{Binding Import.ImportTotal}"
+                     Height="4"
+                     Foreground="#4ade80"
+                     Background="#1a2a1a"/>
+    </StackPanel>
+</Border>

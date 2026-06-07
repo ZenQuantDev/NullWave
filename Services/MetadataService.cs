@@ -190,4 +190,38 @@ public class MetadataService
             return (System.IO.Path.GetFileNameWithoutExtension(filePath), "Unknown");
         }
     }
+    public string? ExtractAlbumArt(string filePath)
+    {
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0)
+                return null;
+
+            var picture = file.Tag.Pictures[0];
+            if (picture.Data == null || picture.Data.Count == 0)
+                return null;
+
+            // Build cache path: ~/.nullwave/art/{hash}.jpg
+            var hash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(filePath)))
+                [..16];
+
+            var artPath = System.IO.Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
+
+            if (!System.IO.File.Exists(artPath))
+            {
+                System.IO.File.WriteAllBytes(artPath, picture.Data.Data);
+                Log.Information("Album art extracted: {Path}", artPath);
+            }
+
+            return artPath;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Album art extraction failed for {Path}", filePath);
+            return null;
+        }
+    }
 }
