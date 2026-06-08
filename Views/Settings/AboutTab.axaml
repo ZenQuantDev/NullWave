@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             x:Class="NullWave.Views.Settings.AboutTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer Padding="24,20">
+        <StackPanel Spacing="20" HorizontalAlignment="Center" MaxWidth="480">
+
+            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                <Border Width="64" Height="64"
+                        CornerRadius="{StaticResource RadiusLg}"
+                        Background="{StaticResource BrushAccentDim}">
+                    <TextBlock Text="N"
+                               Foreground="{StaticResource BrushAccent}"
+                               FontSize="{StaticResource FontSize2xl}"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="NullWave"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           FontSize="{StaticResource FontSizeXl}"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding CurrentVersion}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="Music organizer for YouTube, SoundCloud, Last.fm, and local files"
+                           Foreground="{StaticResource BrushTextSecondary}"
+                           FontSize="{StaticResource FontSizeSm}"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" Text="Author"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBlock Grid.Column="1" Text="ZenQuant — PackItPro Team"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                </Grid>
+                <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" Text="Platform"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBlock Grid.Column="1" Text="Linux (Windows / Android planned)"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                </Grid>
+                <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" Text="License"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBlock Grid.Column="1" Text="MIT with Attribution"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                </Grid>
+                <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" Text="Built with"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBlock Grid.Column="1"
+                               Text="C# / .NET 8 / Avalonia UI 12 / LibVLC / yt-dlp"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"
+                               TextWrapping="Wrap"/>
+                </Grid>
+            </StackPanel>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <Border Background="{StaticResource BrushSurface2}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    Padding="14,12">
+                <TextBlock Text="NullWave is free, open-source software. Any downloading functionality is intended solely for content you have the legal right to download. The author(s) are not liable for misuse."
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           TextWrapping="Wrap"/>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

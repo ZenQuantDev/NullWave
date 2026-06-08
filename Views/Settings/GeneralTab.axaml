@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             x:Class="NullWave.Views.Settings.GeneralTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer Padding="24,20">
+        <StackPanel Spacing="24">
+
+            <TextBlock Classes="section-label" Text="BEHAVIOUR" Margin="0"/>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Auto-fetch metadata"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Fetch title and artist when a URL is pasted"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Auto-play next track"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Automatically play the next track when one finishes"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding AutoPlayNext, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Download when added"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Download audio immediately when a URL is added to the library"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding DownloadOnAdd, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Scrobble to Last.fm"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Submit plays to Last.fm when track passes 50% (requires API key)"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding ScrobbleToLastFm, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <TextBlock Classes="section-label" Text="DOWNLOAD DIRECTORY" Margin="0"/>
+
+            <Grid ColumnDefinitions="*,8,Auto">
+                <TextBox Grid.Column="0"
+                         Text="{Binding DownloadDirectory, Mode=TwoWay}"
+                         PlaceholderText="~/.nullwave/downloads"
+                         VerticalAlignment="Center"/>
+                <Button Grid.Column="2"
+                        Classes="secondary"
+                        Content="Browse..."
+                        Command="{Binding BrowseDownloadDirCommand}"/>
+            </Grid>
+
+            <TextBlock Text="{Binding DownloadDirectory}"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeXs}"/>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

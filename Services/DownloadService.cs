@@ -160,9 +160,9 @@ public class DownloadService
 
     public async Task DownloadPlaylistAsync(
         string playlistUrl,
-        Action<string, int, int> onTrackStarted,   // title, index, total
-        Action<string, string> onTrackCompleted,   // title, filePath
-        Action<string, string> onTrackFailed,      // title, error
+        Action<string, int, int> onTrackStarted,        // title, index, total
+        Action<string, string, string> onTrackCompleted,   // title, artist, filePath
+        Action<string, string> onTrackFailed,           // title, error
         CancellationToken ct = default)
     {
         Log.Information("Fetching playlist metadata: {Url}", playlistUrl);
@@ -179,7 +179,7 @@ public class DownloadService
             CreateNoWindow         = true
         };
 
-        var entries = new List<(string Id, string Title)>();
+        var entries = new List<(string Id, string Title, string Artist)>();
 
         using (var metaProc = new Process { StartInfo = metaPsi })
         {
@@ -190,14 +190,19 @@ public class DownloadService
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 try
                 {
-                    // Each line is a JSON object — extract id and title
-                    var idMatch    = Regex.Match(line, @"""id""\s*:\s*""([^""]+)""");
-                    var titleMatch = Regex.Match(line, @"""title""\s*:\s*""([^""]+)""");
+                    // Each line is a JSON object — extract id, title, and artist
+                    var idMatch      = Regex.Match(line, @"""id""\s*:\s*""([^""]+)""");
+                    var titleMatch   = Regex.Match(line, @"""title""\s*:\s*""([^""]+)""");
+                    var channelMatch = Regex.Match(line, @"""channel""\s*:\s*""([^""]+)""");
+                    var uploaderMatch = Regex.Match(line, @"""uploader""\s*:\s*""([^""]+)""");
                     if (idMatch.Success)
                     {
-                        var id    = idMatch.Groups[1].Value;
-                        var title = titleMatch.Success ? titleMatch.Groups[1].Value : id;
-                        entries.Add((id, title));
+                        var id     = idMatch.Groups[1].Value;
+                        var title  = titleMatch.Success  ? titleMatch.Groups[1].Value  : id;
+                        var artist = channelMatch.Success ? channelMatch.Groups[1].Value
+                                   : uploaderMatch.Success ? uploaderMatch.Groups[1].Value
+                                   : "Unknown";
+                        entries.Add((id, title, artist));
                     }
                 }
                 catch { /* skip malformed lines */ }
@@ -219,7 +224,7 @@ public class DownloadService
         {
             if (ct.IsCancellationRequested) break;
 
-            var (id, title) = entries[i];
+            var (id, title, artist) = entries[i];
             var trackUrl = $"https://www.youtube.com/watch?v={id}";
 
             onTrackStarted(title, i + 1, entries.Count);
@@ -263,11 +268,11 @@ public class DownloadService
                 await proc.WaitForExitAsync(ct);
 
                 if (proc.ExitCode == 0 && filePath != null && File.Exists(filePath))
-                    onTrackCompleted(title, filePath);
+                    onTrackCompleted(title, artist, filePath);
                 else if (proc.ExitCode == 0)
                 {
                     var recent = FindMostRecentDownload();
-                    if (recent != null) onTrackCompleted(title, recent);
+                    if (recent != null) onTrackCompleted(title, artist, recent);
                     else onTrackFailed(title, "File not found after download");
                 }
                 else

@@ -69,7 +69,7 @@ public class MainViewModel : ViewModelBase
         _library      = new LibraryService(_metadata);
 
         // ── Construct child ViewModels ────────────────────────────────────────
-        Input    = new TrackInputViewModel(_library, _metadata, _urlParser);
+        Input    = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService);
         Library  = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
         Export   = new ExportViewModel(_library, _export);

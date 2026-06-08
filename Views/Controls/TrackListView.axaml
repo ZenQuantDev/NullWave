@@ -109,6 +109,45 @@
         </Grid>
     </Border>
 
+    <!-- ── PLAYLIST IMPORT PROGRESS ──────────────────────────────────────────── -->
+    <Border DockPanel.Dock="Top"
+            Background="{StaticResource BrushBlueDim}"
+            BorderBrush="{StaticResource BrushBlue}"
+            BorderThickness="0,0,0,1"
+            Padding="12,8"
+            IsVisible="{Binding Input.IsPlaylistImporting}">
+        <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="{Binding Input.PlaylistCurrentTrack}"
+                           Foreground="{StaticResource BrushBlue}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"/>
+                <ProgressBar Value="{Binding Input.PlaylistProgress}"
+                             Maximum="{Binding Input.PlaylistTotal}"
+                             Height="4"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Spacing="4">
+                <TextBlock Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeSm}">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="{}{0} / {1}">
+                            <Binding Path="Input.PlaylistProgress"/>
+                            <Binding Path="Input.PlaylistTotal"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <Button Content="Cancel"
+                        Command="{Binding Input.CancelPlaylistCommand}"
+                        Classes="danger"
+                        FontSize="{StaticResource FontSizeXs}"
+                        Padding="8,4"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+
     <!-- ── COLUMN HEADERS ────────────────────────────────────────────────────── -->
     <Grid DockPanel.Dock="Top"
           ColumnDefinitions="48,*,150,80,110,36,36"

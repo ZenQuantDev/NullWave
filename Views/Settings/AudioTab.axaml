@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             x:Class="NullWave.Views.Settings.AudioTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer Padding="24,20">
+        <StackPanel Spacing="24">
+
+            <TextBlock Classes="section-label" Text="DOWNLOAD QUALITY" Margin="0"/>
+
+            <Grid ColumnDefinitions="*,16,*">
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Audio Quality"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <ComboBox ItemsSource="{Binding AudioQualityOptions}"
+                              SelectedItem="{Binding AudioQuality, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="'best' uses highest available bitrate"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="8">
+                    <TextBlock Text="Audio Format"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <ComboBox ItemsSource="{Binding AudioFormatOptions}"
+                              SelectedItem="{Binding AudioFormat, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="mp3 is most compatible; flac is lossless"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Background="{StaticResource BrushSurface2}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    Padding="14,12">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Effective yt-dlp command"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Foreground="{StaticResource BrushTextSecondary}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               FontFamily="monospace">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="yt-dlp --extract-audio --audio-format {0} --audio-quality {1}">
+                                <Binding Path="AudioFormat"/>
+                                <Binding Path="AudioQuality"/>
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

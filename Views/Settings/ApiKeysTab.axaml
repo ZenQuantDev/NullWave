@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             x:Class="NullWave.Views.Settings.ApiKeysTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer Padding="24,20">
+        <StackPanel Spacing="20">
+
+            <TextBlock Classes="section-label" Text="YOUTUBE DATA API V3" Margin="0"/>
+            <StackPanel Spacing="6">
+                <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}"
+                         PlaceholderText="AIza..."
+                         PasswordChar="●"/>
+                <TextBlock Text="console.cloud.google.com → APIs → YouTube Data API v3 → Credentials"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"/>
+            </StackPanel>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+            <TextBlock Classes="section-label" Text="LAST.FM" Margin="0"/>
+            <StackPanel Spacing="6">
+                <TextBox Text="{Binding LastFmApiKey, Mode=TwoWay}"
+                         PlaceholderText="API key"
+                         PasswordChar="●"/>
+                <TextBlock Text="last.fm/api/account/create — free, no tier required"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"/>
+            </StackPanel>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+            <TextBlock Classes="section-label" Text="SOUNDCLOUD" Margin="0"/>
+            <StackPanel Spacing="6">
+                <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}"
+                         PlaceholderText="Client ID"
+                         PasswordChar="●"/>
+                <TextBlock Text="soundcloud.com/you/apps — new registrations limited by region"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"/>
+            </StackPanel>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+            <TextBlock Classes="section-label" Text="SPOTIFY (METADATA ONLY)" Margin="0"/>
+            <StackPanel Spacing="6">
+                <TextBox Text="{Binding SpotifyClientId, Mode=TwoWay}"
+                         PlaceholderText="Client ID"
+                         PasswordChar="●"/>
+                <TextBox Text="{Binding SpotifyClientSecret, Mode=TwoWay}"
+                         PlaceholderText="Client Secret"
+                         PasswordChar="●"
+                         Margin="0,6,0,0"/>
+                <TextBlock Text="developer.spotify.com/dashboard — used for metadata lookup only, not streaming"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"/>
+            </StackPanel>
+
+            <Border Background="{StaticResource BrushAccentDim}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    Padding="12,10">
+                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control."
+                           Foreground="{StaticResource BrushAccentHover}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           TextWrapping="Wrap"/>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

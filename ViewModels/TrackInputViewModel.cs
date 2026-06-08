@@ -19,6 +19,7 @@ public class TrackInputViewModel : ViewModelBase
     private readonly LibraryService    _library;
     private readonly MetadataService   _metadata;
     private readonly UrlParserService  _urlParser;
+    private readonly DownloadService   _download;
 
     private string      _inputUrl           = string.Empty;
     private string      _lastFetchedUrl     = string.Empty;
@@ -28,10 +29,16 @@ public class TrackInputViewModel : ViewModelBase
     private bool        _isFetching;
     private bool        _isUrlInputVisible  = false;
     private string      _statusMessage      = string.Empty;
+    private System.Threading.CancellationTokenSource? _playlistCts;
+    private bool        _isPlaylistImporting;
+    private int         _playlistProgress;
+    private int         _playlistTotal;
+    private string      _playlistCurrentTrack = string.Empty;
 
     public Array    SourceOptions      => Enum.GetValues(typeof(TrackSource));
     public ICommand AddTrackCommand    { get; }
     public ICommand AddLocalFileCommand{ get; }
+    public ICommand CancelPlaylistCommand { get; }
 
     public event Action? TrackAdded;
 
@@ -51,6 +58,30 @@ public class TrackInputViewModel : ViewModelBase
     {
         get => _statusMessage;
         set { _statusMessage = value; OnPropertyChanged(); }
+    }
+
+    public bool IsPlaylistImporting
+    {
+        get => _isPlaylistImporting;
+        set { _isPlaylistImporting = value; OnPropertyChanged(); }
+    }
+
+    public int PlaylistProgress
+    {
+        get => _playlistProgress;
+        set { _playlistProgress = value; OnPropertyChanged(); }
+    }
+
+    public int PlaylistTotal
+    {
+        get => _playlistTotal;
+        set { _playlistTotal = value; OnPropertyChanged(); }
+    }
+
+    public string PlaylistCurrentTrack
+    {
+        get => _playlistCurrentTrack;
+        set { _playlistCurrentTrack = value; OnPropertyChanged(); }
     }
 
     public ICommand ShowUrlInputCommand { get; }
@@ -93,15 +124,24 @@ public class TrackInputViewModel : ViewModelBase
     public TrackInputViewModel(
         LibraryService   library,
         MetadataService  metadata,
-        UrlParserService urlParser)
+        UrlParserService urlParser,
+        DownloadService  download)
     {
         _library   = library;
         _metadata  = metadata;
         _urlParser = urlParser;
+        _download  = download;
 
         AddTrackCommand     = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
         ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
+        CancelPlaylistCommand = new RelayCommand(() =>
+        {
+            _playlistCts?.Cancel();
+            IsPlaylistImporting = false;
+            StatusMessage = "Playlist import cancelled";
+            Log.Information("[{Source}] Playlist import cancelled by user", nameof(TrackInputViewModel));
+        });
     }
 
     public void AddTrack()
@@ -265,37 +305,62 @@ public class TrackInputViewModel : ViewModelBase
 
     private System.Threading.Tasks.Task ImportPlaylistAsync(string playlistUrl)
     {
-        var download = new DownloadService();
+        _playlistCts?.Cancel();
+        _playlistCts = new System.Threading.CancellationTokenSource();
+        var ct = _playlistCts.Token;
 
-        _ = download.DownloadPlaylistAsync(
+        IsPlaylistImporting = true;
+        PlaylistProgress    = 0;
+        PlaylistTotal       = 0;
+        PlaylistCurrentTrack = "Fetching playlist...";
+
+        _ = _download.DownloadPlaylistAsync(
             playlistUrl,
             onTrackStarted: (title, index, total) =>
             {
-                StatusMessage = $"Downloading {index}/{total}: {title}";
+                PlaylistProgress    = index;
+                PlaylistTotal       = total;
+                PlaylistCurrentTrack = title;
                 Log.Information("[{Source}] Playlist track started: {Title} ({Index}/{Total})",
                     nameof(TrackInputViewModel), title, index, total);
             },
-            onTrackCompleted: (title, filePath) =>
+            onTrackCompleted: (title, artist, filePath) =>
             {
-                var (t, a) = _metadata.FetchFromLocalFile(filePath);
+                // Use YouTube metadata directly — don't re-read TagLib artist
                 var track = new Track
                 {
-                    Title    = string.IsNullOrWhiteSpace(t) ? title : t,
-                    Artist   = a,
+                    Title    = title,
+                    Artist   = artist,
                     FilePath = filePath,
-                    Source   = TrackSource.YouTube
+                    Source   = TrackSource.YouTube,
+                    AlbumArtPath = _metadata.ExtractAlbumArt(filePath)
                 };
                 _library.Add(track);
                 NullActionLogger.TrackAdded(track.Id.ToString(), filePath, nameof(TrackInputViewModel));
                 TrackAdded?.Invoke();
-                StatusMessage = $"Added: {track.Title}";
             },
             onTrackFailed: (title, error) =>
             {
-                StatusMessage = $"Failed: {title}";
                 NullActionLogger.Error(nameof(TrackInputViewModel),
                     $"Playlist track failed: {title} — {error}", playlistUrl);
-            });
+            },
+            ct: ct);
+
+        // Mark complete when done (fire-and-forget continuation)
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            while (IsPlaylistImporting && !ct.IsCancellationRequested)
+            {
+                if (PlaylistTotal > 0 && PlaylistProgress >= PlaylistTotal)
+                {
+                    IsPlaylistImporting  = false;
+                    PlaylistCurrentTrack = string.Empty;
+                    StatusMessage = $"Playlist import complete: {PlaylistTotal} tracks";
+                    break;
+                }
+                await System.Threading.Tasks.Task.Delay(500, ct).ContinueWith(_ => { });
+            }
+        });
 
         return System.Threading.Tasks.Task.CompletedTask;
     }
