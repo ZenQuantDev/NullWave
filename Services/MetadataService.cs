@@ -112,33 +112,39 @@ public class MetadataService
 
     private async Task<(string Title, string Artist)> FetchSoundCloudMetadataAsync(string url)
     {
-        // SoundCloud API registrations are closed — graceful placeholder
-        Log.Warning("SoundCloud API not available — registrations currently closed");
-        await Task.CompletedTask;
-
-        // Extract a best-guess title from the URL path
-        // e.g. soundcloud.com/artist-name/track-name → "track name" by "artist name"
         try
         {
-            var uri = new Uri(url);
-            var segments = uri.AbsolutePath.Trim('/').Split('/');
-            if (segments.Length >= 2)
+            var psi = new System.Diagnostics.ProcessStartInfo(
+                "yt-dlp",
+                $"--no-download --print \"%(title)s\" --print \"%(uploader)s\" \"{url}\"")
             {
-                var artist = segments[0].Replace("-", " ");
-                var title = segments[1].Replace("-", " ");
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
+            };
 
-                // Title-case them
-                artist = System.Globalization.CultureInfo.CurrentCulture
-                    .TextInfo.ToTitleCase(artist);
-                title = System.Globalization.CultureInfo.CurrentCulture
-                    .TextInfo.ToTitleCase(title);
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc == null) return ("SoundCloud track", "Unknown");
 
-                return (title, artist);
-            }
+            var output = await proc.StandardOutput.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+
+            var lines = output.Split('\n',
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries);
+
+            var title  = lines.Length > 0 ? lines[0] : "SoundCloud track";
+            var artist = lines.Length > 1 ? lines[1] : "Unknown";
+
+            Log.Information("SoundCloud metadata fetched: {Title} by {Artist}", title, artist);
+            return (title, artist);
         }
-        catch { }
-
-        return ("SoundCloud track", "Unknown");
+        catch (Exception ex)
+        {
+            Log.Error(ex, "SoundCloud metadata fetch failed for {Url}", url);
+            return ("SoundCloud track", "Unknown");
+        }
     }
 
     // ── Last.fm ───────────────────────────────────────────────────────────

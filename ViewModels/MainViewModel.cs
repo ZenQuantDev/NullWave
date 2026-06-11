@@ -26,6 +26,7 @@ public class MainViewModel : ViewModelBase
     private readonly ExportService _export = new();
     private readonly PlaybackService _playbackService = new();
     private readonly DownloadService _downloadService = new();
+    private readonly SpotifyBridgeService _spotifyBridge;
 
     // ─── Menu bar visibility (Alt-key toggle) ─────────────────────────────────
     private bool _isMenuBarVisible = false;
@@ -66,10 +67,11 @@ public class MainViewModel : ViewModelBase
         _config       = new ConfigService(_keyStore);
         _lastFm       = new LastFmService(_config);
         _metadata     = new MetadataService(_config, _lastFm);
+        _spotifyBridge = new SpotifyBridgeService(_config);
         _library      = new LibraryService(_metadata);
 
         // ── Construct child ViewModels ────────────────────────────────────────
-        Input    = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService);
+        Input    = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge);
         Library  = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
         Export   = new ExportViewModel(_library, _export);
@@ -92,6 +94,13 @@ public class MainViewModel : ViewModelBase
                 Player.PlayTrack(Library.SelectedTrack);
             else if (Library.Tracks.Count > 0)
                 Player.PlayTrack(Library.Tracks[0]);
+        };
+
+        // Last.fm scrobbling
+        Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
+        {
+            if (Settings.ScrobbleToLastFm)
+                await _lastFm.ScrobbleAsync(title, artist, playedAt);
         };
 
         // ── Commands ──────────────────────────────────────────────────────────

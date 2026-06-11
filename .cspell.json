@@ -17,6 +17,11 @@
     "borderless",
     "pointerover",
     "LISTBOXITEM",
-    "Unmute"
+    "Unmute",
+    "TRACKID",
+    "ytsearch",
+    "oembed",
+    "oEmbed",
+    "uploader"
   ]
 }

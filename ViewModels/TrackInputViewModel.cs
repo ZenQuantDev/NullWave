@@ -20,6 +20,7 @@ public class TrackInputViewModel : ViewModelBase
     private readonly MetadataService   _metadata;
     private readonly UrlParserService  _urlParser;
     private readonly DownloadService   _download;
+    private readonly SpotifyBridgeService _spotifyBridge;
 
     private string      _inputUrl           = string.Empty;
     private string      _lastFetchedUrl     = string.Empty;
@@ -122,15 +123,17 @@ public class TrackInputViewModel : ViewModelBase
     }
 
     public TrackInputViewModel(
-        LibraryService   library,
-        MetadataService  metadata,
-        UrlParserService urlParser,
-        DownloadService  download)
+        LibraryService        library,
+        MetadataService       metadata,
+        UrlParserService      urlParser,
+        DownloadService       download,
+        SpotifyBridgeService  spotifyBridge)
     {
-        _library   = library;
-        _metadata  = metadata;
-        _urlParser = urlParser;
-        _download  = download;
+        _library       = library;
+        _metadata      = metadata;
+        _urlParser     = urlParser;
+        _download      = download;
+        _spotifyBridge = spotifyBridge;
 
         AddTrackCommand     = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
@@ -156,12 +159,12 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // Auto-detect YouTube/SoundCloud playlist URL
-        if (DownloadService.IsPlaylistUrl(url))
+        // Spotify → YouTube bridge
+        if (SelectedSource == TrackSource.Spotify)
         {
             IsUrlInputVisible = false;
             ClearInputs();
-            _ = ImportPlaylistAsync(url);
+            _ = HandleSpotifyUrlAsync(url);
             return;
         }
 
@@ -197,12 +200,13 @@ public class TrackInputViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(title))
             title = url;
 
+        var source = SelectedSource;
         var newTrack = new Track
         {
             Title  = title,
             Artist = InputArtist.Trim(),
             Url    = url,
-            Source = SelectedSource
+            Source = source
         };
 
         _library.Add(newTrack);
@@ -210,6 +214,15 @@ public class TrackInputViewModel : ViewModelBase
         ClearInputs();
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
+
+        // Auto-download for YouTube and SoundCloud (yt-dlp handles both natively)
+        if (source == TrackSource.YouTube || source == TrackSource.SoundCloud)
+        {
+            var trackId  = newTrack.Id.ToString();
+            var trackUrl = url;
+            _ = System.Threading.Tasks.Task.Run(async () =>
+                await _download.DownloadAsync(trackId, trackUrl));
+        }
     }
 
     private async Task FetchMetadataAsync(string url)
@@ -363,6 +376,60 @@ public class TrackInputViewModel : ViewModelBase
         });
 
         return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    private async System.Threading.Tasks.Task HandleSpotifyUrlAsync(string spotifyUrl)
+    {
+        StatusMessage = "Looking up Spotify track...";
+
+        var result = await _spotifyBridge.BridgeAsync(spotifyUrl);
+
+        if (!result.Found)
+        {
+            StatusMessage = "Could not find a YouTube match for this Spotify track";
+            return;
+        }
+
+        // Show confirmation dialog (B+C: preview then add)
+        var window = Avalonia.Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+
+        if (window == null) return;
+
+        var message = $"Found on YouTube:\n\n" +
+                    $"\"{result.YouTubeTitle}\"\n\n" +
+                    $"Spotify track: {result.SpotifyTitle} by {result.SpotifyArtist}\n\n" +
+                    $"Add to library and download?";
+
+        var dialog = new Views.ConfirmDialog("Spotify → YouTube Match", message);
+        var confirmed = await dialog.ShowDialog<bool>(window);
+
+        if (!confirmed)
+        {
+            StatusMessage = "Cancelled";
+            return;
+        }
+
+        // Add to library immediately (Option C — library first)
+        var track = new Track
+        {
+            Title  = result.SpotifyTitle,
+            Artist = result.SpotifyArtist,
+            Url    = result.YouTubeUrl,
+            Source = TrackSource.Spotify
+        };
+
+        _library.Add(track);
+        NullActionLogger.TrackAdded(track.Id.ToString(), result.YouTubeUrl, nameof(TrackInputViewModel));
+        TrackAdded?.Invoke();
+        StatusMessage = $"Added: {track.Title}";
+
+        // Download in background
+        var trackId  = track.Id.ToString();
+        var ytUrl    = result.YouTubeUrl;
+        _ = System.Threading.Tasks.Task.Run(async () =>
+            await _download.DownloadAsync(trackId, ytUrl));
     }
 
     private void ClearInputs()

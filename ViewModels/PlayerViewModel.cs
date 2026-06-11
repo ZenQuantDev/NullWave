@@ -28,6 +28,7 @@ public class PlayerViewModel : ViewModelBase
     private bool          _isShuffle     = false;
     private RepeatMode    _repeatMode    = RepeatMode.None;
     private static readonly Random _rng  = new();
+    public event Action<string, string, DateTime>? TrackScrobbleRequested; // title, artist, playedAt
     
     // Mute state
     private float _volumeBeforeMute = 0.8f;
@@ -307,10 +308,14 @@ public class PlayerViewModel : ViewModelBase
 
         if (!string.IsNullOrEmpty(track.Url))
         {
-            IsDownloading = true;
-            StatusText = "Downloading before playback...";
-            NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-            _ = _download.DownloadAsync(track.Id.ToString(), track.Url);
+            // Only download if not already downloading from TrackInputViewModel
+            if (!IsDownloading)
+            {
+                IsDownloading = true;
+                StatusText = "Downloading before playback...";
+                NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
+                _ = _download.DownloadAsync(track.Id.ToString(), track.Url);
+            }
             return;
         }
 
@@ -349,12 +354,21 @@ public class PlayerViewModel : ViewModelBase
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
     }
 
-    private void OnTrackFinished()
+        private void OnTrackFinished()
     {
         if (_currentTrack != null)
         {
             _library.RecordPlay(_currentTrack.Id);
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
+            
+            // Request scrobble if played more than 50%
+            if (_position > 0.5f)
+            {
+                TrackScrobbleRequested?.Invoke(
+                    _currentTrack.Title,
+                    _currentTrack.Artist,
+                    DateTime.UtcNow);
+            }
         }
 
         switch (_repeatMode)

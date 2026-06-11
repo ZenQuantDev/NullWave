@@ -41,7 +41,19 @@ public class UpdateService
     {
         try
         {
-            var json = await _http.GetStringAsync(ApiUrl);
+            var response = await _http.GetAsync(ApiUrl);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                Log.Information("[UpdateService] No releases found on GitHub yet");
+                return new UpdateCheckResult
+                {
+                    IsUpdateAvailable = false,
+                    CurrentVersion    = CurrentVersion,
+                    LatestVersion     = "No releases yet"
+                };
+            }
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 

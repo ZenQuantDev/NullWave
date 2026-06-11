@@ -29,7 +29,7 @@ public class SettingsViewModel : ViewModelBase
     private bool   _autoFetchMetadata   = true;
     private bool   _autoPlayNext        = true;
     private bool   _downloadOnAdd       = true;
-    private bool   _scrobbleToLastFm    = false;
+    private bool   _scrobbleToLastFm    = true;  // ✅ Only one declaration
     private string _downloadDirectory   = string.Empty;
 
     // ── Audio ─────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ public class SettingsViewModel : ViewModelBase
         get => _downloadOnAdd;
         set { _downloadOnAdd = value; OnPropertyChanged(); SavePreferences(); }
     }
-    public bool ScrobbleToLastFm
+    public bool ScrobbleToLastFm  // ✅ Only one property
     {
         get => _scrobbleToLastFm;
         set { _scrobbleToLastFm = value; OnPropertyChanged(); SavePreferences(); }
