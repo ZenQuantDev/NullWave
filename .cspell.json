@@ -22,6 +22,14 @@
     "ytsearch",
     "oembed",
     "oEmbed",
-    "uploader"
+    "uploader",
+    "playcount",
+    "toptags",
+    "trackmatches",
+    "trackmatch",
+    "scrobbling",
+    "prefs",
+    "HMAC",
+    "youtu"
   ]
 }

@@ -3,17 +3,34 @@
         xmlns:vm="using:NullWave.ViewModels"
         x:Class="NullWave.Views.Controls.ImportProgressView"
         x:DataType="vm:MainViewModel"
-        Background="#0d1a0d"
+        Background="{StaticResource BrushGreenDim}"
+        BorderBrush="{StaticResource BrushGreen}"
+        BorderThickness="0,1,0,0"
         Padding="16,8"
         IsVisible="{Binding Import.IsImporting}">
-    <StackPanel Spacing="4">
-        <TextBlock Text="{Binding Import.ImportStatus}"
-                   Foreground="#4ade80"
-                   FontSize="12"/>
-        <ProgressBar Value="{Binding Import.ImportProgress}"
-                     Maximum="{Binding Import.ImportTotal}"
-                     Height="4"
-                     Foreground="#4ade80"
-                     Background="#1a2a1a"/>
-    </StackPanel>
+
+    <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="4">
+            <TextBlock Text="{Binding Import.ImportStatus}"
+                       Foreground="{StaticResource BrushGreen}"
+                       FontSize="{StaticResource FontSizeBody}"
+                       FontWeight="SemiBold"/>
+            <ProgressBar Value="{Binding Import.ImportProgress}"
+                         Maximum="{Binding Import.ImportTotal}"
+                         Height="4"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1"
+                   VerticalAlignment="Center"
+                   Margin="16,0,0,0"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   FontSize="{StaticResource FontSizeSm}">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="{}{0} / {1}">
+                    <Binding Path="Import.ImportProgress"/>
+                    <Binding Path="Import.ImportTotal"/>
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
+    </Grid>
+
 </Border>

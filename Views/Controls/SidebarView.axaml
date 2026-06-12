@@ -6,85 +6,117 @@
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,0,1,0">
-    <DockPanel>
-            <!-- App logo -->
-            <Border DockPanel.Dock="Top" Padding="16,20,16,12">
-        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-            <!-- Logo placeholder — swap Border for Image when real asset is ready -->
-            <Border Width="32" Height="32"
-                    CornerRadius="{StaticResource RadiusSm}"
-                    Background="{StaticResource BrushAccentDim}"
-                    ClipToBounds="True">
-                <TextBlock Text="N"
-                        Foreground="{StaticResource BrushAccent}"
-                        FontSize="{StaticResource FontSizeLg}"
-                        FontWeight="Bold"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"/>
-            </Border>
-            <StackPanel Spacing="2" VerticalAlignment="Center">
-                <TextBlock Text="NullWave"
-                        Foreground="{StaticResource BrushTextPrimary}"
-                        FontSize="{StaticResource FontSizeXl}"
-                        FontWeight="Bold"/>
-                <TextBlock Text="music organizer"
-                        Foreground="{StaticResource BrushTextMuted}"
-                        FontSize="{StaticResource FontSizeSm}"/>
-            </StackPanel>
-        </StackPanel>
-    </Border>
 
-        <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource BrushBorder}" Margin="12,0"/>
+    <DockPanel>
+
+        <!-- App logo -->
+        <Border DockPanel.Dock="Top" Padding="16,20,16,12">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Border Width="32" Height="32"
+                        CornerRadius="{StaticResource RadiusSm}"
+                        Background="{StaticResource BrushAccentDim}"
+                        ClipToBounds="True">
+                    <TextBlock Text="N"
+                               Foreground="{StaticResource BrushAccent}"
+                               FontSize="{StaticResource FontSizeLg}"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="NullWave"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeXl}"
+                               FontWeight="Bold"/>
+                    <TextBlock Text="music organizer"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Top" Height="1"
+                Background="{StaticResource BrushBorder}"
+                Margin="12,0"/>
 
         <!-- Profile bar -->
-        <Border DockPanel.Dock="Bottom" Background="{StaticResource BrushBase}" 
-                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="10,8">
+        <Border DockPanel.Dock="Bottom"
+                Background="{StaticResource BrushBase}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="0,1,0,0"
+                Padding="10,8">
             <Grid ColumnDefinitions="36,*,Auto">
-                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}" 
-                        Background="{StaticResource BrushAccentDim}" ClipToBounds="True" Cursor="Hand">
+                <Border Grid.Column="0"
+                        Width="36" Height="36"
+                        CornerRadius="{StaticResource RadiusFull}"
+                        Background="{StaticResource BrushAccentDim}"
+                        ClipToBounds="True"
+                        Cursor="Hand">
                     <Panel>
-                        <Image Source="{Binding Profile.Avatar}" IsVisible="{Binding Profile.HasAvatar}" Stretch="UniformToFill"/>
-                        <TextBlock Text="♪" IsVisible="{Binding !Profile.HasAvatar}" 
-                                   Foreground="{StaticResource BrushAccent}" FontSize="{StaticResource FontSizeLg}" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="{Binding Profile.Avatar}"
+                               IsVisible="{Binding Profile.HasAvatar}"
+                               Stretch="UniformToFill"/>
+                        <TextBlock Text="♪"
+                                   IsVisible="{Binding !Profile.HasAvatar}"
+                                   Foreground="{StaticResource BrushAccent}"
+                                   FontSize="{StaticResource FontSizeLg}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
                     </Panel>
                 </Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" Spacing="1">
-                    <TextBlock Text="{Binding Profile.Username}" Foreground="{StaticResource BrushTextPrimary}" 
-                               FontSize="{StaticResource FontSizeMd}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding Profile.Bio}" Foreground="{StaticResource BrushTextMuted}" 
-                               FontSize="{StaticResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Margin="10,0,0,0"
+                            Spacing="1">
+                    <TextBlock Text="{Binding Profile.Username}"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeMd}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Profile.Bio}"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
-                <Button Grid.Column="2" Classes="icon-btn" ToolTip.Tip="Settings" 
-                        Command="{Binding OpenSettingsCommand}" Content="⚙" FontSize="16" VerticalAlignment="Center"/>
+                <Button Grid.Column="2"
+                        Classes="icon-btn"
+                        Content="⚙"
+                        FontSize="16"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="Settings"
+                        Command="{Binding OpenSettingsCommand}"/>
             </Grid>
         </Border>
 
         <!-- Track count -->
         <Border DockPanel.Dock="Bottom" Padding="16,6">
-            <TextBlock Text="{Binding Library.Tracks.Count, StringFormat='{}{0} tracks'}" 
-                       Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+            <TextBlock Text="{Binding Library.Tracks.Count, StringFormat='{}{0} tracks'}"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeSm}"/>
         </Border>
 
         <!-- Nav list -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="8,4">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="8,4">
             <StackPanel Spacing="0">
                 <TextBlock Classes="section-label" Text="LIBRARY"/>
-                <Button Classes="nav active" Content="Library" Command="{Binding NavigateLibraryCommand}"/>
-                <Button Classes="nav" Content="Playlists" Command="{Binding NavigatePlaylistsCommand}"/>
-                <Button Classes="nav" Content="Queue" Command="{Binding NavigateQueueCommand}"/>
-                <Button Classes="nav" Content="Stats" Command="{Binding NavigateStatsCommand}"/>
-                
+                <Button Classes="nav active" Content="Library"       Command="{Binding NavigateLibraryCommand}"/>
+                <Button Classes="nav"        Content="Playlists"     Command="{Binding NavigatePlaylistsCommand}"/>
+                <Button Classes="nav"        Content="Queue"         Command="{Binding NavigateQueueCommand}"/>
+                <Button Classes="nav"        Content="Stats"         Command="{Binding NavigateStatsCommand}"/>
+
                 <TextBlock Classes="section-label" Text="FILTERS"/>
-                <Button Classes="nav" Content="Favorites" Command="{Binding Library.ShowFavoritesCommand}"/>
+                <Button Classes="nav" Content="Favorites"      Command="{Binding Library.ShowFavoritesCommand}"/>
                 <Button Classes="nav" Content="Recently Added" Command="{Binding Library.ShowRecentCommand}"/>
-                
+
                 <TextBlock Classes="section-label" Text="SOURCES"/>
-                <Button Classes="nav" Content="YouTube" Command="{Binding Library.FilterYouTubeCommand}"/>
-                <Button Classes="nav" Content="Last.fm" Command="{Binding Library.FilterLastFmCommand}"/>
-                <Button Classes="nav" Content="SoundCloud" Command="{Binding Library.FilterSoundCloudCommand}"/>
+                <Button Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
+                <Button Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
+                <Button Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
                 <Button Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
             </StackPanel>
         </ScrollViewer>
+
     </DockPanel>
 </Border>

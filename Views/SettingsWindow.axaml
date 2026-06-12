@@ -5,16 +5,16 @@
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="NullWave — Settings"
-        Width="740" Height="620"
-        MinWidth="680" MinHeight="520"
+        Width="740" Height="660"
+        MinWidth="680" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushBase}"
         CanResize="True">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <DockPanel>
 
         <!-- ── Header ──────────────────────────────────────────────────── -->
-        <Border Grid.Row="0"
+        <Border DockPanel.Dock="Top"
                 Background="{StaticResource BrushSurface}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="0,0,0,1"
@@ -24,77 +24,23 @@
                            Foreground="{StaticResource BrushTextPrimary}"
                            FontSize="{StaticResource FontSizeXl}"
                            FontWeight="Bold"/>
-                <TextBlock Text="Manage API keys, audio, updates, and preferences"
+                <TextBlock Text="Manage appearance, API keys, audio, and preferences"
                            Foreground="{StaticResource BrushTextMuted}"
                            FontSize="{StaticResource FontSizeSm}"
                            Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
 
-        <!-- ── Tab body ────────────────────────────────────────────────── -->
-        <TabControl Grid.Row="1"
-                    Background="Transparent"
-                    Padding="0">
-            <TabControl.Styles>
-                <Style Selector="TabItem">
-                    <Setter Property="Background"   Value="Transparent"/>
-                    <Setter Property="Foreground"   Value="{StaticResource BrushTextMuted}"/>
-                    <Setter Property="FontSize"     Value="{StaticResource FontSizeBody}"/>
-                    <Setter Property="Padding"      Value="16,12"/>
-                    <Setter Property="Cursor"       Value="Hand"/>
-                </Style>
-                <Style Selector="TabItem:selected">
-                    <Setter Property="Foreground"   Value="{StaticResource BrushAccentHover}"/>
-                </Style>
-                <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
-                    <Setter Property="Background"   Value="{StaticResource BrushAccent}"/>
-                </Style>
-            </TabControl.Styles>
-
-            <TabItem Header="General">
-                <settings:GeneralTab/>
-            </TabItem>
-
-            <TabItem Header="API Keys">
-                <settings:ApiKeysTab/>
-            </TabItem>
-
-            <TabItem Header="Audio">
-                <settings:AudioTab/>
-            </TabItem>
-
-            <TabItem Header="Updates">
-                <settings:UpdatesTab/>
-            </TabItem>
-
-            <TabItem Header="Advanced">
-                <settings:AdvancedTab/>
-            </TabItem>
-
-            <TabItem Header="About">
-                <settings:AboutTab/>
-            </TabItem>
-
+        <!-- ── Tab body (fills remaining space, scrolling handled per-tab) -->
+        <TabControl Background="Transparent" Padding="0">
+            <TabItem Header="General">    <settings:GeneralTab/>    </TabItem>
+            <TabItem Header="Appearance"> <settings:AppearanceTab/> </TabItem>
+            <TabItem Header="API Keys">   <settings:ApiKeysTab/>    </TabItem>
+            <TabItem Header="Audio">      <settings:AudioTab/>      </TabItem>
+            <TabItem Header="Updates">    <settings:UpdatesTab/>    </TabItem>
+            <TabItem Header="Advanced">   <settings:AdvancedTab/>   </TabItem>
+            <TabItem Header="About">      <settings:AboutTab/>      </TabItem>
         </TabControl>
 
-        <!-- ── Footer ──────────────────────────────────────────────────── -->
-        <Border Grid.Row="2"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
-                BorderThickness="0,1,0,0"
-                Padding="24,12">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0"
-                           Text="Keys stored encrypted at ~/.nullwave/keys.enc"
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
-                           VerticalAlignment="Center"/>
-                <Button Grid.Column="1"
-                        Classes="primary"
-                        Content="Save API Keys"
-                        Command="{Binding SaveKeysCommand}"/>
-            </Grid>
-        </Border>
-
-    </Grid>
+    </DockPanel>
 </Window>

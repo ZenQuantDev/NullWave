@@ -136,15 +136,16 @@ public class LastFmService
         }
     }
 
-    public async Task ScrobbleAsync(string title, string artist, DateTime playedAt)
+    // Scrobble placeholder — full OAuth implementation in Phase 7
+    // Returns Task.CompletedTask (no async keyword) to avoid CS1998 warning
+    public Task ScrobbleAsync(string title, string artist, DateTime playedAt)
     {
-        if (!IsConfigured) return;
+        if (!IsConfigured) return Task.CompletedTask;
 
         try
         {
-            // Last.fm scrobble requires API signature (HMAC-MD5)
-            // For now we use track.updateNowPlaying which doesn't require auth
-            // Full scrobble requires user auth token — placeholder for Phase 7
+            // Last.fm scrobble requires API signature (HMAC-MD5) + user session token
+            // For now we just log the attempt — full implementation in Phase 7
             Log.Information("[LastFm] Scrobble: {Title} by {Artist} at {Time}",
                 title, artist, playedAt);
 
@@ -155,15 +156,17 @@ public class LastFmService
         {
             Log.Error(ex, "[LastFm] Scrobble failed for {Title}", title);
         }
+
+        return Task.CompletedTask;
     }
 }
 
-    public class LastFmTrackInfo
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Artist { get; set; } = string.Empty;
-        public string Listeners { get; set; } = "0";
-        public string GlobalPlayCount { get; set; } = "0";
-        public System.Collections.Generic.List<string> Tags { get; set; } = new();
-        public string? WikiSummary { get; set; }
-    }
+public class LastFmTrackInfo
+{
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string Listeners { get; set; } = "0";
+    public string GlobalPlayCount { get; set; } = "0";
+    public System.Collections.Generic.List<string> Tags { get; set; } = new();
+    public string? WikiSummary { get; set; }
+}
