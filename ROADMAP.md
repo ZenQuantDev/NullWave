@@ -59,7 +59,7 @@
 - ✅ `ImportProgressView.axaml` — import progress strip with fraction counter
 - ✅ MainWindow reduced to thin DockPanel shell with Alt-key handler
 - ✅ Bump Avalonia 12.0.3 → 12.0.4
-- 🔜 Merge `refactor/split-views` → `main`
+- ✅ Merge `refactor/split-views` → `main`
 
 **Notes:**
 - `TrackSource` enum should be moved to `Models/TrackSource.cs`
@@ -110,6 +110,9 @@
 - 📋 Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
 - 📋 `OpacityTransition` on menu bar show/hide (150ms fade)
 - 📋 Profile edit UI (inline in sidebar or dedicated Settings tab)
+- ✅ `AppearanceTab` — accent color, row style, font scale, sidebar width, compact mode
+- ✅ `PreferencesService` — auto-saves all General + Appearance settings to `~/.nullwave/prefs.json`
+- 📋 Wire appearance settings to actual UI (live accent color, row height, font scale)
 - ✅ Logo placeholder in `SidebarView` — 32×32 accent square beside wordmark
 - 📋 Replace placeholder with real SVG logo (`Assets/Icons/logo.svg`)
 - 📋 `TrackListView` — apply theme tokens, larger row height, better typography

@@ -5,6 +5,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.0] - 13-Jun-2026
+
+### Added
+- `Views/Settings/AppearanceTab.axaml` — new Appearance settings tab with:
+  - Accent color picker (Purple / Blue / Amber / Green / Red) — saved, live theming in v0.4
+  - Track row style selector (Comfortable / Compact / Cozy) with visual previews
+  - Font scale selector (Small / Medium / Large)
+  - Sidebar width preset (Narrow / Normal / Wide)
+  - Compact mode toggle (hides album art thumbnails)
+- `Services/PreferencesService.cs` — JSON persistence for all General and Appearance settings; auto-saves on every change
+- `Models/Preferences.cs` — `AccentColor`, `TrackRowStyle`, `FontScale`, `CompactMode`, `SidebarWidth` fields
+- `Services/PlaybackNavigator.cs` — extracted shuffle/repeat/queue navigation logic from `PlayerViewModel`
+- `Services/Metadata/YouTubeMetadataFetcher.cs` — split from `MetadataService`
+- `Services/Metadata/SoundCloudMetadataFetcher.cs` — split from `MetadataService`
+- `Services/Metadata/LocalMetadataFetcher.cs` — split from `MetadataService`
+- `ViewModels/PlaylistImportViewModel.cs` — extracted playlist import state from `TrackInputViewModel`
+- `Themes/ControlStyles.axaml` — `TabItem` styles extracted from `SettingsWindow` inline block
+- `Themes/ControlStyles.axaml` — `.secondary` button class added
+
+### Changed
+- `SettingsWindow.axaml` — removed clipping footer, switched to `DockPanel`, tab order updated (General → Appearance → API Keys → Audio → Updates → Advanced → About)
+- `ApiKeysTab.axaml` — Save button moved from global footer into tab, per-field ✓ saved indicator
+- `ImportProgressView.axaml` — hardcoded hex colors replaced with theme brushes, added `x / total` counter
+- `ConfirmDialog.axaml` — hardcoded hex colors replaced with theme brushes, buttons use `secondary`/`danger` classes
+- `TrackListView.axaml` — playlist import bindings updated to `Input.PlaylistImport.*`
+- `SidebarView.axaml` — indentation normalized
+- `MetadataService.cs` — refactored to thin orchestrator, delegates to fetcher classes
+- `PlayerViewModel.cs` — shuffle/repeat/navigation delegated to `PlaybackNavigator`
+- `SettingsViewModel.cs` — appearance properties wired to `PreferencesService`
+
+### Fixed
+- Settings window content clipping at bottom — `Grid` with fixed `RowDefinitions` replaced with `DockPanel`
+- Playlist import progress bar bindings broken after `PlaylistImportViewModel` extraction
+
 ## [0.2.1] - 07-Jun-2026
 
 ### Added
