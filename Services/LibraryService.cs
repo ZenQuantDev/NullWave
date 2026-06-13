@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -10,7 +11,7 @@ public class LibraryService
 {
     private readonly DatabaseService _db;
     private readonly MetadataService? _metadata;
-    private readonly List<Track> _tracks;
+    private List<Track> _tracks;
     private readonly List<Track> _queue   = new();
     private readonly List<Track> _history = new();
 
@@ -20,7 +21,27 @@ public class LibraryService
         _metadata = metadata;
         _tracks   = _db.LoadAll();
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+        CleanupBadUrls();
         BackfillAlbumArt();
+    }
+
+    private void CleanupBadUrls()
+    {
+        var bad = _tracks
+            .Where(t => !string.IsNullOrEmpty(t.Url)
+                     && !SourceDetector.IsPlayableUrl(t.Url)
+                     && string.IsNullOrEmpty(t.FilePath))
+            .ToList();
+
+        foreach (var track in bad)
+        {
+            _tracks.Remove(track);
+            _db.Delete(track.Id);
+            Log.Warning("[LibraryService] Removed track with bad URL: {Url}", track.Url);
+        }
+
+        if (bad.Count > 0)
+            Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
     }
 
     private void BackfillAlbumArt()
@@ -47,21 +68,21 @@ public class LibraryService
     // ── Core ──────────────────────────────────────────
     public IReadOnlyList<Track> GetAll() => _tracks.AsReadOnly();
 
-        public void Add(Track track)
+    public void Add(Track track)
+    {
+        if (IsDuplicate(track)) return;
+
+        // Extract embedded album art for local files
+        if (!string.IsNullOrEmpty(track.FilePath) &&
+            string.IsNullOrEmpty(track.AlbumArtPath) &&
+            _metadata != null)
         {
-            if (IsDuplicate(track)) return;
-
-            // Extract embedded album art for local files
-            if (!string.IsNullOrEmpty(track.FilePath) &&
-                string.IsNullOrEmpty(track.AlbumArtPath) &&
-                _metadata != null)
-            {
-                track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
-            }
-
-            _tracks.Add(track);
-            _db.Insert(track);
+            track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
         }
+
+        _tracks.Add(track);
+        _db.Insert(track);
+    }
 
     public void Remove(Guid id)
     {
@@ -88,11 +109,11 @@ public class LibraryService
 
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title     => results.OrderBy(t => t.Title),
-            SortField.Artist    => results.OrderBy(t => t.Artist),
-            SortField.DateAdded => results.OrderBy(t => t.DateAdded),
-            SortField.Source    => results.OrderBy(t => t.Source),
-            SortField.PlayCount => results.OrderBy(t => t.PlayCount),
+            SortField.Title      => results.OrderBy(t => t.Title),
+            SortField.Artist     => results.OrderBy(t => t.Artist),
+            SortField.DateAdded  => results.OrderBy(t => t.DateAdded),
+            SortField.Source     => results.OrderBy(t => t.Source),
+            SortField.PlayCount  => results.OrderBy(t => t.PlayCount),
             SortField.LastPlayed => results.OrderBy(t => t.LastPlayed),
             _ => results
         };
@@ -117,11 +138,11 @@ public class LibraryService
     {
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title     => _tracks.OrderBy(t => t.Title),
-            SortField.Artist    => _tracks.OrderBy(t => t.Artist),
-            SortField.DateAdded => _tracks.OrderBy(t => t.DateAdded),
-            SortField.Source    => _tracks.OrderBy(t => t.Source),
-            SortField.PlayCount => _tracks.OrderBy(t => t.PlayCount),
+            SortField.Title      => _tracks.OrderBy(t => t.Title),
+            SortField.Artist     => _tracks.OrderBy(t => t.Artist),
+            SortField.DateAdded  => _tracks.OrderBy(t => t.DateAdded),
+            SortField.Source     => _tracks.OrderBy(t => t.Source),
+            SortField.PlayCount  => _tracks.OrderBy(t => t.PlayCount),
             SortField.LastPlayed => _tracks.OrderBy(t => t.LastPlayed),
             _ => _tracks
         };

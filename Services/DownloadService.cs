@@ -83,10 +83,15 @@ public class DownloadService
             _activeDownloads.Add(url);
         }
 
-        // Create a linked CTS so caller can cancel via CancelCurrentDownload()
-        _currentDownloadCts?.Cancel();
-        _currentDownloadCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        ct = _currentDownloadCts.Token;
+        // Cancel previous download and create fresh CTS outside the lock
+        CancellationTokenSource cts;
+        lock (this)
+        {
+            _currentDownloadCts?.Cancel();
+            cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _currentDownloadCts = cts;
+        }
+        ct = cts.Token;
 
         Log.Information("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);

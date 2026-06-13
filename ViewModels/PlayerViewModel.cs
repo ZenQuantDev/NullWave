@@ -34,6 +34,8 @@ public class PlayerViewModel : ViewModelBase
     public event Action<string, string, DateTime>? TrackScrobbleRequested;
     public event Action? PlaySelectedTrackRequested;
 
+    private DateTime _lastNavigationTime = DateTime.MinValue;
+    private static readonly TimeSpan NavigationDebounce = TimeSpan.FromMilliseconds(300);
     private readonly MetadataService _metadata;
 
     public PlayerViewModel(
@@ -51,62 +53,77 @@ public class PlayerViewModel : ViewModelBase
         _navigator = new PlaybackNavigator(library);
         
         _playback.Volume = _volume;
-        _playback.PositionChanged += pos => Position = pos;
-        _playback.StateChanged += state => State = state;
-        _playback.TrackFinished += OnTrackFinished;
+        _playback.PositionChanged += pos =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Position = pos);
+        _playback.StateChanged += state =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => State = state);
+        _playback.TrackFinished += () =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(OnTrackFinished);
 
         _download.ProgressChanged += (_, pct) =>
         {
-            DownloadProgress = pct;
-            StatusText = $"Downloading... {pct:P0}";
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                DownloadProgress = pct;
+                StatusText = $"Downloading... {pct:P0}";
+            });
         };
 
         _download.DownloadCompleted += (trackId, filePath) =>
         {
-            IsDownloading = false;
-            StatusText = "Download complete";
-            NullActionLogger.ImportCompleted(filePath, trackId, 0, nameof(PlayerViewModel));
-            if (Guid.TryParse(trackId, out var id))
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                if (track != null)
+                IsDownloading = false;
+                StatusText = "Download complete";
+                NullActionLogger.ImportCompleted(filePath, trackId, 0, nameof(PlayerViewModel));
+                if (Guid.TryParse(trackId, out var id))
                 {
-                    track.FilePath = filePath;
-
-                    // Backfill title/artist from ID3 tags if still unknown
-                    if (track.Title == track.Url
-                        || track.Title == "Unknown Title"
-                        || string.IsNullOrWhiteSpace(track.Title)
-                        || track.Artist == "Unknown"
-                        || string.IsNullOrWhiteSpace(track.Artist))
+                    var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
+                    if (track != null)
                     {
-                        var (tagTitle, tagArtist) = _metadata.FetchFromLocalFile(filePath);
-                        if (!string.IsNullOrWhiteSpace(tagTitle)
-                            && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
+                        track.FilePath = filePath;
+
+                        // Backfill title/artist from ID3 tags if still unknown
+                        if (track.Title == track.Url
+                            || track.Title == "Unknown Title"
+                            || string.IsNullOrWhiteSpace(track.Title)
+                            || track.Artist == "Unknown"
+                            || string.IsNullOrWhiteSpace(track.Artist))
                         {
-                            if (track.Title == track.Url
-                                || track.Title == "Unknown Title"
-                                || string.IsNullOrWhiteSpace(track.Title))
-                                track.Title = tagTitle;
-                            if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
-                                track.Artist = tagArtist;
+                            var (tagTitle, tagArtist) = _metadata.FetchFromLocalFile(filePath);
+                            if (!string.IsNullOrWhiteSpace(tagTitle)
+                                && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
+                            {
+                                if (track.Title == track.Url
+                                    || track.Title == "Unknown Title"
+                                    || string.IsNullOrWhiteSpace(track.Title))
+                                    track.Title = tagTitle;
+                                if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
+                                    track.Artist = tagArtist;
+                            }
                         }
+
+                        _library.Update(track);
+
+                        // Re-fetch from library to ensure we have the freshest state
+                        var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
+                        var toPlay = fresh ?? track;
+
+                        // Must dispatch to UI thread — this callback fires on thread pool
+                        PlayTrack(toPlay);
                     }
-
-            _library.Update(track);
-
-            // Re-fetch from library to ensure we have the freshest state
-            var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
-            PlayTrack(fresh ?? track);
                 }
-            }
+            }); // end UIThread.Post
         };
 
         _download.DownloadFailed += (url, error) =>
         {
-            IsDownloading = false;
-            StatusText = $"Download failed: {error}";
-            NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"url={url}");
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                IsDownloading = false;
+                StatusText = $"Download failed: {error}";
+                NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"url={url}");
+            });
         };
 
         // Commands
@@ -429,6 +446,8 @@ public class PlayerViewModel : ViewModelBase
 
     private void PlayPrevious()
     {
+        if (DateTime.UtcNow - _lastNavigationTime < NavigationDebounce) return;
+        _lastNavigationTime = DateTime.UtcNow;
         _download.CancelCurrentDownload();
         IsDownloading = false;
         var prev = _navigator.GetPreviousTrack(_currentTrack);
@@ -437,16 +456,12 @@ public class PlayerViewModel : ViewModelBase
 
     private void PlayNext()
     {
+        if (DateTime.UtcNow - _lastNavigationTime < NavigationDebounce) return;
+        _lastNavigationTime = DateTime.UtcNow;
         _download.CancelCurrentDownload();
         IsDownloading = false;
         var next = _navigator.GetNextTrack(_currentTrack);
-        if (next != null)
-        {
-            PlayTrack(next);
-        }
-        else
-        {
-            StatusText = "End of library";
-        }
+        if (next != null) PlayTrack(next);
+        else StatusText = "End of library";
     }
 }
