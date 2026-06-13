@@ -21,12 +21,25 @@ public class DownloadService
     private static readonly Regex ProgressRegex = new(
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
 
+    private readonly HashSet<string> _activeDownloads = new();
+    private CancellationTokenSource? _currentDownloadCts;
+
     public DownloadService()
     {
         _downloadDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".nullwave", "downloads");
         Directory.CreateDirectory(_downloadDir);
+    }
+
+    /// <summary>
+    /// Cancels any currently running single-track download.
+    /// Safe to call even if no download is in progress.
+    /// </summary>
+    public void CancelCurrentDownload()
+    {
+        _currentDownloadCts?.Cancel();
+        Log.Debug("[DownloadService] Current download cancelled by caller");
     }
 
     public async Task DownloadAsync(
@@ -59,6 +72,21 @@ public class DownloadService
             "--no-playlist",
             "--print", "after_move:filepath"
         };
+
+        lock (_activeDownloads)
+        {
+            if (_activeDownloads.Contains(url))
+            {
+                Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
+                return;
+            }
+            _activeDownloads.Add(url);
+        }
+
+        // Create a linked CTS so caller can cancel via CancelCurrentDownload()
+        _currentDownloadCts?.Cancel();
+        _currentDownloadCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        ct = _currentDownloadCts.Token;
 
         Log.Information("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
@@ -121,14 +149,18 @@ public class DownloadService
             }
             else if (process.ExitCode == 0)
             {
+                // Try to find the file by scanning the download dir for recent files
+                // This is a last resort — ideally yt-dlp always prints the filepath
                 var recent = FindMostRecentDownload();
                 if (recent != null)
                 {
-                    Log.Information("Download complete (fallback path): {Path}", recent);
+                    Log.Warning("[DownloadService] filepath not captured from yt-dlp output, " +
+                        "using most recent file as fallback: {Path}", recent);
                     DownloadCompleted?.Invoke(trackId, recent);
                 }
                 else
                 {
+                    Log.Error("[DownloadService] Download exited 0 but no output file found for {TrackId}", trackId);
                     DownloadFailed?.Invoke(trackId, "File not found after download");
                 }
             }
@@ -136,18 +168,23 @@ public class DownloadService
             {
                 DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {process.ExitCode}");
             }
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warning("Download cancelled: {TrackId}", trackId);
+                DownloadFailed?.Invoke(trackId, "Cancelled");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Download exception for {Url}", url);
+                DownloadFailed?.Invoke(trackId, ex.Message);
+            }
+            finally
+            {
+                lock (_activeDownloads)
+                    _activeDownloads.Remove(url);
+            }
         }
-        catch (OperationCanceledException)
-        {
-            Log.Warning("Download cancelled: {TrackId}", trackId);
-            DownloadFailed?.Invoke(trackId, "Cancelled");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Download exception for {Url}", url);
-            DownloadFailed?.Invoke(trackId, ex.Message);
-        }
-    }
 
     // NEW: Playlist download support
     public async Task DownloadPlaylistAsync(

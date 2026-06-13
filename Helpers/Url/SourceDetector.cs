@@ -18,4 +18,33 @@ public static class SourceDetector
             return TrackSource.LastFm;
         return TrackSource.Unknown;
     }
+
+    /// <summary>
+    /// Returns true only if the URL is a valid, playable media URL.
+    /// Rejects bare domain roots like https://www.youtube.com/
+    /// </summary>
+    public static bool IsPlayableUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+
+        var source = Detect(url);
+
+        return source switch
+        {
+            TrackSource.YouTube =>
+                url.Contains("v=") || url.Contains("youtu.be/"),
+            TrackSource.SoundCloud =>
+                // Must have a path beyond the domain
+                url.TrimEnd('/').Split('/').Length >= 5,
+            TrackSource.Spotify =>
+                url.Contains("/track/") || url.Contains("/album/") || url.Contains("/playlist/"),
+            TrackSource.LastFm =>
+                url.Contains("/music/"),
+            TrackSource.Unknown =>
+                // Local file path or other direct URL — allow through
+                !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                url.Length > 30,
+            _ => true
+        };
+    }
 }

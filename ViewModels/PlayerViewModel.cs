@@ -34,16 +34,20 @@ public class PlayerViewModel : ViewModelBase
     public event Action<string, string, DateTime>? TrackScrobbleRequested;
     public event Action? PlaySelectedTrackRequested;
 
+    private readonly MetadataService _metadata;
+
     public PlayerViewModel(
         PlaybackService playback,
         DownloadService download,
         LibraryService library,
-        SettingsViewModel settings)
+        SettingsViewModel settings,
+        MetadataService metadata)
     {
         _playback = playback;
         _download = download;
         _library = library;
         _settings = settings;
+        _metadata = metadata;
         _navigator = new PlaybackNavigator(library);
         
         _playback.Volume = _volume;
@@ -68,7 +72,32 @@ public class PlayerViewModel : ViewModelBase
                 if (track != null)
                 {
                     track.FilePath = filePath;
-                    PlayTrack(track);
+
+                    // Backfill title/artist from ID3 tags if still unknown
+                    if (track.Title == track.Url
+                        || track.Title == "Unknown Title"
+                        || string.IsNullOrWhiteSpace(track.Title)
+                        || track.Artist == "Unknown"
+                        || string.IsNullOrWhiteSpace(track.Artist))
+                    {
+                        var (tagTitle, tagArtist) = _metadata.FetchFromLocalFile(filePath);
+                        if (!string.IsNullOrWhiteSpace(tagTitle)
+                            && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
+                        {
+                            if (track.Title == track.Url
+                                || track.Title == "Unknown Title"
+                                || string.IsNullOrWhiteSpace(track.Title))
+                                track.Title = tagTitle;
+                            if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
+                                track.Artist = tagArtist;
+                        }
+                    }
+
+            _library.Update(track);
+
+            // Re-fetch from library to ensure we have the freshest state
+            var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
+            PlayTrack(fresh ?? track);
                 }
             }
         };
@@ -303,12 +332,21 @@ public class PlayerViewModel : ViewModelBase
 
         if (!string.IsNullOrEmpty(track.Url))
         {
+            // Don't start a second download if one is already running for this track
             if (!IsDownloading)
             {
                 IsDownloading = true;
                 StatusText = "Downloading before playback...";
                 NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality);
+                _ = _download.DownloadAsync(
+                    track.Id.ToString(), track.Url,
+                    _settings.AudioFormat, _settings.AudioQuality);
+            }
+            else
+            {
+                StatusText = "Download already in progress...";
+                Log.Debug("[{Source}] Skipped duplicate download for {Url}",
+                    nameof(PlayerViewModel), track.Url);
             }
             return;
         }
@@ -391,12 +429,16 @@ public class PlayerViewModel : ViewModelBase
 
     private void PlayPrevious()
     {
+        _download.CancelCurrentDownload();
+        IsDownloading = false;
         var prev = _navigator.GetPreviousTrack(_currentTrack);
         if (prev != null) PlayTrack(prev);
     }
 
     private void PlayNext()
     {
+        _download.CancelCurrentDownload();
+        IsDownloading = false;
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null)
         {

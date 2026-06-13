@@ -79,7 +79,7 @@ public class MainViewModel : ViewModelBase
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library);
         Import = new ImportViewModel(_library, _metadata);
-        Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings);
+        Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel();
 
         // Wire events

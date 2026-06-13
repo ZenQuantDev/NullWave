@@ -167,6 +167,16 @@ public class TrackInputViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(title))
             title = url;
 
+        // Reject bare domain roots and unplayable URLs
+        if (!SourceDetector.IsPlayableUrl(url))
+        {
+            StatusMessage = "That URL doesn't look like a playable track. " +
+                            "Paste a direct video or track link.";
+            Log.Warning("[{Source}] Rejected unplayable URL: {Url}",
+                nameof(TrackInputViewModel), url);
+            return;
+        }
+
         var source = SelectedSource;
         var newTrack = new Track
         {
@@ -202,6 +212,21 @@ public class TrackInputViewModel : ViewModelBase
             if (string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
             Log.Information("[{Source}] Metadata fetched: {Title} by {Artist}",
                 nameof(TrackInputViewModel), title, artist);
+
+            // Backfill the track in the library if it was already added
+            var existing = _library.GetAll()
+                .FirstOrDefault(t => t.Url == url);
+            if (existing != null)
+            {
+                if (existing.Title == url || existing.Title == "Unknown Title"
+                    || string.IsNullOrWhiteSpace(existing.Title))
+                    existing.Title = title;
+                if (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist))
+                    existing.Artist = artist;
+                _library.Update(existing);
+                Log.Information("[{Source}] Backfilled track metadata: {Title} by {Artist}",
+                    nameof(TrackInputViewModel), title, artist);
+            }
         }
         catch (Exception ex)
         {
