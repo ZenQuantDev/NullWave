@@ -17,6 +17,19 @@
     "borderless",
     "pointerover",
     "LISTBOXITEM",
-    "Unmute"
+    "Unmute",
+    "TRACKID",
+    "ytsearch",
+    "oembed",
+    "oEmbed",
+    "uploader",
+    "playcount",
+    "toptags",
+    "trackmatches",
+    "trackmatch",
+    "scrobbling",
+    "prefs",
+    "HMAC",
+    "youtu"
   ]
 }

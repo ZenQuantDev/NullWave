@@ -39,7 +39,10 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - Discord-style local profile bar in sidebar (username, bio, avatar, settings gear)
 - Alt-key menu bar toggle (hidden by default, Firefox-style)
 - Design system in `Themes/` — colors, typography, shapes, and control styles all in one place
+- Settings window with 7 tabs: General, Appearance, API Keys, Audio, Updates, Advanced, About
+- Appearance tab — accent color, track row style, font scale, sidebar width, compact mode
 - Local user profile — username, bio, avatar — no account or login required
+- All preferences auto-saved on change via `PreferencesService`
 
 ### Security
 - Encrypted local API key storage (AES-256-GCM, machine-bound)
@@ -155,7 +158,7 @@ ZenQuant — PackItPro Team
 
 ## Version
 
-v0.2.0
+v0.3.0
 
 ## License
 

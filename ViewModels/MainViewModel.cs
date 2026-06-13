@@ -14,7 +14,6 @@ namespace NullWave.ViewModels;
 
 public class MainViewModel : ViewModelBase
 {
-    // ─── Services ─────────────────────────────────────────────────────────────
     private readonly KeyStoreService _keyStore = new();
     private readonly SecureDeleteService _secureDelete;
     private readonly ConfigService _config;
@@ -26,9 +25,10 @@ public class MainViewModel : ViewModelBase
     private readonly ExportService _export = new();
     private readonly PlaybackService _playbackService = new();
     private readonly DownloadService _downloadService = new();
+    private readonly SpotifyBridgeService _spotifyBridge;
+    private readonly PreferencesService _prefsService;
 
-    // ─── Menu bar visibility (Alt-key toggle) ─────────────────────────────────
-    private bool _isMenuBarVisible = false;
+    private bool _isMenuBarVisible;
     public bool IsMenuBarVisible
     {
         get => _isMenuBarVisible;
@@ -36,56 +36,58 @@ public class MainViewModel : ViewModelBase
     }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
-    // ─── Child ViewModels ─────────────────────────────────────────────────────
-    public TrackInputViewModel  Input    { get; }
-    public LibraryViewModel     Library  { get; }
-    public PlaylistViewModel    Playlist { get; }
-    public ExportViewModel      Export   { get; }
-    public SettingsViewModel    Settings { get; }
-    public TrackDetailViewModel Detail   { get; }
-    public ImportViewModel      Import   { get; }
-    public PlayerViewModel      Player   { get; }
-    public UserProfileViewModel Profile  { get; }
+    public TrackInputViewModel Input { get; }
+    public LibraryViewModel Library { get; }
+    public PlaylistViewModel Playlist { get; }
+    public ExportViewModel Export { get; }
+    public SettingsViewModel Settings { get; }
+    public TrackDetailViewModel Detail { get; }
+    public ImportViewModel Import { get; }
+    public PlayerViewModel Player { get; }
+    public UserProfileViewModel Profile { get; }
 
-    // ─── Menu commands ────────────────────────────────────────────────────────
-    public ICommand ExitCommand          { get; }
-    public ICommand OpenSettingsCommand  { get; }
-    public ICommand AboutCommand         { get; }
-    public ICommand OpenDataFolderCommand{ get; }
-    public ICommand OpenLogsCommand      { get; }
-
-    // ─── Navigation commands (stub — will activate panels in Phase 7) ─────────
-    public ICommand NavigateLibraryCommand   { get; }
+    public ICommand ExitCommand { get; }
+    public ICommand OpenSettingsCommand { get; }
+    public ICommand AboutCommand { get; }
+    public ICommand OpenDataFolderCommand { get; }
+    public ICommand OpenLogsCommand { get; }
+    public ICommand NavigateLibraryCommand { get; }
     public ICommand NavigatePlaylistsCommand { get; }
-    public ICommand NavigateQueueCommand     { get; }
-    public ICommand NavigateStatsCommand     { get; }
+    public ICommand NavigateQueueCommand { get; }
+    public ICommand NavigateStatsCommand { get; }
 
     public MainViewModel()
     {
         _secureDelete = new SecureDeleteService(_keyStore);
-        _config       = new ConfigService(_keyStore);
-        _lastFm       = new LastFmService(_config);
-        _metadata     = new MetadataService(_config, _lastFm);
-        _library      = new LibraryService(_metadata);
+        _config = new ConfigService(_keyStore);
+        _lastFm = new LastFmService(_config);
+        _metadata = new MetadataService(_config, _lastFm);
+        _spotifyBridge = new SpotifyBridgeService(_config);
+        _library = new LibraryService(_metadata);
+        _prefsService = new PreferencesService();
 
-        // ── Construct child ViewModels ────────────────────────────────────────
-        Input    = new TrackInputViewModel(_library, _metadata, _urlParser);
-        Library  = new LibraryViewModel(_library);
+        // Construct Settings first (others depend on it)
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService);
+
+        // Construct PlaylistImport
+        var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
+
+        // Construct other ViewModels
+        Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport);
+        Library = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
-        Export   = new ExportViewModel(_library, _export);
-        Settings = new SettingsViewModel(_keyStore, _secureDelete);
-        Detail   = new TrackDetailViewModel(_library);
-        Import   = new ImportViewModel(_library, _metadata);
-        Player   = new PlayerViewModel(_playbackService, _downloadService, _library);
-        Profile  = new UserProfileViewModel();
+        Export = new ExportViewModel(_library, _export);
+        Detail = new TrackDetailViewModel(_library);
+        Import = new ImportViewModel(_library, _metadata);
+        Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings);
+        Profile = new UserProfileViewModel();
 
-        // ── Wire events ───────────────────────────────────────────────────────
-        Input.TrackAdded              += Library.Refresh;
-        Library.TrackDetailRequested  += Detail.OpenFor;
-        Library.PlayTrackRequested    += Player.PlayTrack;
-        Import.ImportCompleted        += Library.Refresh;
+        // Wire events
+        Input.TrackAdded += Library.Refresh;
+        Library.TrackDetailRequested += Detail.OpenFor;
+        Library.PlayTrackRequested += Player.PlayTrack;
+        Import.ImportCompleted += Library.Refresh;
 
-        // When play is pressed with no current track, start the selected track
         Player.PlaySelectedTrackRequested += () =>
         {
             if (Library.SelectedTrack != null)
@@ -94,12 +96,17 @@ public class MainViewModel : ViewModelBase
                 Player.PlayTrack(Library.Tracks[0]);
         };
 
-        // ── Commands ──────────────────────────────────────────────────────────
+        Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
+        {
+            if (Settings.ScrobbleToLastFm)
+                await _lastFm.ScrobbleAsync(title, artist, playedAt);
+        };
+
+        // Commands
         ExitCommand = new RelayCommand(() =>
         {
             NullActionLogger.User("AppExit", "shutdown", nameof(MainViewModel));
-            if (Application.Current?.ApplicationLifetime is
-                IClassicDesktopStyleApplicationLifetime desktop)
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                 desktop.Shutdown();
         });
 
@@ -110,10 +117,7 @@ public class MainViewModel : ViewModelBase
         });
 
         AboutCommand = new RelayCommand(() =>
-        {
-            // TODO: open About window (Phase 7)
-            Log.Information("[{Source}] About dialog requested", nameof(MainViewModel));
-        });
+            Log.Information("[{Source}] About dialog requested", nameof(MainViewModel)));
 
         OpenDataFolderCommand = new RelayCommand(() =>
         {
@@ -131,16 +135,13 @@ public class MainViewModel : ViewModelBase
             Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), dir);
         });
 
-        NavigateLibraryCommand   = new RelayCommand(() => LogNav("Library"));
+        NavigateLibraryCommand = new RelayCommand(() => LogNav("Library"));
         NavigatePlaylistsCommand = new RelayCommand(() => LogNav("Playlists"));
-        NavigateQueueCommand     = new RelayCommand(() => LogNav("Queue"));
-        NavigateStatsCommand     = new RelayCommand(() => LogNav("Stats"));
+        NavigateQueueCommand = new RelayCommand(() => LogNav("Queue"));
+        NavigateStatsCommand = new RelayCommand(() => LogNav("Stats"));
 
-        // ── Run startup diagnostics async (fire-and-forget, safe) ────────────
         _ = RunStartupDiagnosticsAsync();
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private async System.Threading.Tasks.Task RunStartupDiagnosticsAsync()
     {
@@ -158,8 +159,7 @@ public class MainViewModel : ViewModelBase
     private void OpenSettings()
     {
         var win = new Views.SettingsWindow { DataContext = Settings };
-        if (Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop &&
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
             desktop.MainWindow != null)
             win.ShowDialog(desktop.MainWindow);
         else

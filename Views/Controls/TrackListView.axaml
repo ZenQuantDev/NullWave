@@ -6,33 +6,28 @@
            xmlns:converters="using:NullWave.Helpers.Converters"
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:MainViewModel">
+
     <DockPanel.Resources>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
     </DockPanel.Resources>
 
-    <!-- ── TOOLBAR ─────────────────────────────────────────────────────────── -->
+    <!-- ── TOOLBAR ──────────────────────────────────────────────────────────── -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushSurface}"
             BorderBrush="{StaticResource BrushBorder}"
             BorderThickness="0,0,0,1"
             Padding="12,8">
         <Grid ColumnDefinitions="*,8,Auto,8,Auto" VerticalAlignment="Center">
-
-            <!-- Search (takes all remaining space) -->
             <TextBox Grid.Column="0"
                      Text="{Binding Library.SearchQuery, Mode=TwoWay}"
                      PlaceholderText="Search tracks..."
                      VerticalAlignment="Center"/>
-
-            <!-- Sort -->
             <ComboBox Grid.Column="2"
                       ItemsSource="{Binding Library.SortOptions}"
                       SelectedItem="{Binding Library.CurrentSort}"
                       MinWidth="130"
                       VerticalAlignment="Center"/>
-
-            <!-- Add button + dropdown -->
             <SplitButton Grid.Column="4"
                          Classes="primary"
                          Content="+ Add"
@@ -52,7 +47,7 @@
         </Grid>
     </Border>
 
-    <!-- ── URL INPUT (collapsible, shown when Input.IsUrlInputVisible) ──────── -->
+    <!-- ── URL INPUT ────────────────────────────────────────────────────────── -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushSurface2}"
             BorderBrush="{StaticResource BrushBorder}"
@@ -66,9 +61,9 @@
         </Border.Transitions>
         <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
             <TextBox Grid.Column="0"
-                    Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                    PlaceholderText="Paste URL, file path, or folder path here..."
-                    VerticalAlignment="Center"/>
+                     Text="{Binding Input.InputUrl, Mode=TwoWay}"
+                     PlaceholderText="Paste URL, file path, or folder path here..."
+                     VerticalAlignment="Center"/>
             <Button Grid.Column="2"
                     Classes="primary"
                     Content="Add"
@@ -77,7 +72,7 @@
         </Grid>
     </Border>
 
-    <!-- ── IMPORT PROGRESS ───────────────────────────────────────────────────── -->
+    <!-- ── FOLDER IMPORT PROGRESS ───────────────────────────────────────────── -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushGreenDim}"
             BorderBrush="{StaticResource BrushGreen}"
@@ -109,7 +104,44 @@
         </Grid>
     </Border>
 
-    <!-- ── COLUMN HEADERS ────────────────────────────────────────────────────── -->
+    <!-- ── PLAYLIST IMPORT PROGRESS ─────────────────────────────────────────── -->
+    <Border DockPanel.Dock="Top"
+            Background="{StaticResource BrushBlueDim}"
+            BorderBrush="{StaticResource BrushBlue}"
+            BorderThickness="0,0,0,1"
+            Padding="12,8"
+            IsVisible="{Binding Input.PlaylistImport.IsImporting}">
+        <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="{Binding Input.PlaylistImport.CurrentTrack}"
+                           Foreground="{StaticResource BrushBlue}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"/>
+                <ProgressBar Value="{Binding Input.PlaylistImport.Progress}"
+                             Maximum="{Binding Input.PlaylistImport.Total}"
+                             Height="4"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeSm}">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="{}{0} / {1}">
+                            <Binding Path="Input.PlaylistImport.Progress"/>
+                            <Binding Path="Input.PlaylistImport.Total"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <Button Content="Cancel"
+                        Command="{Binding Input.PlaylistImport.CancelCommand}"
+                        Classes="danger"
+                        FontSize="{StaticResource FontSizeXs}"
+                        Padding="8,4"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+
+    <!-- ── COLUMN HEADERS ───────────────────────────────────────────────────── -->
     <Grid DockPanel.Dock="Top"
           ColumnDefinitions="48,*,150,80,110,36,36"
           Margin="16,8,16,2">
@@ -119,7 +151,7 @@
         <TextBlock Grid.Column="4" Classes="section-label" Text="ADDED"/>
     </Grid>
 
-    <!-- ── TRACK LIST ────────────────────────────────────────────────────────── -->
+    <!-- ── TRACK LIST ───────────────────────────────────────────────────────── -->
     <ListBox ItemsSource="{Binding Library.Tracks}"
              SelectedItem="{Binding Library.SelectedTrack}"
              Background="Transparent"
@@ -143,7 +175,6 @@
                         <MenuItem Header="Copy URL"
                                   Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
                         <Separator/>
-                        <!-- UPDATED: Added CommandParameter -->
                         <MenuItem Header="Remove"
                                   Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
                                   CommandParameter="{Binding}"/>
@@ -155,6 +186,8 @@
             <DataTemplate x:DataType="models:Track">
                 <Grid ColumnDefinitions="48,*,150,80,110,36,36"
                       Margin="8,5" MinHeight="44">
+
+                    <!-- Album art -->
                     <Border Grid.Column="0"
                             Width="40" Height="40"
                             CornerRadius="{StaticResource RadiusArt}"
@@ -162,7 +195,6 @@
                             ClipToBounds="True"
                             VerticalAlignment="Center">
                         <Panel>
-                            <!-- UPDATED: Using converter -->
                             <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding AlbumArtPath,
@@ -176,6 +208,8 @@
                                        VerticalAlignment="Center"/>
                         </Panel>
                     </Border>
+
+                    <!-- Title + artist -->
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center"
                                 Spacing="2" Margin="10,0,8,0">
@@ -189,6 +223,8 @@
                                    FontSize="{StaticResource FontSizeSm}"
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
+
+                    <!-- Source badge -->
                     <Border Grid.Column="2"
                             VerticalAlignment="Center"
                             Background="{StaticResource BrushAccentGlow}"
@@ -200,26 +236,35 @@
                                    FontSize="{StaticResource FontSizeXs}"
                                    FontWeight="SemiBold"/>
                     </Border>
+
+                    <!-- Play count -->
                     <TextBlock Grid.Column="3"
                                Text="{Binding PlayCount}"
                                Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
+
+                    <!-- Date added -->
                     <TextBlock Grid.Column="4"
                                Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
                                Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
+
+                    <!-- Favorite -->
                     <Button Grid.Column="5"
-                            Classes="icon-btn" Content="★"
+                            Classes="icon-btn"
+                            Content="★"
                             Foreground="{StaticResource BrushAmber}"
-                            Opacity="{Binding IsFavorite,
-                                Converter={StaticResource BoolToOpacity}}"
+                            Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"
                             Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
                             VerticalAlignment="Center"/>
+
+                    <!-- More options flyout -->
                     <Button Grid.Column="6"
-                            Classes="icon-btn" Content="⋮"
+                            Classes="icon-btn"
+                            Content="⋮"
                             VerticalAlignment="Center"
                             ToolTip.Tip="More options">
                         <Button.Flyout>
@@ -236,15 +281,16 @@
                                 <MenuItem Header="Copy URL"
                                           Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
                                 <Separator/>
-                                <!-- UPDATED: Added CommandParameter -->
                                 <MenuItem Header="Remove"
                                           Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
                                           CommandParameter="{Binding}"/>
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
+
                 </Grid>
             </DataTemplate>
         </ListBox.ItemTemplate>
     </ListBox>
+
 </DockPanel>

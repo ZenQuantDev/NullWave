@@ -326,4 +326,23 @@
     <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TAB CONTROL
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="TabItem">
+    <Setter Property="Background"        Value="Transparent"/>
+    <Setter Property="Foreground"        Value="{StaticResource BrushTextMuted}"/>
+    <Setter Property="FontSize"          Value="{StaticResource FontSizeBody}"/>
+    <Setter Property="Padding"           Value="16,10"/>
+    <Setter Property="BorderThickness"   Value="0"/>
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Foreground"        Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="BorderBrush"       Value="{StaticResource BrushAccent}"/>
+    <Setter Property="BorderThickness"   Value="0,0,0,2"/>
+  </Style>
+  <Style Selector="TabItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background"        Value="{StaticResource BrushElevated}"/>
+  </Style>
+
 </Styles>

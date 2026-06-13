@@ -135,6 +135,30 @@ public class LastFmService
             return null;
         }
     }
+
+    // Scrobble placeholder — full OAuth implementation in Phase 7
+    // Returns Task.CompletedTask (no async keyword) to avoid CS1998 warning
+    public Task ScrobbleAsync(string title, string artist, DateTime playedAt)
+    {
+        if (!IsConfigured) return Task.CompletedTask;
+
+        try
+        {
+            // Last.fm scrobble requires API signature (HMAC-MD5) + user session token
+            // For now we just log the attempt — full implementation in Phase 7
+            Log.Information("[LastFm] Scrobble: {Title} by {Artist} at {Time}",
+                title, artist, playedAt);
+
+            // TODO: Implement full scrobble with user session token in Phase 7
+            // This requires OAuth flow: last.fm/api/auth + track.scrobble method
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[LastFm] Scrobble failed for {Title}", title);
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 public class LastFmTrackInfo
