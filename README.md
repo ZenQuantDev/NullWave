@@ -119,9 +119,9 @@ Everything NullWave writes lives under `~/.nullwave/`:
   keys.enc          ← encrypted API keys
   profile.json      ← local user profile (username, bio, avatar path)
   avatar.png        ← profile picture
-  library.db        ← music library (coming — Phase 7)
+  library.db        ← SQLite music library
   downloads/        ← yt-dlp audio downloads
-  art/              ← cached album art (coming — Phase 6)
+  art/              ← cached album art (YouTube thumbnails, SoundCloud covers)
   logs/
     NullWave-YYYYMMDD.log       ← all events
     UserActions-YYYYMMDD.log    ← user action log
@@ -158,7 +158,7 @@ ZenQuant — PackItPro Team
 
 ## Version
 
-v0.3.0
+v0.3.1
 
 ## License
 

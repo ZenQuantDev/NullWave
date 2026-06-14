@@ -5,7 +5,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;
+using Avalonia.Input.Platform;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
@@ -17,12 +17,12 @@ namespace NullWave.ViewModels;
 public class TrackDetailViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
-    private Track? _track;
+    private Track? _currentTrack;
     private bool _isOpen;
-    private string _editTitle = string.Empty;
+    private string _editTitle  = string.Empty;
     private string _editArtist = string.Empty;
-    private string _editNotes = string.Empty;
-    private string _newTag = string.Empty;
+    private string _editNotes  = string.Empty;
+    private string _newTag     = string.Empty;
     private string _copyStatus = "Copy";
 
     public bool IsOpen
@@ -32,17 +32,6 @@ public class TrackDetailViewModel : ViewModelBase
     }
 
     public double PanelWidth => _isOpen ? 320 : 0;
-
-    public Track? Track
-    {
-        get => _track;
-        set
-        {
-            _track = value;
-            OnPropertyChanged();
-            if (value != null) LoadFromTrack(value);
-        }
-    }
 
     public string EditTitle
     {
@@ -76,85 +65,78 @@ public class TrackDetailViewModel : ViewModelBase
 
     public ObservableCollection<string> Tags { get; } = new();
 
-    // NEW: Album art path for binding
-    public string? CurrentTrackArtPath => _track?.AlbumArtPath;
+    public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
+    public string DisplayUrl        => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "—";
+    public string DisplaySource     => _currentTrack?.Source.ToString() ?? "—";
+    public string DisplayDateAdded  => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "—";
+    public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
+    public string DisplayPlayCount  => _currentTrack?.PlayCount.ToString() ?? "0";
+    public bool   IsFavorite        => _currentTrack?.IsFavorite ?? false;
 
-    public string DisplayUrl => _track?.Url ?? _track?.FilePath ?? "—";
-    public string DisplaySource => _track?.Source.ToString() ?? "—";
-    public string DisplayDateAdded => _track?.DateAdded.ToString("MMMM dd, yyyy") ?? "—";
-    public string DisplayLastPlayed => _track?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
-    public string DisplayPlayCount => _track?.PlayCount.ToString() ?? "0";
-    public bool IsFavorite => _track?.IsFavorite ?? false;
-
-    public ICommand SaveCommand { get; }
-    public ICommand CloseCommand { get; }
-    public ICommand AddTagCommand { get; }
-    public ICommand RemoveTagCommand { get; }
-    public ICommand ToggleFavoriteCommand { get; }
-    public ICommand CopyUrlCommand { get; }
+    public ICommand SaveCommand            { get; }
+    public ICommand CloseCommand           { get; }
+    public ICommand AddTagCommand          { get; }
+    public ICommand RemoveTagCommand       { get; }
+    public ICommand ToggleFavoriteCommand  { get; }
+    public ICommand CopyUrlCommand         { get; }
 
     public TrackDetailViewModel(LibraryService library)
     {
         _library = library;
-        SaveCommand = new RelayCommand(Save);
-        CloseCommand = new RelayCommand(() => IsOpen = false);
-        AddTagCommand = new RelayCommand(AddTag);
-        RemoveTagCommand = new RelayCommand<string>(RemoveTag);
+        SaveCommand           = new RelayCommand(Save);
+        CloseCommand          = new RelayCommand(() => IsOpen = false);
+        AddTagCommand         = new RelayCommand(AddTag);
+        RemoveTagCommand      = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
-        CopyUrlCommand = new RelayCommand(async () => await CopyUrlAsync());
+        CopyUrlCommand        = new RelayCommand(async () => await CopyUrlAsync());
     }
 
     public void OpenFor(Track track)
     {
-        Track = track;
-        IsOpen = true;
-    }
+        // Unsubscribe from previous track
+        if (_currentTrack != null)
+            _currentTrack.PropertyChanged -= OnTrackPropertyChanged;
 
-    private void LoadFromTrack(Track track)
-    {
-        // Unsubscribe from previous track to avoid memory leaks
-        if (_track != null)
-            _track.PropertyChanged -= OnTrackPropertyChanged;
+        _currentTrack = track;
+        track.PropertyChanged += OnTrackPropertyChanged;
 
         EditTitle  = track.Title;
         EditArtist = track.Artist;
         EditNotes  = track.Notes ?? string.Empty;
+
         Tags.Clear();
         foreach (var tag in track.Tags) Tags.Add(tag);
 
-        // Subscribe so PlayCount/LastPlayed updates flow through automatically
-        track.PropertyChanged += OnTrackPropertyChanged;
-
         RefreshDisplayProperties();
+        IsOpen = true;
     }
 
-    private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnTrackPropertyChanged(
+        object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        // When PlayCount or LastPlayed changes on the Track model, refresh our display strings
         RefreshDisplayProperties();
     }
 
     private void RefreshDisplayProperties()
     {
+        OnPropertyChanged(nameof(CurrentTrackArtPath));
         OnPropertyChanged(nameof(DisplayUrl));
         OnPropertyChanged(nameof(DisplaySource));
         OnPropertyChanged(nameof(DisplayDateAdded));
         OnPropertyChanged(nameof(DisplayLastPlayed));
         OnPropertyChanged(nameof(DisplayPlayCount));
         OnPropertyChanged(nameof(IsFavorite));
-        // NEW: Refresh album art path
-        OnPropertyChanged(nameof(CurrentTrackArtPath));
     }
 
     private void Save()
     {
-        if (_track == null) return;
-        _track.Title = EditTitle;
-        _track.Artist = EditArtist;
-        _track.Notes = EditNotes;
-        _track.Tags.Clear();
-        foreach (var tag in Tags) _track.Tags.Add(tag);
-        _library.Update(_track); 
+        if (_currentTrack == null) return;
+        _currentTrack.Title  = EditTitle;
+        _currentTrack.Artist = EditArtist;
+        _currentTrack.Notes  = EditNotes;
+        _currentTrack.Tags.Clear();
+        foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
+        _library.Update(_currentTrack);
         Log.Information("Track details saved: {Title}", EditTitle);
     }
 
@@ -173,52 +155,41 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void ToggleFavorite()
     {
-        if (_track == null) return;
-        _library.ToggleFavorite(_track.Id);
+        if (_currentTrack == null) return;
+        _library.ToggleFavorite(_currentTrack.Id);
         OnPropertyChanged(nameof(IsFavorite));
     }
 
     private async Task CopyUrlAsync()
     {
-        var url = _track?.Url ?? _track?.FilePath;
+        var url = _currentTrack?.Url ?? _currentTrack?.FilePath;
         if (string.IsNullOrEmpty(url)) return;
 
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            if (Application.Current?.ApplicationLifetime
+                    is IClassicDesktopStyleApplicationLifetime desktop
                 && desktop.MainWindow != null)
             {
-                var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
-                var clipboard = topLevel?.Clipboard;
-                
+                var clipboard = TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
                 if (clipboard != null)
                 {
-                    // Try to find the correct method using reflection
-                    var setTextMethod = clipboard.GetType().GetMethod("SetTextAsync");
-                    if (setTextMethod != null)
-                    {
-                        var task = (Task?)setTextMethod.Invoke(clipboard, new object[] { url });
-                        if (task != null) await task;
-                        
-                        CopyStatus = "Copied!";
-                        await Task.Delay(2000);
-                        CopyStatus = "Copy";
-                        Log.Debug("URL copied to clipboard: {Url}", url);
-                    }
-                    else
-                    {
-                        Log.Warning("SetTextAsync method not found on IClipboard");
-                        CopyStatus = "Clipboard API unavailable";
-                        await Task.Delay(2000);
-                        CopyStatus = "Copy";
-                    }
+                    await clipboard.SetTextAsync(url);
+                    CopyStatus = "Copied!";
+                    await Task.Delay(2000);
+                    CopyStatus = "Copy";
+                    Log.Debug("URL copied to clipboard: {Url}", url);
+                    return;
                 }
             }
+            CopyStatus = "Failed";
+            await Task.Delay(2000);
+            CopyStatus = "Copy";
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to copy URL to clipboard");
-            CopyStatus = "Copy failed";
+            CopyStatus = "Failed";
             await Task.Delay(2000);
             CopyStatus = "Copy";
         }

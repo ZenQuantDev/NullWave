@@ -20,61 +20,68 @@ public class MetadataService
 
     public MetadataService(ConfigService config, LastFmService lastFm)
     {
-        _youTube = new YouTubeMetadataFetcher(config.GetYouTubeApiKey());
+        _youTube    = new YouTubeMetadataFetcher(config.GetYouTubeApiKey());
         _soundCloud = new SoundCloudMetadataFetcher();
-        _local = new LocalMetadataFetcher();
-        _lastFm = lastFm;
+        _local      = new LocalMetadataFetcher();
+        _lastFm     = lastFm;
     }
 
-    public async Task<(string Title, string Artist)> FetchFromUrlAsync(string url)
+    public async Task<(string Title, string Artist, string? ThumbnailPath)> FetchFromUrlAsync(string url)
     {
         var source = SourceDetector.Detect(url);
         return source switch
         {
-            TrackSource.YouTube => await _youTube.FetchAsync(url),
+            TrackSource.YouTube    => await _youTube.FetchAsync(url),
             TrackSource.SoundCloud => await _soundCloud.FetchAsync(url),
-            TrackSource.Spotify => await FetchSpotifyMetadataAsync(url),
-            TrackSource.LastFm => await FetchLastFmUrlAsync(url),
-            _ => ("Unknown Title", "Unknown Artist")
+            TrackSource.Spotify    => await FetchSpotifyMetadataAsync(url),
+            TrackSource.LastFm     => await FetchLastFmUrlAsync(url),
+            _                      => ("Unknown Title", "Unknown Artist", null)
         };
     }
 
     public (string Title, string Artist) FetchFromLocalFile(string filePath)
         => _local.Fetch(filePath);
 
-    private async Task<(string Title, string Artist)> FetchSpotifyMetadataAsync(string url)
+    private async Task<(string Title, string Artist, string? ThumbnailPath)>
+        FetchSpotifyMetadataAsync(string url)
     {
         var id = _urlParser.ExtractSpotifyId(url);
         if (string.IsNullOrEmpty(id))
-            return ("Spotify track (unknown id)", "Unknown");
+            return ("Spotify track (unknown id)", "Unknown", null);
 
         Log.Warning("Spotify API not available — falling back to Last.fm search");
         if (_lastFm.IsConfigured)
-            return await _lastFm.SearchTrackAsync("Unknown", "Unknown");
+        {
+            var (t, a) = await _lastFm.SearchTrackAsync("Unknown", "Unknown");
+            return (t, a, null);
+        }
 
-        return ($"Spotify track ({id})", "Unknown");
+        return ($"Spotify track ({id})", "Unknown", null);
     }
 
-    private async Task<(string Title, string Artist)> FetchLastFmUrlAsync(string url)
+    private async Task<(string Title, string Artist, string? ThumbnailPath)>
+        FetchLastFmUrlAsync(string url)
     {
         var extracted = _urlParser.ExtractLastFmTrack(url);
         if (extracted == null)
-            return ("Last.fm track (unknown)", "Unknown");
+            return ("Last.fm track (unknown)", "Unknown", null);
 
         var (title, artist) = extracted.Value;
         Log.Information("Last.fm URL parsed: {Title} by {Artist}", title, artist);
 
         if (_lastFm.IsConfigured)
-            return await _lastFm.SearchTrackAsync(title, artist);
+        {
+            var (t, a) = await _lastFm.SearchTrackAsync(title, artist);
+            return (t, a, null);
+        }
 
-        return (title, artist);
+        return (title, artist, null);
     }
 
     public string? ExtractAlbumArt(string filePath)
     {
         try
         {
-            // Use fully qualified TagLib.File
             using var file = TagLib.File.Create(filePath);
             if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0)
                 return null;
@@ -88,7 +95,6 @@ public class MetadataService
 
             var artPath = Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
 
-            // Use fully qualified System.IO.File
             if (!System.IO.File.Exists(artPath))
             {
                 System.IO.File.WriteAllBytes(artPath, picture.Data.Data);

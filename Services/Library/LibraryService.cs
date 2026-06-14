@@ -23,6 +23,100 @@ public class LibraryService
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
         CleanupBadUrls();
         BackfillAlbumArt();
+        BackfillYouTubeThumbnails();
+        BackfillSoundCloudThumbnails();
+    }
+    private void BackfillYouTubeThumbnails()
+    {
+        var ytTracks = _tracks
+            .Where(t => t.Source == TrackSource.YouTube
+                     && string.IsNullOrEmpty(t.AlbumArtPath)
+                     && !string.IsNullOrEmpty(t.Url))
+            .ToList();
+
+        if (ytTracks.Count == 0) return;
+
+        Log.Information("[LibraryService] Backfilling thumbnails for {Count} YouTube tracks", ytTracks.Count);
+
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            foreach (var track in ytTracks)
+            {
+                try
+                {
+                    var id = Metadata.YouTubeMetadataFetcher.ExtractYouTubeId(track.Url!);
+                    if (string.IsNullOrEmpty(id)) continue;
+
+                    var thumbPath = await Metadata.YouTubeMetadataFetcher.FetchThumbnailAsync(id);
+                    if (string.IsNullOrEmpty(thumbPath)) continue;
+
+                    track.AlbumArtPath = thumbPath;
+                    _db.Update(track);
+                    Log.Information("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[LibraryService] YouTube thumbnail backfill failed for {Title}", track.Title);
+                }
+            }
+        });
+    }
+
+    private void BackfillSoundCloudThumbnails()
+    {
+        var scTracks = _tracks
+            .Where(t => t.Source == TrackSource.SoundCloud
+                     && string.IsNullOrEmpty(t.AlbumArtPath)
+                     && !string.IsNullOrEmpty(t.Url))
+            .ToList();
+
+        if (scTracks.Count == 0) return;
+
+        Log.Information("[LibraryService] Backfilling thumbnails for {Count} SoundCloud tracks",
+            scTracks.Count);
+
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            var fetcher = new Metadata.SoundCloudMetadataFetcher();
+            foreach (var track in scTracks)
+            {
+                try
+                {
+                    var (title, artist, thumbPath) = await fetcher.FetchAsync(track.Url!);
+
+                    bool changed = false;
+                    if (!string.IsNullOrEmpty(thumbPath) && string.IsNullOrEmpty(track.AlbumArtPath))
+                    {
+                        track.AlbumArtPath = thumbPath;
+                        changed = true;
+                    }
+                    if ((track.Title == track.Url || track.Title == "SoundCloud track"
+                         || string.IsNullOrWhiteSpace(track.Title))
+                        && !string.IsNullOrWhiteSpace(title))
+                    {
+                        track.Title = title;
+                        changed = true;
+                    }
+                    if ((track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
+                        && !string.IsNullOrWhiteSpace(artist))
+                    {
+                        track.Artist = artist;
+                        changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        _db.Update(track);
+                        Log.Information("[LibraryService] SoundCloud backfilled: {Title}", track.Title);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}",
+                        track.Title);
+                }
+            }
+        });
     }
 
     private void CleanupBadUrls()
@@ -95,6 +189,9 @@ public class LibraryService
     public void Update(Track track)
     {
         _db.Update(track);
+        // Ensure the in-memory reference is the same object
+        var idx = _tracks.FindIndex(t => t.Id == track.Id);
+        if (idx >= 0) _tracks[idx] = track;
     }
 
     // ── Search & Filter ───────────────────────────────

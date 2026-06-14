@@ -1,213 +1,223 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
         x:Class="NullWave.Views.Controls.TrackDetailView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="1,0,0,0"
-        MinWidth="280"
-        MaxWidth="500"
+        Width="320"
+        MinWidth="320"
+        MaxWidth="320"
         IsVisible="{Binding Detail.IsOpen}"
         ClipToBounds="True">
-  
-  <Border.Resources>
-    <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-  </Border.Resources>
 
-  <Border.Transitions>
-    <Transitions>
-      <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
-      <ThicknessTransition Property="Margin" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
-    </Transitions>
-  </Border.Transitions>
+    <Border.Resources>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
+    </Border.Resources>
 
-  <ScrollViewer Padding="0"
-                VerticalScrollBarVisibility="Auto"
-                HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="0" HorizontalAlignment="Stretch">
+    <Border.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
+        </Transitions>
+    </Border.Transitions>
 
-      <!-- ── Album art (1:1, full width) ──────────────────────────────── -->
-      <Border Height="220"
-              Background="{StaticResource BrushSurface2}"
-              ClipToBounds="True">
-        <Panel>
-          <!-- UPDATED: Using converter -->
-          <Image Source="{Binding Detail.CurrentTrackArtPath, Converter={StaticResource PathToBitmap}}"
-                 Stretch="UniformToFill"
-                 IsVisible="{Binding Detail.CurrentTrackArtPath,
-                     Converter={x:Static ObjectConverters.IsNotNull}}"/>
-          <StackPanel HorizontalAlignment="Center"
-                      VerticalAlignment="Center"
-                      Spacing="8"
-                      IsVisible="{Binding Detail.CurrentTrackArtPath,
-                          Converter={x:Static ObjectConverters.IsNull}}">
-            <TextBlock Text="♪"
-                       FontSize="52"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       HorizontalAlignment="Center"/>
-            <TextBlock Text="No artwork"
-                       FontSize="{StaticResource FontSizeSm}"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       HorizontalAlignment="Center"/>
-          </StackPanel>
-        </Panel>
-      </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="0" HorizontalAlignment="Stretch">
 
-      <!-- ── Content area ──────────────────────────────────────────────── -->
-      <StackPanel Spacing="16" Margin="16,16,16,20">
-
-        <!-- Header row: title + close -->
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0"
-                     Text="Track Details"
-                     Foreground="{StaticResource BrushTextPrimary}"
-                     FontSize="{StaticResource FontSizeLg}"
-                     FontWeight="Bold"
-                     VerticalAlignment="Center"/>
-          <Button Grid.Column="1"
-                  Classes="icon-btn"
-                  Content="✕"
-                  Command="{Binding Detail.CloseCommand}"/>
-        </Grid>
-
-        <Separator/>
-
-        <!-- Title -->
-        <StackPanel Spacing="5">
-          <TextBlock Classes="section-label" Text="TITLE" Margin="0"/>
-          <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
-        </StackPanel>
-
-        <!-- Artist -->
-        <StackPanel Spacing="5">
-          <TextBlock Classes="section-label" Text="ARTIST" Margin="0"/>
-          <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
-        </StackPanel>
-
-        <!-- Source + Favorite -->
-        <Grid ColumnDefinitions="*,Auto">
-          <StackPanel Grid.Column="0" Spacing="4">
-            <TextBlock Classes="section-label" Text="SOURCE" Margin="0"/>
-            <Border Background="{StaticResource BrushAccentGlow}"
-                    CornerRadius="{StaticResource RadiusFull}"
-                    Padding="10,4"
-                    HorizontalAlignment="Left">
-              <TextBlock Text="{Binding Detail.DisplaySource}"
-                         Foreground="{StaticResource BrushAccentHover}"
-                         FontSize="{StaticResource FontSizeXs}"
-                         FontWeight="SemiBold"/>
+            <!-- ── Album art ──────────────────────────────────────────── -->
+            <Border Height="220"
+                    Background="{StaticResource BrushSurface2}"
+                    ClipToBounds="True">
+                <Panel>
+                    <Image Source="{Binding Detail.CurrentTrackArtPath,
+                               Converter={StaticResource PathToBitmap}}"
+                           Stretch="UniformToFill"
+                           IsVisible="{Binding Detail.CurrentTrackArtPath,
+                               Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="8"
+                                IsVisible="{Binding Detail.CurrentTrackArtPath,
+                                    Converter={x:Static ObjectConverters.IsNull}}">
+                        <TextBlock Text="♪"
+                                   FontSize="52"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="No artwork"
+                                   FontSize="{StaticResource FontSizeSm}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Panel>
             </Border>
-          </StackPanel>
-          <Button Grid.Column="1"
-                  Classes="icon-btn"
-                  Content="★"
-                  FontSize="22"
-                  Foreground="{StaticResource BrushAmber}"
-                  Command="{Binding Detail.ToggleFavoriteCommand}"
-                  ToolTip.Tip="Toggle Favorite"
-                  VerticalAlignment="Bottom"/>
-        </Grid>
 
-        <!-- Stats row -->
-        <Grid ColumnDefinitions="*,*">
-          <StackPanel Grid.Column="0" Spacing="4">
-            <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
-            <TextBlock Text="{Binding Detail.DisplayPlayCount}"
-                       Foreground="{StaticResource BrushBlue}"
-                       FontSize="{StaticResource FontSizeLg}"
-                       FontWeight="Bold"/>
-          </StackPanel>
-          <StackPanel Grid.Column="1" Spacing="4">
-            <TextBlock Classes="section-label" Text="LAST PLAYED" Margin="0"/>
-            <TextBlock Text="{Binding Detail.DisplayLastPlayed}"
-                       Foreground="{StaticResource BrushTextSecondary}"
-                       FontSize="{StaticResource FontSizeSm}"
-                       TextWrapping="Wrap"/>
-          </StackPanel>
-        </Grid>
+            <!-- ── Content ────────────────────────────────────────────── -->
+            <StackPanel Spacing="16" Margin="16,16,16,20">
 
-        <!-- Date added -->
-        <StackPanel Spacing="4">
-          <TextBlock Classes="section-label" Text="DATE ADDED" Margin="0"/>
-          <TextBlock Text="{Binding Detail.DisplayDateAdded}"
-                     Foreground="{StaticResource BrushTextSecondary}"
-                     FontSize="{StaticResource FontSizeBody}"/>
-        </StackPanel>
-
-        <!-- URL / Path -->
-        <StackPanel Spacing="6">
-          <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
-          <TextBlock Text="{Binding Detail.DisplayUrl}" Foreground="{StaticResource BrushBlue}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
-          <Button Classes="ghost" 
-                  Content="{Binding Detail.CopyStatus}" 
-                  Command="{Binding Detail.CopyUrlCommand}" 
-                  HorizontalAlignment="Left" 
-                  Padding="12,5"/>
-        </StackPanel>
-
-        <Separator/>
-
-        <!-- Tags -->
-        <StackPanel Spacing="8">
-          <TextBlock Classes="section-label" Text="TAGS" Margin="0"/>
-          <ItemsControl ItemsSource="{Binding Detail.Tags}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel/>
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Classes="tag-chip" Margin="0,0,6,6">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="{Binding}"
-                               Foreground="{StaticResource BrushAccentHover}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                    <Button Classes="icon-btn"
+                <!-- Header -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0"
+                               Text="Track Details"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeLg}"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1"
+                            Classes="icon-btn"
                             Content="✕"
-                            FontSize="9"
-                            Padding="3"
-                            Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
-                            CommandParameter="{Binding}"/>
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBox Grid.Column="0"
-                     Text="{Binding Detail.NewTag, Mode=TwoWay}"
-                     PlaceholderText="Add tag..."
-                     Margin="0,0,8,0"/>
-            <Button Grid.Column="1"
-                    Classes="primary"
-                    Content="+"
-                    Command="{Binding Detail.AddTagCommand}"
-                    Padding="14,8"/>
-          </Grid>
+                            Command="{Binding Detail.CloseCommand}"/>
+                </Grid>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Title -->
+                <StackPanel Spacing="5">
+                    <TextBlock Classes="section-label" Text="TITLE" Margin="0"/>
+                    <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!-- Artist -->
+                <StackPanel Spacing="5">
+                    <TextBlock Classes="section-label" Text="ARTIST" Margin="0"/>
+                    <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!-- Source + Favorite -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Classes="section-label" Text="SOURCE" Margin="0"/>
+                        <Border CornerRadius="{StaticResource RadiusFull}"
+                                Padding="10,4"
+                                HorizontalAlignment="Left">
+                            <Border.Background>
+                                <SolidColorBrush Color="{Binding Detail.DisplaySource,
+                                    Converter={StaticResource SourceToBg}}"/>
+                            </Border.Background>
+                            <TextBlock Text="{Binding Detail.DisplaySource}"
+                                       Foreground="White"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontWeight="SemiBold"/>
+                        </Border>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Classes="icon-btn"
+                            Content="★"
+                            FontSize="22"
+                            Foreground="{StaticResource BrushAmber}"
+                            Opacity="{Binding Detail.IsFavorite,
+                                Converter={StaticResource BoolToOpacity}}"
+                            Command="{Binding Detail.ToggleFavoriteCommand}"
+                            ToolTip.Tip="Toggle Favorite"
+                            VerticalAlignment="Bottom"/>
+                </Grid>
+
+                <!-- Stats -->
+                <Grid ColumnDefinitions="*,*">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
+                        <TextBlock Text="{Binding Detail.DisplayPlayCount}"
+                                   Foreground="{StaticResource BrushBlue}"
+                                   FontSize="{StaticResource FontSizeLg}"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock Classes="section-label" Text="LAST PLAYED" Margin="0"/>
+                        <TextBlock Text="{Binding Detail.DisplayLastPlayed}"
+                                   Foreground="{StaticResource BrushTextSecondary}"
+                                   FontSize="{StaticResource FontSizeSm}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Date added -->
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-label" Text="DATE ADDED" Margin="0"/>
+                    <TextBlock Text="{Binding Detail.DisplayDateAdded}"
+                               Foreground="{StaticResource BrushTextSecondary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                </StackPanel>
+
+                <!-- URL / Path -->
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
+                    <TextBlock Text="{Binding Detail.DisplayUrl}"
+                               Foreground="{StaticResource BrushBlue}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               TextWrapping="Wrap"/>
+                    <Button Classes="ghost"
+                            Content="{Binding Detail.CopyStatus}"
+                            Command="{Binding Detail.CopyUrlCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="12,5"/>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Tags -->
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-label" Text="TAGS" Margin="0"/>
+                    <ItemsControl ItemsSource="{Binding Detail.Tags}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Classes="tag-chip" Margin="0,0,6,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding}"
+                                                   Foreground="{StaticResource BrushAccentHover}"
+                                                   FontSize="{StaticResource FontSizeSm}"/>
+                                        <Button Classes="icon-btn"
+                                                Content="✕"
+                                                FontSize="9"
+                                                Padding="3"
+                                                Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding Detail.NewTag, Mode=TwoWay}"
+                                 PlaceholderText="Add tag..."
+                                 Margin="0,0,8,0"/>
+                        <Button Grid.Column="1"
+                                Classes="primary"
+                                Content="+"
+                                Command="{Binding Detail.AddTagCommand}"
+                                Padding="14,8"/>
+                    </Grid>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Notes -->
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="section-label" Text="NOTES" Margin="0"/>
+                    <TextBox Text="{Binding Detail.EditNotes, Mode=TwoWay}"
+                             PlaceholderText="Add notes..."
+                             AcceptsReturn="True"
+                             Height="80"/>
+                </StackPanel>
+
+                <!-- Save -->
+                <Button Classes="primary"
+                        Content="Save Changes"
+                        Command="{Binding Detail.SaveCommand}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"/>
+
+            </StackPanel>
         </StackPanel>
-
-        <Separator/>
-
-        <!-- Notes -->
-        <StackPanel Spacing="6">
-          <TextBlock Classes="section-label" Text="NOTES" Margin="0"/>
-          <TextBox Text="{Binding Detail.EditNotes, Mode=TwoWay}"
-                   PlaceholderText="Add notes..."
-                   AcceptsReturn="True"
-                   Height="80"/>
-        </StackPanel>
-
-        <!-- Save button -->
-        <Button Classes="primary"
-                Content="Save Changes"
-                Command="{Binding Detail.SaveCommand}"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"/>
-
-      </StackPanel>
-    </StackPanel>
-  </ScrollViewer>
+    </ScrollViewer>
 </Border>

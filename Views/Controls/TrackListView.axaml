@@ -10,6 +10,7 @@
     <DockPanel.Resources>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
     </DockPanel.Resources>
 
     <!-- ── TOOLBAR ──────────────────────────────────────────────────────────── -->
@@ -195,7 +196,8 @@
                             ClipToBounds="True"
                             VerticalAlignment="Center">
                         <Panel>
-                            <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                            <Image Source="{Binding AlbumArtPath,
+                                       Converter={StaticResource PathToBitmap}}"
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding AlbumArtPath,
                                        Converter={x:Static ObjectConverters.IsNotNull}}"/>
@@ -212,7 +214,8 @@
                     <!-- Title + artist -->
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center"
-                                Spacing="2" Margin="10,0,8,0">
+                                Spacing="2"
+                                Margin="10,0,8,0">
                         <TextBlock Text="{Binding Title}"
                                    Foreground="{StaticResource BrushTextPrimary}"
                                    FontSize="{StaticResource FontSizeBodyLarge}"
@@ -224,15 +227,18 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
-                    <!-- Source badge -->
+                    <!-- Source badge — colored per source -->
                     <Border Grid.Column="2"
                             VerticalAlignment="Center"
-                            Background="{StaticResource BrushAccentGlow}"
                             CornerRadius="{StaticResource RadiusFull}"
                             Padding="10,4"
                             HorizontalAlignment="Left">
+                        <Border.Background>
+                            <SolidColorBrush Color="{Binding Source,
+                                Converter={StaticResource SourceToBg}}"/>
+                        </Border.Background>
                         <TextBlock Text="{Binding Source}"
-                                   Foreground="{StaticResource BrushAccentHover}"
+                                   Foreground="White"
                                    FontSize="{StaticResource FontSizeXs}"
                                    FontWeight="SemiBold"/>
                     </Border>
@@ -251,17 +257,18 @@
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
 
-                    <!-- Favorite -->
+                    <!-- Favorite star — dim when not favorite -->
                     <Button Grid.Column="5"
                             Classes="icon-btn"
                             Content="★"
                             Foreground="{StaticResource BrushAmber}"
-                            Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"
+                            Opacity="{Binding IsFavorite,
+                                Converter={StaticResource BoolToOpacity}}"
                             Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
                             VerticalAlignment="Center"/>
 
-                    <!-- More options flyout -->
+                    <!-- More options -->
                     <Button Grid.Column="6"
                             Classes="icon-btn"
                             Content="⋮"

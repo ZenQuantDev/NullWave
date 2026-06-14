@@ -1,6 +1,7 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
@@ -10,9 +11,10 @@
         Height="90"
         Padding="16,0">
 
-    <Border.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-    </Border.Resources>
+        <Border.Resources>
+                <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+                <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+        </Border.Resources>
 
     <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Stretch">
 
@@ -51,9 +53,11 @@
                            TextTrimming="CharacterEllipsis"/>
             </StackPanel>
 
-            <Button Classes="player-btn"
+                <Button Classes="player-btn"
                     Content="★"
                     Foreground="{StaticResource BrushAmber}"
+                    Opacity="{Binding Player.IsCurrentFavorite,
+                        Converter={StaticResource BoolToOpacity}}"
                     Command="{Binding Player.ToggleCurrentFavoriteCommand}"
                     ToolTip.Tip="Toggle Favorite"
                     VerticalAlignment="Center"/>

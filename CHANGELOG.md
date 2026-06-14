@@ -5,6 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.1] - 14-Jun-2026
+
+### Added
+- `Services/Metadata/ThumbnailDownloader.cs` — shared static helper for
+  downloading and caching remote thumbnails to `~/.nullwave/art/`
+- `Helpers/Converters/SourceToBackgroundConverter.cs` — maps `TrackSource`
+  to per-source badge colors (YouTube red, SoundCloud orange, etc.)
+- `LibraryService.BackfillYouTubeThumbnails()` — on startup, fetches missing
+  YouTube thumbnails for existing tracks via `img.youtube.com`
+- `LibraryService.BackfillSoundCloudThumbnails()` — on startup, fetches
+  missing thumbnails and corrects stale metadata for SoundCloud tracks
+
+### Fixed
+- YouTube thumbnails not showing — `_lastFetchedThumbnail` now cached in
+  `TrackInputViewModel` and applied when track is added
+- SoundCloud thumbnails not showing — fetched via `yt-dlp --print thumbnail`
+  and saved to art cache on add and on startup backfill
+- `TrackDetailViewModel` field name mismatch (`_track` vs `_currentTrack`)
+  caused `IsFavorite` to always return false
+- Favorite star always gold in miniplayer and track detail panel —
+  `Opacity` now bound to `IsFavorite` via `BoolToOpacityConverter`
+- Track detail panel resizing with song title length — fixed `Width="320"`
+- `LibraryService.Update()` now syncs in-memory list after DB write
+- `TrackDetailView` clipboard copy now uses `IClipboard.SetTextAsync()`
+  correctly with `using Avalonia.Input.Platform`
+
+### Changed
+- `MetadataService.FetchFromUrlAsync` return type extended to include
+  `ThumbnailPath` — all call sites updated
+- Source badges in `TrackListView` and `TrackDetailView` now colored
+  per source instead of generic accent color
+- Services reorganized into subfolders: `Audio/`, `Download/`, `Library/`,
+  `Security/`, `System/`, `Integration/`, `Metadata/`
+
+
 ## [0.3.0] - 13-Jun-2026
 
 ### Added

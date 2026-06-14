@@ -84,6 +84,7 @@ public class MainViewModel : ViewModelBase
 
         // Wire events
         Input.TrackAdded += Library.Refresh;
+        Input.TrackMetadataUpdated += Library.Refresh;
         Library.TrackDetailRequested += Detail.OpenFor;
         Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += Library.Refresh;

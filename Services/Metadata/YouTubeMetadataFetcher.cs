@@ -16,21 +16,26 @@ public class YouTubeMetadataFetcher
         _apiKey = apiKey;
     }
 
-    public async Task<(string Title, string Artist)> FetchAsync(string url)
+    public async Task<(string Title, string Artist, string? ThumbnailPath)> FetchAsync(string url)
     {
         var id = ExtractYouTubeId(url);
         if (string.IsNullOrEmpty(id))
-            return ("YouTube track (unknown id)", "Unknown");
+            return ("YouTube track (unknown id)", "Unknown", null);
+
+        string? thumbnailPath = await FetchThumbnailAsync(id);
 
         if (string.IsNullOrEmpty(_apiKey))
         {
             Log.Warning("YouTube API key not configured");
-            return ($"YouTube track ({id})", "Unknown");
+            return ($"YouTube track ({id})", "Unknown", thumbnailPath);
         }
 
         try
         {
-            var requestUrl = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={id}&key={_apiKey}";
+            var requestUrl =
+                $"https://www.googleapis.com/youtube/v3/videos" +
+                $"?part=snippet&id={id}&key={_apiKey}";
+
             var response = await _http.GetAsync(requestUrl);
             response.EnsureSuccessStatusCode();
 
@@ -39,23 +44,29 @@ public class YouTubeMetadataFetcher
 
             var items = doc.RootElement.GetProperty("items");
             if (items.GetArrayLength() == 0)
-                return ("Unknown Title", "Unknown Artist");
+                return ("Unknown Title", "Unknown Artist", thumbnailPath);
 
             var snippet = items[0].GetProperty("snippet");
-            var title = snippet.GetProperty("title").GetString() ?? "Unknown Title";
-            var artist = snippet.GetProperty("channelTitle").GetString() ?? "Unknown Artist";
+            var title   = snippet.GetProperty("title").GetString()        ?? "Unknown Title";
+            var artist  = snippet.GetProperty("channelTitle").GetString() ?? "Unknown Artist";
 
             Log.Information("YouTube metadata fetched: {Title} by {Artist}", title, artist);
-            return (title, artist);
+            return (title, artist, thumbnailPath);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "YouTube metadata fetch failed for {Url}", url);
-            return ("Unknown Title", "Unknown Artist");
+            return ("Unknown Title", "Unknown Artist", thumbnailPath);
         }
     }
 
-    private static string? ExtractYouTubeId(string url)
+    public static async Task<string?> FetchThumbnailAsync(string videoId)
+    {
+        var thumbUrl = $"https://img.youtube.com/vi/{videoId}/mqdefault.jpg";
+        return await ThumbnailDownloader.FetchAsync(thumbUrl, $"yt_{videoId}");
+    }
+
+    public static string? ExtractYouTubeId(string url)
     {
         if (!url.Contains("youtube.com") && !url.Contains("youtu.be")) return null;
         if (url.Contains("youtu.be/"))

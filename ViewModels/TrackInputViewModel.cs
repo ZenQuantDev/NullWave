@@ -38,6 +38,8 @@ public class TrackInputViewModel : ViewModelBase
     public ICommand ShowUrlInputCommand { get; }
 
     public event Action? TrackAdded;
+    public event Action? TrackMetadataUpdated;
+    private string? _lastFetchedThumbnail;
 
     public PlaylistImportViewModel PlaylistImport { get; }
 
@@ -180,11 +182,13 @@ public class TrackInputViewModel : ViewModelBase
         var source = SelectedSource;
         var newTrack = new Track
         {
-            Title = title,
-            Artist = InputArtist.Trim(),
-            Url = url,
-            Source = source
+            Title        = title,
+            Artist       = InputArtist.Trim(),
+            Url          = url,
+            Source       = source,
+            AlbumArtPath = _lastFetchedThumbnail
         };
+        _lastFetchedThumbnail = null;
 
         _library.Add(newTrack);
         NullActionLogger.TrackAdded(newTrack.Id.ToString(), url, nameof(TrackInputViewModel));
@@ -207,9 +211,10 @@ public class TrackInputViewModel : ViewModelBase
         IsFetching = true;
         try
         {
-            var (title, artist) = await _metadata.FetchFromUrlAsync(url);
+            var (title, artist, thumbnail) = await _metadata.FetchFromUrlAsync(url);
             if (string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
             if (string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
+            _lastFetchedThumbnail = thumbnail;
             Log.Information("[{Source}] Metadata fetched: {Title} by {Artist}",
                 nameof(TrackInputViewModel), title, artist);
 
@@ -223,7 +228,11 @@ public class TrackInputViewModel : ViewModelBase
                     existing.Title = title;
                 if (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist))
                     existing.Artist = artist;
+                if (string.IsNullOrEmpty(existing.AlbumArtPath) && thumbnail != null)
+                    existing.AlbumArtPath = thumbnail;
                 _library.Update(existing);
+                Avalonia.Threading.Dispatcher.UIThread.Post(
+                    () => TrackMetadataUpdated?.Invoke());
                 Log.Information("[{Source}] Backfilled track metadata: {Title} by {Artist}",
                     nameof(TrackInputViewModel), title, artist);
             }
@@ -354,5 +363,6 @@ public class TrackInputViewModel : ViewModelBase
         InputTitle = string.Empty;
         InputArtist = string.Empty;
         SelectedSource = TrackSource.Unknown;
+        _lastFetchedThumbnail = null;
     }
 }
