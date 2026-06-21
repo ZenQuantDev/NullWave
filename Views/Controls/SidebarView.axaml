@@ -45,41 +45,72 @@
                 Background="{StaticResource BrushBase}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="0,1,0,0"
-                Padding="10,8">
-            <Grid ColumnDefinitions="36,*,Auto">
-                <Border Grid.Column="0"
-                        Width="36" Height="36"
-                        CornerRadius="{StaticResource RadiusFull}"
-                        Background="{StaticResource BrushAccentDim}"
-                        ClipToBounds="True"
+                Padding="12,10">
+            <Grid ColumnDefinitions="*,Auto">
+
+                <!-- Profile Button -->
+                <Button Grid.Column="0"
+                        Command="{Binding OpenProfileCommand}"
+                        HorizontalContentAlignment="Stretch"
+                        HorizontalAlignment="Stretch"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
                         Cursor="Hand">
-                    <Panel>
-                        <Image Source="{Binding Profile.Avatar}"
-                               IsVisible="{Binding Profile.HasAvatar}"
-                               Stretch="UniformToFill"/>
-                        <TextBlock Text="♪"
-                                   IsVisible="{Binding !Profile.HasAvatar}"
-                                   Foreground="{StaticResource BrushAccent}"
-                                   FontSize="{StaticResource FontSizeLg}"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"/>
-                    </Panel>
-                </Border>
-                <StackPanel Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Margin="10,0,0,0"
-                            Spacing="1">
-                    <TextBlock Text="{Binding Profile.Username}"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeMd}"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding Profile.Bio}"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <Button Grid.Column="2"
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+                            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+                        </Style>
+                    </Button.Styles>
+
+                    <Grid ColumnDefinitions="40,8,*,Auto" Margin="8,4">
+                        <!-- Avatar -->
+                        <Border Grid.Column="0"
+                                Width="40" Height="40"
+                                CornerRadius="{StaticResource RadiusFull}"
+                                Background="{StaticResource BrushAccentDim}"
+                                ClipToBounds="True">
+                            <Panel>
+                                <Image Source="{Binding Profile.Avatar}"
+                                    IsVisible="{Binding Profile.HasAvatar}"
+                                    Stretch="UniformToFill"/>
+                                <TextBlock Text="♪"
+                                        IsVisible="{Binding !Profile.HasAvatar}"
+                                        Foreground="{StaticResource BrushAccent}"
+                                        FontSize="18"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"/>
+                            </Panel>
+                        </Border>
+
+                        <!-- Username + subtitle -->
+                        <StackPanel Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Spacing="2">
+                            <TextBlock Text="{Binding Profile.Username}"
+                                    Foreground="{StaticResource BrushTextPrimary}"
+                                    FontSize="{StaticResource FontSizeMd}"
+                                    FontWeight="SemiBold"
+                                    TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Profile.Bio}"
+                                    Foreground="{StaticResource BrushTextMuted}"
+                                    FontSize="{StaticResource FontSizeXs}"
+                                    TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <!-- Chevron indicator -->
+                        <TextBlock Grid.Column="3"
+                                Text="›"
+                                Foreground="{StaticResource BrushTextMuted}"
+                                FontSize="20"
+                                VerticalAlignment="Center"
+                                Margin="8,0,0,0"/>
+                    </Grid>
+                </Button>
+
+                <!-- Settings gear button -->
+                <Button Grid.Column="1"
                         Classes="icon-btn"
                         Content="⚙"
                         FontSize="16"
@@ -102,22 +133,21 @@
                       Padding="8,4">
             <StackPanel Spacing="0">
                 <TextBlock Classes="section-label" Text="LIBRARY"/>
-                <Button Classes="nav active" Content="Library"       Command="{Binding NavigateLibraryCommand}"/>
-                <Button Classes="nav"        Content="Playlists"     Command="{Binding NavigatePlaylistsCommand}"/>
-                <Button Classes="nav"        Content="Queue"         Command="{Binding NavigateQueueCommand}"/>
-                <Button Classes="nav"        Content="Stats"         Command="{Binding NavigateStatsCommand}"/>
+                <Button x:Name="LibBtn"   Classes="nav" Content="Library"       Command="{Binding NavigateLibraryCommand}"/>
+                <Button x:Name="PlBtn"    Classes="nav" Content="Playlists"     Command="{Binding NavigatePlaylistsCommand}"/>
+                <Button x:Name="QueueBtn" Classes="nav" Content="Queue"         Command="{Binding NavigateQueueCommand}"/>
+                <Button x:Name="StatsBtn" Classes="nav" Content="Stats"         Command="{Binding NavigateStatsCommand}"/>
 
                 <TextBlock Classes="section-label" Text="FILTERS"/>
-                <Button Classes="nav" Content="Favorites"      Command="{Binding Library.ShowFavoritesCommand}"/>
-                <Button Classes="nav" Content="Recently Added" Command="{Binding Library.ShowRecentCommand}"/>
+                <Button x:Name="FavBtn"    Classes="nav" Content="Favorites"      Command="{Binding Library.ShowFavoritesCommand}"/>
+                <Button x:Name="RecentBtn" Classes="nav" Content="Recently Added" Command="{Binding Library.ShowRecentCommand}"/>
 
                 <TextBlock Classes="section-label" Text="SOURCES"/>
-                <Button Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
-                <Button Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
-                <Button Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
-                <Button Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
-            </StackPanel>
-        </ScrollViewer>
+                <Button x:Name="YTBtn"    Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
+                <Button x:Name="LFMBtn"   Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
+                <Button x:Name="SCBtn"    Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
+                <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/></StackPanel>
+            </ScrollViewer>
 
     </DockPanel>
 </Border>

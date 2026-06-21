@@ -6,7 +6,11 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
 using System.Collections.Generic;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
+using Serilog;
 
 namespace NullWave.ViewModels;
 
@@ -17,10 +21,27 @@ public class LibraryViewModel : ViewModelBase
     private Track? _selectedTrack;
     private SortField _currentSort = SortField.DateAdded;
     private bool _sortAscending = true;
+
+    // ── Filter Persistence State ──────────────────────────────────────────
+    private enum LibraryView { All, Favorites, Recent, Source }
+    private LibraryView _currentView = LibraryView.All;
     private TrackSource? _activeSourceFilter = null;
 
     public ObservableCollection<Track> Tracks { get; } = new();
     public Array SortOptions => Enum.GetValues(typeof(SortField));
+
+    // ── Filter active-state properties ──────────────────────────────────
+    // Bound by SidebarView's code-behind to highlight whichever filter
+    // button matches the currently active view. Previously these didn't
+    // exist, so the filter buttons worked (Tracks correctly filtered) but
+    // never visually highlighted, unlike the four page-nav buttons which
+    // already had this wired via CurrentPage.
+    public bool IsFavoritesView => _currentView == LibraryView.Favorites;
+    public bool IsRecentView => _currentView == LibraryView.Recent;
+    public bool IsYouTubeFilter => _currentView == LibraryView.Source && _activeSourceFilter == TrackSource.YouTube;
+    public bool IsLastFmFilter => _currentView == LibraryView.Source && _activeSourceFilter == TrackSource.LastFm;
+    public bool IsSoundCloudFilter => _currentView == LibraryView.Source && _activeSourceFilter == TrackSource.SoundCloud;
+    public bool IsLocalFilter => _currentView == LibraryView.Source && _activeSourceFilter == TrackSource.Local;
 
     // Existing commands
     public ICommand RemoveTrackCommand { get; }
@@ -84,7 +105,6 @@ public class LibraryViewModel : ViewModelBase
     {
         _library = library;
 
-        // UPDATED: Now accepts Track parameter
         RemoveTrackCommand = new RelayCommand<Track>(t =>
         {
             var target = t ?? SelectedTrack;
@@ -104,15 +124,19 @@ public class LibraryViewModel : ViewModelBase
         SortByPlayCountCommand = new RelayCommand(() => CurrentSort = SortField.PlayCount);
 
         FocusSearchCommand = new RelayCommand(() => SearchQuery = string.Empty);
+
         ClearSearchCommand = new RelayCommand(() =>
         {
             SearchQuery = string.Empty;
+            _currentView = LibraryView.All;
             _activeSourceFilter = null;
             Refresh();
+            NotifyFilterStateChanged();
         });
 
         ShowFavoritesCommand = new RelayCommand(ShowFavorites);
         ShowRecentCommand = new RelayCommand(ShowRecent);
+
         FilterYouTubeCommand = new RelayCommand(() => SetSourceFilter(TrackSource.YouTube));
         FilterSpotifyCommand = new RelayCommand(() => SetSourceFilter(TrackSource.Spotify));
         FilterSoundCloudCommand = new RelayCommand(() => SetSourceFilter(TrackSource.SoundCloud));
@@ -125,23 +149,31 @@ public class LibraryViewModel : ViewModelBase
         PlayTrackCommand = new RelayCommand<Track>(t => { if (t != null) PlayTrackRequested?.Invoke(t); });
     }
 
+    // ── Refresh Logic (Now respects the active view state) ────────────────
     public void Refresh()
     {
         Tracks.Clear();
-
         IEnumerable<Track> results;
 
-        if (_activeSourceFilter.HasValue)
+        switch (_currentView)
         {
-            results = _library.FilterBySource(_activeSourceFilter.Value);
-        }
-        else if (!string.IsNullOrWhiteSpace(SearchQuery))
-        {
-            results = _library.Search(SearchQuery, CurrentSort, SortAscending);
-        }
-        else
-        {
-            results = _library.GetSorted(CurrentSort, SortAscending);
+            case LibraryView.Favorites:
+                results = _library.GetFavorites();
+                break;
+            case LibraryView.Recent:
+                results = _library.GetRecentlyAdded();
+                break;
+            case LibraryView.Source:
+                results = _activeSourceFilter.HasValue
+                    ? _library.FilterBySource(_activeSourceFilter.Value)
+                    : _library.GetSorted(CurrentSort, SortAscending);
+                break;
+            default: // LibraryView.All
+                if (!string.IsNullOrWhiteSpace(SearchQuery))
+                    results = _library.Search(SearchQuery, CurrentSort, SortAscending);
+                else
+                    results = _library.GetSorted(CurrentSort, SortAscending);
+                break;
         }
 
         foreach (var track in results)
@@ -150,27 +182,53 @@ public class LibraryViewModel : ViewModelBase
 
     private void SetSourceFilter(TrackSource source)
     {
-        _activeSourceFilter = _activeSourceFilter == source ? null : source;
+        if (_activeSourceFilter == source)
+        {
+            _currentView = LibraryView.All;
+            _activeSourceFilter = null;
+        }
+        else
+        {
+            _currentView = LibraryView.Source;
+            _activeSourceFilter = source;
+        }
         Refresh();
+        NotifyFilterStateChanged();
+        Log.Information("[LibraryViewModel] DIAGNOSTIC: SetSourceFilter({Source}) → view={View}, filter={Filter}, Tracks.Count={Count}",
+            source, _currentView, _activeSourceFilter, Tracks.Count);
     }
 
     private void ShowFavorites()
     {
+        _currentView = LibraryView.Favorites;
         _activeSourceFilter = null;
-        Tracks.Clear();
-        foreach (var track in _library.GetFavorites())
-            Tracks.Add(track);
+        Refresh();
+        NotifyFilterStateChanged();
     }
 
     private void ShowRecent()
     {
+        _currentView = LibraryView.Recent;
         _activeSourceFilter = null;
-        Tracks.Clear();
-        foreach (var track in _library.GetRecentlyAdded())
-            Tracks.Add(track);
+        Refresh();
+        NotifyFilterStateChanged();
     }
 
-    // REMOVED: Old RemoveTrack() method
+    /// <summary>
+    /// Fires change notifications for all six filter-state booleans at
+    /// once. Called after any operation that changes _currentView or
+    /// _activeSourceFilter, so SidebarView's code-behind (subscribed to
+    /// Library.PropertyChanged) knows to re-evaluate button highlight state.
+    /// </summary>
+    private void NotifyFilterStateChanged()
+    {
+        OnPropertyChanged(nameof(IsFavoritesView));
+        OnPropertyChanged(nameof(IsRecentView));
+        OnPropertyChanged(nameof(IsYouTubeFilter));
+        OnPropertyChanged(nameof(IsLastFmFilter));
+        OnPropertyChanged(nameof(IsSoundCloudFilter));
+        OnPropertyChanged(nameof(IsLocalFilter));
+    }
 
     private void ToggleFavorite()
     {
@@ -192,11 +250,28 @@ public class LibraryViewModel : ViewModelBase
         Refresh();
     }
 
-    private void CopyUrl()
+    private async void CopyUrl()
     {
         var url = SelectedTrack?.Url ?? SelectedTrack?.FilePath;
         if (string.IsNullOrEmpty(url)) return;
-        // TODO: Implement clipboard support in Phase 3
+
+        try
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow != null)
+            {
+                var clipboard = TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
+                if (clipboard != null)
+                {
+                    await clipboard.SetTextAsync(url);
+                    Log.Information("URL copied to clipboard: {Url}", url);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to copy URL to clipboard");
+        }
     }
 
     private void OpenDetail()

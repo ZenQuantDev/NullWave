@@ -1,0 +1,428 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels"
+        xmlns:helpers="using:NullWave.Helpers"
+        xmlns:converters="using:NullWave.Helpers.Converters"
+        x:Class="NullWave.Views.ProfileWindow"
+        x:DataType="vm:UserProfileViewModel"
+        Title="Profile — NullWave"
+        Width="520" Height="820"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource BrushBase}"
+        MinWidth="520">
+
+    <Window.Resources>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+    </Window.Resources>
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+E" Command="{Binding ExportProfileCommand}"/>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding ManualSaveCommand}"/>
+    </Window.KeyBindings>
+
+    <DockPanel LastChildFill="True">
+
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="20,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="Auto,12,*">
+                    <!-- Avatar with hover overlay -->
+                    <Grid Grid.Column="0" Width="100" Height="100">
+                        <Border Width="100" Height="100"
+                                CornerRadius="{StaticResource RadiusFull}"
+                                Background="{StaticResource BrushAccentDim}"
+                                ClipToBounds="True">
+                            <Panel>
+                                <Image Source="{Binding Avatar}"
+                                       IsVisible="{Binding HasAvatar}"
+                                       Stretch="UniformToFill"/>
+                                <TextBlock Text="♪"
+                                           IsVisible="{Binding !HasAvatar}"
+                                           Foreground="{StaticResource BrushAccent}"
+                                           FontSize="42"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Panel>
+                        </Border>
+
+                        <!-- Hover overlay button -->
+                        <Button x:Name="AvatarHoverButton"
+                                Command="{Binding PickAvatarCommand}"
+                                Width="100" Height="100"
+                                CornerRadius="{StaticResource RadiusFull}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                ToolTip.Tip="Change avatar"
+                                Opacity="0">
+                            <Border Background="#B0000000"
+                                    CornerRadius="{StaticResource RadiusFull}">
+                                <StackPanel HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="4">
+                                    <TextBlock Text="✎"
+                                               Foreground="White"
+                                               FontSize="24"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Change"
+                                               Foreground="White"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Button>
+                    </Grid>
+
+                    <!-- Username + bio -->
+                    <StackPanel Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Spacing="4">
+                        <TextBlock Text="Profile"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeSm}"/>
+                        <TextBlock Text="{Binding Username}"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Bio}"
+                                   Foreground="{StaticResource BrushTextSecondary}"
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- More options button -->
+                <Button Grid.Column="1"
+                        Classes="icon-btn"
+                        Content="⋮"
+                        FontSize="18"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="More options">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Export Profile Card (Ctrl+E)"
+                                      Command="{Binding ExportProfileCommand}"/>
+                            <MenuItem Header="Reset Avatar"
+                                      Command="{Binding ResetAvatarCommand}"
+                                      IsVisible="{Binding HasAvatar}"/>
+                            <MenuItem Header="Save Changes (Ctrl+S)"
+                                      Command="{Binding ManualSaveCommand}"/>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Save Toast (docked bottom so ScrollViewer remains true fill element) -->
+        <Border DockPanel.Dock="Bottom"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,16"
+                Background="{StaticResource BrushGreen}"
+                CornerRadius="{StaticResource RadiusFull}"
+                Padding="12,6"
+                IsVisible="{Binding ShowSaveToast}"
+                IsHitTestVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="✓"
+                           Foreground="White"
+                           FontSize="{StaticResource FontSizeBody}"
+                           FontWeight="Bold"/>
+                <TextBlock Text="Saved"
+                           Foreground="White"
+                           FontSize="{StaticResource FontSizeBody}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Scrollable Content — no Padding here, so scrollbar sits flush with window edge -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16" Margin="20,20,12,24">
+
+                <!-- Edit Username -->
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-label" Text="DISPLAY NAME" Margin="0"/>
+                    <TextBox Text="{Binding Username, Mode=TwoWay}"
+                             PlaceholderText="Your display name"
+                             MaxLength="32"
+                             Height="36"/>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- About You (Bio) -->
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-label" Text="ABOUT YOU" Margin="0"/>
+                    <TextBox Text="{Binding Bio, Mode=TwoWay}"
+                             PlaceholderText="Tell people about your music taste..."
+                             AcceptsReturn="True"
+                             Height="70"
+                             MaxLength="160"
+                             TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               HorizontalAlignment="Right">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="{}{0}/160">
+                                <Binding Path="BioLength"/>
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Listening Stats -->
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="section-label" Text="LISTENING STATS" Margin="0"/>
+                    <Grid ColumnDefinitions="*,6,*,6,*">
+                        <Border Grid.Column="0"
+                                Background="{StaticResource BrushSurface2}"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,14">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding TotalTracks}"
+                                           Foreground="{StaticResource BrushAccent}"
+                                           FontSize="{StaticResource FontSize2xl}"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Tracks"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2"
+                                Background="{StaticResource BrushSurface2}"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,14">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding TotalFavorites}"
+                                           Foreground="{StaticResource BrushAmber}"
+                                           FontSize="{StaticResource FontSize2xl}"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Favorites"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="4"
+                                Background="{StaticResource BrushSurface2}"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,14">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding TotalPlays}"
+                                           Foreground="{StaticResource BrushBlue}"
+                                           FontSize="{StaticResource FontSize2xl}"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Plays"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Top Track -->
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="section-label" Text="TOP TRACK" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12">
+                        <Grid ColumnDefinitions="56,10,*">
+                            <Border Grid.Column="0"
+                                    Width="56" Height="56"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Background="{StaticResource BrushSurface}"
+                                    ClipToBounds="True">
+                                <Panel>
+                                    <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
+                                           IsVisible="{Binding HasMostPlayedTrackArt}"
+                                           Stretch="UniformToFill"/>
+                                    <TextBlock Text="♪"
+                                               IsVisible="{Binding !HasMostPlayedTrackArt}"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="20"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Panel>
+                            </Border>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding MostPlayedTrack}"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontWeight="Medium"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="Wrap"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Top Artist -->
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="section-label" Text="TOP ARTIST" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12">
+                        <Grid ColumnDefinitions="56,10,*">
+                            <Border Grid.Column="0"
+                                    Width="56" Height="56"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Background="{StaticResource BrushAccentDim}">
+                                <TextBlock Text="♪"
+                                           FontSize="22"
+                                           Foreground="{StaticResource BrushAccent}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding MostPlayedArtist}"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontWeight="Medium"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="Wrap"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Library Breakdown -->
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-label" Text="LIBRARY BREAKDOWN" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12,10">
+                        <StackPanel Spacing="10">
+                            <!-- YouTube -->
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Width="6" Height="6"
+                                                CornerRadius="{StaticResource RadiusFull}"
+                                                Background="#CC0000"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock Text="YouTube"
+                                                   Foreground="{StaticResource BrushTextSecondary}"
+                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding YouTubePercentageText}"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBody}"
+                                               FontWeight="SemiBold"/>
+                                </Grid>
+                                <ProgressBar Value="{Binding YouTubePercentage}"
+                                             Maximum="100"
+                                             Height="5"
+                                             Foreground="{StaticResource BrushRed}"/>
+                            </StackPanel>
+
+                            <!-- SoundCloud -->
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Width="6" Height="6"
+                                                CornerRadius="{StaticResource RadiusFull}"
+                                                Background="#E85A00"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock Text="SoundCloud"
+                                                   Foreground="{StaticResource BrushTextSecondary}"
+                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding SoundCloudPercentageText}"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBody}"
+                                               FontWeight="SemiBold"/>
+                                </Grid>
+                                <ProgressBar Value="{Binding SoundCloudPercentage}"
+                                             Maximum="100"
+                                             Height="5"
+                                             Foreground="{StaticResource BrushAmber}"/>
+                            </StackPanel>
+
+                            <!-- Local Files -->
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Width="6" Height="6"
+                                                CornerRadius="{StaticResource RadiusFull}"
+                                                Background="#1A5276"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock Text="Local Files"
+                                                   Foreground="{StaticResource BrushTextSecondary}"
+                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding LocalPercentageText}"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBody}"
+                                               FontWeight="SemiBold"/>
+                                </Grid>
+                                <ProgressBar Value="{Binding LocalPercentage}"
+                                             Maximum="100"
+                                             Height="5"
+                                             Foreground="{StaticResource BrushBlue}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <Separator Background="{StaticResource BrushBorder}"/>
+
+                <!-- Account Info -->
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="section-label" Text="ACCOUNT" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12,10">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="Member since"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding MemberSince}"
+                                           Foreground="{StaticResource BrushTextSecondary}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="Data location"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="~/.nullwave/"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+    </DockPanel>
+</Window>

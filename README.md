@@ -1,10 +1,10 @@
 # 🎵 NullWave
 
-A personal music organizer with download and playback capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
+A personal music organizer with download, playback, and AI-powered smart sorting capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
 
 ## About
 
-NullWave lets you save, organize, download, and play music from YouTube, Last.fm, SoundCloud, and local files in one unified library. Organizer-first, player second.
+NullWave lets you save, organize, download, and play music from YouTube, Last.fm, SoundCloud, and local files in one unified library. It features context-aware playlist generation using local weather and on-device AI. Organizer-first, player second.
 
 > ⚠️ Please read [DISCLAIMER.md](DISCLAIMER.md) before using NullWave.
 
@@ -12,48 +12,35 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 
 ## Features
 
-### Organizer
+### 🧠 Smart Sorting (AI + Weather)
+- **Auto-Mood Playlists**: Generates playlists based on your local weather (via OpenWeather API) and time of day.
+- **Local AI Ranking**: Uses a local Ollama instance to rank tracks by suitability for the current mood.
+- **Hardware Detection**: Automatically scans your CPU, RAM, and GPU VRAM to recommend and download the best AI model for your machine.
+- **Last.fm Enrichment**: Automatically backfills missing genre tags and album art for your entire library on startup.
+
+### 📚 Organizer
 - Add tracks by URL (YouTube, Last.fm, SoundCloud) or local file
 - Auto-fetch metadata from YouTube Data API v3 and Last.fm
 - Read ID3 tags from local audio files (MP3, FLAC, WAV, OGG, M4A, AAC)
 - Library with search, sort, favorites, play tracking, and queue
 - Bulk folder import with subfolder support and duplicate detection
 - Track detail panel with editable title, artist, notes, and tags
-- Playlist management
-- Export library to JSON or CSV
-- Source filters (YouTube, Last.fm, SoundCloud, Local)
+- Playlist management and source filters (YouTube, Last.fm, SoundCloud, Local)
 
-### Player
+### 🎧 Player
 - Local file playback via LibVLCSharp
 - YouTube audio download via yt-dlp (to `~/.nullwave/downloads/`)
-- YouTube and SoundCloud playlist import (all tracks downloaded automatically)
-- Spotify-style now-playing bar — album art, controls, volume slider
-- Shuffle, Repeat One, Repeat All
-- Seek ±5 seconds, drag-to-seek progress bar
+- YouTube and SoundCloud playlist import
+- Spotify-style now-playing bar with "Now Playing" accent indicators
+- Shuffle, Repeat One, Repeat All, and Seek ±5 seconds
 - Autoplay next track on finish
-- Play/pause/stop with live position display
 
-### UI
-- Dark theme — deep navy + purple accent color system
-- Spotify-inspired now-playing bar (3-column layout)
-- Discord-style local profile bar in sidebar (username, bio, avatar, settings gear)
-- Alt-key menu bar toggle (hidden by default, Firefox-style)
-- Design system in `Themes/` — colors, typography, shapes, and control styles all in one place
-- Settings window with 7 tabs: General, Appearance, API Keys, Audio, Updates, Advanced, About
-- Appearance tab — accent color, track row style, font scale, sidebar width, compact mode
-- Local user profile — username, bio, avatar — no account or login required
-- All preferences auto-saved on change via `PreferencesService`
-
-### Security
+### 🎨 UI & Security
+- Dark theme with customizable accent colors and typography scaling
+- Discord-style local profile bar with listening stats and library breakdown
 - Encrypted local API key storage (AES-256-GCM, machine-bound)
 - Secure 3-pass data wipe (keys, logs, everything)
-- Log redaction — API keys never appear in log output
-- Keys stored at `~/.nullwave/keys.enc`, never in project folder
-
-### Logging
-- Structured startup diagnostics on every launch (version, OS, API key status, connectivity, VLC/yt-dlp versions)
-- Three separate log files: system events, user actions, errors with source attribution
-- Every error tagged with the ViewModel or Service that caused it
+- Structured startup diagnostics and redacted logging
 
 ---
 
@@ -65,24 +52,21 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 | Playback | LibVLCSharp + system libVLC |
 | Download | yt-dlp |
 | Metadata | TagLib# (ID3), YouTube Data API v3, Last.fm API |
+| Smart Sorting | Ollama (Local AI), OpenWeather API |
 | Logging | Serilog (3 sinks: system, user-actions, errors) |
 | Security | AES-256-GCM encrypted KeyStore |
-| Testing | xUnit (23 tests) |
-| Persistence | SQLite-net-pcl (in progress) |
+| Persistence | SQLite-net-pcl |
 
 ---
 
 ## API Keys
 
-Keys are stored encrypted at `~/.nullwave/keys.enc` — never in the project folder or git history.
-
-Manage them via **Settings → Open Settings** inside the app, or set environment variables as fallback:
+Keys are stored encrypted at `~/.nullwave/keys.enc` — never in the project folder or git history. Manage them via **Settings → API Keys** inside the app, or set environment variables as fallback:
 
 ```bash
 export NULLWAVE_YOUTUBE_KEY="your_key"
 export NULLWAVE_LASTFM_KEY="your_key"
-```
-
+export NULLWAVE_OPENWEATHER_KEY="your_key"
 ---
 
 ## Requirements
@@ -158,7 +142,7 @@ ZenQuant — PackItPro Team
 
 ## Version
 
-v0.3.1
+v0.4.0
 
 ## License
 

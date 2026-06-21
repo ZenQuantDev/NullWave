@@ -11,6 +11,7 @@
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
+        <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
     </DockPanel.Resources>
 
     <!-- ── TOOLBAR ──────────────────────────────────────────────────────────── -->
@@ -187,6 +188,21 @@
             <DataTemplate x:DataType="models:Track">
                 <Grid ColumnDefinitions="48,*,150,80,110,36,36"
                       Margin="8,5" MinHeight="44">
+
+                    <!-- Now-playing accent bar — visible only when this track is playing -->
+                    <Border Grid.Column="0"
+                            Width="3"
+                            HorizontalAlignment="Left"
+                            Margin="-8,-5,0,-5"
+                            Background="{StaticResource BrushAccent}"
+                            CornerRadius="0,2,2,0">
+                        <Border.IsVisible>
+                            <MultiBinding Converter="{StaticResource TrackIdEquals}">
+                                <Binding Path="Id"/>
+                                <Binding Path="$parent[ListBox].DataContext.Player.CurrentTrack.Id"/>
+                            </MultiBinding>
+                        </Border.IsVisible>
+                    </Border>
 
                     <!-- Album art -->
                     <Border Grid.Column="0"

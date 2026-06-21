@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NullWave.Views.CreatePlaylistDialog"
+        Title="NullWave — New Playlist"
+        Width="360" Height="180"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource BrushBase}">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,16,0,0">
+            <Button Content="Cancel"
+                    Click="OnCancel"
+                    Classes="secondary"
+                    Padding="16,8"/>
+            <Button Content="Create"
+                    Click="OnCreate"
+                    Classes="primary"
+                    Padding="16,8"/>
+        </StackPanel>
+
+        <StackPanel Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="Playlist name"
+                       Foreground="{StaticResource BrushTextPrimary}"
+                       FontSize="{StaticResource FontSizeBody}"/>
+            <TextBox Name="NameInput"
+                     PlaceholderText="My Playlist"
+                     KeyDown="OnNameInputKeyDown"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

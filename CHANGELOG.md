@@ -5,6 +5,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.0] - 21-Jun-2026
+
+### Added
+- **Smart Sorting (Local AI + Weather)**
+  - `Services/SmartSorting/HardwareDetector.cs` — detects CPU cores, RAM, and GPU VRAM (Nvidia/AMD) to recommend the optimal local Ollama model.
+  - `Services/SmartSorting/LocalAIService.cs` — integrates with local Ollama instance to rank tracks based on mood and weather.
+  - `Services/SmartSorting/MoodPlaylistService.cs` — orchestrates weather fetching, tag mapping, library filtering, and AI ranking.
+  - `Services/SmartSorting/WeatherService.cs` — OpenWeather API integration with 1-hour caching.
+  - `Services/SmartSorting/WeatherMoodMap.cs` — maps weather conditions and time of day to real Last.fm community tags.
+  - Settings UI for Smart Sorting: hardware detection, model download progress, and location coordinates.
+- **Last.fm Enrichment & Album Art**
+  - `Services/Integration/LastFmEnrichmentService.cs` — automatically backfills missing tags and album art for untagged tracks on startup.
+  - `Services/Integration/AlbumArtService.cs` — unified fallback chain for album art (YouTube → SoundCloud → Last.fm → Placeholder).
+  - `Services/Metadata/TrackTitleParser.cs` — cleans messy YouTube titles (strips "Official Video", "ft.", etc.) for accurate Last.fm queries.
+- **UI & Navigation**
+  - `Helpers/Converters/StringEqualsConverter.cs` & `TrackIdEqualsConverter.cs` — new converters for robust page routing and now-playing indicators.
+  - "Now Playing" accent bar added to track rows in `TrackListView` and `PlaylistsView`.
+  - OpenWeather API key support added to the encrypted `KeyStore`.
+
+### Changed
+- `MainWindow.axaml` — replaced `ContentControl` page routing with direct `IsVisible` bindings to fix `DataContext` inheritance bugs.
+- `MainViewModel` — removed `CurrentPageViewModel`; navigation now relies solely on the `CurrentPage` string property.
+- `App.axaml` — removed `Application.DataTemplates` section as views are now declared directly in `MainWindow`.
+- API keys in Settings now auto-save to the encrypted keystore immediately upon typing (no manual "Save" button required).
+- `MetadataService` refactored to use `TrackTitleParser` for cleaner Last.fm fallback searches.
+
+### Fixed
+- Library filter tabs (YouTube, SoundCloud, etc.) not displaying filtered content due to `ContentControl` `DataContext` reset.
+- Search and URL input bar bindings breaking when switching between filtered library views.
+- Sidebar filter buttons not visually highlighting when active (Favorites, Recent, Sources).
+- "Now playing" row indicator getting lost when switching between filtered library views.
+
 ## [0.3.1] - 14-Jun-2026
 
 ### Added

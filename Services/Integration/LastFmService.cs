@@ -2,6 +2,8 @@ using System;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using NullWave.Models;
+using NullWave.Services;
 using Serilog;
 
 namespace NullWave.Services;
@@ -114,6 +116,25 @@ public class LastFmService
                 }
             }
 
+            // Album art (from album.image array, size "large" or "extralarge")
+            if (track.TryGetProperty("album", out var album) &&
+                album.TryGetProperty("image", out var images))
+            {
+                foreach (var img in images.EnumerateArray())
+                {
+                    if (img.TryGetProperty("size", out var size) &&
+                        (size.GetString() == "extralarge" || size.GetString() == "large"))
+                    {
+                        var artUrl = img.GetProperty("#text").GetString();
+                        if (!string.IsNullOrEmpty(artUrl))
+                        {
+                            info.AlbumArtUrl = artUrl;
+                            break;
+                        }
+                    }
+                }
+            }
+
             // Wiki summary
             if (track.TryGetProperty("wiki", out var wiki) &&
                 wiki.TryGetProperty("summary", out var summary))
@@ -169,4 +190,5 @@ public class LastFmTrackInfo
     public string GlobalPlayCount { get; set; } = "0";
     public System.Collections.Generic.List<string> Tags { get; set; } = new();
     public string? WikiSummary { get; set; }
+    public string? AlbumArtUrl { get; set; }
 }

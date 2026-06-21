@@ -1,21 +1,22 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:controls="using:NullWave.Views.Controls"
              x:Class="NullWave.App"
              RequestedThemeVariant="Dark">
 
-  <Application.Resources>
-    <ResourceDictionary>
-      <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://NullWave/Themes/Colors.axaml"/>
-        <ResourceInclude Source="avares://NullWave/Themes/Typography.axaml"/>
-        <ResourceInclude Source="avares://NullWave/Themes/Shapes.axaml"/>
-      </ResourceDictionary.MergedDictionaries>
-    </ResourceDictionary>
-  </Application.Resources>
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://NullWave/Themes/Colors.axaml"/>
+                <ResourceInclude Source="avares://NullWave/Themes/Typography.axaml"/>
+                <ResourceInclude Source="avares://NullWave/Themes/Shapes.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 
-  <Application.Styles>
-    <FluentTheme />
-    <StyleInclude Source="avares://NullWave/Themes/ControlStyles.axaml"/>
-  </Application.Styles>
-
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://NullWave/Themes/ControlStyles.axaml"/>
+    </Application.Styles>
 </Application>

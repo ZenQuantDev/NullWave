@@ -31,6 +31,10 @@
     "prefs",
     "HMAC",
     "youtu",
-    "unmuted"
+    "unmuted",
+    "openweathermap",
+    "qwen",
+    "mistral",
+    "nemo",
   ]
 }

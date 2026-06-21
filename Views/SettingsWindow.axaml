@@ -33,13 +33,14 @@
 
         <!-- ── Tab body (fills remaining space, scrolling handled per-tab) -->
         <TabControl Background="Transparent" Padding="0">
-            <TabItem Header="General">    <settings:GeneralTab/>    </TabItem>
-            <TabItem Header="Appearance"> <settings:AppearanceTab/> </TabItem>
-            <TabItem Header="API Keys">   <settings:ApiKeysTab/>    </TabItem>
-            <TabItem Header="Audio">      <settings:AudioTab/>      </TabItem>
-            <TabItem Header="Updates">    <settings:UpdatesTab/>    </TabItem>
-            <TabItem Header="Advanced">   <settings:AdvancedTab/>   </TabItem>
-            <TabItem Header="About">      <settings:AboutTab/>      </TabItem>
+            <TabItem Header="General">       <settings:GeneralTab/>       </TabItem>
+            <TabItem Header="Appearance">    <settings:AppearanceTab/>    </TabItem>
+            <TabItem Header="API Keys">      <settings:ApiKeysTab/>       </TabItem>
+            <TabItem Header="Audio">         <settings:AudioTab/>         </TabItem>
+            <TabItem Header="Smart Sorting"> <settings:SmartSortingTab/>  </TabItem>
+            <TabItem Header="Updates">       <settings:UpdatesTab/>       </TabItem>
+            <TabItem Header="Advanced">      <settings:AdvancedTab/>      </TabItem>
+            <TabItem Header="About">         <settings:AboutTab/>         </TabItem>
         </TabControl>
 
     </DockPanel>

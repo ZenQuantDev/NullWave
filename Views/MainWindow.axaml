@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:converters="using:NullWave.Helpers.Converters"
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
@@ -9,30 +10,52 @@
         Width="1280" Height="780"
         Background="{StaticResource BrushBase}"
         KeyDown="OnKeyDown">
+
+    <Window.Resources>
+        <converters:StringEqualsConverter x:Key="StringEqualsConverter"/>
+    </Window.Resources>
+
     <DockPanel>
         <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
         <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
-        
+        <controls:ImportProgressView DockPanel.Dock="Bottom"/>
+
         <Grid ColumnDefinitions="Auto,4,*,4,Auto">
-            <!-- Sidebar with min/max width constraints -->
             <controls:SidebarView Grid.Column="0" MinWidth="180" MaxWidth="350"/>
-            
-            <!-- Left splitter -->
-            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" 
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="True"/>
-            
-            <!-- Center content -->
-            <Grid Grid.Column="2" RowDefinitions="*,Auto">
-                <controls:TrackListView Grid.Row="0"/>
-                <controls:ImportProgressView Grid.Row="1"/>
+
+            <!-- All four pages declared directly here. IsVisible always
+                 binds against MainViewModel (inherited normally down the
+                 tree). For Queue/Stats, the PlaceholderView needing a
+                 different DataContext (PlaceholderPageViewModel) is
+                 wrapped in a plain Border — IsVisible lives on the Border
+                 (still sees MainViewModel), DataContext is reassigned only
+                 on the inner PlaceholderView. Putting both IsVisible and
+                 DataContext on the same element was the actual bug: once
+                 DataContext changes to QueuePage, IsVisible's binding to
+                 CurrentPage resolves against QueuePage instead of
+                 MainViewModel and silently fails, leaving the page
+                 permanently hidden regardless of $parent indirection. -->
+            <Grid Grid.Column="2">
+                <controls:TrackListView
+                    IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
+
+                <controls:PlaylistsView
+                    IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
+
+                <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Queue}">
+                    <controls:PlaceholderView DataContext="{Binding QueuePage}"/>
+                </Border>
+
+                <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Stats}">
+                    <controls:PlaceholderView DataContext="{Binding StatsPage}"/>
+                </Border>
             </Grid>
-            
-            <!-- Right splitter -->
-            <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch" 
-                          Background="Transparent" ShowsPreview="True" 
+
+            <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
+                          Background="Transparent" ShowsPreview="True"
                           IsVisible="{Binding Detail.IsOpen}"/>
-            
-            <!-- Detail panel -->
             <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
         </Grid>
     </DockPanel>

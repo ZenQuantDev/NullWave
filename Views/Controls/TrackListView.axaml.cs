@@ -20,12 +20,10 @@ public partial class TrackListView : DockPanel
         }
     }
 
-    // NEW: Double-click a track to play it immediately
     private void OnTrackDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is MainViewModel vm && vm.Library.SelectedTrack != null)
         {
-            // Execute the existing command instead of trying to invoke the event directly
             vm.Library.PlayTrackCommand.Execute(vm.Library.SelectedTrack);
         }
     }

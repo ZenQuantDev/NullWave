@@ -1,31 +1,34 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NullWave.Helpers;
 using NullWave.Models;
+using SQLite;
 using Serilog;
 
 namespace NullWave.Services;
 
-public class LibraryService
+public class LibraryService : IDisposable
 {
     private readonly DatabaseService _db;
     private readonly MetadataService? _metadata;
     private List<Track> _tracks;
-    private readonly List<Track> _queue   = new();
+    private readonly List<Track> _queue = new();
     private readonly List<Track> _history = new();
 
     public LibraryService(MetadataService? metadata = null)
     {
-        _db       = new DatabaseService();
+        _db = new DatabaseService();
         _metadata = metadata;
-        _tracks   = _db.LoadAll();
+        _tracks = _db.LoadAll();
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
         CleanupBadUrls();
         BackfillAlbumArt();
         BackfillYouTubeThumbnails();
         BackfillSoundCloudThumbnails();
     }
+
     private void BackfillYouTubeThumbnails()
     {
         var ytTracks = _tracks
@@ -72,8 +75,7 @@ public class LibraryService
 
         if (scTracks.Count == 0) return;
 
-        Log.Information("[LibraryService] Backfilling thumbnails for {Count} SoundCloud tracks",
-            scTracks.Count);
+        Log.Information("[LibraryService] Backfilling thumbnails for {Count} SoundCloud tracks", scTracks.Count);
 
         _ = System.Threading.Tasks.Task.Run(async () =>
         {
@@ -112,8 +114,7 @@ public class LibraryService
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}",
-                        track.Title);
+                    Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}", track.Title);
                 }
             }
         });
@@ -159,14 +160,12 @@ public class LibraryService
             Log.Information("[LibraryService] Album art backfill complete");
     }
 
-    // ── Core ──────────────────────────────────────────
     public IReadOnlyList<Track> GetAll() => _tracks.AsReadOnly();
 
     public void Add(Track track)
     {
         if (IsDuplicate(track)) return;
 
-        // Extract embedded album art for local files
         if (!string.IsNullOrEmpty(track.FilePath) &&
             string.IsNullOrEmpty(track.AlbumArtPath) &&
             _metadata != null)
@@ -189,12 +188,10 @@ public class LibraryService
     public void Update(Track track)
     {
         _db.Update(track);
-        // Ensure the in-memory reference is the same object
         var idx = _tracks.FindIndex(t => t.Id == track.Id);
         if (idx >= 0) _tracks[idx] = track;
     }
 
-    // ── Search & Filter ───────────────────────────────
     public IReadOnlyList<Track> Search(
         string query, SortField field = SortField.DateAdded, bool ascending = true)
     {
@@ -230,7 +227,6 @@ public class LibraryService
     public IReadOnlyList<Track> GetRecentlyPlayed(int count = 20) =>
         _history.TakeLast(count).Reverse().ToList();
 
-    // ── Sorting ───────────────────────────────────────
     public IReadOnlyList<Track> GetSorted(SortField field, bool ascending = true)
     {
         IEnumerable<Track> sorted = field switch
@@ -247,7 +243,6 @@ public class LibraryService
         return (ascending ? sorted : sorted.Reverse()).ToList();
     }
 
-    // ── Favorites ─────────────────────────────────────
     public void ToggleFavorite(Guid id)
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
@@ -256,7 +251,6 @@ public class LibraryService
         _db.Update(track);
     }
 
-    // ── Play Tracking ─────────────────────────────────
     public void RecordPlay(Guid id)
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
@@ -271,7 +265,6 @@ public class LibraryService
             _history.RemoveAt(0);
     }
 
-    // ── Duplicate Detection ───────────────────────────
     public bool IsDuplicate(Track newTrack)
     {
         return _tracks.Any(t =>
@@ -283,7 +276,6 @@ public class LibraryService
              t.Artist.Equals(newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
     }
 
-    // ── Queue ─────────────────────────────────────────
     public IReadOnlyList<Track> GetQueue() => _queue.AsReadOnly();
 
     public void AddToQueue(Guid id)
@@ -307,6 +299,50 @@ public class LibraryService
         var next = _queue[0];
         _queue.RemoveAt(0);
         return next;
+    }
+
+    public int ClearAllArt()
+    {
+        int cleared = 0;
+
+        foreach (var track in _tracks)
+        {
+            if (string.IsNullOrEmpty(track.AlbumArtPath)) continue;
+
+            track.AlbumArtPath = null;
+            _db.Update(track);
+            cleared++;
+        }
+
+        try
+        {
+            if (Directory.Exists(NullWavePaths.ArtCacheDir))
+            {
+                foreach (var file in Directory.EnumerateFiles(NullWavePaths.ArtCacheDir))
+                {
+                    try { File.Delete(file); }
+                    catch (Exception ex) { Log.Warning(ex, "[LibraryService] Could not delete art file: {File}", file); }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[LibraryService] Failed to clear art cache directory");
+        }
+
+        Log.Information("[LibraryService] Cleared album art for {Count} tracks and wiped art cache", cleared);
+        return cleared;
+    }
+
+    public void RebackfillThumbnails()
+    {
+        BackfillYouTubeThumbnails();
+        BackfillSoundCloudThumbnails();
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
     }
 }
 

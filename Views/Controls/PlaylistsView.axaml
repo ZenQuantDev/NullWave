@@ -1,0 +1,234 @@
+<Grid xmlns="https://github.com/avaloniaui"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:vm="using:NullWave.ViewModels"
+      xmlns:models="using:NullWave.Models"
+      xmlns:helpers="using:NullWave.Helpers"
+      xmlns:converters="using:NullWave.Helpers.Converters"
+      x:Class="NullWave.Views.Controls.PlaylistsView"
+      x:DataType="vm:MainViewModel"
+      ColumnDefinitions="280,1,*">
+
+    <Grid.Resources>
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
+        <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
+    </Grid.Resources>
+
+    <!-- ── LEFT: Playlist list ──────────────────────────────────────────── -->
+    <DockPanel Grid.Column="0">
+
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+            <Button Classes="primary"
+                    Content="+ New Playlist"
+                    Command="{Binding Playlist.CreatePlaylistCommand}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"/>
+        </Border>
+
+        <ListBox ItemsSource="{Binding Playlist.Playlists}"
+                 SelectedItem="{Binding Playlist.SelectedPlaylist}"
+                 Background="Transparent"
+                 Margin="8,8,4,8">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:Playlist">
+                    <Grid ColumnDefinitions="*,Auto" Margin="6,6">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="{Binding Name}"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontWeight="Medium"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Tracks.Count, StringFormat='{}{0} tracks'}"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"/>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Empty state -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="No playlists yet — create one above"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   FontSize="{StaticResource FontSizeSm}"
+                   TextWrapping="Wrap"
+                   HorizontalAlignment="Center"
+                   Margin="16"
+                   IsVisible="{Binding !Playlist.Playlists.Count}"/>
+    </DockPanel>
+
+    <!-- ── DIVIDER ──────────────────────────────────────────────────────── -->
+    <Border Grid.Column="1" Background="{StaticResource BrushBorder}"/>
+
+    <!-- ── RIGHT: Selected playlist detail ─────────────────────────────── -->
+    <DockPanel Grid.Column="2" IsVisible="{Binding Playlist.SelectedPlaylist, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+        <!-- Header: name (or rename input), track count, delete -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="16,12">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+
+                <!-- Normal display -->
+                <StackPanel Grid.Column="0" Spacing="2" IsVisible="{Binding !Playlist.IsRenaming}">
+                    <TextBlock Text="{Binding Playlist.SelectedPlaylist.Name}"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeLg}"
+                               FontWeight="Bold"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Playlist.SelectedPlaylist.Tracks.Count, StringFormat='{}{0} tracks'}"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+
+                <!-- Rename input -->
+                <Grid Grid.Column="0" ColumnDefinitions="*,8,Auto,8,Auto"
+                      IsVisible="{Binding Playlist.IsRenaming}"
+                      VerticalAlignment="Center">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding Playlist.RenameText, Mode=TwoWay}"/>
+                    <Button Grid.Column="2"
+                            Classes="primary"
+                            Content="Save"
+                            Command="{Binding Playlist.ConfirmRenameCommand}"
+                            Padding="12,6"/>
+                    <Button Grid.Column="4"
+                            Classes="secondary"
+                            Content="Cancel"
+                            Command="{Binding Playlist.CancelRenameCommand}"
+                            Padding="12,6"/>
+                </Grid>
+
+                <Button Grid.Column="1"
+                        Classes="icon-btn"
+                        Content="✎"
+                        ToolTip.Tip="Rename playlist"
+                        Command="{Binding Playlist.StartRenameCommand}"
+                        IsVisible="{Binding !Playlist.IsRenaming}"
+                        Margin="8,0,0,0"/>
+
+                <Button Grid.Column="2"
+                        Classes="icon-btn"
+                        Content="🗑"
+                        ToolTip.Tip="Delete playlist"
+                        Command="{Binding Playlist.RemovePlaylistCommand}"
+                        IsVisible="{Binding !Playlist.IsRenaming}"
+                        Margin="4,0,0,0"/>
+            </Grid>
+        </Border>
+
+        <!-- Track list for selected playlist -->
+        <ListBox ItemsSource="{Binding Playlist.SelectedPlaylist.Tracks}"
+                 Background="Transparent"
+                 Margin="8,4,8,8">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:Track">
+                    <Grid ColumnDefinitions="48,*,150,36" Margin="8,5" MinHeight="44">
+
+                        <!-- Now-playing accent bar — visible only when this track is playing -->
+                        <Border Grid.Column="0"
+                                Width="3"
+                                HorizontalAlignment="Left"
+                                Margin="-8,-5,0,-5"
+                                Background="{StaticResource BrushAccent}"
+                                CornerRadius="0,2,2,0">
+                            <Border.IsVisible>
+                                <MultiBinding Converter="{StaticResource TrackIdEquals}">
+                                    <Binding Path="Id"/>
+                                    <Binding Path="$parent[ListBox].DataContext.Player.CurrentTrack.Id"/>
+                                </MultiBinding>
+                            </Border.IsVisible>
+                        </Border>
+
+                        <Border Grid.Column="0"
+                                Width="40" Height="40"
+                                CornerRadius="{StaticResource RadiusArt}"
+                                Background="{StaticResource BrushSurface2}"
+                                ClipToBounds="True"
+                                VerticalAlignment="Center">
+                            <Panel>
+                                <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                <TextBlock Text="♪"
+                                           IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="18"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Panel>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2" Margin="10,0,8,0">
+                            <TextBlock Text="{Binding Title}"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="Medium"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Artist}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="2"
+                                VerticalAlignment="Center"
+                                CornerRadius="{StaticResource RadiusFull}"
+                                Padding="10,4"
+                                HorizontalAlignment="Left">
+                            <Border.Background>
+                                <SolidColorBrush Color="{Binding Source, Converter={StaticResource SourceToBg}}"/>
+                            </Border.Background>
+                            <TextBlock Text="{Binding Source}"
+                                       Foreground="White"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontWeight="SemiBold"/>
+                        </Border>
+
+                        <Button Grid.Column="3"
+                                Classes="icon-btn"
+                                Content="✕"
+                                ToolTip.Tip="Remove from playlist"
+                                Command="{Binding $parent[ListBox].DataContext.Playlist.RemoveFromPlaylistCommand}"
+                                CommandParameter="{Binding}"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Empty playlist state -->
+        <TextBlock Text="This playlist is empty — add tracks from the Library page"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   FontSize="{StaticResource FontSizeSm}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Margin="16"
+                   IsVisible="{Binding !Playlist.SelectedPlaylist.Tracks.Count}"/>
+    </DockPanel>
+
+    <!-- ── No selection state ───────────────────────────────────────────── -->
+    <StackPanel Grid.Column="2"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8"
+                IsVisible="{Binding Playlist.SelectedPlaylist, Converter={x:Static ObjectConverters.IsNull}}">
+        <TextBlock Text="♪"
+                   FontSize="48"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Text="Select a playlist to view its tracks"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   FontSize="{StaticResource FontSizeBody}"
+                   HorizontalAlignment="Center"/>
+    </StackPanel>
+
+</Grid>

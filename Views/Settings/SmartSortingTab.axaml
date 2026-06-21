@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             x:Class="NullWave.Views.Settings.SmartSortingTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer Padding="24,20">
+        <StackPanel Spacing="20">
+
+            <TextBlock Classes="section-label" Text="HARDWARE DETECTION" Margin="0"/>
+            
+            <Border Background="{StaticResource BrushSurface2}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    Padding="14,12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding HardwareInfo}"
+                               Foreground="{StaticResource BrushTextSecondary}"
+                               FontSize="{StaticResource FontSizeSm}"
+                               TextWrapping="Wrap"
+                               FontFamily="monospace"/>
+                    <Button Classes="secondary"
+                            Content="Re-detect Hardware"
+                            Command="{Binding DetectHardwareCommand}"
+                            HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <TextBlock Classes="section-label" Text="LOCAL AI MODEL" Margin="0"/>
+            
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="AI Model"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Larger models are smarter but slower"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding AIModelOptions}"
+                          SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                          MinWidth="150"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Use Local AI"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Disable to use tag-only filtering (faster, less smart)"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding UseLocalAI, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <Button Classes="primary"
+                    Content="Download Model"
+                    Command="{Binding DownloadModelCommand}"
+                    HorizontalAlignment="Left"/>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <TextBlock Classes="section-label" Text="WEATHER INTEGRATION" Margin="0"/>
+            
+            <!-- Removed duplicate API key field - it's now only in API Keys tab -->
+            <Border Background="{StaticResource BrushSurface2}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    Padding="14,12">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Set your OpenWeather API key in the API Keys tab"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="Free at openweathermap.org/api — 60 calls/minute"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"/>
+                </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,16,*">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Latitude"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBox Text="{Binding Latitude, Mode=TwoWay}"
+                             PlaceholderText="e.g. 40.7128"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="6">
+                    <TextBlock Text="Longitude"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"/>
+                    <TextBox Text="{Binding Longitude, Mode=TwoWay}"
+                             PlaceholderText="e.g. -74.0060"/>
+                </StackPanel>
+            </Grid>
+
+            <Separator Background="{StaticResource BrushBorder}"/>
+
+            <Button Classes="primary"
+                    Content="Generate Mood Playlist"
+                    Command="{Binding GenerateMoodPlaylistCommand}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"/>
+
+            <TextBlock Text="{Binding MoodPlaylistStatus}"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeXs}"
+                       IsVisible="{Binding MoodPlaylistStatus,
+                           Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

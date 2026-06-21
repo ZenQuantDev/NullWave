@@ -37,6 +37,27 @@
                         Command="{Binding OpenLogsFolderCommand}"/>
             </Grid>
 
+            <!-- NEW: Clear thumbnails -->
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Clear cached thumbnails"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBodyLarge}"/>
+                    <TextBlock Text="Deletes all cached album art and re-fetches it automatically"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="secondary"
+                        Content="Clear thumbnails"
+                        Command="{Binding ClearThumbnailsCommand}"/>
+            </Grid>
+
+            <TextBlock Text="{Binding ThumbnailStatus}"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeXs}"
+                       IsVisible="{Binding ThumbnailStatus,
+                           Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
             <Separator Background="{StaticResource BrushBorder}"/>
             <TextBlock Classes="section-label" Text="DANGER ZONE" Margin="0"
                        Foreground="{StaticResource BrushRed}"/>

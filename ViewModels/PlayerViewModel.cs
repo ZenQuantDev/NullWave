@@ -18,7 +18,7 @@ public class PlayerViewModel : ViewModelBase
     private readonly LibraryService _library;
     private readonly SettingsViewModel _settings;
     private readonly PlaybackNavigator _navigator;
-    
+
     private Track? _currentTrack;
     private PlaybackState _state = PlaybackState.Stopped;
     private float _position;
@@ -26,7 +26,7 @@ public class PlayerViewModel : ViewModelBase
     private bool _isDownloading;
     private float _downloadProgress;
     private string _statusText = "No track playing";
-    
+
     // Mute state
     private float _volumeBeforeMute = 0.8f;
     private bool _isMuted;
@@ -51,7 +51,7 @@ public class PlayerViewModel : ViewModelBase
         _settings = settings;
         _metadata = metadata;
         _navigator = new PlaybackNavigator(library);
-        
+
         _playback.Volume = _volume;
         _playback.PositionChanged += pos =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Position = pos);
@@ -336,6 +336,23 @@ public class PlayerViewModel : ViewModelBase
     public void PlayTrack(Track? track)
     {
         if (track == null) return;
+
+        // Guard against restarting a track that's already playing — this
+        // matters specifically because the same logical track can appear
+        // in multiple filtered ListBox views (Library/YouTube/Favorites/
+        // etc.) as separate row instances. Clicking "the same song" from a
+        // different filtered list previously always called _playback.Play()
+        // again, restarting from 0 even though it's already playing.
+        // Spotify-style behavior: clicking the already-playing track is a
+        // no-op, it doesn't restart and doesn't pause.
+        if (_currentTrack != null && track.Id == _currentTrack.Id
+            && (_state == PlaybackState.Playing || _state == PlaybackState.Paused))
+        {
+            Log.Debug("[{Source}] PlayTrack no-op — {Title} is already current (state={State})",
+                nameof(PlayerViewModel), track.Title, _state);
+            return;
+        }
+
         CurrentTrack = track;
         AlbumArtPath = track.AlbumArtPath;
 
