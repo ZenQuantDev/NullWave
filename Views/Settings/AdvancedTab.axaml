@@ -4,113 +4,138 @@
              x:Class="NullWave.Views.Settings.AdvancedTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20">
-        <StackPanel Spacing="20">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
 
-            <TextBlock Classes="section-label" Text="DATA" Margin="0"/>
+            <!--  Data Folders  -->
+            <TextBlock Classes="section-label" Text="DATA" Margin="0,0,0,12"/>
 
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Open data folder"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="~/.nullwave — keys, db, downloads, art, logs"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Open data folder"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="~/.nullwave — keys, db, downloads, art, logs"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary"
+                                Content="Open folder"
+                                Command="{Binding OpenDataFolderCommand}"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Open logs folder"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="~/.nullwave/logs — system, user actions, errors"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary"
+                                Content="Open folder"
+                                Command="{Binding OpenLogsFolderCommand}"/>
+                    </Grid>
+
                 </StackPanel>
-                <Button Grid.Column="1" Classes="secondary"
-                        Content="Open folder"
-                        Command="{Binding OpenDataFolderCommand}"/>
-            </Grid>
+            </Border>
 
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Open logs folder"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="~/.nullwave/logs — system, user actions, errors"
+            <!--  Thumbnails  -->
+            <TextBlock Classes="section-label" Text="CACHE" Margin="0,0,0,12"/>
+
+            <Border Classes="settings-card">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Clear cached thumbnails"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Deletes all cached album art and re-fetches it automatically"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary"
+                                Content="Clear thumbnails"
+                                Command="{Binding ClearThumbnailsCommand}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding ThumbnailStatus}"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+                               FontSize="{StaticResource FontSizeXs}"
+                               IsVisible="{Binding ThumbnailStatus,
+                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
-                <Button Grid.Column="1" Classes="secondary"
-                        Content="Open folder"
-                        Command="{Binding OpenLogsFolderCommand}"/>
-            </Grid>
+            </Border>
 
-            <!-- NEW: Clear thumbnails -->
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Clear cached thumbnails"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Deletes all cached album art and re-fetches it automatically"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+            <!--  Danger Zone  -->
+            <TextBlock Classes="section-label" Text="DANGER ZONE"
+                       Foreground="{StaticResource BrushRed}"
+                       Margin="0,0,0,12"/>
+
+            <Border Classes="settings-card"
+                    BorderBrush="{StaticResource BrushRed}">
+                <StackPanel Spacing="16">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Delete API keys"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Securely wipes all stored API keys from keys.enc"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger"
+                                Content="Delete keys"
+                                Command="{Binding DeleteApiKeysCommand}"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Delete logs"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Securely wipes all log files"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger"
+                                Content="Delete logs"
+                                Command="{Binding DeleteLogsCommand}"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Wipe everything"
+                                       Foreground="{StaticResource BrushRed}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="Bold"/>
+                            <TextBlock Text="Permanently deletes all keys, logs, downloads, and NullWave data. Cannot be undone."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger"
+                                Content="Wipe everything"
+                                Command="{Binding DeleteEverythingCommand}"
+                                Margin="16,0,0,0"/>
+                    </Grid>
+
                 </StackPanel>
-                <Button Grid.Column="1" Classes="secondary"
-                        Content="Clear thumbnails"
-                        Command="{Binding ClearThumbnailsCommand}"/>
-            </Grid>
-
-            <TextBlock Text="{Binding ThumbnailStatus}"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       FontSize="{StaticResource FontSizeXs}"
-                       IsVisible="{Binding ThumbnailStatus,
-                           Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
-            <Separator Background="{StaticResource BrushBorder}"/>
-            <TextBlock Classes="section-label" Text="DANGER ZONE" Margin="0"
-                       Foreground="{StaticResource BrushRed}"/>
-
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Delete API keys"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Securely wipes all stored API keys from keys.enc"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <Button Grid.Column="1" Classes="danger"
-                        Content="Delete keys"
-                        Command="{Binding DeleteApiKeysCommand}"/>
-            </Grid>
-
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Delete logs"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Securely wipes all log files"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <Button Grid.Column="1" Classes="danger"
-                        Content="Delete logs"
-                        Command="{Binding DeleteLogsCommand}"/>
-            </Grid>
-
-            <Border Background="{StaticResource BrushRedDim}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    BorderBrush="{StaticResource BrushRed}"
-                    BorderThickness="1"
-                    Padding="14,12">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Wipe everything"
-                                   Foreground="{StaticResource BrushRed}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
-                                   FontWeight="Bold"/>
-                        <TextBlock Text="Permanently deletes all keys, logs, downloads, and NullWave data. Cannot be undone."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-                    <Button Grid.Column="1" Classes="danger"
-                            Content="Wipe everything"
-                            Command="{Binding DeleteEverythingCommand}"
-                            Margin="16,0,0,0"/>
-                </Grid>
             </Border>
 
         </StackPanel>

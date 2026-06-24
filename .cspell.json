@@ -36,5 +36,6 @@
     "qwen",
     "mistral",
     "nemo",
+    "Ollama"
   ]
 }

@@ -4,56 +4,60 @@
              x:Class="NullWave.Views.Settings.AudioTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20">
-        <StackPanel Spacing="24">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
 
-            <TextBlock Classes="section-label" Text="DOWNLOAD QUALITY" Margin="0"/>
+            <TextBlock Classes="section-label" Text="DOWNLOAD SETTINGS" Margin="0,0,0,12"/>
 
-            <Grid ColumnDefinitions="*,16,*">
-                <StackPanel Grid.Column="0" Spacing="8">
-                    <TextBlock Text="Audio Quality"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <ComboBox ItemsSource="{Binding AudioQualityOptions}"
-                              SelectedItem="{Binding AudioQuality, Mode=TwoWay}"
-                              HorizontalAlignment="Stretch"/>
-                    <TextBlock Text="'best' uses highest available bitrate"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Audio format"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Preferred container for downloaded streams"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AudioFormatOptions}"
+                                  SelectedItem="{Binding AudioFormat, Mode=TwoWay}"
+                                  MinWidth="130"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Audio quality"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Bitrate for extraction — 'best' grabs the highest available"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AudioQualityOptions}"
+                                  SelectedItem="{Binding AudioQuality, Mode=TwoWay}"
+                                  MinWidth="130"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
                 </StackPanel>
-
-                <StackPanel Grid.Column="2" Spacing="8">
-                    <TextBlock Text="Audio Format"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <ComboBox ItemsSource="{Binding AudioFormatOptions}"
-                              SelectedItem="{Binding AudioFormat, Mode=TwoWay}"
-                              HorizontalAlignment="Stretch"/>
-                    <TextBlock Text="mp3 is most compatible; flac is lossless"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"/>
-                </StackPanel>
-            </Grid>
+            </Border>
 
             <Border Background="{StaticResource BrushSurface2}"
                     CornerRadius="{StaticResource RadiusMd}"
                     Padding="14,12">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Effective yt-dlp command"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Foreground="{StaticResource BrushTextSecondary}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               FontFamily="monospace">
-                        <TextBlock.Text>
-                            <MultiBinding StringFormat="yt-dlp --extract-audio --audio-format {0} --audio-quality {1}">
-                                <Binding Path="AudioFormat"/>
-                                <Binding Path="AudioQuality"/>
-                            </MultiBinding>
-                        </TextBlock.Text>
-                    </TextBlock>
-                </StackPanel>
+                <TextBlock Text="Format and quality settings apply to new downloads. Existing files are not re-encoded."
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           TextWrapping="Wrap"/>
             </Border>
 
         </StackPanel>

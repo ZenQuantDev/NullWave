@@ -89,14 +89,19 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       ICON BUTTON  — borderless square icon buttons
+       ICON BUTTON  — borderless square icon buttons (Standard 32x32)
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.icon-btn">
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushTextSecondary}"/>
-    <Setter Property="Padding"      Value="8"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding"      Value="0"/>
+    <Setter Property="Width"        Value="32"/>
+    <Setter Property="Height"       Value="32"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
-    <Setter Property="FontSize"     Value="18"/>
+    <Setter Property="FontSize"     Value="16"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
     <Setter Property="Cursor"       Value="Hand"/>
   </Style>
   <Style Selector="Button.icon-btn:pointerover /template/ ContentPresenter">
@@ -105,6 +110,13 @@
   </Style>
   <Style Selector="Button.icon-btn:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- Dense variant for tight spaces like track rows (24x24) -->
+  <Style Selector="Button.icon-btn.sm">
+    <Setter Property="Width"        Value="24"/>
+    <Setter Property="Height"       Value="24"/>
+    <Setter Property="FontSize"     Value="12"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
@@ -343,6 +355,94 @@
   </Style>
   <Style Selector="TabItem:pointerover /template/ Border#PART_LayoutRoot">
     <Setter Property="Background"        Value="{StaticResource BrushElevated}"/>
+  </Style>
+
+ <!-- ═══════════════════════════════════════════════════════════════════════
+       UNIFIED TOGGLE SWITCH STYLE (CUSTOM TEMPLATE)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="ToggleSwitch">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border x:Name="SwitchTrack"
+                Width="44" Height="24"
+                CornerRadius="12"
+                Background="{StaticResource BrushSurface2}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1">
+          <Border.Transitions>
+            <Transitions>
+              <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+              <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+            </Transitions>
+          </Border.Transitions>
+          
+          <Panel>
+            <Panel x:Name="PART_MovingKnobs"/>
+            
+            <Border x:Name="SwitchKnob"
+                    Width="14" Height="14"
+                    CornerRadius="7"
+                    Background="{StaticResource BrushTextSecondary}"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Margin="4,0,0,0">
+              <Border.Transitions>
+                <Transitions>
+                  <ThicknessTransition Property="Margin" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                  <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+              </Border.Transitions>
+            </Border>
+          </Panel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="ToggleSwitch:pointerover /template/ Border#SwitchTrack">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+  </Style>
+
+  <Style Selector="ToggleSwitch:checked /template/ Border#SwitchTrack">
+    <Setter Property="Background" Value="{StaticResource BrushAccent}"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+  </Style>
+  <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnob">
+    <Setter Property="Margin" Value="26,0,0,0"/>
+    <Setter Property="Background" Value="{StaticResource BrushBase}"/>
+  </Style>
+
+  <Style Selector="ToggleSwitch:checked:pointerover /template/ Border#SwitchTrack">
+    <Setter Property="Background" Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SETTINGS CARD & ROWS
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Border.settings-card">
+    <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Padding" Value="20"/>
+    <Setter Property="Margin" Value="0,0,0,16"/>
+  </Style>
+
+  <!-- Help Button (Small Circular Question Mark) -->
+  <Style Selector="Button.help-btn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+    <Setter Property="Width" Value="24"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.help-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
 </Styles>

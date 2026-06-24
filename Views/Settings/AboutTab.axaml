@@ -1,88 +1,85 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
              x:Class="NullWave.Views.Settings.AboutTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20">
-        <StackPanel Spacing="20" HorizontalAlignment="Center" MaxWidth="480">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
 
-            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                <Border Width="64" Height="64"
-                        CornerRadius="{StaticResource RadiusLg}"
-                        Background="{StaticResource BrushAccentDim}">
-                    <TextBlock Text="N"
-                               Foreground="{StaticResource BrushAccent}"
-                               FontSize="{StaticResource FontSize2xl}"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
-                </Border>
-                <TextBlock Text="NullWave"
-                           Foreground="{StaticResource BrushTextPrimary}"
-                           FontSize="{StaticResource FontSizeXl}"
-                           FontWeight="Bold"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding CurrentVersion}"
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeBody}"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="Music organizer for YouTube, SoundCloud, Last.fm, and local files"
-                           Foreground="{StaticResource BrushTextSecondary}"
-                           FontSize="{StaticResource FontSizeSm}"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"
-                           HorizontalAlignment="Center"/>
-            </StackPanel>
+            <!--  Branding  -->
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                        <material:MaterialIcon Kind="Waveform"
+                                               Width="48" Height="48"
+                                               Foreground="{StaticResource BrushAccent}"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="NullWave"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="28"
+                                       FontWeight="Black"
+                                       LetterSpacing="1"/>
+                            <TextBlock Text="Personal music organizer"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                    </StackPanel>
 
-            <Separator Background="{StaticResource BrushBorder}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Version"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeBody}"/>
+                            <TextBlock Text="{Binding CurrentVersion}"
+                                       Foreground="{StaticResource BrushAccentHover}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <Border Width="1" Background="{StaticResource BrushBorder}"/>
+                        <TextBlock Text="Open Source · Fedora Linux"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeBody}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
-            <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="120,*">
-                    <TextBlock Grid.Column="0" Text="Author"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBlock Grid.Column="1" Text="ZenQuant — PackItPro Team"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                </Grid>
-                <Grid ColumnDefinitions="120,*">
-                    <TextBlock Grid.Column="0" Text="Platform"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBlock Grid.Column="1" Text="Linux (Windows / Android planned)"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                </Grid>
-                <Grid ColumnDefinitions="120,*">
-                    <TextBlock Grid.Column="0" Text="License"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBlock Grid.Column="1" Text="MIT with Attribution"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                </Grid>
-                <Grid ColumnDefinitions="120,*">
-                    <TextBlock Grid.Column="0" Text="Built with"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBlock Grid.Column="1"
-                               Text="C# / .NET 8 / Avalonia UI 12 / LibVLC / yt-dlp"
-                               Foreground="{StaticResource BrushTextPrimary}"
+            <!--  Stack  -->
+            <TextBlock Classes="section-label" Text="BUILT WITH" Margin="0,0,0,12"/>
+
+            <Border Classes="settings-card">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,*">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text=".NET 8 + C#" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Avalonia UI 12" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="LibVLCSharp" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="SQLite-net-pcl" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="yt-dlp" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="TagLib#" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Serilog" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Material.Icons.Avalonia" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!--  Links  -->
+            <TextBlock Classes="section-label" Text="LINKS" Margin="0,0,0,12"/>
+
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="github.com/Alexsandrgardaphadze/NullWave"
+                               Foreground="{StaticResource BrushAccentHover}"
                                FontSize="{StaticResource FontSizeBody}"
-                               TextWrapping="Wrap"/>
-                </Grid>
-            </StackPanel>
-
-            <Separator Background="{StaticResource BrushBorder}"/>
-
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12">
-                <TextBlock Text="NullWave is free, open-source software. Any downloading functionality is intended solely for content you have the legal right to download. The author(s) are not liable for misuse."
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
-                           TextWrapping="Wrap"/>
+                               Cursor="Hand"/>
+                    <TextBlock Text="Issues, feature requests, and contributions welcome."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                </StackPanel>
             </Border>
 
         </StackPanel>

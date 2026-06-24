@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Services;
 using Serilog;
 
@@ -9,37 +11,72 @@ namespace NullWave.Services.SmartSorting;
 
 public class WeatherInfo
 {
-    public string Condition { get; init; } = "Unknown";
-    public double TemperatureC { get; init; }
-    public string Description { get; init; } = string.Empty;
-    public DateTime FetchedAt { get; init; } = DateTime.UtcNow;
+    public string Condition { get; set; } = "Unknown";
+    public double TemperatureC { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class WeatherService
 {
     private readonly HttpClient _http = new();
     private readonly KeyStoreService _keyStore;
+    private readonly string _cachePath;
     private WeatherInfo? _cachedWeather;
-    private DateTime _lastFetch = DateTime.MinValue;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
 
     public WeatherService(KeyStoreService keyStore)
     {
         _keyStore = keyStore;
+        _cachePath = Path.Combine(NullWavePaths.DataDir, "weather_cache.json");
+        LoadCacheFromDisk();
     }
 
-    /// <summary>
-    /// Reads the API key fresh from the key store on every call,
-    /// so adding the key in Settings takes effect immediately without restart.
-    /// </summary>
-    private string? GetApiKey() => _keyStore.GetKey("OpenWeather");
+    private void LoadCacheFromDisk()
+    {
+        try
+        {
+            if (File.Exists(_cachePath))
+            {
+                var json = File.ReadAllText(_cachePath);
+                _cachedWeather = JsonSerializer.Deserialize<WeatherInfo>(json);
+                if (_cachedWeather != null)
+                {
+                    Log.Debug("[WeatherService] Loaded weather cache from disk (fetched at {Time})", _cachedWeather.FetchedAt);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[WeatherService] Failed to load weather cache from disk");
+            _cachedWeather = null;
+        }
+    }
 
+    private void SaveCacheToDisk()
+    {
+        try
+        {
+            if (_cachedWeather != null)
+            {
+                var json = JsonSerializer.Serialize(_cachedWeather);
+                File.WriteAllText(_cachePath, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[WeatherService] Failed to save weather cache to disk");
+        }
+    }
+
+    private string? GetApiKey() => _keyStore.GetKey("OpenWeather");
     public bool IsConfigured => !string.IsNullOrEmpty(GetApiKey());
+
+    private bool IsCacheValid => _cachedWeather != null && (DateTime.UtcNow - _cachedWeather.FetchedAt) < CacheDuration;
 
     public async Task<WeatherInfo?> GetWeatherAsync(double latitude, double longitude, bool forceRefresh = false)
     {
-        if (!forceRefresh && _cachedWeather != null &&
-            DateTime.UtcNow - _lastFetch < CacheDuration)
+        if (!forceRefresh && IsCacheValid)
         {
             return _cachedWeather;
         }
@@ -72,7 +109,8 @@ public class WeatherService
                 FetchedAt = DateTime.UtcNow
             };
 
-            _lastFetch = DateTime.UtcNow;
+            SaveCacheToDisk();
+
             Log.Information("[WeatherService] Weather fetched: {Condition}, {Temp}°C",
                 _cachedWeather.Condition, _cachedWeather.TemperatureC);
 
@@ -81,7 +119,8 @@ public class WeatherService
         catch (Exception ex)
         {
             Log.Error(ex, "[WeatherService] Failed to fetch weather");
-            return null;
+            // Return stale cache on network failure rather than null
+            return _cachedWeather; 
         }
     }
 }

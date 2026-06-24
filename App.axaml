@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:controls="using:NullWave.Views.Controls"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="NullWave.App"
              RequestedThemeVariant="Dark">
 
@@ -18,5 +19,7 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://NullWave/Themes/ControlStyles.axaml"/>
+        
+        <materialIcons:MaterialIconStyles />
     </Application.Styles>
 </Application>

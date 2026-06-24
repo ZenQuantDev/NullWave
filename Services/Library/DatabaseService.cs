@@ -25,7 +25,7 @@ public class DatabaseService : IDisposable
         Log.Information("[DatabaseService] Opened DB at {Path}", path);
     }
 
-    // ── Core ──────────────────────────────────────────────────────────────
+    //  Core 
 
     public List<Track> LoadAll()
     {

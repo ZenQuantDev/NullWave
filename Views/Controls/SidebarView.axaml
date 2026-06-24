@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:helpers="using:NullWave.Helpers"
+        xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.Controls.SidebarView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
@@ -75,10 +76,10 @@
                                 <Image Source="{Binding Profile.Avatar}"
                                     IsVisible="{Binding Profile.HasAvatar}"
                                     Stretch="UniformToFill"/>
-                                <TextBlock Text="♪"
+                                <material:MaterialIcon Kind="MusicNote"
                                         IsVisible="{Binding !Profile.HasAvatar}"
                                         Foreground="{StaticResource BrushAccent}"
-                                        FontSize="18"
+                                        Width="18" Height="18"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"/>
                             </Panel>
@@ -100,10 +101,10 @@
                         </StackPanel>
 
                         <!-- Chevron indicator -->
-                        <TextBlock Grid.Column="3"
-                                Text="›"
+                        <material:MaterialIcon Grid.Column="3"
+                                Kind="ChevronRight"
                                 Foreground="{StaticResource BrushTextMuted}"
-                                FontSize="20"
+                                Width="20" Height="20"
                                 VerticalAlignment="Center"
                                 Margin="8,0,0,0"/>
                     </Grid>
@@ -112,11 +113,11 @@
                 <!-- Settings gear button -->
                 <Button Grid.Column="1"
                         Classes="icon-btn"
-                        Content="⚙"
-                        FontSize="16"
                         VerticalAlignment="Center"
                         ToolTip.Tip="Settings"
-                        Command="{Binding OpenSettingsCommand}"/>
+                        Command="{Binding OpenSettingsCommand}">
+                    <material:MaterialIcon Kind="Cog" Width="20" Height="20"/>
+                </Button>
             </Grid>
         </Border>
 
@@ -146,8 +147,9 @@
                 <Button x:Name="YTBtn"    Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
                 <Button x:Name="LFMBtn"   Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
                 <Button x:Name="SCBtn"    Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
-                <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/></StackPanel>
-            </ScrollViewer>
+                <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
+            </StackPanel>
+        </ScrollViewer>
 
     </DockPanel>
 </Border>

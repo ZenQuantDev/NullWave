@@ -67,7 +67,7 @@ public class SpotifyBridgeService
         };
     }
 
-    // ── Spotify oEmbed — no API key required ─────────────────────────────
+    //  Spotify oEmbed — no API key required 
 
     private async Task<(string Title, string Artist)> FetchSpotifyMetaAsync(string spotifyUrl)
     {
@@ -119,7 +119,7 @@ public class SpotifyBridgeService
         catch { return null; }
     }
 
-    // ── YouTube search via YouTube Data API ───────────────────────────────
+    //  YouTube search via YouTube Data API 
 
     private async Task<(string Url, string Title)> SearchYouTubeAsync(
         string title, string artist)

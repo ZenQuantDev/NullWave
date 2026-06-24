@@ -22,7 +22,7 @@ public class LibraryViewModel : ViewModelBase
     private SortField _currentSort = SortField.DateAdded;
     private bool _sortAscending = true;
 
-    // ── Filter Persistence State ──────────────────────────────────────────
+    //  Filter Persistence State 
     private enum LibraryView { All, Favorites, Recent, Source }
     private LibraryView _currentView = LibraryView.All;
     private TrackSource? _activeSourceFilter = null;
@@ -30,7 +30,7 @@ public class LibraryViewModel : ViewModelBase
     public ObservableCollection<Track> Tracks { get; } = new();
     public Array SortOptions => Enum.GetValues(typeof(SortField));
 
-    // ── Filter active-state properties ──────────────────────────────────
+    //  Filter active-state properties 
     // Bound by SidebarView's code-behind to highlight whichever filter
     // button matches the currently active view. Previously these didn't
     // exist, so the filter buttons worked (Tracks correctly filtered) but
@@ -149,7 +149,7 @@ public class LibraryViewModel : ViewModelBase
         PlayTrackCommand = new RelayCommand<Track>(t => { if (t != null) PlayTrackRequested?.Invoke(t); });
     }
 
-    // ── Refresh Logic (Now respects the active view state) ────────────────
+    //  Refresh Logic (Now respects the active view state) 
     public void Refresh()
     {
         Tracks.Clear();
@@ -194,8 +194,8 @@ public class LibraryViewModel : ViewModelBase
         }
         Refresh();
         NotifyFilterStateChanged();
-        Log.Information("[LibraryViewModel] DIAGNOSTIC: SetSourceFilter({Source}) → view={View}, filter={Filter}, Tracks.Count={Count}",
-            source, _currentView, _activeSourceFilter, Tracks.Count);
+        // Log.Information("[LibraryViewModel] DIAGNOSTIC: SetSourceFilter({Source}) → view={View}, filter={Filter}, Tracks.Count={Count}",
+            // source, _currentView, _activeSourceFilter, Tracks.Count);
     }
 
     private void ShowFavorites()

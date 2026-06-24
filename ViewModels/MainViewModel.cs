@@ -51,7 +51,7 @@ public class MainViewModel : ViewModelBase
     }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
-    // ── Active Page Tracking for Sidebar ──────────────────────────────────
+    //  Active Page Tracking for Sidebar 
     private string _currentPage = "Library";
     public string CurrentPage
     {
@@ -108,6 +108,7 @@ public class MainViewModel : ViewModelBase
 
         // Construct Settings first
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService);
+        Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
         var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
 
@@ -121,7 +122,7 @@ public class MainViewModel : ViewModelBase
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
 
-        // ── Wire events ─────────────────────────────────────────────────
+        //  Wire events 
         Input.TrackAdded += Library.Refresh;
         Input.TrackMetadataUpdated += Library.Refresh;
         Library.TrackDetailRequested += Detail.OpenFor;
@@ -182,7 +183,94 @@ public class MainViewModel : ViewModelBase
         // Manual mood playlist regenerate
         Settings.GenerateMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
-        // ── Commands ────────────────────────────────────────────────────
+        //  Wire: Export untagged tracks 
+        Settings.ExportUntaggedTracksRequested += async () =>
+        {
+            // Get tracks that have no tags stored (Tags is null/empty).
+            var untagged = _library.GetAll()
+                .Where(t => t.Tags == null || t.Tags.Count == 0)
+                .ToList();
+
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow != null)
+            {
+                await Settings.ReportExportReadyAsync(untagged, desktop.MainWindow);
+            }
+        };
+
+        //  Wire: Import AI JSON tags 
+        Settings.ImportAiTagsRequested += async () =>
+        {
+            try
+            {
+                if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
+                    || desktop.MainWindow == null)
+                    return null;
+
+                var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(
+                    new Avalonia.Platform.Storage.FilePickerOpenOptions
+                    {
+                        Title          = "Import AI Tag JSON",
+                        AllowMultiple  = false,
+                        FileTypeFilter = new[]
+                        {
+                            new Avalonia.Platform.Storage.FilePickerFileType("JSON / Text")
+                                { Patterns = new[] { "*.json", "*.txt", "*.md" } },
+                            new Avalonia.Platform.Storage.FilePickerFileType("All files")
+                                { Patterns = new[] { "*" } },
+                        }
+                    });
+
+                if (files.Count == 0)
+                {
+                    Settings.ReportImportComplete(0, 0);
+                    return null;
+                }
+
+                string jsonContent;
+                await using (var stream = await files[0].OpenReadAsync())
+                using (var reader = new System.IO.StreamReader(stream))
+                    jsonContent = await reader.ReadToEndAsync();
+
+                var externalAI = new NullWave.Services.SmartSorting.ExternalAITagService();
+                var results = externalAI.ParseImportedJson(jsonContent);
+
+                if (results.Count == 0)
+                {
+                    Settings.ReportImportFailed("No valid tag entries found in the file.");
+                    return null;
+                }
+
+                int applied = 0;
+                foreach (var result in results)
+                {
+                    var track = _library.GetAll().FirstOrDefault(t => t.Id == result.Id);
+                    if (track == null || result.Tags.Count == 0) continue;
+
+                    track.Tags ??= new System.Collections.Generic.List<string>();
+                    foreach (var tag in result.Tags)
+                    {
+                        if (!track.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                            track.Tags.Add(tag);
+                    }
+
+                    _library.Update(track);
+                    applied++;
+                }
+
+                Library.Refresh();
+                Settings.ReportImportComplete(applied, results.Count);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Settings.ReportImportFailed(ex.Message);
+                NullActionLogger.Error(nameof(MainViewModel), ex, "External AI import failed");
+                return null;
+            }
+        };
+
+        //  Commands 
         ExitCommand = new RelayCommand(() =>
         {
             NullActionLogger.User("AppExit", "shutdown", nameof(MainViewModel));
@@ -282,7 +370,7 @@ public class MainViewModel : ViewModelBase
             win.Show();
     }
 
-    // ── Mood Playlist Generation ────────────────────────────────────────
+    //  Mood Playlist Generation 
     private async Task RunMoodPlaylistAsync(bool forceRefresh)
     {
         try

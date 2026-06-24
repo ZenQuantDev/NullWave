@@ -4,6 +4,7 @@
            xmlns:models="using:NullWave.Models"
            xmlns:helpers="using:NullWave.Helpers"
            xmlns:converters="using:NullWave.Helpers.Converters"
+           xmlns:material="using:Material.Icons.Avalonia"
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:MainViewModel">
 
@@ -12,9 +13,10 @@
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
+        <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </DockPanel.Resources>
 
-    <!-- ── TOOLBAR ──────────────────────────────────────────────────────────── -->
+    <!--  TOOLBAR  -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushSurface}"
             BorderBrush="{StaticResource BrushBorder}"
@@ -49,7 +51,7 @@
         </Grid>
     </Border>
 
-    <!-- ── URL INPUT ────────────────────────────────────────────────────────── -->
+    <!--  URL INPUT  -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushSurface2}"
             BorderBrush="{StaticResource BrushBorder}"
@@ -74,7 +76,7 @@
         </Grid>
     </Border>
 
-    <!-- ── FOLDER IMPORT PROGRESS ───────────────────────────────────────────── -->
+    <!--  FOLDER IMPORT PROGRESS  -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushGreenDim}"
             BorderBrush="{StaticResource BrushGreen}"
@@ -106,7 +108,7 @@
         </Grid>
     </Border>
 
-    <!-- ── PLAYLIST IMPORT PROGRESS ─────────────────────────────────────────── -->
+    <!--  PLAYLIST IMPORT PROGRESS  -->
     <Border DockPanel.Dock="Top"
             Background="{StaticResource BrushBlueDim}"
             BorderBrush="{StaticResource BrushBlue}"
@@ -143,7 +145,7 @@
         </Grid>
     </Border>
 
-    <!-- ── COLUMN HEADERS ───────────────────────────────────────────────────── -->
+    <!--  COLUMN HEADERS  -->
     <Grid DockPanel.Dock="Top"
           ColumnDefinitions="48,*,150,80,110,36,36"
           Margin="16,8,16,2">
@@ -153,7 +155,7 @@
         <TextBlock Grid.Column="4" Classes="section-label" Text="ADDED"/>
     </Grid>
 
-    <!-- ── TRACK LIST ───────────────────────────────────────────────────────── -->
+    <!--  TRACK LIST  -->
     <ListBox ItemsSource="{Binding Library.Tracks}"
              SelectedItem="{Binding Library.SelectedTrack}"
              Background="Transparent"
@@ -163,25 +165,27 @@
         <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem"
                           BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                <Setter Property="ContextMenu">
-                    <ContextMenu>
-                        <MenuItem Header="Play"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.PlayTrackCommand}"
-                                  CommandParameter="{Binding}"/>
-                        <MenuItem Header="View Details"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.OpenDetailCommand}"/>
-                        <MenuItem Header="Toggle Favorite"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"/>
-                        <MenuItem Header="Add to Queue"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.AddToQueueCommand}"/>
-                        <MenuItem Header="Copy URL"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
-                        <Separator/>
-                        <MenuItem Header="Remove"
-                                  Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
-                                  CommandParameter="{Binding}"/>
-                    </ContextMenu>
-                </Setter>
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <MenuItem Header="Play"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.PlayTrackCommand}"
+                                        CommandParameter="{Binding}"/>
+                                <MenuItem Header="View Details"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.OpenDetailCommand}"/>
+                                <MenuItem Header="Toggle Favorite"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"/>
+                                <MenuItem Header="Add to Queue"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.AddToQueueCommand}"/>
+                                <MenuItem Header="Copy URL"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
+                                <Separator/>
+                                <MenuItem Header="Remove"
+                                        Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
             </ControlTheme>
         </ListBox.ItemContainerTheme>
         <ListBox.ItemTemplate>
@@ -189,7 +193,7 @@
                 <Grid ColumnDefinitions="48,*,150,80,110,36,36"
                       Margin="8,5" MinHeight="44">
 
-                    <!-- Now-playing accent bar — visible only when this track is playing -->
+                    <!-- Now-playing accent bar -->
                     <Border Grid.Column="0"
                             Width="3"
                             HorizontalAlignment="Left"
@@ -217,11 +221,11 @@
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding AlbumArtPath,
                                        Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                            <TextBlock Text="♪"
+                            <material:MaterialIcon Kind="MusicNote"
                                        IsVisible="{Binding AlbumArtPath,
                                            Converter={x:Static ObjectConverters.IsNull}}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="18"
+                                       Width="18" Height="18"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
                         </Panel>
@@ -243,7 +247,7 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
-                    <!-- Source badge — colored per source -->
+                    <!-- Source badge -->
                     <Border Grid.Column="2"
                             VerticalAlignment="Center"
                             CornerRadius="{StaticResource RadiusFull}"
@@ -273,23 +277,24 @@
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
 
-                    <!-- Favorite star — dim when not favorite -->
+                    <!-- Favorite star -->
                     <Button Grid.Column="5"
                             Classes="icon-btn"
-                            Content="★"
-                            Foreground="{StaticResource BrushAmber}"
-                            Opacity="{Binding IsFavorite,
-                                Converter={StaticResource BoolToOpacity}}"
                             Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
-                            VerticalAlignment="Center"/>
+                            VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="{Binding IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" 
+                                               Width="18" Height="18" 
+                                               Foreground="{StaticResource BrushAmber}" 
+                                               Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
+                    </Button>
 
                     <!-- More options -->
                     <Button Grid.Column="6"
                             Classes="icon-btn"
-                            Content="⋮"
                             VerticalAlignment="Center"
                             ToolTip.Tip="More options">
+                        <material:MaterialIcon Kind="DotsVertical" Width="18" Height="18"/>
                         <Button.Flyout>
                             <MenuFlyout>
                                 <MenuItem Header="Play"

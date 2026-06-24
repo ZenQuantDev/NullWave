@@ -4,214 +4,184 @@
              x:Class="NullWave.Views.Settings.AppearanceTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <!-- ── Accent color ─────────────────────────────────────────── -->
+            <!--  Accent Color  -->
             <TextBlock Classes="section-label" Text="ACCENT COLOR" Margin="0,0,0,12"/>
 
-            <WrapPanel Margin="0,0,0,6">
-                <!-- Purple -->
-                <Border Width="32" Height="32" CornerRadius="{StaticResource RadiusFull}"
-                        Background="#8B5CF6" Margin="0,0,8,8" Cursor="Hand"
-                        ToolTip.Tip="Purple (default)">
-                    <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Border.Styles>
-                </Border>
-                <!-- Blue -->
-                <Border Width="32" Height="32" CornerRadius="{StaticResource RadiusFull}"
-                        Background="#60A5FA" Margin="0,0,8,8" Cursor="Hand"
-                        ToolTip.Tip="Sky Blue">
-                    <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Border.Styles>
-                </Border>
-                <!-- Amber -->
-                <Border Width="32" Height="32" CornerRadius="{StaticResource RadiusFull}"
-                        Background="#FCD34D" Margin="0,0,8,8" Cursor="Hand"
-                        ToolTip.Tip="Amber">
-                    <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Border.Styles>
-                </Border>
-                <!-- Green -->
-                <Border Width="32" Height="32" CornerRadius="{StaticResource RadiusFull}"
-                        Background="#34D399" Margin="0,0,8,8" Cursor="Hand"
-                        ToolTip.Tip="Green">
-                    <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Border.Styles>
-                </Border>
-                <!-- Red -->
-                <Border Width="32" Height="32" CornerRadius="{StaticResource RadiusFull}"
-                        Background="#F87171" Margin="0,0,8,8" Cursor="Hand"
-                        ToolTip.Tip="Red">
-                    <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Border.Styles>
-                </Border>
-            </WrapPanel>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <!-- Color swatches -->
+                    <WrapPanel>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
+                                Background="#8B5CF6" Margin="0,0,8,0" Cursor="Hand"
+                                ToolTip.Tip="Purple (default)"/>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
+                                Background="#60A5FA" Margin="0,0,8,0" Cursor="Hand"
+                                ToolTip.Tip="Sky Blue"/>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
+                                Background="#FCD34D" Margin="0,0,8,0" Cursor="Hand"
+                                ToolTip.Tip="Amber"/>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
+                                Background="#34D399" Margin="0,0,8,0" Cursor="Hand"
+                                ToolTip.Tip="Green"/>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
+                                Background="#F87171" Margin="0,0,0,0" Cursor="Hand"
+                                ToolTip.Tip="Red"/>
+                    </WrapPanel>
+                    <ComboBox ItemsSource="{Binding AccentColorOptions}"
+                              SelectedItem="{Binding AccentColor, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="Full dynamic theming coming in a future update. Selection is saved."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"/>
+                </StackPanel>
+            </Border>
 
-            <ComboBox ItemsSource="{Binding AccentColorOptions}"
-                      SelectedItem="{Binding AccentColor, Mode=TwoWay}"
-                      HorizontalAlignment="Stretch"
-                      Margin="0,0,0,4"/>
-            <TextBlock Text="Full dynamic theming coming in a future update. Saved for when it lands."
-                       Foreground="{StaticResource BrushTextMuted}"
-                       FontSize="{StaticResource FontSizeXs}"
-                       Margin="0,0,0,6"/>
-
-            <Separator Background="{StaticResource BrushBorder}" Margin="0,16,0,16"/>
-
-            <!-- ── Track row style ──────────────────────────────────────── -->
+            <!--  Track Row Style  -->
             <TextBlock Classes="section-label" Text="TRACK ROW STYLE" Margin="0,0,0,12"/>
-            <Grid ColumnDefinitions="*,16,*,16,*" Margin="0,0,0,6">
 
-                <Border Grid.Column="0"
-                        Background="{StaticResource BrushSurface2}"
-                        BorderBrush="{StaticResource BrushAccent}"
-                        BorderThickness="2"
-                        CornerRadius="{StaticResource RadiusMd}"
-                        Padding="12,10">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Comfortable"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="SemiBold"/>
-                        <Border Height="8" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}"/>
-                        <Border Height="8" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}" Width="60"
-                                HorizontalAlignment="Left"/>
-                        <TextBlock Text="44px rows, relaxed"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
-                    </StackPanel>
-                </Border>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,16,*,16,*">
 
-                <Border Grid.Column="2"
-                        Background="{StaticResource BrushSurface2}"
-                        BorderBrush="{StaticResource BrushBorder}"
-                        BorderThickness="1"
-                        CornerRadius="{StaticResource RadiusMd}"
-                        Padding="12,10">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="Compact"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="SemiBold"/>
-                        <Border Height="6" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}"/>
-                        <Border Height="6" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}" Width="50"
-                                HorizontalAlignment="Left"/>
-                        <TextBlock Text="32px rows, dense"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
-                    </StackPanel>
-                </Border>
+                        <Border Grid.Column="0"
+                                Background="{StaticResource BrushElevated}"
+                                BorderBrush="{StaticResource BrushAccent}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Comfortable" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <Border Height="6" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}"/>
+                                <Border Height="6" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}" Width="50"
+                                        HorizontalAlignment="Left"/>
+                                <TextBlock Text="44px · relaxed"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
+                        </Border>
 
-                <Border Grid.Column="4"
-                        Background="{StaticResource BrushSurface2}"
-                        BorderBrush="{StaticResource BrushBorder}"
-                        BorderThickness="1"
-                        CornerRadius="{StaticResource RadiusMd}"
-                        Padding="12,10">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Cozy"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="SemiBold"/>
-                        <Border Height="10" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}"/>
-                        <Border Height="10" Background="{StaticResource BrushElevated}"
-                                CornerRadius="{StaticResource RadiusXs}" Width="70"
-                                HorizontalAlignment="Left"/>
-                        <TextBlock Text="56px rows, spacious"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
-                    </StackPanel>
-                </Border>
+                        <Border Grid.Column="2"
+                                Background="{StaticResource BrushElevated}"
+                                BorderBrush="{StaticResource BrushBorder}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Compact" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <Border Height="5" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}"/>
+                                <Border Height="5" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}" Width="40"
+                                        HorizontalAlignment="Left"/>
+                                <TextBlock Text="32px · dense"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
+                        </Border>
 
-            </Grid>
-            <ComboBox ItemsSource="{Binding TrackRowStyleOptions}"
-                      SelectedItem="{Binding TrackRowStyle, Mode=TwoWay}"
-                      HorizontalAlignment="Stretch"
-                      Margin="0,8,0,4"/>
+                        <Border Grid.Column="4"
+                                Background="{StaticResource BrushElevated}"
+                                BorderBrush="{StaticResource BrushBorder}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="12,10">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Cozy" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <Border Height="8" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}"/>
+                                <Border Height="8" Background="{StaticResource BrushBorder}"
+                                        CornerRadius="{StaticResource RadiusXs}" Width="60"
+                                        HorizontalAlignment="Left"/>
+                                <TextBlock Text="56px · spacious"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
+                        </Border>
 
-            <Separator Background="{StaticResource BrushBorder}" Margin="0,16,0,16"/>
-
-            <!-- ── Font scale ───────────────────────────────────────────── -->
-            <TextBlock Classes="section-label" Text="FONT SCALE" Margin="0,0,0,12"/>
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Interface font size"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Scales all text in the app interface"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+                    </Grid>
+                    <ComboBox ItemsSource="{Binding TrackRowStyleOptions}"
+                              SelectedItem="{Binding TrackRowStyle, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"/>
                 </StackPanel>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding FontScaleOptions}"
-                          SelectedItem="{Binding FontScale, Mode=TwoWay}"
-                          MinWidth="120"/>
-            </Grid>
+            </Border>
 
-            <Separator Background="{StaticResource BrushBorder}" Margin="0,16,0,16"/>
+            <!--  Display  -->
+            <TextBlock Classes="section-label" Text="DISPLAY" Margin="0,0,0,12"/>
 
-            <!-- ── Sidebar width ────────────────────────────────────────── -->
-            <TextBlock Classes="section-label" Text="SIDEBAR WIDTH" Margin="0,0,0,12"/>
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Sidebar preset"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Narrow 160px · Normal 210px · Wide 280px"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Font scale"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Scales all text in the interface"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding FontScaleOptions}"
+                                  SelectedItem="{Binding FontScale, Mode=TwoWay}"
+                                  MinWidth="130"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Sidebar width"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Narrow 160px · Normal 210px · Wide 280px"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding SidebarWidthOptions}"
+                                  SelectedItem="{Binding SidebarWidth, Mode=TwoWay}"
+                                  MinWidth="130"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Compact mode"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Hides album art thumbnails in the track list"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1"
+                                      IsChecked="{Binding CompactMode, Mode=TwoWay}"
+                                      VerticalAlignment="Center"/>
+                    </Grid>
+
                 </StackPanel>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding SidebarWidthOptions}"
-                          SelectedItem="{Binding SidebarWidth, Mode=TwoWay}"
-                          MinWidth="120"/>
-            </Grid>
+            </Border>
 
-            <Separator Background="{StaticResource BrushBorder}" Margin="0,16,0,16"/>
-
-            <!-- ── Compact mode ─────────────────────────────────────────── -->
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Compact mode"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Hides album art thumbnails in the track list"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <CheckBox Grid.Column="1"
-                          IsChecked="{Binding CompactMode, Mode=TwoWay}"
-                          VerticalAlignment="Center"/>
-            </Grid>
-
-            <Separator Background="{StaticResource BrushBorder}" Margin="0,16,0,16"/>
-
-            <!-- ── Coming soon notice ───────────────────────────────────── -->
             <Border Background="{StaticResource BrushSurface2}"
                     CornerRadius="{StaticResource RadiusMd}"
                     Padding="14,12">
-                <TextBlock Text="Appearance settings are saved and will take full effect in a future update. Accent color switching and live theming are planned for v0.4."
+                <TextBlock Text="Appearance settings are saved and will take full effect in a future update. Live theming is planned for v0.4."
                            Foreground="{StaticResource BrushTextMuted}"
                            FontSize="{StaticResource FontSizeXs}"
                            TextWrapping="Wrap"/>

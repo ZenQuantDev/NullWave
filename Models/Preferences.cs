@@ -23,9 +23,17 @@ public class Preferences
     public bool   CompactMode    { get; set; } = false;
     public string SidebarWidth   { get; set; } = "Normal";
 
-    // ── Smart Sorting ──────────────────────────────────────────────────────
+    // Smart Sorting 
     public string SelectedAIModel { get; set; } = "qwen2.5:7b";
     public bool   UseLocalAI      { get; set; } = true;
     public double Latitude        { get; set; } = 0.0;   // 0 = not set yet
     public double Longitude       { get; set; } = 0.0;
+    
+    // New Smart Features config
+    public bool   AutoGenerateMoodPlaylist { get; set; } = false;
+    public string MoodRefreshInterval      { get; set; } = "Never";
+    public string AIConfidenceThreshold    { get; set; } = "70%";
+
+    // External AI Export Format
+    public string ExternalAIExportFormat { get; set; } = "txt";
 }

@@ -3,6 +3,7 @@
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.ProfileWindow"
         x:DataType="vm:UserProfileViewModel"
         Title="Profile — NullWave"
@@ -41,10 +42,10 @@
                                 <Image Source="{Binding Avatar}"
                                        IsVisible="{Binding HasAvatar}"
                                        Stretch="UniformToFill"/>
-                                <TextBlock Text="♪"
+                                <material:MaterialIcon Kind="MusicNote"
                                            IsVisible="{Binding !HasAvatar}"
                                            Foreground="{StaticResource BrushAccent}"
-                                           FontSize="42"
+                                           Width="42" Height="42"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
                             </Panel>
@@ -65,9 +66,9 @@
                                 <StackPanel HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
                                             Spacing="4">
-                                    <TextBlock Text="✎"
+                                    <material:MaterialIcon Kind="Pencil"
+                                               Width="24" Height="24"
                                                Foreground="White"
-                                               FontSize="24"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock Text="Change"
                                                Foreground="White"
@@ -102,10 +103,9 @@
                 <!-- More options button -->
                 <Button Grid.Column="1"
                         Classes="icon-btn"
-                        Content="⋮"
-                        FontSize="18"
                         VerticalAlignment="Center"
                         ToolTip.Tip="More options">
+                    <material:MaterialIcon Kind="DotsVertical" Width="20" Height="20"/>
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuItem Header="Export Profile Card (Ctrl+E)"
@@ -121,7 +121,7 @@
             </Grid>
         </Border>
 
-        <!-- Save Toast (docked bottom so ScrollViewer remains true fill element) -->
+        <!-- Save Toast -->
         <Border DockPanel.Dock="Bottom"
                 HorizontalAlignment="Center"
                 Margin="0,0,0,16"
@@ -131,17 +131,14 @@
                 IsVisible="{Binding ShowSaveToast}"
                 IsHitTestVisible="False">
             <StackPanel Orientation="Horizontal" Spacing="5">
-                <TextBlock Text="✓"
-                           Foreground="White"
-                           FontSize="{StaticResource FontSizeBody}"
-                           FontWeight="Bold"/>
+                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
                 <TextBlock Text="Saved"
                            Foreground="White"
                            FontSize="{StaticResource FontSizeBody}"/>
             </StackPanel>
         </Border>
 
-        <!-- Scrollable Content — no Padding here, so scrollbar sits flush with window edge -->
+        <!-- Scrollable Content -->
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16" Margin="20,20,12,24">
@@ -252,10 +249,10 @@
                                     <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
                                            IsVisible="{Binding HasMostPlayedTrackArt}"
                                            Stretch="UniformToFill"/>
-                                    <TextBlock Text="♪"
+                                    <material:MaterialIcon Kind="MusicNote"
                                                IsVisible="{Binding !HasMostPlayedTrackArt}"
                                                Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="20"
+                                               Width="20" Height="20"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"/>
                                 </Panel>
@@ -283,8 +280,8 @@
                                     Width="56" Height="56"
                                     CornerRadius="{StaticResource RadiusSm}"
                                     Background="{StaticResource BrushAccentDim}">
-                                <TextBlock Text="♪"
-                                           FontSize="22"
+                                <material:MaterialIcon Kind="MusicNote"
+                                           Width="22" Height="22"
                                            Foreground="{StaticResource BrushAccent}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>

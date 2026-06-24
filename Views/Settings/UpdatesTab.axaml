@@ -1,91 +1,95 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
              x:Class="NullWave.Views.Settings.UpdatesTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20">
-        <StackPanel Spacing="20">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
 
-            <TextBlock Classes="section-label" Text="NULLWAVE" Margin="0"/>
+            <!--  NullWave  -->
+            <TextBlock Classes="section-label" Text="NULLWAVE" Margin="0,0,0,12"/>
 
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Current version:"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeBody}"/>
-                        <TextBlock Text="{Binding CurrentVersion}"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="SemiBold"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding UpdateStatus}"
-                               Foreground="{StaticResource BrushTextSecondary}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="6">
-                    <Button Classes="primary"
-                            Content="Check for updates"
-                            Command="{Binding CheckForUpdateCommand}"
-                            IsEnabled="{Binding !IsCheckingUpdate}"/>
-                    <Button Classes="ghost"
-                            Content="Open release page"
-                            Command="{Binding OpenReleasePageCommand}"
-                            IsVisible="{Binding UpdateAvailable}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"/>
-                </StackPanel>
-            </Grid>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
 
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12"
-                    IsVisible="{Binding UpdateAvailable}">
-                <StackPanel Spacing="6">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="New version available:"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeSm}"/>
-                        <TextBlock Text="{Binding LatestVersion}"
-                                   Foreground="{StaticResource BrushAccentHover}"
-                                   FontSize="{StaticResource FontSizeSm}"
-                                   FontWeight="SemiBold"/>
-                    </StackPanel>
-                    <TextBlock Text="NullWave does not auto-update. Visit the release page to download manually."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Current version:"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Text="{Binding CurrentVersion}"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBody}"
+                                           FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding UpdateStatus}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <Button Classes="primary"
+                                    Content="Check for updates"
+                                    Command="{Binding CheckForUpdateCommand}"
+                                    IsEnabled="{Binding !IsCheckingUpdate}"/>
+                            <Button Classes="ghost"
+                                    Content="Open release page"
+                                    Command="{Binding OpenReleasePageCommand}"
+                                    IsVisible="{Binding UpdateAvailable}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Update available notice -->
+                    <Border Background="{StaticResource BrushAccentDim}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="14,12"
+                            IsVisible="{Binding UpdateAvailable}">
+                        <StackPanel Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="New version available:"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                                <TextBlock Text="{Binding LatestVersion}"
+                                           Foreground="{StaticResource BrushAccentHover}"
+                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock Text="NullWave does not auto-update. Visit the release page to download manually."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
             </Border>
 
-            <Separator Background="{StaticResource BrushBorder}"/>
-            <TextBlock Classes="section-label" Text="DEPENDENCIES" Margin="0"/>
+            <!--  Dependencies  -->
+            <TextBlock Classes="section-label" Text="DEPENDENCIES" Margin="0,0,0,12"/>
 
-            <Button Classes="secondary"
-                    Content="Check all dependencies"
-                    Command="{Binding CheckDependenciesCommand}"
-                    HorizontalAlignment="Left"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
 
-            <!-- Dependency rows -->
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,10">
-                <StackPanel Spacing="12">
+                    <Button Classes="secondary"
+                            Content="Check all dependencies"
+                            Command="{Binding CheckDependenciesCommand}"
+                            HorizontalAlignment="Left"/>
 
-                    <Grid ColumnDefinitions="120,*,Auto">
+                    <Grid ColumnDefinitions="110,*,Auto">
                         <TextBlock Grid.Column="0" Text="yt-dlp"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="Medium"
+                                   FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding YtDlpStatus}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{StaticResource FontSizeSm}"
                                    VerticalAlignment="Center"/>
-                        <Button Grid.Column="2"
-                                Classes="primary"
+                        <Button Grid.Column="2" Classes="primary"
                                 Content="Update"
                                 Command="{Binding UpdateYtDlpCommand}"
                                 IsEnabled="{Binding !IsUpdatingYtDlp}"
@@ -93,13 +97,12 @@
                                 Padding="12,6"/>
                     </Grid>
 
-                    <Separator Background="{StaticResource BrushBorder}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <Grid ColumnDefinitions="120,*,Auto">
+                    <Grid ColumnDefinitions="110,*,Auto">
                         <TextBlock Grid.Column="0" Text="VLC"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="Medium"
+                                   FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding VlcStatus}"
@@ -113,33 +116,26 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Separator Background="{StaticResource BrushBorder}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <Grid ColumnDefinitions="120,*,Auto">
+                    <Grid ColumnDefinitions="110,*">
                         <TextBlock Grid.Column="0" Text="FFmpeg"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="Medium"
+                                   FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding FfmpegStatus}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{StaticResource FontSizeSm}"
                                    VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="system package"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
-                                   VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Separator Background="{StaticResource BrushBorder}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <Grid ColumnDefinitions="120,*">
+                    <Grid ColumnDefinitions="110,*">
                         <TextBlock Grid.Column="0" Text=".NET"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="Medium"
+                                   FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding DotNetStatus}"

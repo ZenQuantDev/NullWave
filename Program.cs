@@ -1,7 +1,10 @@
 ﻿using System;
 using Avalonia;
+using Material.Icons.Avalonia;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Services;
+using NullWave.Models;
 using Serilog;
 
 namespace NullWave;
@@ -15,16 +18,20 @@ class Program
         NullWavePaths.EnsureDirectories();
 
         // ── 2. Initialize Serilog before anything else ────────────────────────
-        //      This must be first so every downstream exception is captured.
         NullWaveLogConfig.Initialize();
 
         try
         {
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            var appBuilder = BuildAvaloniaApp();
+
+            // Fire validation visual checks as soon as initialization is complete
+            ToastService.Instance.Show("Welcome to NullWave! Library initialized successfully.", ToastType.Success, 5000);
+            ToastService.Instance.Show("Failed to sync local AI models. Using local cache fallback.", ToastType.Error, 6000);
+
+            appBuilder.StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
-            // Last-resort catch — any unhandled exception from the UI thread
             NullActionLogger.Error("Program", ex, "Unhandled top-level exception");
             throw;
         }

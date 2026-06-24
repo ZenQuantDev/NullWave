@@ -9,7 +9,7 @@ public class PlaylistService
 {
     private readonly List<Playlist> _playlists = new();
 
-    // ── Core ──────────────────────────────────────────
+    //  Core 
     public IReadOnlyList<Playlist> GetAll() => _playlists.AsReadOnly();
 
     public Playlist Create(string name, string? description = null)
@@ -32,7 +32,7 @@ public class PlaylistService
     public Playlist? GetById(Guid id) =>
         _playlists.FirstOrDefault(p => p.Id == id);
 
-    // ── Track Management ──────────────────────────────
+    //  Track Management 
     public bool AddTrack(Guid playlistId, Track track)
     {
         var playlist = GetById(playlistId);
@@ -68,7 +68,7 @@ public class PlaylistService
         return true;
     }
 
-    // ── Rename ────────────────────────────────────────
+    //  Rename 
     public bool Rename(Guid id, string newName)
     {
         var playlist = GetById(id);
@@ -77,7 +77,7 @@ public class PlaylistService
         return true;
     }
 
-    // ── Stats ─────────────────────────────────────────
+    //  Stats 
     public int GetTrackCount(Guid id) => GetById(id)?.Tracks.Count ?? 0;
 
     public bool NameExists(string name) =>

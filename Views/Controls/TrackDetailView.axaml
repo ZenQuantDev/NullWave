@@ -3,6 +3,7 @@
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.Controls.TrackDetailView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
@@ -18,6 +19,7 @@
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
+        <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </Border.Resources>
 
     <Border.Transitions>
@@ -30,7 +32,7 @@
                   HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="0" HorizontalAlignment="Stretch">
 
-            <!-- ── Album art ──────────────────────────────────────────── -->
+            <!--  Album art  -->
             <Border Height="220"
                     Background="{StaticResource BrushSurface2}"
                     ClipToBounds="True">
@@ -45,8 +47,8 @@
                                 Spacing="8"
                                 IsVisible="{Binding Detail.CurrentTrackArtPath,
                                     Converter={x:Static ObjectConverters.IsNull}}">
-                        <TextBlock Text="♪"
-                                   FontSize="52"
+                        <material:MaterialIcon Kind="MusicNote"
+                                   Width="52" Height="52"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    HorizontalAlignment="Center"/>
                         <TextBlock Text="No artwork"
@@ -57,7 +59,7 @@
                 </Panel>
             </Border>
 
-            <!-- ── Content ────────────────────────────────────────────── -->
+            <!--  Content  -->
             <StackPanel Spacing="16" Margin="16,16,16,20">
 
                 <!-- Header -->
@@ -70,8 +72,9 @@
                                VerticalAlignment="Center"/>
                     <Button Grid.Column="1"
                             Classes="icon-btn"
-                            Content="✕"
-                            Command="{Binding Detail.CloseCommand}"/>
+                            Command="{Binding Detail.CloseCommand}">
+                        <material:MaterialIcon Kind="Close" Width="18" Height="18"/>
+                    </Button>
                 </Grid>
 
                 <Separator Background="{StaticResource BrushBorder}"/>
@@ -107,14 +110,14 @@
                     </StackPanel>
                     <Button Grid.Column="1"
                             Classes="icon-btn"
-                            Content="★"
-                            FontSize="22"
-                            Foreground="{StaticResource BrushAmber}"
-                            Opacity="{Binding Detail.IsFavorite,
-                                Converter={StaticResource BoolToOpacity}}"
                             Command="{Binding Detail.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
-                            VerticalAlignment="Bottom"/>
+                            VerticalAlignment="Bottom">
+                        <material:MaterialIcon Kind="{Binding Detail.IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" 
+                                               Width="22" Height="22" 
+                                               Foreground="{StaticResource BrushAmber}" 
+                                               Opacity="{Binding Detail.IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
+                    </Button>
                 </Grid>
 
                 <!-- Stats -->
@@ -176,11 +179,10 @@
                                                    Foreground="{StaticResource BrushAccentHover}"
                                                    FontSize="{StaticResource FontSizeSm}"/>
                                         <Button Classes="icon-btn"
-                                                Content="✕"
-                                                FontSize="9"
-                                                Padding="3"
                                                 Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
-                                                CommandParameter="{Binding}"/>
+                                                CommandParameter="{Binding}">
+                                            <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -193,9 +195,10 @@
                                  Margin="0,0,8,0"/>
                         <Button Grid.Column="1"
                                 Classes="primary"
-                                Content="+"
                                 Command="{Binding Detail.AddTagCommand}"
-                                Padding="14,8"/>
+                                Padding="14,8">
+                            <material:MaterialIcon Kind="Plus" Width="18" Height="18"/>
+                        </Button>
                     </Grid>
                 </StackPanel>
 

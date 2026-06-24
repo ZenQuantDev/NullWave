@@ -3,6 +3,9 @@
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:controls="using:NullWave.Views.Controls"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:services="using:NullWave.Services"
+        xmlns:models="using:NullWave.Models"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
@@ -15,48 +18,100 @@
         <converters:StringEqualsConverter x:Key="StringEqualsConverter"/>
     </Window.Resources>
 
-    <DockPanel>
-        <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
-        <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
-        <controls:ImportProgressView DockPanel.Dock="Bottom"/>
+    <Panel>
+        <DockPanel>
+            <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
+            <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
+            <controls:ImportProgressView DockPanel.Dock="Bottom"/>
 
-        <Grid ColumnDefinitions="Auto,4,*,4,Auto">
-            <controls:SidebarView Grid.Column="0" MinWidth="180" MaxWidth="350"/>
-            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
-                          Background="Transparent" ShowsPreview="True"/>
+            <Grid ColumnDefinitions="Auto,4,*,4,Auto">
+                <controls:SidebarView Grid.Column="0" MinWidth="180" MaxWidth="350"/>
+                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
+                              Background="Transparent" ShowsPreview="True"/>
 
-            <!-- All four pages declared directly here. IsVisible always
-                 binds against MainViewModel (inherited normally down the
-                 tree). For Queue/Stats, the PlaceholderView needing a
-                 different DataContext (PlaceholderPageViewModel) is
-                 wrapped in a plain Border — IsVisible lives on the Border
-                 (still sees MainViewModel), DataContext is reassigned only
-                 on the inner PlaceholderView. Putting both IsVisible and
-                 DataContext on the same element was the actual bug: once
-                 DataContext changes to QueuePage, IsVisible's binding to
-                 CurrentPage resolves against QueuePage instead of
-                 MainViewModel and silently fails, leaving the page
-                 permanently hidden regardless of $parent indirection. -->
-            <Grid Grid.Column="2">
-                <controls:TrackListView
-                    IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
+                <Grid Grid.Column="2">
+                    <controls:TrackListView
+                        IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
 
-                <controls:PlaylistsView
-                    IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
+                    <controls:PlaylistsView
+                        IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
 
-                <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Queue}">
-                    <controls:PlaceholderView DataContext="{Binding QueuePage}"/>
-                </Border>
+                    <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Queue}">
+                        <controls:PlaceholderView DataContext="{Binding QueuePage}"/>
+                    </Border>
 
-                <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Stats}">
-                    <controls:PlaceholderView DataContext="{Binding StatsPage}"/>
-                </Border>
+                    <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Stats}">
+                        <controls:PlaceholderView DataContext="{Binding StatsPage}"/>
+                    </Border>
+                </Grid>
+
+                <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
+                              Background="Transparent" ShowsPreview="True"
+                              IsVisible="{Binding Detail.IsOpen}"/>
+                <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
             </Grid>
+        </DockPanel>
 
-            <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
-                          Background="Transparent" ShowsPreview="True"
-                          IsVisible="{Binding Detail.IsOpen}"/>
-            <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
-        </Grid>
-    </DockPanel>
+        <ItemsControl DataContext="{x:Static services:ToastService.Instance}"
+                      ItemsSource="{Binding ActiveToasts}"
+                      x:DataType="services:ToastService"
+                      VerticalAlignment="Bottom" 
+                      HorizontalAlignment="Center"
+                      Margin="0,0,0,90"
+                      IsHitTestVisible="True">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:Toast">
+                    <Border Background="{Binding BackgroundColor}"
+                            BorderBrush="{Binding BorderColor}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="16,10"
+                            MinWidth="280"
+                            MaxWidth="450"
+                            BoxShadow="0 4 14 0 #60000000">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" 
+                                       Text="{Binding Message}" 
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontWeight="Medium"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
+                            
+                            <Button Grid.Column="1"
+                                    Command="{Binding $parent[ItemsControl].DataContext.Dismiss}"
+                                    CommandParameter="{Binding}"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    Padding="4"
+                                    VerticalAlignment="Center"
+                                    Cursor="Hand">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Opacity" Value="0.7"/>
+                                    </Style>
+                                </Button.Styles>
+                                <materialIcons:MaterialIcon Kind="Close" Width="16" Height="16" 
+                                                            Foreground="{StaticResource BrushTextMuted}"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Panel>
 </Window>

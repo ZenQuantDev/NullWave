@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -13,6 +14,7 @@ namespace NullWave.Services.SmartSorting;
 
 public class LocalAIService
 {
+    // We leave the default timeout here so long generation tasks have time to finish.
     private readonly HttpClient _http = new();
     private readonly string _ollamaUrl = "http://localhost:11434";
     private string _currentModel = "qwen2.5:7b";
@@ -21,6 +23,53 @@ public class LocalAIService
     {
         get => _currentModel;
         set => _currentModel = value;
+    }
+
+    /// <summary>
+    /// Pings the Ollama API to check if the service is running and reachable.
+    /// Does NOT load or run the model — just verifies the daemon responds quickly.
+    /// </summary>
+    public async Task<bool> PingAsync()
+    {
+        try
+        {
+            // Use a specific 5-second timeout just for the ping check
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await _http.GetAsync($"{_ollamaUrl}/", cts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[LocalAIService] Ping failed: {Message}", ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Forces Ollama to immediately drop the model from system RAM.
+    /// </summary>
+    public async Task UnloadModelAsync(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName)) return;
+
+        try
+        {
+            // Sending keep_alive = 0 tells Ollama to evict the model immediately
+            var payload = new { model = modelName, keep_alive = 0 };
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync($"{_ollamaUrl}/api/generate", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Log.Information("[LocalAIService] Successfully evicted {Model} from RAM.", modelName);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[LocalAIService] Failed to unload model {Model}: {Message}", modelName, ex.Message);
+        }
     }
 
     public async Task<bool> IsOllamaRunningAsync()
