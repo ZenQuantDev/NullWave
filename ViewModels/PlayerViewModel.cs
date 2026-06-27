@@ -31,6 +31,7 @@ public class PlayerViewModel : ViewModelBase
     private float _downloadProgress;
     private string _statusText = "No track playing";
     private DateTime _trackStartTime = DateTime.MinValue;
+    private bool _isCrossfading;
 
     private float _volumeBeforeMute = 0.8f;
     private bool _isMuted;
@@ -59,7 +60,11 @@ public class PlayerViewModel : ViewModelBase
 
         _playback.Volume = _volume;
         _playback.PositionChanged += pos =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Position = pos);
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+            {
+                Position = pos;
+                CheckCrossfade(pos);
+            });
         _playback.StateChanged += state =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => State = state);
         _playback.TrackFinished += () =>
@@ -218,6 +223,40 @@ public class PlayerViewModel : ViewModelBase
             NullActionLogger.User("SkipPenalty",
                 $"track={_currentTrack.Id} elapsed={elapsed:F1}s skips={_currentTrack.SkipCount}",
                 nameof(PlayerViewModel));
+        }
+    }
+
+    private void CheckCrossfade(float pos)
+    {
+        if (!_settings.CrossfadeEnabled || _isCrossfading || _currentTrack == null) return;
+        
+        var duration = _playback.Duration.TotalSeconds;
+        if (duration <= 0) return;
+
+        var remaining = duration - (pos * duration);
+        if (remaining <= _settings.CrossfadeDurationSeconds)
+        {
+            var next = _navigator.GetNextTrack(_currentTrack);
+            
+            // Enforce Local Files Only for crossfade as discussed
+            if (next != null && !string.IsNullOrEmpty(next.FilePath) && System.IO.File.Exists(next.FilePath))
+            {
+                _isCrossfading = true;
+                Log.Information("Starting crossfade transition to {NextTitle}", next.Title);
+                
+                _ = _playback.CrossfadeToAsync(next.FilePath, _settings.CrossfadeDurationSeconds * 1000, _volume).ContinueWith(t => 
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    {
+                        CurrentTrack = next;
+                        AlbumArtPath = next.AlbumArtPath;
+                        _trackStartTime = DateTime.UtcNow;
+                        StatusText = CurrentTrackDisplay;
+                        NullActionLogger.TrackPlayed(next.Id.ToString(), next.Title, next.Artist, nameof(PlayerViewModel));
+                        _isCrossfading = false;
+                    });
+                });
+            }
         }
     }
 
@@ -459,12 +498,20 @@ public class PlayerViewModel : ViewModelBase
     {
         if (IsPlaying)
         {
-            _playback.Pause();
+            if (_settings.FadeOnPauseEnabled)
+                _ = _playback.FadeAndPauseAsync(_settings.FadeOnPauseDurationMs);
+            else
+                _playback.Pause();
+                
             NullActionLogger.TrackPaused(_currentTrack?.Id.ToString() ?? "?", PositionDisplay, nameof(PlayerViewModel));
         }
         else if (_state == PlaybackState.Paused)
         {
-            _playback.Resume();
+            if (_settings.FadeOnPauseEnabled)
+                _ = _playback.FadeAndResumeAsync(_settings.FadeOnPauseDurationMs);
+            else
+                _playback.Resume();
+                
             if (_currentTrack != null)
                 NullActionLogger.TrackPlayed(_currentTrack.Id.ToString(), _currentTrack.Title, _currentTrack.Artist, nameof(PlayerViewModel));
         }

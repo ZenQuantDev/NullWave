@@ -78,17 +78,48 @@
                 </StackPanel>
             </Border>
 
-            <!--  Playback  -->
-            <TextBlock Classes="section-label" Text="PLAYBACK" Margin="0,0,0,12"/>
+            <!--  Playback Transitions  -->
+            <TextBlock Classes="section-label" Text="PLAYBACK TRANSITIONS" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="Crossfade and fade-on-pause coming in a future update."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                    <TextBlock Text="LibVLC volume ramping is planned for the next audio milestone."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"/>
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Fade on Pause / Resume"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Smoothly ramps volume down/up when toggling playback"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding FadeOnPauseEnabled}" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, Auto" IsEnabled="{Binding FadeOnPauseEnabled}">
+                        <Slider Grid.Column="0" Minimum="100" Maximum="2000" TickFrequency="100" IsSnapToTickEnabled="True" Value="{Binding FadeOnPauseDurationMs}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding FadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Crossfade Tracks"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Overlap audio at the end of tracks (Local files only)"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding CrossfadeEnabled}" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, Auto" IsEnabled="{Binding CrossfadeEnabled}">
+                        <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CrossfadeDurationSeconds}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding CrossfadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

@@ -300,6 +300,44 @@ public class SettingsViewModel : ViewModelBase
 
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
 
+    public bool FadeOnPauseEnabled
+    {
+        get => _prefsService.Current.FadeOnPauseEnabled;
+        set { _prefsService.Update(p => p.FadeOnPauseEnabled = value); OnPropertyChanged(); ScheduleSave(); }
+    }
+
+    public int FadeOnPauseDurationMs
+    {
+        get => _prefsService.Current.FadeOnPauseDurationMs;
+        set 
+        { 
+            _prefsService.Update(p => p.FadeOnPauseDurationMs = value); 
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FadeDurationDisplay));
+            ScheduleSave();
+        }
+    }
+    public string FadeDurationDisplay => $"{FadeOnPauseDurationMs} ms";
+
+    public bool CrossfadeEnabled
+    {
+        get => _prefsService.Current.CrossfadeEnabled;
+        set { _prefsService.Update(p => p.CrossfadeEnabled = value); OnPropertyChanged(); ScheduleSave(); }
+    }
+
+    public int CrossfadeDurationSeconds
+    {
+        get => _prefsService.Current.CrossfadeDurationSeconds;
+        set 
+        { 
+            _prefsService.Update(p => p.CrossfadeDurationSeconds = value); 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(CrossfadeDurationDisplay));
+            ScheduleSave();
+        }
+    }
+    public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
+
     public float ScrobbleThreshold
     {
         get => _prefsService.Current.ScrobbleThreshold;

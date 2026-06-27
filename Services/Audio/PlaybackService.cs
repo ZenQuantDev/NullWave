@@ -1,5 +1,7 @@
+// PlaybackService.cs
 using System;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using Serilog;
 
@@ -8,9 +10,10 @@ namespace NullWave.Services;
 public class PlaybackService : IDisposable
 {
     private readonly LibVLC _libVlc;
-    private readonly MediaPlayer _player;
-    private Media? _currentMedia; // Keep reference alive while playing
+    private MediaPlayer _player;
+    private Media? _currentMedia;
     private bool _disposed;
+    private CancellationTokenSource? _fadeCts;
 
     public event Action<float>? PositionChanged;
     public event Action<PlaybackState>? StateChanged;
@@ -33,35 +36,60 @@ public class PlaybackService : IDisposable
         Core.Initialize();
         _libVlc = new LibVLC();
         _player = new MediaPlayer(_libVlc);
+        AttachEvents(_player);
+    }
 
-        _player.PositionChanged += (_, e) => PositionChanged?.Invoke(e.Position);
-        _player.Playing += (_, _) =>
+    private void AttachEvents(MediaPlayer p)
+    {
+        p.PositionChanged += OnPositionChanged;
+        p.Playing += OnPlaying;
+        p.Paused += OnPaused;
+        p.Stopped += OnStopped;
+        p.EndReached += OnEndReached;
+    }
+
+    private void DetachEvents(MediaPlayer p)
+    {
+        p.PositionChanged -= OnPositionChanged;
+        p.Playing -= OnPlaying;
+        p.Paused -= OnPaused;
+        p.Stopped -= OnStopped;
+        p.EndReached -= OnEndReached;
+    }
+
+    private void OnPositionChanged(object? sender, MediaPlayerPositionChangedEventArgs e) => PositionChanged?.Invoke(e.Position);
+    
+    private void OnPlaying(object? sender, EventArgs e)
+    {
+        StateChanged?.Invoke(PlaybackState.Playing);
+        
+        // Fix: Prevent native audio mutex deadlocks on Linux (PulseAudio/PipeWire). 
+        // Only force the pipeline volume update if we aren't actively running a volume fade.
+        if (_fadeCts == null || _fadeCts.IsCancellationRequested)
         {
-            StateChanged?.Invoke(PlaybackState.Playing);
-            // Re-apply volume after pipeline initializes
-            _player.Volume = _player.Volume;
-        };
-        _player.Paused += (_, _) => StateChanged?.Invoke(PlaybackState.Paused);
-        _player.Stopped += (_, _) => StateChanged?.Invoke(PlaybackState.Stopped);
-        _player.EndReached += (_, _) =>
-        {
-            StateChanged?.Invoke(PlaybackState.Stopped);
-            TrackFinished?.Invoke();
-        };
+            _player.Volume = _player.Volume; 
+        }
+    }
+
+    private void OnPaused(object? sender, EventArgs e) => StateChanged?.Invoke(PlaybackState.Paused);
+    private void OnStopped(object? sender, EventArgs e) => StateChanged?.Invoke(PlaybackState.Stopped);
+    private void OnEndReached(object? sender, EventArgs e)
+    {
+        StateChanged?.Invoke(PlaybackState.Stopped);
+        TrackFinished?.Invoke();
     }
 
     public void Play(string path)
     {
         try
         {
-            _currentMedia?.Dispose(); // Clean up previous media
+            _fadeCts?.Cancel();
+            _currentMedia?.Dispose();
             
             var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
                         path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
             
-            _currentMedia = isUrl
-                ? new Media(_libVlc, new Uri(path))
-                : new Media(_libVlc, path);
+            _currentMedia = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
                 
             _player.Media = _currentMedia;
             _player.Play();
@@ -77,6 +105,7 @@ public class PlaybackService : IDisposable
     {
         if (_player.IsPlaying)
         {
+            _fadeCts?.Cancel();
             _player.Pause();
             Log.Debug("Playback paused");
         }
@@ -86,6 +115,7 @@ public class PlaybackService : IDisposable
     {
         if (!_player.IsPlaying && _player.Media != null)
         {
+            _fadeCts?.Cancel();
             _player.Play();
             Log.Debug("Playback resumed");
         }
@@ -93,6 +123,7 @@ public class PlaybackService : IDisposable
 
     public void Stop()
     {
+        _fadeCts?.Cancel();
         _player.Stop();
         Log.Debug("Playback stopped");
     }
@@ -102,9 +133,90 @@ public class PlaybackService : IDisposable
         _player.Position = Math.Clamp(position, 0f, 1f);
     }
 
+    public async Task FadeAndPauseAsync(int durationMs)
+    {
+        _fadeCts?.Cancel();
+        _fadeCts = new CancellationTokenSource();
+        
+        float originalVolume = Volume;
+        await FadeVolumeAsync(_player, originalVolume, 0f, durationMs, _fadeCts.Token);
+        
+        if (!_fadeCts.Token.IsCancellationRequested)
+        {
+            _player.Pause();
+            Volume = originalVolume; // Restore under the hood for next manual resume
+        }
+    }
+
+    public async Task FadeAndResumeAsync(int durationMs)
+    {
+        _fadeCts?.Cancel();
+        _fadeCts = new CancellationTokenSource();
+        
+        float targetVolume = Volume > 0 ? Volume : 0.8f;
+        _player.Volume = 0;
+        _player.Play();
+        
+        await FadeVolumeAsync(_player, 0f, targetVolume, durationMs, _fadeCts.Token);
+    }
+
+    public async Task CrossfadeToAsync(string nextPath, int durationMs, float targetVolume)
+    {
+        var isUrl = nextPath.StartsWith("http", StringComparison.OrdinalIgnoreCase);
+        var nextMedia = isUrl ? new Media(_libVlc, new Uri(nextPath)) : new Media(_libVlc, nextPath);
+        var nextPlayer = new MediaPlayer(_libVlc) { Media = nextMedia };
+        
+        nextPlayer.Volume = 0;
+        nextPlayer.Play();
+
+        var oldPlayer = _player;
+        var oldMedia = _currentMedia;
+
+        // Swap players instantly so UI binds to new duration/position
+        _player = nextPlayer;
+        _currentMedia = nextMedia;
+        
+        DetachEvents(oldPlayer);
+        AttachEvents(_player);
+
+        _fadeCts?.Cancel();
+        _fadeCts = new CancellationTokenSource();
+        
+        var fadeOutTask = FadeVolumeAsync(oldPlayer, oldPlayer.Volume / 100f, 0f, durationMs, _fadeCts.Token);
+        var fadeInTask = FadeVolumeAsync(nextPlayer, 0f, targetVolume, durationMs, _fadeCts.Token);
+        
+        await Task.WhenAll(fadeOutTask, fadeInTask);
+
+        oldPlayer.Stop();
+        oldPlayer.Dispose();
+        oldMedia?.Dispose();
+    }
+
+    private async Task FadeVolumeAsync(MediaPlayer p, float start, float end, int durationMs, CancellationToken ct)
+    {
+        int stepDelay = 32;
+        int steps = durationMs / stepDelay;
+        if (steps <= 0) steps = 1;
+        
+        for (int i = 1; i <= steps; i++)
+        {
+            if (ct.IsCancellationRequested) return;
+            
+            float progress = (float)i / steps;
+            float ease = (float)Math.Pow(progress, 2); // Natural exponential hearing curve
+            float current = start + (end - start) * ease;
+            
+            p.Volume = (int)Math.Clamp(current * 100, 0, 100);
+            await Task.Delay(stepDelay, ct);
+        }
+        p.Volume = (int)Math.Clamp(end * 100, 0, 100);
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
+        _fadeCts?.Cancel();
+        _fadeCts?.Dispose();
         _player.Stop();
         _currentMedia?.Dispose();
         _player.Dispose();
@@ -113,4 +225,4 @@ public class PlaybackService : IDisposable
     }
 }
 
-    public enum PlaybackState { Stopped, Playing, Paused }
+public enum PlaybackState { Stopped, Playing, Paused }

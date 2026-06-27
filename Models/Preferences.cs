@@ -51,4 +51,10 @@ public class Preferences
 
     // Master AI Toggle
     public bool AIFeaturesEnabled { get; set; } = true;
+
+    // Playback Transitions
+    public bool FadeOnPauseEnabled { get; set; } = true;
+    public int FadeOnPauseDurationMs { get; set; } = 300;
+    public bool CrossfadeEnabled { get; set; } = true;
+    public int CrossfadeDurationSeconds { get; set; } = 5;
 }

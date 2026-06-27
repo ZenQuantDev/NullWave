@@ -36,6 +36,9 @@
     "qwen",
     "mistral",
     "nemo",
-    "Ollama"
+    "Ollama",
+    "Crossfade",
+    "Crossfading",
+    "Rebackfill"
   ]
 }
