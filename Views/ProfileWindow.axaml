@@ -6,23 +6,37 @@
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.ProfileWindow"
         x:DataType="vm:UserProfileViewModel"
-        Title="Profile — NullWave"
+        Title="  NullWave - Profile"
         Width="520" Height="820"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="{StaticResource BrushBase}"
-        MinWidth="520">
+        MinWidth="520"
+        KeyDown="OnWindowKeyDown">
 
     <Window.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
     </Window.Resources>
 
+    <Window.Styles>
+        <Style Selector="Button.avatar-overlay">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.avatar-overlay:pointerover">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+    </Window.Styles>
+
     <Window.KeyBindings>
-        <KeyBinding Gesture="Ctrl+E" Command="{Binding ExportProfileCommand}"/>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding ManualSaveCommand}"/>
     </Window.KeyBindings>
 
-    <DockPanel LastChildFill="True">
+    <DockPanel LastChildFill="True" x:Name="ProfileCard">
 
         <!-- Header -->
         <Border DockPanel.Dock="Top"
@@ -52,15 +66,14 @@
                         </Border>
 
                         <!-- Hover overlay button -->
-                        <Button x:Name="AvatarHoverButton"
+                        <Button Classes="avatar-overlay"
                                 Command="{Binding PickAvatarCommand}"
                                 Width="100" Height="100"
                                 CornerRadius="{StaticResource RadiusFull}"
                                 Background="Transparent"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                ToolTip.Tip="Change avatar"
-                                Opacity="0">
+                                ToolTip.Tip="Change avatar">
                             <Border Background="#B0000000"
                                     CornerRadius="{StaticResource RadiusFull}">
                                 <StackPanel HorizontalAlignment="Center"
@@ -79,7 +92,7 @@
                         </Button>
                     </Grid>
 
-                    <!-- Username + bio -->
+                    <!-- Username + bio + Member Since -->
                     <StackPanel Grid.Column="2"
                                 VerticalAlignment="Center"
                                 Spacing="4">
@@ -97,6 +110,10 @@
                                    TextTrimming="CharacterEllipsis"
                                    TextWrapping="Wrap"
                                    MaxLines="2"/>
+                        <TextBlock Text="{Binding MemberSince, StringFormat='Member since {0}'}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   Margin="0,2,0,0"/>
                     </StackPanel>
                 </Grid>
 
@@ -109,7 +126,7 @@
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuItem Header="Export Profile Card (Ctrl+E)"
-                                      Command="{Binding ExportProfileCommand}"/>
+                                      Click="OnExportProfileClicked"/>
                             <MenuItem Header="Reset Avatar"
                                       Command="{Binding ResetAvatarCommand}"
                                       IsVisible="{Binding HasAvatar}"/>
@@ -132,7 +149,7 @@
                 IsHitTestVisible="False">
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
-                <TextBlock Text="Saved"
+                <TextBlock Text="{Binding ToastMessage}"
                            Foreground="White"
                            FontSize="{StaticResource FontSizeBody}"/>
             </StackPanel>
@@ -176,58 +193,35 @@
 
                 <Separator Background="{StaticResource BrushBorder}"/>
 
-                <!-- Listening Stats -->
+                <!-- Listening Stats (4 columns) -->
                 <StackPanel Spacing="10">
                     <TextBlock Classes="section-label" Text="LISTENING STATS" Margin="0"/>
-                    <Grid ColumnDefinitions="*,6,*,6,*">
-                        <Border Grid.Column="0"
-                                Background="{StaticResource BrushSurface2}"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,14">
+                    <Grid ColumnDefinitions="*,6,*,6,*,6,*">
+                        <Border Grid.Column="0" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                             <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                <TextBlock Text="{Binding TotalTracks}"
-                                           Foreground="{StaticResource BrushAccent}"
-                                           FontSize="{StaticResource FontSize2xl}"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="Tracks"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
-                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushAccent}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="2"
-                                Background="{StaticResource BrushSurface2}"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,14">
+                        <Border Grid.Column="2" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                             <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                <TextBlock Text="{Binding TotalFavorites}"
-                                           Foreground="{StaticResource BrushAmber}"
-                                           FontSize="{StaticResource FontSize2xl}"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="Favorites"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
-                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushAmber}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Favorites" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="4"
-                                Background="{StaticResource BrushSurface2}"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,14">
+                        <Border Grid.Column="4" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                             <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                <TextBlock Text="{Binding TotalPlays}"
-                                           Foreground="{StaticResource BrushBlue}"
-                                           FontSize="{StaticResource FontSize2xl}"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="Plays"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
-                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushBlue}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Plays" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="6" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding TotalSkips}" Foreground="{StaticResource BrushRedDim}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Skips" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -236,10 +230,8 @@
                 <!-- Top Track -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="TOP TRACK" Margin="0"/>
-                    <Border Background="{StaticResource BrushSurface2}"
-                            CornerRadius="{StaticResource RadiusMd}"
-                            Padding="12">
-                        <Grid ColumnDefinitions="56,10,*">
+                    <Border Classes="settings-card" Margin="0">
+                        <Grid ColumnDefinitions="56,16,*">
                             <Border Grid.Column="0"
                                     Width="56" Height="56"
                                     CornerRadius="{StaticResource RadiusSm}"
@@ -272,9 +264,7 @@
                 <!-- Top Artist -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="TOP ARTIST" Margin="0"/>
-                    <Border Background="{StaticResource BrushSurface2}"
-                            CornerRadius="{StaticResource RadiusMd}"
-                            Padding="12">
+                    <Border Classes="settings-card" Margin="0">
                         <Grid ColumnDefinitions="56,10,*">
                             <Border Grid.Column="0"
                                     Width="56" Height="56"
@@ -303,10 +293,8 @@
                 <!-- Library Breakdown -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="section-label" Text="LIBRARY BREAKDOWN" Margin="0"/>
-                    <Border Background="{StaticResource BrushSurface2}"
-                            CornerRadius="{StaticResource RadiusMd}"
-                            Padding="12,10">
-                        <StackPanel Spacing="10">
+                    <Border Classes="settings-card" Margin="0">
+                        <StackPanel Spacing="16">
                             <!-- YouTube -->
                             <StackPanel Spacing="3">
                                 <Grid ColumnDefinitions="*,Auto">
@@ -354,18 +342,18 @@
                                 <ProgressBar Value="{Binding SoundCloudPercentage}"
                                              Maximum="100"
                                              Height="5"
-                                             Foreground="{StaticResource BrushAmber}"/>
+                                             Foreground="#E85A00"/>
                             </StackPanel>
 
-                            <!-- Local Files -->
+                            <!-- Local Storage -->
                             <StackPanel Spacing="3">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <Border Width="6" Height="6"
                                                 CornerRadius="{StaticResource RadiusFull}"
-                                                Background="#1A5276"
+                                                Background="{StaticResource BrushAccent}"
                                                 VerticalAlignment="Center"/>
-                                        <TextBlock Text="Local Files"
+                                        <TextBlock Text="Local Storage"
                                                    Foreground="{StaticResource BrushTextSecondary}"
                                                    FontSize="{StaticResource FontSizeBody}"
                                                    VerticalAlignment="Center"/>
@@ -379,7 +367,7 @@
                                 <ProgressBar Value="{Binding LocalPercentage}"
                                              Maximum="100"
                                              Height="5"
-                                             Foreground="{StaticResource BrushBlue}"/>
+                                             Foreground="{StaticResource BrushAccent}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -390,20 +378,8 @@
                 <!-- Account Info -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="ACCOUNT" Margin="0"/>
-                    <Border Background="{StaticResource BrushSurface2}"
-                            CornerRadius="{StaticResource RadiusMd}"
-                            Padding="12,10">
-                        <StackPanel Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0"
-                                           Text="Member since"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding MemberSince}"
-                                           Foreground="{StaticResource BrushTextSecondary}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
-                            </Grid>
+                    <Border Classes="settings-card" Margin="0">
+                        <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0"
                                            Text="Data location"

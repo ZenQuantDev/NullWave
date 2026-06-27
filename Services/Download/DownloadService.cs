@@ -14,15 +14,41 @@ public class DownloadService
 {
     private readonly string _downloadDir;
 
-    public event Action<string, float>? ProgressChanged;    // trackId, 0-1
-    public event Action<string, string>? DownloadCompleted; // trackId, filePath
-    public event Action<string, string>? DownloadFailed;    // trackId, error
+    public event Action<string, float>? ProgressChanged;
+    public event Action<string, string>? DownloadCompleted;
+    public event Action<string, string>? DownloadFailed;
 
     private static readonly Regex ProgressRegex = new(
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
 
     private readonly HashSet<string> _activeDownloads = new();
     private CancellationTokenSource? _currentDownloadCts;
+
+    // ── Concurrency cap ──────────────────────────────────────────────────────
+    // Max 5 hardcoded as the ceiling; the semaphore is rebuilt when the user
+    // changes MaxConcurrentDownloads in settings via UpdateConcurrencyLimit().
+    private SemaphoreSlim _semaphore = new(2, 5);
+    private int _currentLimit = 2;
+
+    /// <summary>
+    /// Call this when the user changes MaxConcurrentDownloads in Settings.
+    /// Rebuilds the semaphore with the new limit without cancelling active downloads.
+    /// </summary>
+    public void UpdateConcurrencyLimit(int newLimit)
+    {
+        newLimit = Math.Clamp(newLimit, 1, 5);
+        if (newLimit == _currentLimit) return;
+
+        // Dispose old semaphore and create a fresh one.
+        // Any downloads currently waiting on the old semaphore will get
+        // ObjectDisposedException, which we catch in DownloadAsync and treat as cancellation.
+        var old = _semaphore;
+        _semaphore = new SemaphoreSlim(newLimit, 5);
+        _currentLimit = newLimit;
+        old.Dispose();
+
+        Log.Information("[DownloadService] Concurrency limit updated to {Limit}", newLimit);
+    }
 
     public DownloadService()
     {
@@ -32,10 +58,6 @@ public class DownloadService
         Directory.CreateDirectory(_downloadDir);
     }
 
-    /// <summary>
-    /// Cancels any currently running single-track download.
-    /// Safe to call even if no download is in progress.
-    /// </summary>
     public void CancelCurrentDownload()
     {
         _currentDownloadCts?.Cancel();
@@ -51,7 +73,6 @@ public class DownloadService
     {
         var outputTemplate = Path.Combine(_downloadDir, "%(title)s.%(ext)s");
 
-        // Map UI quality names to yt-dlp quality values
         var qualityValue = audioQuality switch
         {
             "best" => "0",
@@ -83,7 +104,6 @@ public class DownloadService
             _activeDownloads.Add(url);
         }
 
-        // Cancel previous download and create fresh CTS outside the lock
         CancellationTokenSource cts;
         lock (this)
         {
@@ -96,16 +116,28 @@ public class DownloadService
         Log.Information("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
+        // ── Acquire concurrency slot ─────────────────────────────────────────
+        try
+        {
+            await _semaphore.WaitAsync(ct);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Semaphore was rebuilt due to a settings change - just re-queue
+            Log.Debug("[DownloadService] Semaphore rebuilt mid-wait, re-acquiring");
+            await _semaphore.WaitAsync(ct);
+        }
+
         try
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "yt-dlp",
-                Arguments = string.Join(" ", args),
+                FileName               = "yt-dlp",
+                Arguments              = string.Join(" ", args),
                 RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
             };
 
             using var process = new Process { StartInfo = psi };
@@ -146,21 +178,17 @@ public class DownloadService
 
             await process.WaitForExitAsync(ct);
 
-            if (process.ExitCode == 0 && outputFilePath != null &&
-                File.Exists(outputFilePath))
+            if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
                 Log.Information("Download complete: {Path}", outputFilePath);
                 DownloadCompleted?.Invoke(trackId, outputFilePath);
             }
             else if (process.ExitCode == 0)
             {
-                // Try to find the file by scanning the download dir for recent files
-                // This is a last resort — ideally yt-dlp always prints the filepath
                 var recent = FindMostRecentDownload();
                 if (recent != null)
                 {
-                    Log.Warning("[DownloadService] filepath not captured from yt-dlp output, " +
-                        "using most recent file as fallback: {Path}", recent);
+                    Log.Warning("[DownloadService] filepath not captured, using most recent: {Path}", recent);
                     DownloadCompleted?.Invoke(trackId, recent);
                 }
                 else
@@ -173,25 +201,25 @@ public class DownloadService
             {
                 DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {process.ExitCode}");
             }
-            }
-            catch (OperationCanceledException)
-            {
-                Log.Warning("Download cancelled: {TrackId}", trackId);
-                DownloadFailed?.Invoke(trackId, "Cancelled");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Download exception for {Url}", url);
-                DownloadFailed?.Invoke(trackId, ex.Message);
-            }
-            finally
-            {
-                lock (_activeDownloads)
-                    _activeDownloads.Remove(url);
-            }
         }
+        catch (OperationCanceledException)
+        {
+            Log.Warning("Download cancelled: {TrackId}", trackId);
+            DownloadFailed?.Invoke(trackId, "Cancelled");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Download exception for {Url}", url);
+            DownloadFailed?.Invoke(trackId, ex.Message);
+        }
+        finally
+        {
+            _semaphore.Release();
+            lock (_activeDownloads)
+                _activeDownloads.Remove(url);
+        }
+    }
 
-    // NEW: Playlist download support
     public async Task DownloadPlaylistAsync(
         string playlistUrl,
         Action<string, int, int>? onTrackStarted = null,
@@ -203,16 +231,15 @@ public class DownloadService
 
         try
         {
-            // Step 1: Get playlist metadata (flat list, no download)
             var metadataArgs = $"--flat-playlist --dump-json --no-download \"{playlistUrl}\"";
             var metadataPsi = new ProcessStartInfo
             {
-                FileName = "yt-dlp",
-                Arguments = metadataArgs,
+                FileName               = "yt-dlp",
+                Arguments              = metadataArgs,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
             };
 
             using var metadataProc = new Process { StartInfo = metadataPsi };
@@ -226,39 +253,25 @@ public class DownloadService
                 return;
             }
 
-            // Parse JSON lines
             var tracks = new List<(string Title, string Artist, string Url)>();
             var lines = metadataOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            
+
             foreach (var line in lines)
             {
                 try
                 {
                     using var doc = JsonDocument.Parse(line);
                     var root = doc.RootElement;
-                    
-                    var title = root.TryGetProperty("title", out var t) 
-                        ? t.GetString() ?? "Unknown" 
-                        : "Unknown";
-                    var artist = root.TryGetProperty("uploader", out var u) 
-                        ? u.GetString() ?? "Unknown" 
-                        : "Unknown";
-                    var id = root.TryGetProperty("id", out var i) 
-                        ? i.GetString() ?? "" 
-                        : "";
-                    var url = $"https://www.youtube.com/watch?v={id}";
-                    
-                    tracks.Add((title, artist, url));
+                    var title  = root.TryGetProperty("title",    out var t) ? t.GetString() ?? "Unknown" : "Unknown";
+                    var artist = root.TryGetProperty("uploader", out var u) ? u.GetString() ?? "Unknown" : "Unknown";
+                    var id     = root.TryGetProperty("id",       out var i) ? i.GetString() ?? ""        : "";
+                    tracks.Add((title, artist, $"https://www.youtube.com/watch?v={id}"));
                 }
-                catch
-                {
-                    // Skip malformed lines
-                }
+                catch { /* skip malformed lines */ }
             }
 
             Log.Information("Playlist has {Count} tracks", tracks.Count);
 
-            // Step 2: Download each track
             for (int i = 0; i < tracks.Count; i++)
             {
                 if (ct.IsCancellationRequested) break;
@@ -269,60 +282,38 @@ public class DownloadService
                 var trackId = Guid.NewGuid().ToString();
                 var tcs = new TaskCompletionSource<bool>();
 
-                // Wire up completion events for this track
                 void OnCompleted(string id, string filePath)
                 {
-                    if (id == trackId)
-                    {
-                        onTrackCompleted?.Invoke(title, artist, filePath);
-                        tcs.TrySetResult(true);
-                    }
+                    if (id == trackId) { onTrackCompleted?.Invoke(title, artist, filePath); tcs.TrySetResult(true); }
                 }
-
                 void OnFailed(string id, string error)
                 {
-                    if (id == trackId)
-                    {
-                        onTrackFailed?.Invoke(title, error);
-                        tcs.TrySetResult(false);
-                    }
+                    if (id == trackId) { onTrackFailed?.Invoke(title, error); tcs.TrySetResult(false); }
                 }
 
                 DownloadCompleted += OnCompleted;
-                DownloadFailed += OnFailed;
-
+                DownloadFailed    += OnFailed;
                 await DownloadAsync(trackId, url, ct: ct);
-
                 DownloadCompleted -= OnCompleted;
-                DownloadFailed -= OnFailed;
+                DownloadFailed    -= OnFailed;
 
                 await tcs.Task;
             }
 
             Log.Information("Playlist download complete");
         }
-        catch (OperationCanceledException)
-        {
-            Log.Warning("Playlist download cancelled");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Playlist download failed");
-        }
+        catch (OperationCanceledException) { Log.Warning("Playlist download cancelled"); }
+        catch (Exception ex) { Log.Error(ex, "Playlist download failed"); }
     }
 
     private string? FindMostRecentDownload()
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
-
         FileInfo? newest = null;
         foreach (var file in dir.GetFiles("*.mp3"))
-        {
             if (newest == null || file.LastWriteTime > newest.LastWriteTime)
                 newest = file;
-        }
-
         return newest?.FullName;
     }
 

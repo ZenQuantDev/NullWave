@@ -30,8 +30,8 @@ public class PlayerViewModel : ViewModelBase
     private bool _isDownloading;
     private float _downloadProgress;
     private string _statusText = "No track playing";
+    private DateTime _trackStartTime = DateTime.MinValue;
 
-    // Mute state
     private float _volumeBeforeMute = 0.8f;
     private bool _isMuted;
     private ShuffleMode _shuffleMode = ShuffleMode.Off;
@@ -88,7 +88,6 @@ public class PlayerViewModel : ViewModelBase
                     {
                         track.FilePath = filePath;
 
-                        // Backfill title/artist from ID3 tags if still unknown
                         if (track.Title == track.Url
                             || track.Title == "Unknown Title"
                             || string.IsNullOrWhiteSpace(track.Title)
@@ -110,7 +109,6 @@ public class PlayerViewModel : ViewModelBase
 
                         _library.Update(track);
 
-                        // Re-fetch from library to ensure we have the freshest state
                         var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
                         var toPlay = fresh ?? track;
                         PlayTrack(toPlay);
@@ -129,7 +127,6 @@ public class PlayerViewModel : ViewModelBase
             });
         };
 
-        // Commands
         PlayPauseCommand = new RelayCommand(PlayPause);
         StopCommand = new RelayCommand(Stop);
         PlayTrackCommand = new RelayCommand<Track>(PlayTrack);
@@ -149,15 +146,18 @@ public class PlayerViewModel : ViewModelBase
 
         CycleShuffleCommand = new RelayCommand(() =>
         {
-            ShuffleMode = ShuffleMode switch
+            var aiEnabled = _settings.AIFeaturesEnabled;
+            ShuffleMode = (ShuffleMode, aiEnabled) switch
             {
-                ShuffleMode.Off => ShuffleMode.Normal,
-                ShuffleMode.Normal => ShuffleMode.Smart,
-                ShuffleMode.Smart => ShuffleMode.Off,
-                _ => ShuffleMode.Off
+                (ShuffleMode.Off,    _)     => ShuffleMode.Normal,
+                (ShuffleMode.Normal, true)  => ShuffleMode.Smart,
+                (ShuffleMode.Normal, false) => ShuffleMode.Off,
+                (ShuffleMode.Smart,  _)     => ShuffleMode.Off,
+                _                           => ShuffleMode.Off
             };
-            _navigator.IsShuffle = IsShuffle;
-            _navigator.IsSmartShuffle = _shuffleMode == ShuffleMode.Smart;
+
+            _navigator.IsShuffle      = IsShuffle;
+            _navigator.IsSmartShuffle = _shuffleMode == ShuffleMode.Smart && aiEnabled;
         });
 
         CycleRepeatCommand = new RelayCommand(() =>
@@ -193,7 +193,33 @@ public class PlayerViewModel : ViewModelBase
         });
     }
 
-    //  Properties 
+    public void UpdateSkipPenaltyCap(int cap)
+    {
+        _navigator.SkipPenaltyCap = cap;
+    }
+
+    private void RecordSkipIfEarly()
+    {
+        if (_currentTrack == null) return;
+        if (_trackStartTime == DateTime.MinValue) return;
+        var elapsed = (DateTime.UtcNow - _trackStartTime).TotalSeconds;
+        var window  = _settings.SkipPenaltyWindowSeconds;
+
+        if (elapsed <= window)
+        {
+            _currentTrack.SkipCount++;
+            _currentTrack.LastSkipped = DateTime.UtcNow;
+            _library.Update(_currentTrack);
+
+            Log.Information("[Player] Skip penalty recorded for '{Title}' " +
+                "(skipped after {Elapsed:F1}s, total skips: {Count})",
+                _currentTrack.Title, elapsed, _currentTrack.SkipCount);
+
+            NullActionLogger.User("SkipPenalty",
+                $"track={_currentTrack.Id} elapsed={elapsed:F1}s skips={_currentTrack.SkipCount}",
+                nameof(PlayerViewModel));
+        }
+    }
 
     public Track? CurrentTrack
     {
@@ -241,8 +267,6 @@ public class PlayerViewModel : ViewModelBase
 
     public bool IsPlaying => _state == PlaybackState.Playing;
 
-    //  Icon properties — all return MaterialIconKind directly so Avalonia's
-    //    XAML compiler can verify the type at compile time without a converter.
     public MaterialIconKind PlayPauseIconKind => IsPlaying ? MaterialIconKind.Pause : MaterialIconKind.Play;
 
     public float Position
@@ -312,8 +336,6 @@ public class PlayerViewModel : ViewModelBase
         private set { _showAlreadyPlayingToast = value; OnPropertyChanged(); }
     }
 
-    //  Shuffle & Repeat 
-
     public ShuffleMode ShuffleMode
     {
         get => _shuffleMode;
@@ -359,9 +381,9 @@ public class PlayerViewModel : ViewModelBase
 
     public IBrush ShuffleForeground => _shuffleMode switch
     {
-        ShuffleMode.Normal => new SolidColorBrush(Color.Parse("#8B5CF6")), // Accent Purple
-        ShuffleMode.Smart => new SolidColorBrush(Color.Parse("#FCD34D")),  // Amber/Gold
-        _ => new SolidColorBrush(Color.Parse("#A8B4CC"))                   // Muted
+        ShuffleMode.Normal => new SolidColorBrush(Color.Parse("#8B5CF6")),
+        ShuffleMode.Smart => new SolidColorBrush(Color.Parse("#FCD34D")),
+        _ => new SolidColorBrush(Color.Parse("#A8B4CC"))
     };
 
     public IBrush RepeatForeground => IsRepeat
@@ -369,8 +391,6 @@ public class PlayerViewModel : ViewModelBase
         : new SolidColorBrush(Color.Parse("#A8B4CC"));
 
     public bool IsCurrentFavorite => _currentTrack?.IsFavorite ?? false;
-
-    //  Commands 
 
     public ICommand PlayPauseCommand { get; }
     public ICommand StopCommand { get; }
@@ -385,15 +405,10 @@ public class PlayerViewModel : ViewModelBase
     public ICommand ToggleMuteCommand { get; }
     public ICommand ToggleCurrentFavoriteCommand { get; }
 
-    //  Playback 
-
     public void PlayTrack(Track? track)
     {
         if (track == null) return;
 
-        // Guard: If clicking the already playing track, show toast and do nothing.
-        // We only check for Playing state so that "Repeat One" (which fires when 
-        // the track ends and state might be transitioning) isn't blocked.
         if (_currentTrack != null && track.Id == _currentTrack.Id
             && _state == PlaybackState.Playing)
         {
@@ -411,6 +426,7 @@ public class PlayerViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(track.FilePath) && System.IO.File.Exists(track.FilePath))
         {
             _playback.Play(track.FilePath);
+            _trackStartTime = DateTime.UtcNow;
             StatusText = CurrentTrackDisplay;
             NullActionLogger.TrackPlayed(track.Id.ToString(), track.Title, track.Artist, nameof(PlayerViewModel));
             return;
@@ -476,7 +492,7 @@ public class PlayerViewModel : ViewModelBase
             _library.RecordPlay(_currentTrack.Id);
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
 
-            if (_position > 0.5f)
+            if (_position >= _settings.ScrobbleThreshold)
                 TrackScrobbleRequested?.Invoke(_currentTrack.Title, _currentTrack.Artist, DateTime.UtcNow);
         }
 
@@ -485,8 +501,6 @@ public class PlayerViewModel : ViewModelBase
         else
             PlayNext();
     }
-
-    //  Seeking 
 
     private void SeekRelative(int seconds)
     {
@@ -503,12 +517,12 @@ public class PlayerViewModel : ViewModelBase
         _playback.Seek(Position);
     }
 
-    //  Navigation 
-
     private void PlayPrevious()
     {
         if (DateTime.UtcNow - _lastNavigationTime < NavigationDebounce) return;
         _lastNavigationTime = DateTime.UtcNow;
+        RecordSkipIfEarly();
+
         _download.CancelCurrentDownload();
         IsDownloading = false;
         var prev = _navigator.GetPreviousTrack(_currentTrack);
@@ -519,6 +533,8 @@ public class PlayerViewModel : ViewModelBase
     {
         if (DateTime.UtcNow - _lastNavigationTime < NavigationDebounce) return;
         _lastNavigationTime = DateTime.UtcNow;
+        RecordSkipIfEarly();
+
         _download.CancelCurrentDownload();
         IsDownloading = false;
         var next = _navigator.GetNextTrack(_currentTrack);

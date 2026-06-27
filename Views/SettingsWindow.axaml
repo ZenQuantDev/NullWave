@@ -6,7 +6,7 @@
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="NullWave — Settings"
+        Title="NullWave - Settings"
         Width="900" Height="640"
         MinWidth="760" MinHeight="520"
         WindowStartupLocation="CenterOwner"
@@ -17,7 +17,9 @@
         <converters:StringEqualsConverter x:Key="StrEq"/>
     </Window.Resources>
 
-    <Grid ColumnDefinitions="200,*">
+        <Grid ColumnDefinitions="200,*"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
 
         <!--  Left sidebar  -->
         <Border Grid.Column="0"
@@ -56,7 +58,7 @@
                            HorizontalAlignment="Center"
                            Margin="0,0,0,14"/>
 
-                <!-- Nav buttons — reuse existing .nav + .nav.active styles -->
+                <!-- Nav buttons - reuse existing .nav + .nav.active styles -->
                 <StackPanel Margin="8,12,8,0" Spacing="2">
 
                     <Button Command="{Binding NavigateSettingsCommand}"
@@ -159,8 +161,10 @@
             </DockPanel>
         </Border>
 
-        <!--  Right content — IsVisible toggling, same as MainWindow  -->
-        <Grid Grid.Column="1">
+        <!--  Right content - IsVisible toggling, same as MainWindow  -->
+        <Grid Grid.Column="1"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
 
             <settings:GeneralTab
                 DataContext="{Binding}"

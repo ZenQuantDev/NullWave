@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -14,7 +15,6 @@ using Serilog;
 
 namespace NullWave.ViewModels;
 
-//  AI service state 
 public enum AIServiceState { Stopped, Starting, Running, Error }
 
 public class SettingsViewModel : ViewModelBase
@@ -26,10 +26,8 @@ public class SettingsViewModel : ViewModelBase
     private readonly DependencyUpdateService _deps;
     private readonly ExternalAITagService _externalAI = new();
     
-    //  ADD: Health check timer field 
     private System.Threading.Timer? _aiHealthTimer;
 
-    //  Debounce 
     private CancellationTokenSource? _debounceCts;
     private const int DebounceMs = 500;
 
@@ -45,7 +43,6 @@ public class SettingsViewModel : ViewModelBase
         }, token);
     }
 
-    // API Keys
     private string _youtubeApiKey = string.Empty;
     private string _spotifyClientId = string.Empty;
     private string _spotifyClientSecret = string.Empty;
@@ -53,7 +50,6 @@ public class SettingsViewModel : ViewModelBase
     private string _lastFmApiKey = string.Empty;
     private string _openWeatherApiKey = string.Empty;
 
-    // Update status
     private string _updateStatus = "Not checked yet";
     private string _ytDlpStatus = string.Empty;
     private string _vlcStatus = string.Empty;
@@ -65,10 +61,8 @@ public class SettingsViewModel : ViewModelBase
     private string _latestVersion = string.Empty;
     private string _releaseUrl = string.Empty;
 
-    // Thumbnail status
     private string _thumbnailStatus = string.Empty;
 
-    // Smart Features / AI
     private string _hardwareInfo = "Not detected yet";
     private bool _isDetectingHardware;
     private bool _isDownloadingModel;
@@ -77,25 +71,23 @@ public class SettingsViewModel : ViewModelBase
     private string _moodPlaylistStatus = string.Empty;
     private AIServiceState _aiServiceState = AIServiceState.Stopped;
 
-    private int _currentSectionIndex = 0;
+    private string _repairStatus = string.Empty;
+    private bool _isRepairing = false;
 
+    private int _currentSectionIndex = 0;
     public int CurrentSectionIndex
     {
         get => _currentSectionIndex;
         set { _currentSectionIndex = value; OnPropertyChanged(); }
     }
 
-    //  Field 
     private string _currentSettingsPage = "General";
-
-    //  Property 
     public string CurrentSettingsPage
     {
         get => _currentSettingsPage;
         set { _currentSettingsPage = value; OnPropertyChanged(); }
     }
 
-    // External AI Status
     private string _externalAIStatus = string.Empty;
     public string ExternalAIStatus
     {
@@ -103,7 +95,6 @@ public class SettingsViewModel : ViewModelBase
         set { _externalAIStatus = value; OnPropertyChanged(); }
     }
 
-    //  API Key Properties (immediate save — no debounce) 
     public string YouTubeApiKey
     {
         get => _youtubeApiKey;
@@ -174,7 +165,6 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    //  Audio / Behavior / Appearance (debounced via PreferencesService) 
     public string AudioQuality
     {
         get => _prefsService.Current.AudioQuality;
@@ -247,7 +237,6 @@ public class SettingsViewModel : ViewModelBase
         set { _prefsService.Update(p => p.SidebarWidth = value); OnPropertyChanged(); ScheduleSave(); }
     }
 
-    //  Smart Features Properties 
     public string SelectedModel
     {
         get => _prefsService.Current.SelectedAIModel;
@@ -295,9 +284,118 @@ public class SettingsViewModel : ViewModelBase
         get => _prefsService.Current.ExternalAIExportFormat;
         set { _prefsService.Update(p => p.ExternalAIExportFormat = value); OnPropertyChanged(); ScheduleSave(); }
     }
+
+    public bool AIFeaturesEnabled
+    {
+        get => _prefsService.Current.AIFeaturesEnabled;
+        set
+        {
+            _prefsService.Update(p => p.AIFeaturesEnabled = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AIFeaturesControlsEnabled));
+            ScheduleSave();
+            AIFeaturesEnabledChanged?.Invoke(value);
+        }
+    }
+
+    public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+
+    public float ScrobbleThreshold
+    {
+        get => _prefsService.Current.ScrobbleThreshold;
+        set
+        {
+            _prefsService.Update(p => p.ScrobbleThreshold = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ScrobbleThresholdDisplay));
+            ScheduleSave();
+        }
+    }
+
+    public int MaxConcurrentDownloads
+    {
+        get => _prefsService.Current.MaxConcurrentDownloads;
+        set
+        {
+            _prefsService.Update(p => p.MaxConcurrentDownloads = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            MaxConcurrentDownloadsChanged?.Invoke(value);
+        }
+    }
+
+    public int SkipPenaltyWindowSeconds
+    {
+        get => _prefsService.Current.SkipPenaltyWindowSeconds;
+        set { _prefsService.Update(p => p.SkipPenaltyWindowSeconds = value); OnPropertyChanged(); ScheduleSave(); }
+    }
+
+    public int SkipPenaltyCap
+    {
+        get => _prefsService.Current.SkipPenaltyCap;
+        set { _prefsService.Update(p => p.SkipPenaltyCap = value); OnPropertyChanged(); ScheduleSave(); }
+    }
+
+    public string ScrobbleThresholdDisplay =>
+        $"Scrobble after {ScrobbleThreshold:P0} of track duration";
+
+    public string BatteryModel
+    {
+        get => _prefsService.Current.BatteryModel;
+        set
+        {
+            _prefsService.Update(p => p.BatteryModel = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            PowerModelsChanged?.Invoke(value, PerformanceModel, AutoPowerModelSwitch);
+        }
+    }
+
+    public string PerformanceModel
+    {
+        get => _prefsService.Current.PerformanceModel;
+        set
+        {
+            _prefsService.Update(p => p.PerformanceModel = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            PowerModelsChanged?.Invoke(BatteryModel, value, AutoPowerModelSwitch);
+        }
+    }
+
+    public bool AutoPowerModelSwitch
+    {
+        get => _prefsService.Current.AutoPowerModelSwitch;
+        set
+        {
+            _prefsService.Update(p => p.AutoPowerModelSwitch = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            PowerModelsChanged?.Invoke(BatteryModel, PerformanceModel, value);
+        }
+    }
+
+    private string _powerStateLabel = "Detecting...";
+    public string PowerStateLabel
+    {
+        get => _powerStateLabel;
+        set { _powerStateLabel = value; OnPropertyChanged(); }
+    }
+
+    public string RepairStatus
+    {
+        get => _repairStatus;
+        set { _repairStatus = value; OnPropertyChanged(); }
+    }
+
+    public bool IsRepairing
+    {
+        get => _isRepairing;
+        set { _isRepairing = value; OnPropertyChanged(); }
+    }
+
     public string[] ExportFormatOptions => new[] { "txt", "md", "json" };
 
-    //  AI Service State 
     public AIServiceState AIServiceState
     {
         get => _aiServiceState;
@@ -330,15 +428,14 @@ public class SettingsViewModel : ViewModelBase
 
     public string AIStatusDotColor => _aiServiceState switch
     {
-        AIServiceState.Running  => "#4CAF50",   // Green
-        AIServiceState.Starting => "#FCD34D",   // Amber
-        AIServiceState.Error    => "#F44336",   // Red
-        _                       => "#6B7280"    // Grey
+        AIServiceState.Running  => "#4CAF50",
+        AIServiceState.Starting => "#FCD34D",
+        AIServiceState.Error    => "#F44336",
+        _                       => "#6B7280"
     };
 
     public string AIToggleButtonLabel => _aiServiceState == AIServiceState.Running ? "Stop" : "Start";
 
-    //  Status / progress properties 
     public string HardwareInfo
     {
         get => _hardwareInfo;
@@ -381,18 +478,28 @@ public class SettingsViewModel : ViewModelBase
         set { _thumbnailStatus = value; OnPropertyChanged(); }
     }
 
-    //  Option Arrays 
     public string[] AccentColorOptions    => new[] { "Purple", "Blue", "Amber", "Green", "Red" };
     public string[] TrackRowStyleOptions  => new[] { "Comfortable", "Compact", "Cozy" };
     public string[] FontScaleOptions      => new[] { "Small", "Medium", "Large" };
     public string[] SidebarWidthOptions   => new[] { "Narrow", "Normal", "Wide" };
     public string[] AudioQualityOptions   => new[] { "best", "320", "192", "128", "96" };
     public string[] AudioFormatOptions    => new[] { "mp3", "flac", "ogg", "m4a", "wav" };
-    public string[] AIModelOptions        => new[] { "qwen2.5:3b", "qwen2.5:7b", "mistral-nemo:12b", "qwen2.5:14b", "qwen2.5:32b" };
+    
+    public string[] AIModelOptions =>
+        NullWave.Services.SmartSorting.AIModelCatalog.AllIds;
+
+    public string[] AIModelDisplayOptions =>
+        NullWave.Services.SmartSorting.AIModelCatalog.All
+            .Select(m => m.OllamaId)
+            .ToArray();
+
     public string[] MoodRefreshOptions    => new[] { "Never", "Every hour", "Every 3 hours", "Daily" };
     public string[] AIConfidenceOptions   => new[] { "50%", "60%", "70%", "80%", "90%" };
+    
+    public int[] ConcurrentDownloadOptions => new[] { 1, 2, 3, 4, 5 };
+    public int[] SkipWindowOptions         => new[] { 5, 10, 15, 20, 30 };
+    public int[] SkipPenaltyCapOptions     => new[] { 2, 3, 5, 10 };
 
-    //  Update Properties 
     public string UpdateStatus { get => _updateStatus; set { _updateStatus = value; OnPropertyChanged(); } }
     public string YtDlpStatus { get => _ytDlpStatus; set { _ytDlpStatus = value; OnPropertyChanged(); } }
     public string VlcStatus { get => _vlcStatus; set { _vlcStatus = value; OnPropertyChanged(); } }
@@ -405,7 +512,6 @@ public class SettingsViewModel : ViewModelBase
     public string ReleaseUrl { get => _releaseUrl; set { _releaseUrl = value; OnPropertyChanged(); } }
     public string CurrentVersion => _updater.CurrentVersion;
 
-    //  Commands 
     public ICommand SaveKeysCommand { get; }
     public ICommand DeleteApiKeysCommand { get; }
     public ICommand DeleteLogsCommand { get; }
@@ -419,28 +525,33 @@ public class SettingsViewModel : ViewModelBase
     public ICommand OpenLogsFolderCommand { get; }
     public ICommand ClearThumbnailsCommand { get; }
 
-    // Smart Features commands
     public ICommand DetectHardwareCommand { get; }
     public ICommand DownloadModelCommand { get; }
     public ICommand GenerateMoodPlaylistCommand { get; }
     public ICommand RefreshWeatherCommand { get; }
     public ICommand ToggleAIServiceCommand { get; }
 
-    // External AI commands
+    public ICommand RepairPathsCommand { get; }
+    public ICommand ReimportAssetsCommand { get; }
+    public ICommand ForceMetaResyncCommand { get; }
+
     public ICommand ExportUntaggedTracksCommand { get; private set; } = null!;
     public ICommand ImportAiTagsCommand         { get; private set; } = null!;
-
-    //  Command declaration (with the other ICommand properties) 
     public ICommand NavigateSettingsCommand { get; }
 
-    //  Events 
     public event Action? ClearThumbnailsRequested;
     public event Action? GenerateMoodPlaylistRequested;
     public event Action? RefreshWeatherRequested;
     public event Action? ExportUntaggedTracksRequested;
     public event Func<Task<string?>>? ImportAiTagsRequested;
+    public event Action<int>? MaxConcurrentDownloadsChanged;
+    public event Action<string, string, bool>? PowerModelsChanged;
+    public event Action<bool>? AIFeaturesEnabledChanged;
+    
+    public event Action? RepairPathsRequested;
+    public event Action? ReimportAssetsRequested;
+    public event Action? ForceMetaResyncRequested;
 
-    //  Constructor 
     public SettingsViewModel(
         KeyStoreService keyStore,
         SecureDeleteService secureDelete,
@@ -452,7 +563,6 @@ public class SettingsViewModel : ViewModelBase
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
 
-        // Load API keys from secure storage via backing fields
         _youtubeApiKey     = _keyStore.GetKey("YouTube")           ?? string.Empty;
         _spotifyClientId   = _keyStore.GetKey("Spotify:ClientId")  ?? string.Empty;
         _spotifyClientSecret = _keyStore.GetKey("Spotify:ClientSecret") ?? string.Empty;
@@ -463,7 +573,6 @@ public class SettingsViewModel : ViewModelBase
         Log.Information("[Settings] API keys loaded — YouTube:{Yt} LastFm:{Fm} OpenWeather:{Ow}",
             _youtubeApiKey.Length, _lastFmApiKey.Length, _openWeatherApiKey.Length);
 
-        //  Standard commands 
         RefreshWeatherCommand        = new RelayCommand(() => RefreshWeatherRequested?.Invoke());
         SaveKeysCommand              = new RelayCommand(SaveKeys);
         DeleteApiKeysCommand         = new RelayCommand(DeleteApiKeys);
@@ -488,7 +597,27 @@ public class SettingsViewModel : ViewModelBase
             ClearThumbnailsRequested?.Invoke();
         });
 
-        // Smart Features commands
+        RepairPathsCommand = new RelayCommand(() =>
+        {
+            IsRepairing  = true;
+            RepairStatus = "Scanning file paths...";
+            RepairPathsRequested?.Invoke();
+        });
+
+        ReimportAssetsCommand = new RelayCommand(() =>
+        {
+            IsRepairing  = true;
+            RepairStatus = "Scanning download folder...";
+            ReimportAssetsRequested?.Invoke();
+        });
+
+        ForceMetaResyncCommand = new RelayCommand(() =>
+        {
+            IsRepairing  = true;
+            RepairStatus = "Clearing cached tags — re-sync starting...";
+            ForceMetaResyncRequested?.Invoke();
+        });
+
         DetectHardwareCommand        = new RelayCommand(DetectHardware);
         DownloadModelCommand         = new RelayCommand(async () => await DownloadModelAsync());
         GenerateMoodPlaylistCommand  = new RelayCommand(() =>
@@ -498,11 +627,9 @@ public class SettingsViewModel : ViewModelBase
         });
         ToggleAIServiceCommand       = new RelayCommand(async () => await ToggleAIServiceAsync());
 
-        // External AI commands
         ExportUntaggedTracksCommand = new RelayCommand(async () => await ExportUntaggedTracksAsync());
         ImportAiTagsCommand         = new RelayCommand(async () => await ImportAiTagsAsync());
 
-        //  Constructor assignment (after the other command assignments) 
         NavigateSettingsCommand = new RelayCommand<string>(page =>
         {
             if (!string.IsNullOrWhiteSpace(page))
@@ -511,14 +638,18 @@ public class SettingsViewModel : ViewModelBase
 
         DetectHardware();
 
-        //  AI Health Check 
         _ = ProbeOllamaOnStartupAsync();
         StartAIHealthCheck();
     }
 
-    //  AI Service Start / Stop 
     private async Task ToggleAIServiceAsync()
     {
+        if (!AIFeaturesEnabled)
+        {
+            AIServiceState = AIServiceState.Stopped;
+            return;
+        }
+
         if (_aiServiceState == AIServiceState.Running)
         {
             AIServiceState = AIServiceState.Stopped;
@@ -542,20 +673,19 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    //  AI Health Check Methods 
-    
-    /// <summary>
-    /// Called once at startup. If Ollama is already running we reflect that
-    /// immediately instead of showing "Stopped" when it's clearly active.
-    /// </summary>
     private async Task ProbeOllamaOnStartupAsync()
     {
         try
         {
+            if (!AIFeaturesEnabled)
+            {
+                AIServiceState = AIServiceState.Stopped;
+                Log.Information("[Settings] AI features disabled — skipping Ollama probe");
+                return;
+            }
+
             var ai = new LocalAIService();
             bool running = await ai.PingAsync();
-            // Only update if still in the default Stopped state — don't override
-            // a user-initiated state change that raced with startup.
             if (_aiServiceState == AIServiceState.Stopped)
                 AIServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
 
@@ -567,16 +697,12 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Starts a background timer that pings Ollama every 30 seconds and
-    /// updates AIServiceState to match reality.
-    /// </summary>
-    private void StartAIHealthCheck()
+    public void StartAIHealthCheck()
     {
         _aiHealthTimer = new System.Threading.Timer(
             async _ => await HealthCheckTickAsync(),
             null,
-            dueTime:  TimeSpan.FromSeconds(30),   // first check after 30s
+            dueTime:  TimeSpan.FromSeconds(30),
             period:   TimeSpan.FromSeconds(30));
     }
 
@@ -584,17 +710,13 @@ public class SettingsViewModel : ViewModelBase
     {
         try
         {
-            // Skip the ping entirely if the user explicitly stopped the service —
-            // we don't want to auto-restart something they intentionally disabled.
-            // We only reconcile Running↔Error states.
-            if (_aiServiceState == AIServiceState.Stopped) return;
+            if (!AIFeaturesEnabled || _aiServiceState == AIServiceState.Stopped) return;
 
             var ai = new LocalAIService();
             bool reachable = await ai.PingAsync();
 
             var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
 
-            // Only update (and notify UI) if the state actually changed
             if (_aiServiceState != newState)
             {
                 AIServiceState = newState;
@@ -613,7 +735,11 @@ public class SettingsViewModel : ViewModelBase
         _aiHealthTimer = null;
     }
 
-    //  Callbacks from MainViewModel 
+    public void SetAIServiceState(AIServiceState state)
+    {
+        AIServiceState = state;
+    }
+
     public void ReportThumbnailsCleared(int count)
     {
         ThumbnailStatus = $"Cleared {count} thumbnails — re-fetching in background...";
@@ -632,7 +758,45 @@ public class SettingsViewModel : ViewModelBase
         Log.Warning("[Settings] Mood playlist generation failed: {Reason}", reason);
     }
 
-    //  External AI Methods 
+    public void ReportRepairPathsComplete(int total, int missing, int cleared)
+    {
+        IsRepairing  = false;
+        RepairStatus = missing == 0
+            ? $"✓ All {total} file paths are valid."
+            : $"Found {missing} missing file(s) — {cleared} path(s) cleared for re-download.";
+        NullWave.Services.ToastService.Instance.Show(RepairStatus,
+            missing == 0 ? NullWave.Models.ToastType.Success : NullWave.Models.ToastType.Warning);
+        Log.Information("[Settings] RepairPaths: {Total} checked, {Missing} missing, {Cleared} cleared",
+            total, missing, cleared);
+    }
+
+    public void ReportReimportComplete(int relinked)
+    {
+        IsRepairing  = false;
+        RepairStatus = relinked == 0
+            ? "No new file matches found in download folder."
+            : $"✓ Re-linked {relinked} track(s) to audio files on disk.";
+        NullWave.Services.ToastService.Instance.Show(RepairStatus,
+            relinked > 0 ? NullWave.Models.ToastType.Success : NullWave.Models.ToastType.Info);
+        Log.Information("[Settings] Reimport: {Count} tracks re-linked", relinked);
+    }
+
+    public void ReportMetaResyncComplete(int cleared)
+    {
+        IsRepairing  = false;
+        RepairStatus = $"✓ Cleared tags for {cleared} track(s) — Last.fm re-sync running in background.";
+        NullWave.Services.ToastService.Instance.Show(RepairStatus, NullWave.Models.ToastType.Success);
+        Log.Information("[Settings] MetaResync: {Count} tracks cleared", cleared);
+    }
+
+    public void ReportRepairFailed(string operation, string reason)
+    {
+        IsRepairing  = false;
+        RepairStatus = $"✗ {operation} failed: {reason}";
+        NullWave.Services.ToastService.Instance.Show(RepairStatus, NullWave.Models.ToastType.Error);
+        Log.Error("[Settings] Repair failed — {Op}: {Reason}", operation, reason);
+    }
+
     private Task ExportUntaggedTracksAsync()
     {
         ExternalAIStatus = "Preparing export...";
@@ -658,7 +822,6 @@ public class SettingsViewModel : ViewModelBase
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
         var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
 
-        // Generate chunks (>50 tracks = multiple files)
         var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
 
         var sp = new Avalonia.Platform.Storage.FilePickerSaveOptions
@@ -675,11 +838,9 @@ public class SettingsViewModel : ViewModelBase
             }
         };
 
-        // Save each chunk — for multi-chunk exports, open the picker once per file
         int savedCount = 0;
         foreach (var (content, fileName) in chunks)
         {
-            // For chunks after the first, update the suggested name
             sp.SuggestedFileName = fileName;
             if (savedCount > 0)
                 sp.Title = $"Save AI Prompt — Part {savedCount + 1} of {chunks.Count}";
@@ -752,7 +913,6 @@ public class SettingsViewModel : ViewModelBase
         Log.Error("[Settings] External AI import failed: {Reason}", reason);
     }
 
-    //  Smart Sorting / Hardware 
     private void DetectHardware()
     {
         IsDetectingHardware = true;
@@ -765,6 +925,17 @@ public class SettingsViewModel : ViewModelBase
                            $"Recommended: {info.RecommendedModel}\n" +
                            $"{info.RecommendationReason}";
             SelectedModel = info.RecommendedModel;
+
+            var suggestedBattery = NullWave.Services.SmartSorting.AIModelCatalog
+                .SuggestBatteryModel(info.RamGB);
+            var suggestedPerf = NullWave.Services.SmartSorting.AIModelCatalog
+                .SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
+
+            if (BatteryModel == "qwen2.5:3b" || string.IsNullOrEmpty(BatteryModel))
+                BatteryModel = suggestedBattery;
+            if (PerformanceModel == "qwen2.5:7b" || string.IsNullOrEmpty(PerformanceModel))
+                PerformanceModel = suggestedPerf;
+
             Log.Information("[Settings] Hardware detected: {Info}", HardwareInfo);
         }
         catch (Exception ex)
@@ -808,7 +979,6 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    //  API Key Methods 
     private void SaveKeys()
     {
         if (!string.IsNullOrWhiteSpace(YouTubeApiKey))       _keyStore.SaveKey("YouTube", YouTubeApiKey);
@@ -842,7 +1012,6 @@ public class SettingsViewModel : ViewModelBase
         Log.Warning("[Settings] Full data wipe performed");
     }
 
-    //  Helpers 
     private static void OpenFolder(string path)
     {
         System.IO.Directory.CreateDirectory(path);

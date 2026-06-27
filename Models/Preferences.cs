@@ -36,4 +36,19 @@ public class Preferences
 
     // External AI Export Format
     public string ExternalAIExportFormat { get; set; } = "txt";
+
+    public float ScrobbleThreshold { get; set; } = 0.50f;
+    public int SkipPenaltyWindowSeconds { get; set; } = 15;
+    public int SkipPenaltyCap { get; set; } = 3;
+    public int MaxConcurrentDownloads { get; set; } = 2;
+
+    // Model to use when running on battery power (prefer small/fast)
+    public string BatteryModel { get; set; } = "qwen2.5:3b";
+    // Model to use when plugged in / GPU available (prefer quality)
+    public string PerformanceModel { get; set; } = "qwen2.5:7b";
+    // Whether to automatically switch models based on power state
+    public bool AutoPowerModelSwitch { get; set; } = false;
+
+    // Master AI Toggle
+    public bool AIFeaturesEnabled { get; set; } = true;
 }

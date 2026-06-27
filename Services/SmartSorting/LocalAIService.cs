@@ -14,28 +14,68 @@ namespace NullWave.Services.SmartSorting;
 
 public class LocalAIService
 {
-    // We leave the default timeout here so long generation tasks have time to finish.
-    private readonly HttpClient _http = new();
-    private readonly string _ollamaUrl = "http://localhost:11434";
-    private string _currentModel = "qwen2.5:7b";
+    // Short-timeout client for health checks (ping, tags list)
+    private static readonly HttpClient _pingClient = new()
+        { Timeout = TimeSpan.FromSeconds(5) };
 
+    // Generation client - longer timeout, but bounded so we don't wait forever.
+    // 60s is enough for a 7B model on a modern CPU; 100s was too generous and
+    // caused the timeout errors shown in the logs.
+    private static readonly HttpClient _genClient = new()
+        { Timeout = TimeSpan.FromSeconds(60) };
+
+    private readonly string _ollamaUrl = "http://localhost:11434";
+
+    // ── Active model ─────────────────────────────────────────────────────────
+    private string _currentModel = "qwen2.5:7b";
     public string CurrentModel
     {
         get => _currentModel;
         set => _currentModel = value;
     }
 
+    // ── Power-aware model switching ──────────────────────────────────────────
+    private string _batteryModel     = "qwen2.5:3b";
+    private string _performanceModel = "qwen2.5:7b";
+    private bool   _autoPowerSwitch  = false;
+
     /// <summary>
-    /// Pings the Ollama API to check if the service is running and reachable.
-    /// Does NOT load or run the model — just verifies the daemon responds quickly.
+    /// Configure the two models used for power-aware switching.
+    /// Call from SettingsViewModel when the user changes the dropdowns.
     /// </summary>
+    public void ConfigurePowerModels(
+        string batteryModel,
+        string performanceModel,
+        bool autoSwitch)
+    {
+        _batteryModel     = batteryModel;
+        _performanceModel = performanceModel;
+        _autoPowerSwitch  = autoSwitch;
+    }
+
+    /// <summary>
+    /// Called by PowerStateService when power state changes.
+    /// Switches CurrentModel automatically if auto-switching is enabled.
+    /// </summary>
+    public void OnPowerStateChanged(PowerState state)
+    {
+        if (!_autoPowerSwitch) return;
+
+        var target = state == PowerState.Battery ? _batteryModel : _performanceModel;
+        if (target == _currentModel) return;
+
+        _currentModel = target;
+        Log.Information("[LocalAIService] Power state changed to {State} → switching model to {Model}",
+            state, target);
+    }
+
+    // ── Health / status ──────────────────────────────────────────────────────
+
     public async Task<bool> PingAsync()
     {
         try
         {
-            // Use a specific 5-second timeout just for the ping check
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var response = await _http.GetAsync($"{_ollamaUrl}/", cts.Token);
+            var response = await _pingClient.GetAsync($"{_ollamaUrl}/");
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -45,57 +85,27 @@ public class LocalAIService
         }
     }
 
-    /// <summary>
-    /// Forces Ollama to immediately drop the model from system RAM.
-    /// </summary>
-    public async Task UnloadModelAsync(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName)) return;
-
-        try
-        {
-            // Sending keep_alive = 0 tells Ollama to evict the model immediately
-            var payload = new { model = modelName, keep_alive = 0 };
-            var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _http.PostAsync($"{_ollamaUrl}/api/generate", content);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                Log.Information("[LocalAIService] Successfully evicted {Model} from RAM.", modelName);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[LocalAIService] Failed to unload model {Model}: {Message}", modelName, ex.Message);
-        }
-    }
-
     public async Task<bool> IsOllamaRunningAsync()
     {
         try
         {
-            var response = await _http.GetAsync($"{_ollamaUrl}/api/tags");
+            var response = await _pingClient.GetAsync($"{_ollamaUrl}/api/tags");
             return response.IsSuccessStatusCode;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
     public async Task<bool> IsModelDownloadedAsync(string model)
     {
         try
         {
-            var response = await _http.GetAsync($"{_ollamaUrl}/api/tags");
+            var response = await _pingClient.GetAsync($"{_ollamaUrl}/api/tags");
             if (!response.IsSuccessStatusCode) return false;
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             var models = doc.RootElement.GetProperty("models");
-            
+
             foreach (var m in models.EnumerateArray())
             {
                 var name = m.GetProperty("name").GetString();
@@ -104,31 +114,50 @@ public class LocalAIService
             }
             return false;
         }
-        catch
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Forces Ollama to immediately evict the model from RAM/VRAM.
+    /// Sending keep_alive=0 is the official Ollama API approach.
+    /// </summary>
+    public async Task UnloadModelAsync(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName)) return;
+        try
         {
-            return false;
+            var payload = new { model = modelName, keep_alive = 0 };
+            var content = new StringContent(
+                JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            await _genClient.PostAsync($"{_ollamaUrl}/api/generate", content);
+            Log.Information("[LocalAIService] Evicted '{Model}' from RAM", modelName);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[LocalAIService] Failed to unload {Model}: {Message}", modelName, ex.Message);
         }
     }
 
-    public async Task DownloadModelAsync(string model, IProgress<double>? progress = null, CancellationToken ct = default)
+    // ── Model download ────────────────────────────────────────────────────────
+
+    public async Task DownloadModelAsync(
+        string model,
+        IProgress<double>? progress = null,
+        CancellationToken ct = default)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = "ollama",
-            Arguments = $"pull {model}",
+            FileName               = "ollama",
+            Arguments              = $"pull {model}",
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+            CreateNoWindow         = true
         };
 
-        using var proc = Process.Start(psi);
-        if (proc == null)
-        {
-            throw new Exception("Failed to start ollama process");
-        }
+        using var proc = Process.Start(psi)
+            ?? throw new Exception("Failed to start ollama process");
 
-        // Read output for progress
         _ = Task.Run(async () =>
         {
             while (!proc.StandardOutput.EndOfStream && !ct.IsCancellationRequested)
@@ -136,22 +165,21 @@ public class LocalAIService
                 var line = await proc.StandardOutput.ReadLineAsync();
                 if (line != null && line.Contains("pulling"))
                 {
-                    // Parse progress from line like "pulling manifest... 50%"
                     var percentStart = line.IndexOf('%');
                     if (percentStart > 0)
                     {
                         var numStart = line.LastIndexOf(' ', percentStart - 1) + 1;
-                        if (double.TryParse(line.Substring(numStart, percentStart - numStart), out double pct))
-                        {
+                        if (double.TryParse(
+                                line.Substring(numStart, percentStart - numStart),
+                                out double pct))
                             progress?.Report(pct / 100.0);
-                        }
                     }
                 }
             }
         }, ct);
 
         await proc.WaitForExitAsync(ct);
-        
+
         if (proc.ExitCode != 0)
         {
             var error = await proc.StandardError.ReadToEndAsync();
@@ -160,6 +188,8 @@ public class LocalAIService
 
         progress?.Report(1.0);
     }
+
+    // ── Track ranking ─────────────────────────────────────────────────────────
 
     public async Task<string[]> RankTracksForMoodAsync(
         string mood,
@@ -170,30 +200,25 @@ public class LocalAIService
         CancellationToken ct = default)
     {
         var prompt = BuildMoodPrompt(mood, weather, temperature, candidateTracks, maxResults);
-        
+
         var requestBody = new
         {
-            model = _currentModel,
+            model  = _currentModel,
             prompt = prompt,
             stream = false,
-            options = new
-            {
-                temperature = 0.7,
-                top_p = 0.9,
-                num_predict = 500
-            }
+            options = new { temperature = 0.7, top_p = 0.9, num_predict = 500 }
         };
 
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var content = new StringContent(
+            JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
         try
         {
-            var response = await _http.PostAsync($"{_ollamaUrl}/api/generate", content, ct);
+            var response = await _genClient.PostAsync($"{_ollamaUrl}/api/generate", content, ct);
             response.EnsureSuccessStatusCode();
 
-            var resultJson = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(resultJson);
+            var resultJson = await response.Content.ReadAsStringAsync(ct);
+            using var doc  = JsonDocument.Parse(resultJson);
             var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
 
             return ParseTrackIdsFromResponse(responseText, candidateTracks);
@@ -205,55 +230,48 @@ public class LocalAIService
         }
     }
 
-    private string BuildMoodPrompt(string mood, string weather, double temp, Track[] tracks, int maxResults)
+    private string BuildMoodPrompt(
+        string mood, string weather, double temp,
+        Track[] tracks, int maxResults)
     {
         var trackList = new StringBuilder();
         foreach (var track in tracks)
-        {
-            trackList.AppendLine($"- ID: {track.Id}, Title: \"{track.Title}\", Artist: \"{track.Artist}\", Tags: [{string.Join(", ", track.Tags)}], Plays: {track.PlayCount}");
-        }
+            trackList.AppendLine(
+                $"- ID: {track.Id}, Title: \"{track.Title}\", " +
+                $"Artist: \"{track.Artist}\", Tags: [{string.Join(", ", track.Tags)}], " +
+                $"Plays: {track.PlayCount}");
 
-        return $@"You are a music recommendation AI. Given the current weather and mood, rank the following tracks from most to least suitable.
+        return $"""
+You are a music recommendation AI. Given the current weather and mood, rank the following tracks.
 
-Current weather: {weather}
-Temperature: {temp}°C
-Desired mood: {mood}
+Weather: {weather}, {temp:F0}°C
+Mood: {mood}
 
-Available tracks:
+Tracks:
 {trackList}
+Return ONLY a JSON array of track IDs, most suitable first. Max {maxResults} IDs.
+Example: ["id1","id2","id3"]
 
-Return ONLY a JSON array of track IDs in order of suitability (most suitable first). Return at most {maxResults} IDs.
-Example format: [""id1"", ""id2"", ""id3""]
-
-Your response:";
+Response:
+""";
     }
 
-    private string[] ParseTrackIdsFromResponse(string response, Track[] tracks)
+    private static string[] ParseTrackIdsFromResponse(string response, Track[] tracks)
     {
         try
         {
-            // Extract JSON array from response
             var start = response.IndexOf('[');
-            var end = response.LastIndexOf(']');
-            if (start < 0 || end < 0 || end <= start)
-                return Array.Empty<string>();
+            var end   = response.LastIndexOf(']');
+            if (start < 0 || end <= start) return Array.Empty<string>();
 
-            var jsonArray = response.Substring(start, end - start + 1);
-            var ids = JsonSerializer.Deserialize<string[]>(jsonArray);
-            
+            var ids = JsonSerializer.Deserialize<string[]>(
+                response.Substring(start, end - start + 1));
+
             if (ids == null) return Array.Empty<string>();
 
-            // Validate IDs exist in candidate tracks
-            var validIds = new System.Collections.Generic.List<string>();
-            foreach (var id in ids)
-            {
-                if (Guid.TryParse(id, out var guid) && tracks.Any(t => t.Id == guid))
-                {
-                    validIds.Add(id);
-                }
-            }
-
-            return validIds.ToArray();
+            return ids
+                .Where(id => Guid.TryParse(id, out var g) && tracks.Any(t => t.Id == g))
+                .ToArray();
         }
         catch (Exception ex)
         {

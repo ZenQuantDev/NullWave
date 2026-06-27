@@ -8,16 +8,24 @@ namespace NullWave.Helpers.Converters;
 
 public class FilePathToBitmapConverter : IValueConverter
 {
-    public static readonly FilePathToBitmapConverter Instance = new();
-
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not string path || string.IsNullOrEmpty(path)) return null;
-        if (!File.Exists(path)) return null;
-        try { return new Bitmap(path); }
-        catch { return null; }
+        if (value is string path && !string.IsNullOrEmpty(path) && File.Exists(path))
+        {
+            try
+            {
+                return new Bitmap(path);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+    {
+        throw new NotImplementedException();
+    }
 }

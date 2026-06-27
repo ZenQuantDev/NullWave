@@ -1,13 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
              x:Class="NullWave.Views.Settings.AudioTab"
              x:DataType="vm:SettingsViewModel">
 
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <TextBlock Classes="section-label" Text="DOWNLOAD SETTINGS" Margin="0,0,0,12"/>
+            <!--  Download Settings  -->
+            <TextBlock Classes="section-label" Text="DOWNLOAD" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
@@ -37,7 +39,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="Bitrate for extraction — 'best' grabs the highest available"
+                            <TextBlock Text="Bitrate for extraction - 'best' grabs the highest available"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeSm}"/>
                         </StackPanel>
@@ -48,13 +50,52 @@
                                   VerticalAlignment="Center"/>
                     </Grid>
 
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Concurrent downloads"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <Button Classes="help-btn"
+                                        ToolTip.Tip="How many yt-dlp processes can run simultaneously. Lower on slow connections, higher on fast fiber.">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Limit parallel yt-dlp download threads (1 = sequential, 5 = max)"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding ConcurrentDownloadOptions}"
+                                  SelectedItem="{Binding MaxConcurrentDownloads, Mode=TwoWay}"
+                                  MinWidth="130"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
+                </StackPanel>
+            </Border>
+
+            <!--  Playback  -->
+            <TextBlock Classes="section-label" Text="PLAYBACK" Margin="0,0,0,12"/>
+
+            <Border Classes="settings-card">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Crossfade and fade-on-pause coming in a future update."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeSm}"/>
+                    <TextBlock Text="LibVLC volume ramping is planned for the next audio milestone."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"/>
                 </StackPanel>
             </Border>
 
             <Border Background="{StaticResource BrushSurface2}"
                     CornerRadius="{StaticResource RadiusMd}"
                     Padding="14,12">
-                <TextBlock Text="Format and quality settings apply to new downloads. Existing files are not re-encoded."
+                <TextBlock Text="Format and quality apply to new downloads only. Existing files are not re-encoded."
                            Foreground="{StaticResource BrushTextMuted}"
                            FontSize="{StaticResource FontSizeXs}"
                            TextWrapping="Wrap"/>

@@ -1,11 +1,9 @@
+// TrackRecord.cs
 using System;
 using SQLite;
 
 namespace NullWave.Models;
 
-/// <summary>
-/// Flat SQLite-mapped record. Converted to/from Track for all in-memory work.
-/// </summary>
 [Table("Tracks")]
 public class TrackRecord
 {
@@ -23,11 +21,10 @@ public class TrackRecord
     public DateTime? LastPlayed { get; set; }
     public string? AlbumArtPath { get; set; }
     public string? Notes     { get; set; }
+    public int SkipCount     { get; set; }
+    public DateTime? LastSkipped { get; set; }
 
-    // Tags stored as pipe-separated string: "rock|indie|chill"
     public string? TagsRaw   { get; set; }
-
-    // ── Conversion helpers ────────────────────────────────────────────────
 
     public static TrackRecord FromTrack(Track t) => new()
     {
@@ -43,6 +40,8 @@ public class TrackRecord
         LastPlayed  = t.LastPlayed,
         AlbumArtPath = t.AlbumArtPath,
         Notes       = t.Notes,
+        SkipCount   = t.SkipCount,
+        LastSkipped = t.LastSkipped,
         TagsRaw     = t.Tags.Count > 0 ? string.Join("|", t.Tags) : null
     };
 
@@ -60,6 +59,8 @@ public class TrackRecord
         LastPlayed  = LastPlayed,
         AlbumArtPath = AlbumArtPath,
         Notes       = Notes,
+        SkipCount   = SkipCount,
+        LastSkipped = LastSkipped,
         Tags        = string.IsNullOrEmpty(TagsRaw)
                         ? new()
                         : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries))

@@ -5,20 +5,19 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
-using NullWave.Helpers;
-using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
-using NullWave.Views;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.ViewModels;
 
-public class UserProfileViewModel : ViewModelBase
+public class UserProfileViewModel : ViewModelBase, IDisposable
 {
     private sealed record ProfileData(
         string Username,
@@ -39,6 +38,27 @@ public class UserProfileViewModel : ViewModelBase
 
     // Save toast state
     private bool _showSaveToast;
+
+    // Cached Stat Fields
+    private int _totalTracks;
+    private int _totalFavorites;
+    private int _totalPlays;
+    private int _totalSkips;
+    private string _mostPlayedTrack = "-";
+    private string? _mostPlayedTrackArtPath;
+    private string _mostPlayedArtist = "-";
+    private int _youtubeCount;
+    private int _soundCloudCount;
+    private int _localCount;
+
+    private string? _avatarPath;
+    private string _toastMessage = "Saved";
+
+    public string ToastMessage
+    {
+        get => _toastMessage;
+        private set { _toastMessage = value; OnPropertyChanged(); }
+    }
 
     public string Username
     {
@@ -86,53 +106,20 @@ public class UserProfileViewModel : ViewModelBase
         private set { _showSaveToast = value; OnPropertyChanged(); }
     }
 
-    // Real stats from library
-    public int TotalTracks => _library?.GetAll().Count ?? 0;
-    public int TotalFavorites => _library?.GetAll().Count(t => t.IsFavorite) ?? 0;
-    public int TotalPlays => _library?.GetAll().Sum(t => t.PlayCount) ?? 0;
-
-    public string MostPlayedTrack
-    {
-        get
-        {
-            var track = _library?.GetAll()
-                .OrderByDescending(t => t.PlayCount)
-                .FirstOrDefault(t => t.PlayCount > 0);
-            return track?.Title ?? "—";
-        }
-    }
-
-    public string? MostPlayedTrackArtPath
-    {
-        get
-        {
-            var track = _library?.GetAll()
-                .OrderByDescending(t => t.PlayCount)
-                .FirstOrDefault(t => t.PlayCount > 0);
-            return track?.AlbumArtPath;
-        }
-    }
-
+    public int TotalTracks => _totalTracks;
+    public int TotalFavorites => _totalFavorites;
+    public int TotalPlays => _totalPlays;
+    public int TotalSkips => _totalSkips;
+    public string MostPlayedTrack => _mostPlayedTrack;
+    public string? MostPlayedTrackArtPath => _mostPlayedTrackArtPath;
     public bool HasMostPlayedTrackArt => !string.IsNullOrEmpty(MostPlayedTrackArtPath);
-
-    public string MostPlayedArtist
-    {
-        get
-        {
-            var artist = _library?.GetAll()
-                .Where(t => t.Artist != "Unknown" && !string.IsNullOrEmpty(t.Artist))
-                .GroupBy(t => t.Artist)
-                .OrderByDescending(g => g.Sum(t => t.PlayCount))
-                .FirstOrDefault()?.Key;
-            return artist ?? "—";
-        }
-    }
+    public string MostPlayedArtist => _mostPlayedArtist;
 
     public string MemberSince => _createdAt == default ? DateTime.Now.ToString("MMMM yyyy") : _createdAt.ToString("MMMM yyyy");
 
-    public int YouTubeCount => _library?.GetAll().Count(t => t.Source == TrackSource.YouTube) ?? 0;
-    public int SoundCloudCount => _library?.GetAll().Count(t => t.Source == TrackSource.SoundCloud) ?? 0;
-    public int LocalCount => _library?.GetAll().Count(t => t.Source == TrackSource.Local) ?? 0;
+    public int YouTubeCount => _youtubeCount;
+    public int SoundCloudCount => _soundCloudCount;
+    public int LocalCount => _localCount;
 
     public int YouTubePercentage => TotalTracks > 0 ? (YouTubeCount * 100) / TotalTracks : 0;
     public int SoundCloudPercentage => TotalTracks > 0 ? (SoundCloudCount * 100) / TotalTracks : 0;
@@ -144,7 +131,6 @@ public class UserProfileViewModel : ViewModelBase
 
     public ICommand PickAvatarCommand { get; }
     public ICommand ResetAvatarCommand { get; }
-    public ICommand ExportProfileCommand { get; }
     public ICommand ManualSaveCommand { get; }
 
     private System.Threading.Timer? _saveTimer;
@@ -153,7 +139,9 @@ public class UserProfileViewModel : ViewModelBase
     {
         _library = library;
         _createdAt = DateTime.Now;
+        
         Load();
+        UpdateStatistics();
 
         _savedUsername = _username;
         _savedBio = _bio;
@@ -161,8 +149,81 @@ public class UserProfileViewModel : ViewModelBase
 
         PickAvatarCommand = new RelayCommand(async () => await PickAvatarAsync());
         ResetAvatarCommand = new RelayCommand(ResetAvatar);
-        ExportProfileCommand = new RelayCommand(async () => await ExportProfileAsync());
         ManualSaveCommand = new RelayCommand(async () => await ManualSaveAsync());
+
+        if (_library != null)
+        {
+            _library.LibraryChanged += OnLibraryChanged;
+        }
+    }
+
+    private void OnLibraryChanged(object? sender, EventArgs e)
+    {
+        UpdateStatistics();
+    }
+
+    public void UpdateStatistics()
+    {
+        if (_library == null) return;
+
+        var allTracks = _library.GetAll();
+        if (allTracks == null || !allTracks.Any()) 
+        {
+            _totalTracks = 0;
+            _totalFavorites = 0;
+            _totalPlays = 0;
+            _totalSkips = 0;
+            _mostPlayedTrack = "-";
+            _mostPlayedTrackArtPath = null;
+            _mostPlayedArtist = "-";
+            _youtubeCount = 0;
+            _soundCloudCount = 0;
+            _localCount = 0;
+            RefreshStatProperties();
+            return;
+        }
+
+        _totalTracks = allTracks.Count;
+        _totalFavorites = allTracks.Count(t => t.IsFavorite);
+        _totalPlays = allTracks.Sum(t => t.PlayCount);
+        _totalSkips = allTracks.Sum(t => t.SkipCount);
+
+        var topTrack = allTracks.OrderByDescending(t => t.PlayCount).FirstOrDefault(t => t.PlayCount > 0);
+        _mostPlayedTrack = topTrack?.Title ?? "-";
+        _mostPlayedTrackArtPath = topTrack?.AlbumArtPath;
+
+        _mostPlayedArtist = allTracks
+            .Where(t => t.Artist != "Unknown" && !string.IsNullOrEmpty(t.Artist))
+            .GroupBy(t => t.Artist)
+            .OrderByDescending(g => g.Sum(t => t.PlayCount))
+            .FirstOrDefault()?.Key ?? "-";
+
+        _youtubeCount = allTracks.Count(t => t.Source == TrackSource.YouTube);
+        _soundCloudCount = allTracks.Count(t => t.Source == TrackSource.SoundCloud);
+        _localCount = allTracks.Count(t => t.Source == TrackSource.Local);
+
+        RefreshStatProperties();
+    }
+
+    private void RefreshStatProperties()
+    {
+        OnPropertyChanged(nameof(TotalTracks));
+        OnPropertyChanged(nameof(TotalFavorites));
+        OnPropertyChanged(nameof(TotalPlays));
+        OnPropertyChanged(nameof(TotalSkips));
+        OnPropertyChanged(nameof(MostPlayedTrack));
+        OnPropertyChanged(nameof(MostPlayedArtist));
+        OnPropertyChanged(nameof(HasMostPlayedTrackArt));
+        OnPropertyChanged(nameof(MostPlayedTrackArtPath));
+        OnPropertyChanged(nameof(YouTubeCount));
+        OnPropertyChanged(nameof(SoundCloudCount));
+        OnPropertyChanged(nameof(LocalCount));
+        OnPropertyChanged(nameof(YouTubePercentage));
+        OnPropertyChanged(nameof(SoundCloudPercentage));
+        OnPropertyChanged(nameof(LocalPercentage));
+        OnPropertyChanged(nameof(YouTubePercentageText));
+        OnPropertyChanged(nameof(SoundCloudPercentageText));
+        OnPropertyChanged(nameof(LocalPercentageText));
     }
 
     private void MarkDirty()
@@ -173,149 +234,164 @@ public class UserProfileViewModel : ViewModelBase
     private void DebouncedSave()
     {
         _saveTimer?.Dispose();
-        _saveTimer = new System.Threading.Timer(async _ =>
+        _saveTimer = new System.Threading.Timer(async _ => 
         {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                await SaveAsync(showToast: false);
-            });
-        }, null, 800, System.Threading.Timeout.Infinite);
+            await SaveInternalAsync(showToast: false);
+        }, null, 2000, System.Threading.Timeout.Infinite);
     }
 
     private void Load()
     {
         try
         {
-            if (!File.Exists(NullWavePaths.ProfilePath)) return;
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+            string filePath = Path.Combine(dir, "profile.json");
 
-            var json = File.ReadAllText(NullWavePaths.ProfilePath);
-            var data = JsonSerializer.Deserialize<ProfileData>(json);
-            if (data == null) return;
+            if (File.Exists(filePath))
+            {
+                string json = File.ReadAllText(filePath);
+                var data = JsonSerializer.Deserialize<ProfileData>(json);
+                if (data != null)
+                {
+                    _username = data.Username;
+                    _bio = data.Bio;
+                    _createdAt = data.CreatedAt;
+                    _avatarPath = data.AvatarPath;
 
-            _username = data.Username;
-            _bio = data.Bio;
-            _createdAt = data.CreatedAt == default ? DateTime.Now : data.CreatedAt;
-
-            if (!string.IsNullOrEmpty(data.AvatarPath) &&
-                File.Exists(data.AvatarPath))
-                Avatar = new Bitmap(data.AvatarPath);
-
-            Log.Debug("[{Source}] Profile loaded: {Username}", nameof(UserProfileViewModel), _username);
+                    if (!string.IsNullOrEmpty(_avatarPath) && File.Exists(_avatarPath))
+                    {
+                        using var stream = File.OpenRead(_avatarPath);
+                        Avatar = new Bitmap(stream);
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
-            NullActionLogger.Error(nameof(UserProfileViewModel), ex, "Profile load failed");
+            Log.Error(ex, "Failed to load user profile configuration.");
         }
     }
 
-    private async Task SaveAsync(bool showToast = true)
+    private async Task ManualSaveAsync()
+    {
+        _saveTimer?.Dispose();
+        await SaveInternalAsync(showToast: true);
+    }
+
+    private async Task SaveInternalAsync(bool showToast)
     {
         try
         {
-            var data = new ProfileData(
-                Username: _username,
-                Bio: _bio,
-                AvatarPath: File.Exists(NullWavePaths.AvatarPath) ? NullWavePaths.AvatarPath : null,
-                CreatedAt: _createdAt == default ? DateTime.Now : _createdAt);
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(NullWavePaths.ProfilePath, json);
+            string filePath = Path.Combine(dir, "profile.json");
+            var data = new ProfileData(Username, Bio, _avatarPath, _createdAt);
+            
+            string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(filePath, json);
 
-            _savedUsername = _username;
-            _savedBio = _bio;
+            _savedUsername = Username;
+            _savedBio = Bio;
             _savedHasAvatar = HasAvatar;
-            OnPropertyChanged(nameof(IsDirty));
+            
+            MarkDirty();
 
             if (showToast)
             {
-                ShowSaveToast = true;
-                await Task.Delay(1800);
-                ShowSaveToast = false;
+                await ShowToastAsync("Saved");
             }
-
-            OnPropertyChanged(nameof(TotalTracks));
-            OnPropertyChanged(nameof(TotalFavorites));
-            OnPropertyChanged(nameof(TotalPlays));
-            OnPropertyChanged(nameof(MostPlayedTrack));
-            OnPropertyChanged(nameof(MostPlayedArtist));
-            OnPropertyChanged(nameof(YouTubeCount));
-            OnPropertyChanged(nameof(SoundCloudCount));
-            OnPropertyChanged(nameof(LocalCount));
-            OnPropertyChanged(nameof(YouTubePercentage));
-            OnPropertyChanged(nameof(SoundCloudPercentage));
-            OnPropertyChanged(nameof(LocalPercentage));
-            OnPropertyChanged(nameof(YouTubePercentageText));
-            OnPropertyChanged(nameof(SoundCloudPercentageText));
-            OnPropertyChanged(nameof(LocalPercentageText));
         }
         catch (Exception ex)
         {
-            NullActionLogger.Error(nameof(UserProfileViewModel), ex, "Profile save failed");
+            Log.Error(ex, "Failed to save user profile.");
         }
     }
-
-    private async Task ManualSaveAsync() => await SaveAsync(showToast: true);
 
     private async Task PickAvatarAsync()
     {
-        try
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+            desktop.MainWindow is Window mainWindow)
         {
-            var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
-            if (window == null) return;
+            var topLevel = TopLevel.GetTopLevel(mainWindow);
+            if (topLevel == null) return;
 
-            var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Choose Profile Picture",
-                AllowMultiple = false,
-                FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp" } } }
+                Title = "Select Avatar Image",
+                FileTypeFilter = new[] { FilePickerFileTypes.ImageAll },
+                AllowMultiple = false
             });
 
-            if (files.Count == 0) return;
+            var file = files.FirstOrDefault();
+            if (file == null) return;
 
-            File.Copy(files[0].Path.LocalPath, NullWavePaths.AvatarPath, overwrite: true);
-            Avatar = new Bitmap(NullWavePaths.AvatarPath);
-            await SaveAsync(showToast: true);
-        }
-        catch (Exception ex)
-        {
-            NullActionLogger.Error(nameof(UserProfileViewModel), ex, "Avatar pick failed");
-        }
-    }
-
-    private async void ResetAvatar()
-    {
-        try
-        {
-            if (File.Exists(NullWavePaths.AvatarPath)) File.Delete(NullWavePaths.AvatarPath);
-            Avatar = null;
-            await SaveAsync(showToast: true);
-        }
-        catch (Exception ex)
-        {
-            NullActionLogger.Error(nameof(UserProfileViewModel), ex, "Avatar reset failed");
-        }
-    }
-
-    private async Task ExportProfileAsync()
-    {
-        try
-        {
-            var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.Windows.OfType<ProfileWindow>().FirstOrDefault() : null;
-
-            if (window == null) return;
-
-            var path = await window.ExportProfileCardAsync();
-            if (path != null)
+            try
             {
-                ShowSaveToast = true;
-                await Task.Delay(2500);
-                ShowSaveToast = false;
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                string targetPath = Path.Combine(dir, $"avatar{Path.GetExtension(file.Name)}");
+
+                await using (var sourceStream = await file.OpenReadAsync())
+                await using (var targetStream = File.Create(targetPath))
+                {
+                    await sourceStream.CopyToAsync(targetStream);
+                }
+
+                using var stream = File.OpenRead(targetPath);
+                Avatar = new Bitmap(stream);
+                _avatarPath = targetPath;
+
+                MarkDirty();
+                DebouncedSave();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to process selected avatar image.");
+            }
+        }
+    }
+
+    private void ResetAvatar()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(_avatarPath) && File.Exists(_avatarPath))
+            {
+                File.Delete(_avatarPath);
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[Profile] Export failed");
+            Log.Warning(ex, "Could not remove avatar asset from storage.");
+        }
+
+        Avatar = null;
+        _avatarPath = null;
+        MarkDirty();
+        DebouncedSave();
+    }
+
+    public void TriggerExportSuccessToast()
+    {
+        _ = ShowToastAsync("Profile Card Exported!");
+    }
+
+    private async Task ShowToastAsync(string message)
+    {
+        ToastMessage = message;
+        ShowSaveToast = true;
+        await Task.Delay(2500);
+        ShowSaveToast = false;
+    }
+
+    public void Dispose()
+    {
+        _saveTimer?.Dispose();
+        if (_library != null)
+        {
+            _library.LibraryChanged -= OnLibraryChanged;
         }
     }
 }

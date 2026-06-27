@@ -16,6 +16,7 @@ public class LibraryService : IDisposable
     private List<Track> _tracks;
     private readonly List<Track> _queue = new();
     private readonly List<Track> _history = new();
+    public event EventHandler? LibraryChanged;
 
     public LibraryService(MetadataService? metadata = null)
     {
@@ -340,9 +341,115 @@ public class LibraryService : IDisposable
         BackfillSoundCloudThumbnails();
     }
 
+    /// <summary>
+    /// Scans all tracks that have a FilePath and checks if the file still
+    /// exists on disk. When removeDeadEntries is true, clears the FilePath
+    /// on missing files so NullWave knows to re-download them.
+    /// Returns (totalChecked, missingCount, clearedCount).
+    /// </summary>
+    public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
+    {
+        var withPath = _tracks.Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
+        int missing = 0;
+        int removed = 0;
+        foreach (var track in withPath)
+        {
+            if (File.Exists(track.FilePath)) continue;
+
+            missing++;
+            Log.Warning("[LibraryService] Dead file path: {Path} (track: {Title})",
+                track.FilePath, track.Title);
+
+            if (!removeDeadEntries) continue;
+
+            track.FilePath = null;
+            _db.Update(track);
+            removed++;
+        }
+
+        Log.Information("[LibraryService] RepairPaths: {Total} checked, {Missing} missing, {Removed} cleared",
+            withPath.Count, missing, removed);
+
+        return (withPath.Count, missing, removed);
+    }
+
+    /// <summary>
+    /// Scans a directory recursively for audio files and attempts to
+    /// re-link them to matching library tracks by filename/title similarity.
+    /// Updates FilePath in the DB for each matched track.
+    /// Returns the number of tracks re-linked.
+    /// </summary>
+    public int ReimportAssets(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            Log.Warning("[LibraryService] ReimportAssets: directory not found: {Path}", directoryPath);
+            return 0;
+        }
+        var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".mp3", ".flac", ".m4a", ".ogg", ".wav", ".aac", ".opus" };
+
+        var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories)
+            .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
+            .ToList();
+
+        int relinked = 0;
+
+        foreach (var file in files)
+        {
+            var fileNameNoExt = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+
+            var match = _tracks.FirstOrDefault(t =>
+                !string.Equals(t.FilePath, file, StringComparison.OrdinalIgnoreCase) &&
+                (fileNameNoExt.Contains(t.Title.ToLowerInvariant(), StringComparison.Ordinal) ||
+                 t.Title.ToLowerInvariant().Contains(fileNameNoExt, StringComparison.Ordinal) ||
+                 (t.FilePath != null &&
+                  Path.GetFileNameWithoutExtension(t.FilePath)
+                      .Equals(Path.GetFileNameWithoutExtension(file),
+                              StringComparison.OrdinalIgnoreCase))));
+
+            if (match == null) continue;
+
+            Log.Information("[LibraryService] Re-linked '{Title}' → {File}", match.Title, file);
+            match.FilePath = file;
+            _db.Update(match);
+            relinked++;
+        }
+
+        Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
+            files.Count, relinked);
+
+        return relinked;
+    }
+
+    /// <summary>
+    /// Clears all cached tags from every track in the library so the
+    /// Last.fm enrichment backfill will re-fetch them fresh.
+    /// Returns the number of tracks whose tags were cleared.
+    /// </summary>
+    public int ClearTagsForReSync()
+    {
+        int cleared = 0;
+        foreach (var track in _tracks)
+        {
+            if (track.Tags.Count == 0) continue;
+            track.Tags.Clear();
+            _db.Update(track);
+            cleared++;
+        }
+
+        Log.Information("[LibraryService] ClearTagsForReSync: cleared tags on {Count} tracks", cleared);
+        return cleared;
+    }
+
     public void Dispose()
     {
         _db.Dispose();
+    }
+
+    private void OnLibraryChanged()
+    {
+        LibraryChanged?.Invoke(this, EventArgs.Empty);
     }
 }
 

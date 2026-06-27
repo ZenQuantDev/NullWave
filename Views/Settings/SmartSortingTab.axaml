@@ -6,297 +6,452 @@
              x:DataType="vm:SettingsViewModel">
 
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="20">
+        <StackPanel Spacing="0">
 
-            <!--  AI Service Status  -->
-            <TextBlock Classes="section-label" Text="AI SERVICE STATUS" Margin="0"/>
-
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    BorderBrush="{StaticResource BrushBorder}"
-                    BorderThickness="1"
-                    Padding="16,14">
+            <!-- ── Master AI Toggle ─────────────────────────────────────── -->
+            <Border Classes="settings-card"
+                    BorderBrush="{StaticResource BrushAccent}"
+                    BorderThickness="1">
                 <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="8">
-
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <Border Width="10" Height="10" CornerRadius="5"
-                                    VerticalAlignment="Center"
-                                    Background="{Binding AIStatusDotColor}"/>
-                            <TextBlock Text="{Binding AIStatusLabel}"
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="Brain" Width="20" Height="20"
+                                                   Foreground="{StaticResource BrushAccent}"
+                                                   VerticalAlignment="Center"/>
+                            <TextBlock Text="AI Features"
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"
+                                       FontWeight="Bold"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
-
-                        <TextBlock Text="{Binding AIStatusDescription}"
+                        <TextBlock Text="Master switch for all Ollama-powered features: Smart Shuffle, mood playlists, and local AI tagging. Disabling stops all model activity and frees RAM."
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{StaticResource FontSizeSm}"
                                    TextWrapping="Wrap"/>
-
-                        <StackPanel Spacing="4" IsVisible="{Binding IsDownloadingModel}">
-                            <ProgressBar Value="{Binding ModelDownloadProgress}"
-                                         Maximum="100" Height="4"/>
-                            <TextBlock Text="{Binding ModelDownloadStatus}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
-                        </StackPanel>
                     </StackPanel>
-
-                    <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <Button Classes="primary"
-                                Content="{Binding AIToggleButtonLabel}"
-                                Command="{Binding ToggleAIServiceCommand}"
-                                IsEnabled="{Binding !IsDownloadingModel}"
-                                MinWidth="80"/>
-                        <Button Classes="secondary"
-                                Content="Download Model"
-                                Command="{Binding DownloadModelCommand}"
-                                IsEnabled="{Binding !IsDownloadingModel}"
-                                MinWidth="80"/>
-                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1"
+                                  IsChecked="{Binding AIFeaturesEnabled, Mode=TwoWay}"
+                                  VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 
-            <Separator Background="{StaticResource BrushBorder}"/>
+            <!-- Everything below is disabled + faded when master AI toggle is off -->
+            <StackPanel Spacing="0"
+                        IsEnabled="{Binding AIFeaturesEnabled}">
+                <StackPanel.Styles>
+                    <Style Selector="StackPanel:disabled">
+                        <Setter Property="Opacity" Value="0.45"/>
+                    </Style>
+                </StackPanel.Styles>
 
-            <!--  Hardware Detection  -->
-            <TextBlock Classes="section-label" Text="HARDWARE DETECTION" Margin="0"/>
+                <!-- ── AI Service Status ────────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="AI SERVICE STATUS" Margin="0,0,0,12"/>
 
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding HardwareInfo}"
-                               Foreground="{StaticResource BrushTextSecondary}"
-                               FontSize="{StaticResource FontSizeSm}"
-                               TextWrapping="Wrap"
-                               FontFamily="monospace"/>
-                    <Button Classes="secondary"
-                            Content="Re-detect Hardware"
-                            Command="{Binding DetectHardwareCommand}"
-                            IsEnabled="{Binding !IsDetectingHardware}"
-                            HorizontalAlignment="Left"/>
-                </StackPanel>
-            </Border>
-
-            <Separator Background="{StaticResource BrushBorder}"/>
-
-            <!--  Local AI Model  -->
-            <TextBlock Classes="section-label" Text="LOCAL AI MODEL" Margin="0"/>
-
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="AI Model"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Larger models are smarter but slower. Hardware detection recommends the best fit."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding AIModelOptions}"
-                          SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
-                          MinWidth="160"
-                          VerticalAlignment="Center"
-                          Margin="16,0,0,0"/>
-            </Grid>
-
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Use Local AI"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Disable to use tag-only filtering (faster, less smart)"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <ToggleSwitch Grid.Column="1"
-                              IsChecked="{Binding UseLocalAI, Mode=TwoWay}"
-                              VerticalAlignment="Center"/>
-            </Grid>
-
-            <Separator Background="{StaticResource BrushBorder}"/>
-
-            <!--  External AI Bridge  -->
-            <TextBlock Classes="section-label" Text="EXTERNAL AI BRIDGE" Margin="0"/>
-
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    BorderBrush="{StaticResource BrushBorder}"
-                    BorderThickness="1"
-                    Padding="16,14">
-                <StackPanel Spacing="14">
-
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="For weak CPUs — use ChatGPT, Gemini, or Claude"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
-                                   FontWeight="SemiBold"/>
-                        <TextBlock Text="Export your untagged tracks as a prompt file, paste it into any AI chatbot, then import the JSON response back into NullWave."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeSm}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-
+                <Border Classes="settings-card">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="Export format"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBody}"/>
-                            <TextBlock Text="TXT — paste anywhere  ·  MD — nicely formatted  ·  JSON — structured"
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <Border Width="10" Height="10" CornerRadius="5"
+                                        VerticalAlignment="Center"
+                                        Background="{Binding AIStatusDotColor}"/>
+                                <TextBlock Text="{Binding AIStatusLabel}"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding AIStatusDescription}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextWrapping="Wrap"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding IsDownloadingModel}">
+                                <ProgressBar Value="{Binding ModelDownloadProgress}"
+                                             Maximum="100" Height="4"/>
+                                <TextBlock Text="{Binding ModelDownloadStatus}"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <Button Classes="primary"
+                                    Content="{Binding AIToggleButtonLabel}"
+                                    Command="{Binding ToggleAIServiceCommand}"
+                                    IsEnabled="{Binding !IsDownloadingModel}"
+                                    MinWidth="80"/>
+                            <Button Classes="secondary"
+                                    Content="Download Model"
+                                    Command="{Binding DownloadModelCommand}"
+                                    IsEnabled="{Binding !IsDownloadingModel}"
+                                    MinWidth="80"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ── Hardware Detection ───────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="HARDWARE DETECTION" Margin="0,0,0,12"/>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding HardwareInfo}"
+                                   Foreground="{StaticResource BrushTextSecondary}"
+                                   FontSize="{StaticResource FontSizeSm}"
+                                   TextWrapping="Wrap"
+                                   FontFamily="monospace"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary"
+                                    Content="Re-detect Hardware"
+                                    Command="{Binding DetectHardwareCommand}"
+                                    IsEnabled="{Binding !IsDetectingHardware}"/>
+                            <!-- Power state indicator -->
+                            <Border Background="{StaticResource BrushElevated}"
+                                    CornerRadius="{StaticResource RadiusMd}"
+                                    Padding="10,7"
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="Flash" Width="14" Height="14"
+                                                           Foreground="{StaticResource BrushAmber}"/>
+                                    <TextBlock Text="{Binding PowerStateLabel}"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── AI Model ─────────────────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="AI MODEL" Margin="0,0,0,12"/>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="16">
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <TextBlock Text="Active model"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Used for mood playlist ranking and Smart Shuffle"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding AIModelOptions}"
+                                      SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                                      MinWidth="200"
+                                      VerticalAlignment="Center"
+                                      Margin="16,0,0,0"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <TextBlock Text="Use Local AI"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Disable to use tag-only filtering (faster, no AI)"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding UseLocalAI, Mode=TwoWay}"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Model size guide ─────────────────────────────────────── -->
+                <Border Background="{StaticResource BrushSurface2}"
+                        CornerRadius="{StaticResource RadiusMd}"
+                        Padding="14,12"
+                        Margin="0,0,0,16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Model size guide"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="Tiny (≤1B)"  Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="2GB RAM · fastest, basic tagging" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="Small (3-4B)"  Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="4GB RAM · good quality, recommended for laptops" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="Medium (7-9B)"  Foreground="{StaticResource BrushAccentHover}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="8GB RAM · best balance · default recommendation" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="Large (12-14B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="16GB RAM or 8GB VRAM · high quality" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="XL (32B+)"     Foreground="{StaticResource BrushRed}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="32GB RAM or 20GB VRAM · workstation only" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Power-aware model switching ──────────────────────────── -->
+                <TextBlock Classes="section-label" Text="POWER-AWARE SWITCHING" Margin="0,0,0,12"/>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="16">
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Auto-switch model on power change"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontWeight="SemiBold"/>
+                                    <Button Classes="help-btn"
+                                            ToolTip.Tip="Automatically uses a lighter model on battery to save power, and a heavier model when plugged in.">
+                                        <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Text="Switches to battery model when unplugged, performance model when plugged in"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding AutoPowerModelSwitch, Mode=TwoWay}"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="BatteryMedium" Width="16" Height="16"
+                                                           Foreground="{StaticResource BrushAmber}"/>
+                                    <TextBlock Text="Battery model"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock Text="Used when running on battery - prefer Tiny or Small"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding AIModelOptions}"
+                                      SelectedItem="{Binding BatteryModel, Mode=TwoWay}"
+                                      MinWidth="200"
+                                      VerticalAlignment="Center"
+                                      IsEnabled="{Binding AutoPowerModelSwitch}"
+                                      Margin="16,0,0,0"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="Flash" Width="16" Height="16"
+                                                           Foreground="{StaticResource BrushGreen}"/>
+                                    <TextBlock Text="Performance model"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock Text="Used when plugged in or GPU detected - prefer Medium or Large"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding AIModelOptions}"
+                                      SelectedItem="{Binding PerformanceModel, Mode=TwoWay}"
+                                      MinWidth="200"
+                                      VerticalAlignment="Center"
+                                      IsEnabled="{Binding AutoPowerModelSwitch}"
+                                      Margin="16,0,0,0"/>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ── External AI Bridge ───────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="EXTERNAL AI BRIDGE" Margin="0,0,0,12"/>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="For weak CPUs - use ChatGPT, Gemini, or Claude"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Export your untagged tracks as a prompt file, paste it into any AI chatbot, then import the JSON response back into NullWave."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="Export format"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Text="TXT - paste anywhere  ·  MD - formatted  ·  JSON - structured"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding ExportFormatOptions}"
+                                      SelectedItem="{Binding ExportFormat, Mode=TwoWay}"
+                                      MinWidth="90"
+                                      VerticalAlignment="Center"
+                                      Margin="16,0,0,0"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,12,*">
+                            <Button Grid.Column="0" Classes="secondary"
+                                    Command="{Binding ExportUntaggedTracksCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="Export" Width="16" Height="16"/>
+                                    <TextBlock Text="1. Export Prompt"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="2" Classes="secondary"
+                                    Command="{Binding ImportAiTagsCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
+                                    <TextBlock Text="2. Import JSON"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <TextBlock Text="{Binding ExternalAIStatus}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding ExternalAIStatus,
+                                       Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Smart Shuffle ────────────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="SMART SHUFFLE" Margin="0,0,0,12"/>
+
+                <Border Classes="settings-card">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="AI confidence threshold"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Only use AI ranking when confidence exceeds this level"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding ExportFormatOptions}"
-                                  SelectedItem="{Binding ExportFormat, Mode=TwoWay}"
-                                  MinWidth="90"
+                                  ItemsSource="{Binding AIConfidenceOptions}"
+                                  SelectedItem="{Binding AIConfidenceThreshold, Mode=TwoWay}"
+                                  MinWidth="120"
                                   VerticalAlignment="Center"
                                   Margin="16,0,0,0"/>
                     </Grid>
+                </Border>
 
-                    <Grid ColumnDefinitions="*,12,*">
-                        <Button Grid.Column="0"
-                                Classes="secondary"
-                                Command="{Binding ExportUntaggedTracksCommand}"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Export" Width="16" Height="16"/>
-                                <TextBlock Text="1. Export Prompt"/>
+                <!-- ── Weather Integration ──────────────────────────────────── -->
+                <TextBlock Classes="section-label" Text="WEATHER INTEGRATION" Margin="0,0,0,12"/>
+
+                <Border Background="{StaticResource BrushSurface2}"
+                        CornerRadius="{StaticResource RadiusMd}"
+                        Padding="14,12"
+                        Margin="0,0,0,16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Set your OpenWeather API key in the API Keys tab"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Free at openweathermap.org/api - 60 calls/minute"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeXs}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="6">
+                                <TextBlock Text="Latitude" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBox Text="{Binding Latitude, Mode=TwoWay}" PlaceholderText="e.g. 40.7128"/>
                             </StackPanel>
-                        </Button>
-
-                        <Button Grid.Column="2"
-                                Classes="secondary"
-                                Command="{Binding ImportAiTagsCommand}"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
-                                <TextBlock Text="2. Import JSON"/>
+                            <StackPanel Grid.Column="2" Spacing="6">
+                                <TextBlock Text="Longitude" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBox Text="{Binding Longitude, Mode=TwoWay}" PlaceholderText="e.g. -74.0060"/>
                             </StackPanel>
-                        </Button>
-                    </Grid>
+                        </Grid>
 
-                    <TextBlock Text="{Binding ExternalAIStatus}"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding ExternalAIStatus,
-                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                </StackPanel>
-            </Border>
+                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-            <Separator Background="{StaticResource BrushBorder}"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <TextBlock Text="Auto-generate mood playlist on startup"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Generates a weather-based playlist each time NullWave opens"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding AutoGenerateMoodPlaylist, Mode=TwoWay}"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
 
-            <!--  Smart Shuffle  -->
-            <TextBlock Classes="section-label" Text="SMART SHUFFLE" Margin="0"/>
+                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="AI confidence threshold"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Only use AI ranking when confidence exceeds this level"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding AIConfidenceOptions}"
-                          SelectedItem="{Binding AIConfidenceThreshold, Mode=TwoWay}"
-                          MinWidth="120"
-                          VerticalAlignment="Center"
-                          Margin="16,0,0,0"/>
-            </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                <TextBlock Text="Mood refresh interval"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="How often to regenerate the mood playlist automatically"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeSm}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding MoodRefreshOptions}"
+                                      SelectedItem="{Binding MoodRefreshInterval, Mode=TwoWay}"
+                                      MinWidth="140"
+                                      VerticalAlignment="Center"
+                                      Margin="16,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
-            <Separator Background="{StaticResource BrushBorder}"/>
+                <Button Classes="primary"
+                        Content="Generate Mood Playlist Now"
+                        Command="{Binding GenerateMoodPlaylistCommand}"
+                        HorizontalAlignment="Left"/>
 
-            <!--  Weather Integration  -->
-            <TextBlock Classes="section-label" Text="WEATHER INTEGRATION" Margin="0"/>
+                <Button Classes="secondary"
+                        Content="Refresh Weather"
+                        Command="{Binding RefreshWeatherCommand}"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0"/>
 
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Set your OpenWeather API key in the API Keys tab"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="Free at openweathermap.org/api — 60 calls/minute"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"/>
-                </StackPanel>
-            </Border>
+                <TextBlock Text="{Binding MoodPlaylistStatus}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{StaticResource FontSizeXs}"
+                           Margin="0,8,0,0"
+                           IsVisible="{Binding MoodPlaylistStatus,
+                               Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-            <Grid ColumnDefinitions="*,16,*">
-                <StackPanel Grid.Column="0" Spacing="6">
-                    <TextBlock Text="Latitude"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBox Text="{Binding Latitude, Mode=TwoWay}"
-                             PlaceholderText="e.g. 40.7128"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Spacing="6">
-                    <TextBlock Text="Longitude"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
-                    <TextBox Text="{Binding Longitude, Mode=TwoWay}"
-                             PlaceholderText="e.g. -74.0060"/>
-                </StackPanel>
-            </Grid>
-
-            <!--  Mood Playlist  -->
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Auto-generate mood playlist on startup"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="Generates a weather-based playlist each time NullWave opens"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <ToggleSwitch Grid.Column="1"
-                              IsChecked="{Binding AutoGenerateMoodPlaylist, Mode=TwoWay}"
-                              VerticalAlignment="Center"/>
-            </Grid>
-
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="Mood refresh interval"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBodyLarge}"/>
-                    <TextBlock Text="How often to regenerate the mood playlist automatically"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
-                </StackPanel>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding MoodRefreshOptions}"
-                          SelectedItem="{Binding MoodRefreshInterval, Mode=TwoWay}"
-                          MinWidth="140"
-                          VerticalAlignment="Center"
-                          Margin="16,0,0,0"/>
-            </Grid>
-
-            <Button Classes="primary"
-                    Content="Generate Mood Playlist Now"
-                    Command="{Binding GenerateMoodPlaylistCommand}"
-                    HorizontalAlignment="Left"/>
-
-            <Button Classes="secondary"
-                    Content="Refresh Weather"
-                    Command="{Binding RefreshWeatherCommand}"
-                    HorizontalAlignment="Left"/>
-
-            <TextBlock Text="{Binding MoodPlaylistStatus}"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       FontSize="{StaticResource FontSizeXs}"
-                       IsVisible="{Binding MoodPlaylistStatus,
-                           Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 

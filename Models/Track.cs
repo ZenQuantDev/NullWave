@@ -1,3 +1,4 @@
+// Track.cs
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,6 +15,8 @@ public class Track : INotifyPropertyChanged
     private DateTime? _lastPlayed;
     private string? _albumArtPath;
     private string? _notes;
+    private int _skipCount;
+    private DateTime? _lastSkipped;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
@@ -56,6 +59,18 @@ public class Track : INotifyPropertyChanged
         set { if (_lastPlayed != value) { _lastPlayed = value; OnPropertyChanged(); } }
     }
 
+    public int SkipCount
+    {
+        get => _skipCount;
+        set { if (_skipCount != value) { _skipCount = value; OnPropertyChanged(); } }
+    }
+
+    public DateTime? LastSkipped
+    {
+        get => _lastSkipped;
+        set { if (_lastSkipped != value) { _lastSkipped = value; OnPropertyChanged(); } }
+    }
+
     public List<string> Tags { get; set; } = new();
 
     public string? Notes
@@ -71,11 +86,11 @@ public class Track : INotifyPropertyChanged
     }
 }
 
-    public enum TrackSource { 
-            YouTube, 
-            Spotify, 
-            SoundCloud, 
-            LastFm, 
-            Local, 
-            Unknown 
-            }
+public enum TrackSource { 
+    YouTube, 
+    Spotify, 
+    SoundCloud, 
+    LastFm, 
+    Local, 
+    Unknown 
+}

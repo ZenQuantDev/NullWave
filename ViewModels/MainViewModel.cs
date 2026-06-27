@@ -36,8 +36,8 @@ public class MainViewModel : ViewModelBase
     private readonly WeatherService _weatherService;
     private readonly LocalAIService _localAI;
     private readonly MoodPlaylistService _moodPlaylist;
+    private readonly PowerStateService _powerState;
 
-    // Placeholder page ViewModels for Queue and Stats
     private readonly PlaceholderPageViewModel _queuePage = new(
         "🎵", "Queue", "The playback queue is coming soon.\nTracks you add to the queue will appear here.");
     private readonly PlaceholderPageViewModel _statsPage = new(
@@ -51,7 +51,6 @@ public class MainViewModel : ViewModelBase
     }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
-    //  Active Page Tracking for Sidebar 
     private string _currentPage = "Library";
     public string CurrentPage
     {
@@ -59,7 +58,6 @@ public class MainViewModel : ViewModelBase
         set { _currentPage = value; OnPropertyChanged(); }
     }
 
-    // Guard flag — prevents the mood playlist from firing twice
     private bool _initialMoodPlaylistRun;
 
     public TrackInputViewModel Input { get; }
@@ -72,7 +70,6 @@ public class MainViewModel : ViewModelBase
     public PlayerViewModel Player { get; }
     public UserProfileViewModel Profile { get; }
     
-    // Public properties for placeholder pages
     public PlaceholderPageViewModel QueuePage => _queuePage;
     public PlaceholderPageViewModel StatsPage => _statsPage;
 
@@ -97,22 +94,79 @@ public class MainViewModel : ViewModelBase
         _library = new LibraryService(_metadata);
         _prefsService = new PreferencesService();
 
-        // Album art + enrichment
         _albumArt = new AlbumArtService(_lastFm);
         _enrichment = new LastFmEnrichmentService(_lastFm, _library, _albumArt);
 
-        // Smart Sorting services
         _weatherService = new WeatherService(_keyStore);
         _localAI = new LocalAIService();
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
-        // Construct Settings first
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService);
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
+        // Wire: master AI toggle → MoodPlaylistService + LocalAIService
+        Settings.AIFeaturesEnabledChanged += enabled =>
+        {
+            if (!enabled)
+            {
+                Settings.StopHealthCheck();
+                Log.Information("[MainViewModel] AI features disabled — health check stopped");
+            }
+            else
+            {
+                _ = Task.Run(async () =>
+                {
+                    var ai = new NullWave.Services.SmartSorting.LocalAIService();
+                    bool running = await ai.PingAsync();
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        Settings.SetAIServiceState(running
+                            ? NullWave.ViewModels.AIServiceState.Running
+                            : NullWave.ViewModels.AIServiceState.Stopped));
+                });
+                Settings.StartAIHealthCheck();
+                Log.Information("[MainViewModel] AI features re-enabled — health check restarted");
+            }
+        };
+
+        _powerState = new PowerStateService();
+
+        _powerState.PowerStateChanged += state =>
+        {
+            _localAI.OnPowerStateChanged(state);
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                Settings.PowerStateLabel = state switch
+                {
+                    PowerState.AC      => "Plugged in (AC)",
+                    PowerState.Battery => "On battery",
+                    _                  => "Unknown"
+                });
+        };
+
+        Settings.PowerStateLabel = PowerStateService.ReadPowerState() switch
+        {
+            PowerState.AC      => "Plugged in (AC)",
+            PowerState.Battery => "On battery",
+            _                  => "Unknown"
+        };
+
+        Settings.PowerModelsChanged += (batteryModel, perfModel, autoSwitch) =>
+            _localAI.ConfigurePowerModels(batteryModel, perfModel, autoSwitch);
+
+        _localAI.ConfigurePowerModels(
+            Settings.BatteryModel,
+            Settings.PerformanceModel,
+            Settings.AutoPowerModelSwitch);
+
+        _powerState.StartPolling();
+
+        Settings.MaxConcurrentDownloadsChanged += limit =>
+            _downloadService.UpdateConcurrencyLimit(limit);
+        
+        _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
+
         var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
 
-        // Construct other ViewModels
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport);
         Library = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
@@ -122,21 +176,20 @@ public class MainViewModel : ViewModelBase
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
 
-        //  Wire events 
+        Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
+
         Input.TrackAdded += Library.Refresh;
         Input.TrackMetadataUpdated += Library.Refresh;
         Library.TrackDetailRequested += Detail.OpenFor;
         Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += Library.Refresh;
 
-        // Last.fm enrichment on track add
         Input.TrackAdded += () =>
         {
             var latest = _library.GetAll().LastOrDefault();
             if (latest != null) _enrichment.EnrichAsync(latest);
         };
 
-        // Backfill completion → first mood playlist
         _enrichment.BackfillCompleted += () =>
         {
             if (_initialMoodPlaylistRun) return;
@@ -144,7 +197,6 @@ public class MainViewModel : ViewModelBase
             _ = RunMoodPlaylistAsync(forceRefresh: false);
         };
 
-        // Backfill existing untagged tracks 3s after startup
         _ = Task.Run(async () =>
         {
             await Task.Delay(3000);
@@ -165,7 +217,6 @@ public class MainViewModel : ViewModelBase
                 await _lastFm.ScrobbleAsync(title, artist, playedAt);
         };
 
-        // Thumbnail clearing
         Settings.ClearThumbnailsRequested += () =>
         {
             var cleared = _library.GetAll().Count(t => !string.IsNullOrEmpty(t.AlbumArtPath));
@@ -180,13 +231,70 @@ public class MainViewModel : ViewModelBase
             Library.Refresh();
         };
 
-        // Manual mood playlist regenerate
+        // ── Wire: Repair Paths ───────────────────────────────────────────────────────
+        Settings.RepairPathsRequested += () =>
+        {
+            try
+            {
+                var (total, missing, removed) = _library.RepairPaths(removeDeadEntries: true);
+                Library.Refresh();
+                Settings.ReportRepairPathsComplete(total, missing, removed);
+            }
+            catch (Exception ex)
+            {
+                Settings.ReportRepairFailed("Repair Paths", ex.Message);
+                NullActionLogger.Error(nameof(MainViewModel), ex, "RepairPaths failed");
+            }
+        };
+
+        // ── Wire: Reimport Assets ────────────────────────────────────────────────────
+        Settings.ReimportAssetsRequested += () =>
+        {
+            try
+            {
+                var dir = _prefsService.Current.DownloadDirectory;
+                if (string.IsNullOrWhiteSpace(dir))
+                    dir = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                        ".nullwave", "downloads");
+
+                var relinked = _library.ReimportAssets(dir);
+                Library.Refresh();
+                Settings.ReportReimportComplete(relinked);
+            }
+            catch (Exception ex)
+            {
+                Settings.ReportRepairFailed("Reimport Assets", ex.Message);
+                NullActionLogger.Error(nameof(MainViewModel), ex, "ReimportAssets failed");
+            }
+        };
+
+        // ── Wire: Force Meta Re-sync ─────────────────────────────────────────────────
+        Settings.ForceMetaResyncRequested += () =>
+        {
+            try
+            {
+                var cleared = _library.ClearTagsForReSync();
+                Settings.ReportMetaResyncComplete(cleared);
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(800);
+                    _enrichment.BackfillAsync();
+                });
+
+                Library.Refresh();
+            }
+            catch (Exception ex)
+            {
+                Settings.ReportRepairFailed("Force Meta Re-sync", ex.Message);
+                NullActionLogger.Error(nameof(MainViewModel), ex, "ForceMetaResync failed");
+            }
+        };
+
         Settings.GenerateMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
-        //  Wire: Export untagged tracks 
         Settings.ExportUntaggedTracksRequested += async () =>
         {
-            // Get tracks that have no tags stored (Tags is null/empty).
             var untagged = _library.GetAll()
                 .Where(t => t.Tags == null || t.Tags.Count == 0)
                 .ToList();
@@ -198,7 +306,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        //  Wire: Import AI JSON tags 
         Settings.ImportAiTagsRequested += async () =>
         {
             try
@@ -270,7 +377,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        //  Commands 
         ExitCommand = new RelayCommand(() =>
         {
             NullActionLogger.User("AppExit", "shutdown", nameof(MainViewModel));
@@ -309,7 +415,6 @@ public class MainViewModel : ViewModelBase
             Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), dir);
         });
 
-        // Navigation commands - only set CurrentPage
         NavigateLibraryCommand = new RelayCommand(() =>
         {
             CurrentPage = "Library";
@@ -336,6 +441,8 @@ public class MainViewModel : ViewModelBase
 
         _ = RunStartupDiagnosticsAsync();
     }
+
+    public void DisposePowerState() => _powerState.Dispose();
 
     private async System.Threading.Tasks.Task RunStartupDiagnosticsAsync()
     {
@@ -370,7 +477,6 @@ public class MainViewModel : ViewModelBase
             win.Show();
     }
 
-    //  Mood Playlist Generation 
     private async Task RunMoodPlaylistAsync(bool forceRefresh)
     {
         try
@@ -392,8 +498,9 @@ public class MainViewModel : ViewModelBase
 
             _localAI.CurrentModel = Settings.SelectedModel;
 
-            var result = await _moodPlaylist.GenerateAsync(
-                lat, lon, Settings.UseLocalAI, forceRefresh);
+            bool useAi = Settings.AIFeaturesEnabled && Settings.UseLocalAI;
+
+            var result = await _moodPlaylist.GenerateAsync(lat, lon, useAi, forceRefresh);
 
             if (!result.Success)
             {
