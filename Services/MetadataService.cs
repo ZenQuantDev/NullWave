@@ -49,7 +49,7 @@
             if (string.IsNullOrEmpty(id))
                 return ("Spotify track (unknown id)", "Unknown", null);
 
-            Log.Warning("Spotify API not available — falling back to Last.fm search");
+            Log.Warning("Spotify API not available - falling back to Last.fm search");
             if (_lastFm.IsConfigured)
             {
                 var (t, a) = await _lastFm.SearchTrackAsync("Unknown", "Unknown");

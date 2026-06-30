@@ -66,9 +66,9 @@ public class TrackDetailViewModel : ViewModelBase
     public ObservableCollection<string> Tags { get; } = new();
 
     public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
-    public string DisplayUrl        => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "—";
-    public string DisplaySource     => _currentTrack?.Source.ToString() ?? "—";
-    public string DisplayDateAdded  => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "—";
+    public string DisplayUrl        => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
+    public string DisplaySource     => _currentTrack?.Source.ToString() ?? "-";
+    public string DisplayDateAdded  => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
     public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount  => _currentTrack?.PlayCount.ToString() ?? "0";
     public bool   IsFavorite        => _currentTrack?.IsFavorite ?? false;

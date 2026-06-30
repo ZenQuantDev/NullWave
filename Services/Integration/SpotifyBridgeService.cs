@@ -67,17 +67,17 @@ public class SpotifyBridgeService
         };
     }
 
-    //  Spotify oEmbed — no API key required 
+    //  Spotify oEmbed - no API key required 
 
     private async Task<(string Title, string Artist)> FetchSpotifyMetaAsync(string spotifyUrl)
     {
-        // Try yt-dlp first — it can handle Spotify URLs on some systems
+        // Try yt-dlp first - it can handle Spotify URLs on some systems
         var ytDlpMeta = await GetYtDlpSpotifyMetaAsync(spotifyUrl);
         if (ytDlpMeta.HasValue && !string.IsNullOrEmpty(ytDlpMeta.Value.Title))
             return ytDlpMeta.Value;
 
         // Fallback: extract track ID and use a basic title guess from URL
-        // spotify.com/track/TRACKID — not useful but prevents silent failure
+        // spotify.com/track/TRACKID - not useful but prevents silent failure
         Log.Warning("[SpotifyBridge] All metadata methods failed for {Url}", spotifyUrl);
         return (string.Empty, string.Empty);
     }

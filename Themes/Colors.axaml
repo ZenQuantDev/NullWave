@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    NullWave Color System — LIGHTER palette (readable at 50% brightness)
+    NullWave Color System - LIGHTER palette (readable at 50% brightness)
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     Surface layers:  Base(#111827) → Surface(#1C2333) → Surface2(#243047) → Elevated(#2D3A52)
     Accents:         Purple · Sky Blue · Amber
@@ -10,7 +10,7 @@
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   -->
 
-  <!-- Surface layers — significantly lighter than before -->
+  <!-- Surface layers - significantly lighter than before -->
   <Color x:Key="ColorBase">      #111827</Color>
   <Color x:Key="ColorSurface">   #1C2333</Color>
   <Color x:Key="ColorSurface2">  #243047</Color>
@@ -19,23 +19,23 @@
   <Color x:Key="ColorBorder">    #2E3D5C</Color>
   <Color x:Key="ColorBorderSub"> #38486E</Color>
 
-  <!-- Purple — primary accent -->
+  <!-- Purple - primary accent -->
   <Color x:Key="ColorAccent">      #8B5CF6</Color>
   <Color x:Key="ColorAccentHover"> #A78BFA</Color>
   <Color x:Key="ColorAccentDim">   #312E81</Color>
   <Color x:Key="ColorAccentGlow">  #3730A3</Color>
 
-  <!-- Sky blue — secondary accent -->
+  <!-- Sky blue - secondary accent -->
   <Color x:Key="ColorBlue">        #60A5FA</Color>
   <Color x:Key="ColorBlueDark">    #2563EB</Color>
   <Color x:Key="ColorBlueDim">     #1E3A5F</Color>
 
-  <!-- Amber — highlights, favorites, warnings -->
+  <!-- Amber - highlights, favorites, warnings -->
   <Color x:Key="ColorAmber">       #FCD34D</Color>
   <Color x:Key="ColorAmberDark">   #F59E0B</Color>
   <Color x:Key="ColorAmberDim">    #451A03</Color>
 
-  <!-- Text — bright enough for mid-brightness screens -->
+  <!-- Text - bright enough for mid-brightness screens -->
   <Color x:Key="ColorTextPrimary">   #F0F4FF</Color>
   <Color x:Key="ColorTextSecondary"> #A8B4CC</Color>
   <Color x:Key="ColorTextMuted">     #6B7A99</Color>
@@ -47,7 +47,7 @@
   <Color x:Key="ColorRed">      #F87171</Color>
   <Color x:Key="ColorRedDim">   #450A0A</Color>
 
-  <!-- ═══ BRUSHES — use these in all XAML markup ═══════════════════════════ -->
+  <!-- ═══ BRUSHES - use these in all XAML markup ═══════════════════════════ -->
 
   <SolidColorBrush x:Key="BrushBase"          Color="{StaticResource ColorBase}"/>
   <SolidColorBrush x:Key="BrushSurface"       Color="{StaticResource ColorSurface}"/>

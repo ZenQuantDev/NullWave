@@ -81,7 +81,7 @@
                                FontSize="{StaticResource FontSizeSm}"/>
                 </StackPanel>
             </Border>
-
+            <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
 

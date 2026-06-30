@@ -8,7 +8,7 @@
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <!-- ── Master AI Toggle ─────────────────────────────────────── -->
+            <!--  Master AI Toggle  -->
             <Border Classes="settings-card"
                     BorderBrush="{StaticResource BrushAccent}"
                     BorderThickness="1">
@@ -44,7 +44,7 @@
                     </Style>
                 </StackPanel.Styles>
 
-                <!-- ── AI Service Status ────────────────────────────────────── -->
+                <!--  AI Service Status  -->
                 <TextBlock Classes="section-label" Text="AI SERVICE STATUS" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -87,7 +87,7 @@
                     </Grid>
                 </Border>
 
-                <!-- ── Hardware Detection ───────────────────────────────────── -->
+                <!--  Hardware Detection  -->
                 <TextBlock Classes="section-label" Text="HARDWARE DETECTION" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -120,7 +120,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── AI Model ─────────────────────────────────────────────── -->
+                <!--  AI Model  -->
                 <TextBlock Classes="section-label" Text="AI MODEL" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -164,7 +164,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── Model size guide ─────────────────────────────────────── -->
+                <!--  Model size guide  -->
                 <Border Background="{StaticResource BrushSurface2}"
                         CornerRadius="{StaticResource RadiusMd}"
                         Padding="14,12"
@@ -197,7 +197,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── Power-aware model switching ──────────────────────────── -->
+                <!--  Power-aware model switching  -->
                 <TextBlock Classes="section-label" Text="POWER-AWARE SWITCHING" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -277,7 +277,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── External AI Bridge ───────────────────────────────────── -->
+                <!--  External AI Bridge  -->
                 <TextBlock Classes="section-label" Text="EXTERNAL AI BRIDGE" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -340,7 +340,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── Smart Shuffle ────────────────────────────────────────── -->
+                <!--  Smart Shuffle  -->
                 <TextBlock Classes="section-label" Text="SMART SHUFFLE" Margin="0,0,0,12"/>
 
                 <Border Classes="settings-card">
@@ -363,7 +363,7 @@
                     </Grid>
                 </Border>
 
-                <!-- ── Weather Integration ──────────────────────────────────── -->
+                <!--  Weather Integration  -->
                 <TextBlock Classes="section-label" Text="WEATHER INTEGRATION" Margin="0,0,0,12"/>
 
                 <Border Background="{StaticResource BrushSurface2}"
@@ -450,7 +450,7 @@
                            Margin="0,8,0,0"
                            IsVisible="{Binding MoodPlaylistStatus,
                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
+                <Border Classes="BottomSpacer"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

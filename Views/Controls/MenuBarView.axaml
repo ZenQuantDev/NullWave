@@ -10,7 +10,7 @@
 
   <!--
     This Menu is hidden by default (IsVisible bound in MainWindow.axaml).
-    Press Alt to toggle it — handled in MainWindow.axaml.cs OnKeyDown.
+    Press Alt to toggle it - handled in MainWindow.axaml.cs OnKeyDown.
     It auto-hides when the window loses focus on the menu (handled in code-behind if needed).
   -->
 

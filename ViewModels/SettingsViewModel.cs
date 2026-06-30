@@ -459,7 +459,7 @@ public class SettingsViewModel : ViewModelBase
     public string AIStatusDescription => _aiServiceState switch
     {
         AIServiceState.Running  => $"Model '{SelectedModel}' is loaded and ready to process requests.",
-        AIServiceState.Starting => "Loading model into Ollama — this may take a moment...",
+        AIServiceState.Starting => "Loading model into Ollama - this may take a moment...",
         AIServiceState.Error    => "Could not reach Ollama. Make sure it is running: ollama serve",
         _                       => "AI service is not running. Click Start to load the selected model."
     };
@@ -608,7 +608,7 @@ public class SettingsViewModel : ViewModelBase
         _lastFmApiKey      = _keyStore.GetKey("LastFm")            ?? string.Empty;
         _openWeatherApiKey = _keyStore.GetKey("OpenWeather")       ?? string.Empty;
 
-        Log.Information("[Settings] API keys loaded — YouTube:{Yt} LastFm:{Fm} OpenWeather:{Ow}",
+        Log.Information("[Settings] API keys loaded - YouTube:{Yt} LastFm:{Fm} OpenWeather:{Ow}",
             _youtubeApiKey.Length, _lastFmApiKey.Length, _openWeatherApiKey.Length);
 
         RefreshWeatherCommand        = new RelayCommand(() => RefreshWeatherRequested?.Invoke());
@@ -652,7 +652,7 @@ public class SettingsViewModel : ViewModelBase
         ForceMetaResyncCommand = new RelayCommand(() =>
         {
             IsRepairing  = true;
-            RepairStatus = "Clearing cached tags — re-sync starting...";
+            RepairStatus = "Clearing cached tags - re-sync starting...";
             ForceMetaResyncRequested?.Invoke();
         });
 
@@ -718,7 +718,7 @@ public class SettingsViewModel : ViewModelBase
             if (!AIFeaturesEnabled)
             {
                 AIServiceState = AIServiceState.Stopped;
-                Log.Information("[Settings] AI features disabled — skipping Ollama probe");
+                Log.Information("[Settings] AI features disabled - skipping Ollama probe");
                 return;
             }
 
@@ -780,7 +780,7 @@ public class SettingsViewModel : ViewModelBase
 
     public void ReportThumbnailsCleared(int count)
     {
-        ThumbnailStatus = $"Cleared {count} thumbnails — re-fetching in background...";
+        ThumbnailStatus = $"Cleared {count} thumbnails - re-fetching in background...";
         Log.Information("[Settings] Thumbnails cleared: {Count}", count);
     }
 
@@ -801,7 +801,7 @@ public class SettingsViewModel : ViewModelBase
         IsRepairing  = false;
         RepairStatus = missing == 0
             ? $"✓ All {total} file paths are valid."
-            : $"Found {missing} missing file(s) — {cleared} path(s) cleared for re-download.";
+            : $"Found {missing} missing file(s) - {cleared} path(s) cleared for re-download.";
         NullWave.Services.ToastService.Instance.Show(RepairStatus,
             missing == 0 ? NullWave.Models.ToastType.Success : NullWave.Models.ToastType.Warning);
         Log.Information("[Settings] RepairPaths: {Total} checked, {Missing} missing, {Cleared} cleared",
@@ -822,7 +822,7 @@ public class SettingsViewModel : ViewModelBase
     public void ReportMetaResyncComplete(int cleared)
     {
         IsRepairing  = false;
-        RepairStatus = $"✓ Cleared tags for {cleared} track(s) — Last.fm re-sync running in background.";
+        RepairStatus = $"✓ Cleared tags for {cleared} track(s) - Last.fm re-sync running in background.";
         NullWave.Services.ToastService.Instance.Show(RepairStatus, NullWave.Models.ToastType.Success);
         Log.Information("[Settings] MetaResync: {Count} tracks cleared", cleared);
     }
@@ -832,7 +832,7 @@ public class SettingsViewModel : ViewModelBase
         IsRepairing  = false;
         RepairStatus = $"✗ {operation} failed: {reason}";
         NullWave.Services.ToastService.Instance.Show(RepairStatus, NullWave.Models.ToastType.Error);
-        Log.Error("[Settings] Repair failed — {Op}: {Reason}", operation, reason);
+        Log.Error("[Settings] Repair failed - {Op}: {Reason}", operation, reason);
     }
 
     private Task ExportUntaggedTracksAsync()
@@ -850,7 +850,7 @@ public class SettingsViewModel : ViewModelBase
 
         if (trackList.Count == 0)
         {
-            ExternalAIStatus = "No untagged tracks found — nothing to export.";
+            ExternalAIStatus = "No untagged tracks found - nothing to export.";
             NullWave.Services.ToastService.Instance.Show(
                 "All tracks already have tags.", NullWave.Models.ToastType.Info);
             return;
@@ -865,7 +865,7 @@ public class SettingsViewModel : ViewModelBase
         var sp = new Avalonia.Platform.Storage.FilePickerSaveOptions
         {
             Title             = chunks.Count > 1
-                ? $"Save AI Prompt — Part 1 of {chunks.Count} (you'll save each in turn)"
+                ? $"Save AI Prompt - Part 1 of {chunks.Count} (you'll save each in turn)"
                 : "Save AI Tagging Prompt",
             SuggestedFileName = chunks[0].FileName,
             FileTypeChoices   = new[]
@@ -881,14 +881,14 @@ public class SettingsViewModel : ViewModelBase
         {
             sp.SuggestedFileName = fileName;
             if (savedCount > 0)
-                sp.Title = $"Save AI Prompt — Part {savedCount + 1} of {chunks.Count}";
+                sp.Title = $"Save AI Prompt - Part {savedCount + 1} of {chunks.Count}";
 
             var file = await parentWindow.StorageProvider.SaveFilePickerAsync(sp);
             if (file == null)
             {
                 ExternalAIStatus = savedCount == 0
                     ? "Export cancelled."
-                    : $"Partial export — saved {savedCount} of {chunks.Count} files.";
+                    : $"Partial export - saved {savedCount} of {chunks.Count} files.";
                 return;
             }
 
@@ -905,7 +905,7 @@ public class SettingsViewModel : ViewModelBase
             {
                 ExternalAIStatus = $"Export failed on part {savedCount + 1}: {ex.Message}";
                 NullWave.Services.ToastService.Instance.Show(
-                    "Export failed — check logs.", NullWave.Models.ToastType.Error);
+                    "Export failed - check logs.", NullWave.Models.ToastType.Error);
                 Log.Error(ex, "[Settings] Export chunk {N} failed", savedCount + 1);
                 return;
             }
@@ -935,7 +935,7 @@ public class SettingsViewModel : ViewModelBase
 
         ExternalAIStatus = total == 0
             ? "No matching tracks found in import."
-            : $"Import complete — tagged {applied} of {total} tracks.";
+            : $"Import complete - tagged {applied} of {total} tracks.";
 
         var type = applied > 0 ? NullWave.Models.ToastType.Success : NullWave.Models.ToastType.Warning;
         NullWave.Services.ToastService.Instance.Show(ExternalAIStatus, type);
@@ -1082,7 +1082,7 @@ public class SettingsViewModel : ViewModelBase
             UpdateStatus = result.IsUpdateAvailable
                 ? $"Update available: v{result.LatestVersion} (published {result.PublishedAt:dd-MMM-yyyy})"
                 : result.LatestVersion == "unknown"
-                    ? "Could not reach GitHub — check your connection"
+                    ? "Could not reach GitHub - check your connection"
                     : $"You are up to date (v{result.CurrentVersion})";
         }
         finally

@@ -393,7 +393,7 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
-
+                <Border Classes="BottomSpacer"/>
             </StackPanel>
         </ScrollViewer>
 

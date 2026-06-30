@@ -76,7 +76,7 @@
                     <material:MaterialIcon Kind="Rewind10" Width="20" Height="20"/>
                 </Button>
 
-                <!-- Play/pause — white circle, dark icon -->
+                <!-- Play/pause - white circle, dark icon -->
                 <Button Classes="player-btn play" Command="{Binding Player.PlayPauseCommand}" ToolTip.Tip="Play / Pause (Space)">
                     <material:MaterialIcon Kind="{Binding Player.PlayPauseIconKind}" Width="24" Height="24"/>
                 </Button>

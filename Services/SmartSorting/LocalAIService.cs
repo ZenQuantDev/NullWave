@@ -26,7 +26,7 @@ public class LocalAIService
 
     private readonly string _ollamaUrl = "http://localhost:11434";
 
-    // ── Active model ─────────────────────────────────────────────────────────
+    //  Active model 
     private string _currentModel = "qwen2.5:7b";
     public string CurrentModel
     {
@@ -34,7 +34,7 @@ public class LocalAIService
         set => _currentModel = value;
     }
 
-    // ── Power-aware model switching ──────────────────────────────────────────
+    //  Power-aware model switching 
     private string _batteryModel     = "qwen2.5:3b";
     private string _performanceModel = "qwen2.5:7b";
     private bool   _autoPowerSwitch  = false;
@@ -69,7 +69,7 @@ public class LocalAIService
             state, target);
     }
 
-    // ── Health / status ──────────────────────────────────────────────────────
+    //  Health / status 
 
     public async Task<bool> PingAsync()
     {
@@ -138,7 +138,7 @@ public class LocalAIService
         }
     }
 
-    // ── Model download ────────────────────────────────────────────────────────
+    //  Model download 
 
     public async Task DownloadModelAsync(
         string model,
@@ -189,7 +189,7 @@ public class LocalAIService
         progress?.Report(1.0);
     }
 
-    // ── Track ranking ─────────────────────────────────────────────────────────
+    //  Track ranking 
 
     public async Task<string[]> RankTracksForMoodAsync(
         string mood,

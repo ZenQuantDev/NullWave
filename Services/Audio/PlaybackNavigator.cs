@@ -1,4 +1,3 @@
-// PlaybackNavigator.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +20,10 @@ public class PlaybackNavigator
     public bool IsShuffle { get; set; }
     public bool IsSmartShuffle { get; set; }
     public RepeatMode RepeatMode { get; set; } = RepeatMode.None;
-
+    
+    /// <summary>
+    /// Tracks with SkipCount >= this value are excluded from Smart Shuffle.
+    /// </summary>
     public int SkipPenaltyCap { get; set; } = 3;
     
     public PlaybackNavigator(LibraryService library)
@@ -56,8 +58,7 @@ public class PlaybackNavigator
         }
         _shuffleIndex = -1;
 
-        Log.Debug("[PlaybackNavigator] Shuffle deck built: {Count} tracks " +
-            "(cap={Cap}, smart={Smart})",
+        Log.Debug("[PlaybackNavigator] Shuffle deck built: {Count} tracks (cap={Cap}, smart={Smart})",
             _shuffleDeck.Count, SkipPenaltyCap, IsSmartShuffle);
     }
 
@@ -85,13 +86,18 @@ public class PlaybackNavigator
         }
         
         if (currentTrack == null) return queue[0];
+        
         var idx = queue.FindIndex(t => t.Id == currentTrack.Id);
         
         if (idx >= 0 && idx < queue.Count - 1)
+        {
             return queue[idx + 1];
-            
+        }
+        
         if (RepeatMode == RepeatMode.All)
+        {
             return queue[0];
+        }
             
         return null;
     }
@@ -129,15 +135,20 @@ public class PlaybackNavigator
         }
 
         if (currentTrack == null) return null;
+        
         var idx = queue.FindIndex(t => t.Id == currentTrack.Id);
         
         if (idx > 0)
+        {
             return queue[idx - 1];
+        }
             
         if (RepeatMode == RepeatMode.All)
+        {
             return queue[^1];
+        }
             
-        return null;
+        return null; 
     }
     
     public bool ShouldRepeatCurrent() => RepeatMode == RepeatMode.One;

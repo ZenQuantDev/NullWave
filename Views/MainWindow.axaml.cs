@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            // Swallow — if ollama isn't on PATH or fails, the user still closes normally
+            // Swallow - if ollama isn't on PATH or fails, the user still closes normally
             Log.Warning(ex, "[MainWindow] Could not unload Ollama model on exit");
         }
     }
@@ -60,7 +60,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm) return;
 
-        // Alt — toggle menu bar
+        // Alt - toggle menu bar
         if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt)
         {
             vm.ToggleMenuBar();

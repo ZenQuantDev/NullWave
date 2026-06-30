@@ -105,7 +105,7 @@ public class PlaylistImportViewModel : ViewModelBase
             onTrackFailed: (title, error) =>
             {
                 NullActionLogger.Error(nameof(PlaylistImportViewModel),
-                    $"Playlist track failed: {title} — {error}", playlistUrl);
+                    $"Playlist track failed: {title} - {error}", playlistUrl);
             },
             ct: ct);
 

@@ -22,13 +22,13 @@ public class MainViewModel : ViewModelBase
     private readonly SecureDeleteService _secureDelete;
     private readonly ConfigService _config;
     private readonly LibraryService _library;
-    private readonly PlaylistService _playlists = new();
+    private readonly PlaylistService _playlists;
     private readonly LastFmService _lastFm;
     private readonly MetadataService _metadata;
     private readonly UrlParserService _urlParser = new();
     private readonly ExportService _export = new();
     private readonly PlaybackService _playbackService = new();
-    private readonly DownloadService _downloadService = new();
+    private readonly DownloadService _downloadService;
     private readonly SpotifyBridgeService _spotifyBridge;
     private readonly PreferencesService _prefsService;
     private readonly AlbumArtService _albumArt;
@@ -91,7 +91,13 @@ public class MainViewModel : ViewModelBase
         _lastFm = new LastFmService(_config);
         _metadata = new MetadataService(_config, _lastFm);
         _spotifyBridge = new SpotifyBridgeService(_config);
-        _library = new LibraryService(_metadata);
+        
+        var dbService = new DatabaseService();
+        _library = new LibraryService(dbService, _metadata);
+        _playlists = new PlaylistService(dbService, _library);
+        
+        _downloadService = new DownloadService(_library);
+
         _prefsService = new PreferencesService();
 
         _albumArt = new AlbumArtService(_lastFm);
@@ -102,15 +108,26 @@ public class MainViewModel : ViewModelBase
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService);
+
+        var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
+        Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport);
+        Library = new LibraryViewModel(_library);
+        Playlist = new PlaylistViewModel(_playlists);
+        Export = new ExportViewModel(_library, _export);
+        Detail = new TrackDetailViewModel(_library);
+        Import = new ImportViewModel(_library, _metadata);
+        Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
+        Profile = new UserProfileViewModel(_library);
+        
+
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
-        // Wire: master AI toggle → MoodPlaylistService + LocalAIService
         Settings.AIFeaturesEnabledChanged += enabled =>
         {
             if (!enabled)
             {
                 Settings.StopHealthCheck();
-                Log.Information("[MainViewModel] AI features disabled — health check stopped");
+                Log.Information("[MainViewModel] AI features disabled - health check stopped");
             }
             else
             {
@@ -124,7 +141,7 @@ public class MainViewModel : ViewModelBase
                             : NullWave.ViewModels.AIServiceState.Stopped));
                 });
                 Settings.StartAIHealthCheck();
-                Log.Information("[MainViewModel] AI features re-enabled — health check restarted");
+                Log.Information("[MainViewModel] AI features re-enabled - health check restarted");
             }
         };
 
@@ -165,20 +182,17 @@ public class MainViewModel : ViewModelBase
         
         _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
-        var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
-
-        Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport);
-        Library = new LibraryViewModel(_library);
-        Playlist = new PlaylistViewModel(_playlists);
-        Export = new ExportViewModel(_library, _export);
-        Detail = new TrackDetailViewModel(_library);
-        Import = new ImportViewModel(_library, _metadata);
-        Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
-        Profile = new UserProfileViewModel(_library);
+        _downloadService.DownloadCompleted += (_, _, _) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+        };
+        _downloadService.DownloadFailed += (_, _, _) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+        };
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
 
-        Input.TrackAdded += Library.Refresh;
         Input.TrackMetadataUpdated += Library.Refresh;
         Library.TrackDetailRequested += Detail.OpenFor;
         Library.PlayTrackRequested += Player.PlayTrack;
@@ -186,8 +200,31 @@ public class MainViewModel : ViewModelBase
 
         Input.TrackAdded += () =>
         {
-            var latest = _library.GetAll().LastOrDefault();
-            if (latest != null) _enrichment.EnrichAsync(latest);
+            var track = _library.GetAll().LastOrDefault();
+            if (track == null) return;
+
+            var playlistUrl = track.Url;
+            if (string.IsNullOrEmpty(playlistUrl)) return;
+
+            if (playlistUrl.Contains("list="))
+            {
+                Log.Information("[MainViewModel] Intercepted playlist URL, removing dummy track and starting bulk download");
+                _library.Remove(track.Id);
+                Library.Refresh();
+                
+                _ = _downloadService.DownloadPlaylistAsync(
+                    playlistUrl: playlistUrl,
+                    onTrackReady: (downloadedTrack) =>
+                    {
+                        _enrichment.EnrichAsync(downloadedTrack);
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+                    });
+                    
+                return;
+            }
+            
+            _enrichment.EnrichAsync(track);
+            Library.Refresh();
         };
 
         _enrichment.BackfillCompleted += () =>
@@ -231,7 +268,6 @@ public class MainViewModel : ViewModelBase
             Library.Refresh();
         };
 
-        // ── Wire: Repair Paths ───────────────────────────────────────────────────────
         Settings.RepairPathsRequested += () =>
         {
             try
@@ -247,7 +283,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        // ── Wire: Reimport Assets ────────────────────────────────────────────────────
         Settings.ReimportAssetsRequested += () =>
         {
             try
@@ -269,7 +304,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        // ── Wire: Force Meta Re-sync ─────────────────────────────────────────────────
         Settings.ForceMetaResyncRequested += () =>
         {
             try
@@ -483,7 +517,7 @@ public class MainViewModel : ViewModelBase
         {
             if (!_weatherService.IsConfigured)
             {
-                Log.Information("[MainViewModel] OpenWeather API key not set — skipping mood playlist");
+                Log.Information("[MainViewModel] OpenWeather API key not set - skipping mood playlist");
                 return;
             }
 
@@ -492,12 +526,11 @@ public class MainViewModel : ViewModelBase
 
             if (lat == 0 && lon == 0)
             {
-                Settings.ReportMoodPlaylistFailed("No location set — add coordinates in Settings → Smart Sorting");
+                Settings.ReportMoodPlaylistFailed("No location set - add coordinates in Settings → Smart Sorting");
                 return;
             }
 
             _localAI.CurrentModel = Settings.SelectedModel;
-
             bool useAi = Settings.AIFeaturesEnabled && Settings.UseLocalAI;
 
             var result = await _moodPlaylist.GenerateAsync(lat, lon, useAi, forceRefresh);
@@ -508,10 +541,16 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
+            var oldMoodPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("Mood:")).ToList();
+            foreach (var old in oldMoodPlaylists)
+            {
+                _playlists.Remove(old.Id);
+            }
+
             var playlistName = $"Mood: {result.Mood} ({result.WeatherCondition}, {result.TemperatureC:F0}°C)";
             var playlist = _playlists.Create(playlistName,
                 $"Auto-generated {(result.UsedAI ? "by local AI" : "from tags")} on {DateTime.Now:dd MMM, HH:mm}");
-
+                
             foreach (var track in result.Tracks)
                 _playlists.AddTrack(playlist.Id, track);
 

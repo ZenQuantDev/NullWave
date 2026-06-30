@@ -102,7 +102,7 @@ public class PowerStateService : IDisposable
         return PowerState.Unknown;
     }
 
-    // ── Win32 P/Invoke for Windows power state ────────────────────────────
+    //  Win32 P/Invoke for Windows power state 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS lpSystemPowerStatus);
 

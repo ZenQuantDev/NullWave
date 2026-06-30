@@ -16,14 +16,14 @@ namespace NullWave.Services;
 ///
 /// Logged output example:
 ///   [STARTUP] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-///   [STARTUP] NullWave v0.1.1 | .NET 8.0.x | OS: Linux 6.x
+///   [STARTUP] NullWave v0.4.1 | .NET 8.0.x | OS: Linux 6.x
 ///   [STARTUP] Library: 42 tracks | DB: ~/.nullwave/library.db | Load: 18ms
 ///   [STARTUP] Key: YouTube      → loaded
 ///   [STARTUP] Key: LastFm       → loaded
 ///   [STARTUP] Key: SoundCloud   → missing
 ///   [STARTUP] Connectivity      → ok (latency: 142ms)
-///   [STARTUP] VLC               → 3.0.20
-///   [STARTUP] yt-dlp            → 2024.11.18
+///   [STARTUP] VLC               → 3.0.23
+///   [STARTUP] yt-dlp            → 2026.06.09
 ///   [STARTUP] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /// </summary>
 public class StartupDiagnosticsService
@@ -48,7 +48,7 @@ public class StartupDiagnosticsService
         var sep = new string('━', 51);
         NullActionLogger.StartupLine(sep);
 
-        // ── 1. App identity ──────────────────────────────────────────────────
+        //  1. App identity 
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion ?? "unknown";
@@ -60,7 +60,7 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine(
             $"NullWave v{version} | {runtime} | OS: {os}");
 
-        // ── 2. Library load ──────────────────────────────────────────────────
+        //  2. Library load 
         var sw = Stopwatch.StartNew();
         var allTracks = _library.GetAll();
         sw.Stop();
@@ -72,7 +72,7 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine(
             $"Library: {allTracks.Count} tracks | DB: {dbPath} | Load: {sw.ElapsedMilliseconds}ms");
 
-        // ── 3. API key status ─────────────────────────────────────────────────
+        //  3. API key status 
         foreach (var key in KeyNames)
         {
             string status;
@@ -89,17 +89,17 @@ public class StartupDiagnosticsService
             NullActionLogger.StartupLine($"Key: {key,-20}→ {status}");
         }
 
-        // ── 4. Internet connectivity ─────────────────────────────────────────
+        //  4. Internet connectivity 
         await CheckConnectivityAsync();
 
-        // ── 5. Tool versions ─────────────────────────────────────────────────
+        //  5. Tool versions 
         await LogToolVersionAsync("vlc", "--version", "VLC");
         await LogToolVersionAsync("yt-dlp", "--version", "yt-dlp");
 
         NullActionLogger.StartupLine(sep);
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
+    //  Helpers 
 
     private static async Task CheckConnectivityAsync()
     {

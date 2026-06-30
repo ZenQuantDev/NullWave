@@ -32,16 +32,14 @@ public static class SourceDetector
         return source switch
         {
             TrackSource.YouTube =>
-                url.Contains("v=") || url.Contains("youtu.be/"),
+                url.Contains("v=") || url.Contains("youtu.be/") || url.Contains("list="),
             TrackSource.SoundCloud =>
-                // Must have a path beyond the domain
                 url.TrimEnd('/').Split('/').Length >= 5,
             TrackSource.Spotify =>
                 url.Contains("/track/") || url.Contains("/album/") || url.Contains("/playlist/"),
             TrackSource.LastFm =>
                 url.Contains("/music/"),
             TrackSource.Unknown =>
-                // Local file path or other direct URL — allow through
                 !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
                 url.Length > 30,
             _ => true

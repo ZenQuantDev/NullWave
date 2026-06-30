@@ -16,7 +16,7 @@ namespace NullWave.Helpers.Logging;
 /// </summary>
 public static class NullActionLogger
 {
-    // ─── User-action channel ──────────────────────────────────────────────────
+    //  User-action channel 
 
     public static void User(string action, string target, string source)
         => Log.ForContext("Channel", "UserAction")
@@ -24,7 +24,7 @@ public static class NullActionLogger
               .Information("[ACTION] {Action} | Target: {Target} | Source: {ActionSource}",
                   action, target, source);
 
-    // ─── Convenience overloads ────────────────────────────────────────────────
+    //  Convenience overloads 
 
     public static void TrackPlayed(string trackId, string title, string artist, string source)
         => User($"TrackPlayed title=\"{title}\" artist=\"{artist}\"", trackId, source);
@@ -71,7 +71,7 @@ public static class NullActionLogger
     public static void SearchPerformed(string query, int resultCount, string source)
         => User($"SearchPerformed results={resultCount}", $"query=\"{query}\"", source);
 
-    // ─── System / attributed errors ───────────────────────────────────────────
+    //  System / attributed errors 
 
     /// <summary>
     /// Logs an error attributed to a specific ViewModel or Service.
@@ -91,7 +91,7 @@ public static class NullActionLogger
                   callerSource, ex.Message,
                   context != null ? $" | {context}" : string.Empty);
 
-    // ─── Startup diagnostics ─────────────────────────────────────────────────
+    //  Startup diagnostics 
 
     public static void StartupLine(string message)
         => Log.ForContext("Channel", "Startup")

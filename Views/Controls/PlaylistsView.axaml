@@ -55,7 +55,7 @@
 
         <!-- Empty state -->
         <TextBlock DockPanel.Dock="Bottom"
-                   Text="No playlists yet — create one above"
+                   Text="No playlists yet - create one above"
                    Foreground="{StaticResource BrushTextMuted}"
                    FontSize="{StaticResource FontSizeSm}"
                    TextWrapping="Wrap"
@@ -210,7 +210,7 @@
         </ListBox>
 
         <!-- Empty playlist state -->
-        <TextBlock Text="This playlist is empty — add tracks from the Library page"
+        <TextBlock Text="This playlist is empty - add tracks from the Library page"
                    Foreground="{StaticResource BrushTextMuted}"
                    FontSize="{StaticResource FontSizeSm}"
                    HorizontalAlignment="Center"

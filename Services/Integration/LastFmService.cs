@@ -21,7 +21,7 @@ public class LastFmService
 
     public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
 
-    // Search for a track — returns corrected title + artist if found
+    // Search for a track - returns corrected title + artist if found
     public async Task<(string Title, string Artist)> SearchTrackAsync(
         string title, string artist)
     {
@@ -67,7 +67,7 @@ public class LastFmService
         return (title, artist);
     }
 
-    // Get detailed track info — tags, listeners, wiki summary
+    // Get detailed track info - tags, listeners, wiki summary
     public async Task<LastFmTrackInfo?> GetTrackInfoAsync(string title, string artist)
     {
         if (!IsConfigured) return null;
@@ -157,7 +157,7 @@ public class LastFmService
         }
     }
 
-    // Scrobble placeholder — full OAuth implementation in Phase 7
+    // Scrobble placeholder - full OAuth implementation in Phase 7
     // Returns Task.CompletedTask (no async keyword) to avoid CS1998 warning
     public Task ScrobbleAsync(string title, string artist, DateTime playedAt)
     {
@@ -166,7 +166,7 @@ public class LastFmService
         try
         {
             // Last.fm scrobble requires API signature (HMAC-MD5) + user session token
-            // For now we just log the attempt — full implementation in Phase 7
+            // For now we just log the attempt - full implementation in Phase 7
             Log.Information("[LastFm] Scrobble: {Title} by {Artist} at {Time}",
                 title, artist, playedAt);
 

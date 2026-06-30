@@ -131,7 +131,7 @@ public class PlaylistViewModel : ViewModelBase
             _playlists.Rename(SelectedPlaylist.Id, trimmed);
             // Playlist is a reference type held in both _playlists and
             // Playlists collection, but Rename() may not raise property
-            // change on its own — force a refresh so the UI updates.
+            // change on its own - force a refresh so the UI updates.
             Refresh();
             SelectedPlaylist = Playlists.FirstOrDefault(p => p.Name == trimmed) ?? SelectedPlaylist;
         }

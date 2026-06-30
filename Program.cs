@@ -14,10 +14,10 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // ── 1. Ensure ~/.nullwave/* directories exist ─────────────────────────
+        //  1. Ensure ~/.nullwave/* directories exist 
         NullWavePaths.EnsureDirectories();
 
-        // ── 2. Initialize Serilog before anything else ────────────────────────
+        //  2. Initialize Serilog before anything else 
         NullWaveLogConfig.Initialize();
 
         try

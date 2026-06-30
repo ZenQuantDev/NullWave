@@ -10,7 +10,7 @@ namespace NullWave.Services.Metadata;
 /// YouTube-style string like "Mariah Carey - Obsessed (Official Music Video)".
 ///
 /// Extracted from AlbumArtService so LastFmEnrichmentService can use the
-/// exact same parsing logic for tag lookups — previously this lived only
+/// exact same parsing logic for tag lookups - previously this lived only
 /// in AlbumArtService, so EnrichTrackAsync sent unparsed messy titles
 /// straight to Last.fm and got no tags back for most mainstream tracks
 /// imported from YouTube with no separate artist field.
@@ -36,8 +36,8 @@ public static class TrackTitleParser
     }
 
     /// <summary>
-    /// Strips common YouTube title clutter — "(Official Video)", "(Lyrics)",
-    /// "ft. X", trailing tags — then splits on the first " - " separator
+    /// Strips common YouTube title clutter - "(Official Video)", "(Lyrics)",
+    /// "ft. X", trailing tags - then splits on the first " - " separator
     /// into (Artist, Title). Returns null if no separator is found.
     /// </summary>
     public static (string Artist, string Title)? TryParseArtistTitle(string rawTitle)
@@ -56,7 +56,7 @@ public static class TrackTitleParser
 
         cleaned = cleaned.Trim();
 
-        var separators = new[] { " - ", " – ", " — " };
+        var separators = new[] { " - ", " – ", " - " };
         foreach (var sep in separators)
         {
             var idx = cleaned.IndexOf(sep, StringComparison.Ordinal);

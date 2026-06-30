@@ -26,7 +26,7 @@ public class DependencyUpdateService
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
     }
 
-    // ── yt-dlp ────────────────────────────────────────────────────────────
+    //  yt-dlp 
 
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
@@ -70,7 +70,7 @@ public class DependencyUpdateService
         }
     }
 
-    // ── VLC ───────────────────────────────────────────────────────────────
+    //  VLC 
 
     public async Task<DependencyInfo> GetVlcInfoAsync()
     {
@@ -89,7 +89,7 @@ public class DependencyUpdateService
         };
     }
 
-    // ── FFmpeg ────────────────────────────────────────────────────────────
+    //  FFmpeg 
 
     public async Task<DependencyInfo> GetFfmpegInfoAsync()
     {
@@ -108,7 +108,7 @@ public class DependencyUpdateService
         };
     }
 
-    // ── .NET ──────────────────────────────────────────────────────────────
+    //  .NET 
 
     public async Task<DependencyInfo> GetDotNetInfoAsync()
     {
@@ -123,7 +123,7 @@ public class DependencyUpdateService
         };
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────
+    //  Helper 
 
     private static async Task<string?> RunCommandAsync(string cmd, string args)
     {

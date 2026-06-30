@@ -131,7 +131,7 @@
                            FontSize="{StaticResource FontSizeXs}"
                            TextWrapping="Wrap"/>
             </Border>
-
+            <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
 

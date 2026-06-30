@@ -48,7 +48,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="last.fm/api/account/create — free, no tier required"
+                            <TextBlock Text="last.fm/api/account/create - free, no tier required"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"/>
                         </StackPanel>
@@ -77,7 +77,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="openweathermap.org/api — free tier, 60 calls/minute"
+                            <TextBlock Text="openweathermap.org/api - free tier, 60 calls/minute"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"/>
                         </StackPanel>
@@ -106,7 +106,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="soundcloud.com/you/apps — new registrations limited by region"
+                            <TextBlock Text="soundcloud.com/you/apps - new registrations limited by region"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"/>
                         </StackPanel>
@@ -134,7 +134,7 @@
                                    Foreground="{StaticResource BrushTextPrimary}"
                                    FontSize="{StaticResource FontSizeBodyLarge}"
                                    FontWeight="SemiBold"/>
-                        <TextBlock Text="developer.spotify.com/dashboard — metadata lookup only, not streaming"
+                        <TextBlock Text="developer.spotify.com/dashboard - metadata lookup only, not streaming"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{StaticResource FontSizeXs}"/>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
@@ -191,7 +191,7 @@
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     Padding="0,12"/>
-
+            <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
 

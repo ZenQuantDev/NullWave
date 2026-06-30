@@ -40,7 +40,7 @@ public static class AIModelCatalog
     /// </summary>
     public static readonly IReadOnlyList<AIModelEntry> All = new List<AIModelEntry>
     {
-        // ── Tiny (≤1B) - runs on anything ──────────────────────────────────
+        //  Tiny (≤1B) - runs on anything 
         new("qwen2.5:0.5b",      "Qwen 2.5 0.5B",      ModelTier.Tiny,   0,  1,  2,
             "Fastest possible. Basic tagging only. Works on any device."),
 
@@ -50,7 +50,7 @@ public static class AIModelCatalog
         new("phi3.5:mini",       "Phi-3.5 Mini (3.8B)", ModelTier.Tiny,   4,  2,  4,
             "Microsoft Phi-3.5. Surprisingly capable for its size."),
 
-        // ── Small (3-4B) - works on 4GB RAM+ ───────────────────────────────
+        //  Small (3-4B) - works on 4GB RAM+ 
         new("qwen2.5:3b",        "Qwen 2.5 3B",         ModelTier.Small,  3,  2,  4,
             "Good quality tagging. Recommended for devices with 4GB RAM."),
 
@@ -63,7 +63,7 @@ public static class AIModelCatalog
         new("phi4:mini",         "Phi-4 Mini (3.8B)",   ModelTier.Small,  4,  3,  5,
             "Microsoft Phi-4 Mini. Best-in-class small model reasoning."),
 
-        // ── Medium (7-8B) - recommended for most users ──────────────────────
+        //  Medium (7-8B) - recommended for most users 
         new("qwen2.5:7b",        "Qwen 2.5 7B",         ModelTier.Medium, 7,  4,  8,
             "Best balance of quality and speed. Default recommendation."),
 
@@ -82,7 +82,7 @@ public static class AIModelCatalog
         new("deepseek-r1:7b",    "DeepSeek R1 7B",      ModelTier.Medium, 7,  4,  8,
             "DeepSeek R1 distilled. Excellent step-by-step reasoning."),
 
-        // ── Large (12-14B) - needs 8GB+ RAM or 8GB+ VRAM ───────────────────
+        //  Large (12-14B) - needs 8GB+ RAM or 8GB+ VRAM 
         new("mistral-nemo:12b",  "Mistral Nemo 12B",    ModelTier.Large,  12, 8,  12,
             "Mistral Nemo. Great multilingual support and music context."),
 
@@ -92,7 +92,7 @@ public static class AIModelCatalog
         new("llama3.1:70b",      "Llama 3.1 70B",       ModelTier.Large,  70, 24, 48,
             "Very large. GPU with 24GB+ VRAM recommended."),
 
-        // ── XL (32B+) - workstation / high-end GPU only ─────────────────────
+        //  XL (32B+) - workstation / high-end GPU only 
         new("qwen2.5:32b",       "Qwen 2.5 32B",        ModelTier.XL,     32, 20, 32,
             "Maximum quality. Requires 32GB RAM or 20GB+ VRAM."),
 

@@ -9,7 +9,7 @@ namespace NullWave.Helpers.Converters;
 /// Compares two bound Guid values (typically a track row's Id against
 /// Player.CurrentTrack.Id) and returns true if they're equal and both
 /// non-null. Used to drive a "now playing" row highlight that persists
-/// across different filtered views of the library — unlike
+/// across different filtered views of the library - unlike
 /// ListBoxItem:selected, which is local to a single ListBox and is lost
 /// whenever Tracks is rebuilt by a filter change.
 /// </summary>

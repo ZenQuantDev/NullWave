@@ -1,4 +1,4 @@
-# NullWave — Disclaimer & Terms of Use
+# NullWave - Disclaimer & Terms of Use
 
 NullWave is free, open-source software provided "as is", without warranty of any kind,
 express or implied, including but not limited to the warranties of merchantability,

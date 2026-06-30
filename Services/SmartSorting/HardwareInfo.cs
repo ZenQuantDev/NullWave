@@ -192,31 +192,31 @@ public class HardwareDetector
     {
         // GPU-accelerated models (fastest)
         if (gpuVram >= 24 && (hasNvidia || hasAmd))
-            return ("qwen2.5:32b", $"32GB VRAM detected ({gpuVram}GB) — can run 32B model with GPU acceleration");
+            return ("qwen2.5:32b", $"32GB VRAM detected ({gpuVram}GB) - can run 32B model with GPU acceleration");
 
         if (gpuVram >= 16 && (hasNvidia || hasAmd))
-            return ("qwen2.5:14b", $"16GB VRAM detected ({gpuVram}GB) — can run 14B model with GPU acceleration");
+            return ("qwen2.5:14b", $"16GB VRAM detected ({gpuVram}GB) - can run 14B model with GPU acceleration");
 
         if (gpuVram >= 8 && (hasNvidia || hasAmd))
-            return ("mistral-nemo:12b", $"8GB VRAM detected ({gpuVram}GB) — can run 12B model with GPU acceleration");
+            return ("mistral-nemo:12b", $"8GB VRAM detected ({gpuVram}GB) - can run 12B model with GPU acceleration");
 
         if (gpuVram >= 4 && (hasNvidia || hasAmd))
-            return ("qwen2.5:7b", $"4GB VRAM detected ({gpuVram}GB) — can run 7B model with GPU acceleration");
+            return ("qwen2.5:7b", $"4GB VRAM detected ({gpuVram}GB) - can run 7B model with GPU acceleration");
 
         // CPU-only models (slower but works)
         if (ramGB >= 32)
-            return ("qwen2.5:32b", $"32GB RAM detected — can run 32B model (CPU-only, slower)");
+            return ("qwen2.5:32b", $"32GB RAM detected - can run 32B model (CPU-only, slower)");
 
         if (ramGB >= 16)
-            return ("qwen2.5:14b", $"16GB RAM detected — can run 14B model (CPU-only, slower)");
+            return ("qwen2.5:14b", $"16GB RAM detected - can run 14B model (CPU-only, slower)");
 
         if (ramGB >= 8)
-            return ("mistral-nemo:12b", $"8GB RAM detected — can run 12B model (CPU-only, slower)");
+            return ("mistral-nemo:12b", $"8GB RAM detected - can run 12B model (CPU-only, slower)");
 
         if (ramGB >= 4)
-            return ("qwen2.5:7b", $"4GB RAM detected — can run 7B model (CPU-only, slower)");
+            return ("qwen2.5:7b", $"4GB RAM detected - can run 7B model (CPU-only, slower)");
 
         // Fallback
-        return ("qwen2.5:3b", $"Limited hardware ({ramGB}GB RAM) — using smallest model for best performance");
+        return ("qwen2.5:3b", $"Limited hardware ({ramGB}GB RAM) - using smallest model for best performance");
     }
 }

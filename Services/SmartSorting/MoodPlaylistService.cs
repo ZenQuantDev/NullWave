@@ -23,7 +23,7 @@ public class MoodPlaylistResult
 /// Orchestrates the full mood-playlist pipeline: fetch weather, map to mood
 /// tags, filter the library by those tags, then either hand the filtered
 /// list to LocalAIService for ranking (Tier 1) or use the tag-filtered list
-/// directly (Tier 2 fallback — no AI, or AI unavailable/disabled).
+/// directly (Tier 2 fallback - no AI, or AI unavailable/disabled).
 /// </summary>
 public class MoodPlaylistService
 {
@@ -75,7 +75,7 @@ public class MoodPlaylistService
         {
             candidates = _library.GetAll().ToList();
             usingFallbackPool = true;
-            Log.Information("[MoodPlaylist] No tracks matched mood tags — falling back to full library");
+            Log.Information("[MoodPlaylist] No tracks matched mood tags - falling back to full library");
         }
 
         if (candidates.Count == 0)
@@ -83,14 +83,14 @@ public class MoodPlaylistService
             return new MoodPlaylistResult
             {
                 Success = false,
-                FailureReason = "Library is empty — add some tracks first.",
+                FailureReason = "Library is empty - add some tracks first.",
                 WeatherCondition = weather.Condition,
                 TemperatureC = weather.TemperatureC,
                 Mood = moodLabel
             };
         }
 
-        // Tier 1 — local AI ranking, only if requested and reachable
+        // Tier 1 - local AI ranking, only if requested and reachable
         if (useLocalAI && !usingFallbackPool)
         {
             var ollamaUp = await _ai.IsOllamaRunningAsync();
@@ -122,15 +122,15 @@ public class MoodPlaylistService
                     }
                 }
 
-                Log.Warning("[MoodPlaylist] AI ranking returned no usable results — falling back to tag-only ordering");
+                Log.Warning("[MoodPlaylist] AI ranking returned no usable results - falling back to tag-only ordering");
             }
             else
             {
-                Log.Information("[MoodPlaylist] Ollama not reachable — falling back to tag-only ordering");
+                Log.Information("[MoodPlaylist] Ollama not reachable - falling back to tag-only ordering");
             }
         }
 
-        // Tier 2 — tag-only fallback: most-played first within the matched mood pool
+        // Tier 2 - tag-only fallback: most-played first within the matched mood pool
         var tagOnly = candidates
             .OrderByDescending(t => t.PlayCount)
             .ThenByDescending(t => t.IsFavorite)
@@ -152,7 +152,7 @@ public class MoodPlaylistService
 /// <summary>
 /// Maps weather condition + temperature + time of day to mood tag
 /// candidates. Tags match against Track.Tags, which are populated by
-/// LastFmEnrichmentService from real Last.fm community tags — genre and
+/// LastFmEnrichmentService from real Last.fm community tags - genre and
 /// descriptor words like "pop", "dance", "rnb", "electronic", "90s",
 /// "female vocalists", "acoustic", "chill", "ambient", etc.
 ///
@@ -194,7 +194,7 @@ public static class WeatherMoodMap
             _ => new[] { "pop", "chill" }
         };
 
-        // Late night / early morning skews toward lower-energy descriptors —
+        // Late night / early morning skews toward lower-energy descriptors -
         // these are common standalone Last.fm tags, not invented words.
         if (hour >= 22 || hour < 5)
             tags = tags.Concat(new[] { "chill", "ambient", "rnb", "soul" }).Distinct().ToArray();

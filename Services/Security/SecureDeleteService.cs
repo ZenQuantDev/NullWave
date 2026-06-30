@@ -36,7 +36,7 @@ public class SecureDeleteService
         Log.Warning("All logs have been securely deleted");
     }
 
-    // Nuclear option — wipe everything NullWave has stored
+    // Nuclear option - wipe everything NullWave has stored
     public void DeleteEverything()
     {
         DeleteApiKeys();

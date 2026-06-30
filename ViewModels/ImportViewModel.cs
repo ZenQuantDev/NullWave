@@ -80,7 +80,7 @@ public class ImportViewModel : ViewModelBase
         if (folders.Count == 0) return;
         var folderPath = folders[0].Path.LocalPath;
 
-        // Ask about subfolders — use a simple bool dialog via MessageBox
+        // Ask about subfolders - use a simple bool dialog via MessageBox
         var includeSubfolders = await AskIncludeSubfoldersAsync(window);
 
         // Collect files
@@ -135,7 +135,7 @@ public class ImportViewModel : ViewModelBase
             await Task.Delay(1);
         }
 
-        ImportStatus = $"Done — {added} added, {skipped} skipped (duplicates).";
+        ImportStatus = $"Done - {added} added, {skipped} skipped (duplicates).";
         IsImporting = false;
         Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}",
             added, skipped, folderPath);

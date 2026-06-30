@@ -23,7 +23,7 @@ public class KeyStoreService
         _encryptionKey = DeriveKey();
     }
 
-    // Derive a 256-bit key from machine-id + username — never stored anywhere
+    // Derive a 256-bit key from machine-id + username - never stored anywhere
     private static byte[] DeriveKey()
     {
         var machineId = GetMachineId();
@@ -60,7 +60,7 @@ public class KeyStoreService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load keystore — may be corrupted");
+            Log.Error(ex, "Failed to load keystore - may be corrupted");
             return new Dictionary<string, string>();
         }
     }

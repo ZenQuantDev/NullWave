@@ -33,17 +33,17 @@ public static class NullWaveLogConfig
             .MinimumLevel.Debug()
             .Enrich.FromLogContext()
 
-            // ── Sink 1: Main log — all events ─────────────────────────────────
+            //  Sink 1: Main log - all events 
             .WriteTo.File(
                 path: Path.Combine(logDir, "NullWave-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 outputTemplate: outputTemplate)
 
-            // ── Sink 2: Console (debug builds) ────────────────────────────────
+            //  Sink 2: Console (debug builds) 
             .WriteTo.Console(outputTemplate: outputTemplate)
 
-            // ── Sink 3: UserActions — only entries with Channel=UserAction ────
+            //  Sink 3: UserActions - only entries with Channel=UserAction 
             .WriteTo.Logger(lc => lc
                 .Filter.ByIncludingOnly(
                     Matching.WithProperty<string>(
@@ -54,7 +54,7 @@ public static class NullWaveLogConfig
                     retainedFileCountLimit: 30,
                     outputTemplate: outputTemplate))
 
-            // ── Sink 4: Errors — Error level and above ────────────────────────
+            //  Sink 4: Errors - Error level and above 
             .WriteTo.Logger(lc => lc
                 .MinimumLevel.Error()
                 .WriteTo.File(
@@ -65,7 +65,7 @@ public static class NullWaveLogConfig
 
             .CreateLogger();
 
-        Log.Information("Serilog initialized — logs at {LogDir}", logDir);
+        Log.Information("Serilog initialized - logs at {LogDir}", logDir);
     }
 
     public static void CloseAndFlush()

@@ -8,8 +8,14 @@ namespace NullWave.Services;
 public class PlaylistService
 {
     private readonly List<Playlist> _playlists = new();
+    private readonly DatabaseService _db;
 
-    //  Core 
+    public PlaylistService(DatabaseService db, LibraryService library)
+    {
+        _db = db;
+        _playlists = _db.LoadPlaylists(library.GetAll().ToList());
+    }
+
     public IReadOnlyList<Playlist> GetAll() => _playlists.AsReadOnly();
 
     public Playlist Create(string name, string? description = null)
@@ -20,19 +26,22 @@ public class PlaylistService
             Description = description
         };
         _playlists.Add(playlist);
+        _db.SavePlaylist(playlist);
         return playlist;
     }
 
     public void Remove(Guid id)
     {
         var playlist = _playlists.FirstOrDefault(p => p.Id == id);
-        if (playlist != null) _playlists.Remove(playlist);
+        if (playlist != null) 
+        {
+            _playlists.Remove(playlist);
+            _db.DeletePlaylist(id);
+        }
     }
 
-    public Playlist? GetById(Guid id) =>
-        _playlists.FirstOrDefault(p => p.Id == id);
+    public Playlist? GetById(Guid id) => _playlists.FirstOrDefault(p => p.Id == id);
 
-    //  Track Management 
     public bool AddTrack(Guid playlistId, Track track)
     {
         var playlist = GetById(playlistId);
@@ -40,6 +49,7 @@ public class PlaylistService
         if (playlist.Tracks.Any(t => t.Id == track.Id)) return false;
 
         playlist.Tracks.Add(track);
+        _db.SavePlaylist(playlist);
         return true;
     }
 
@@ -52,6 +62,7 @@ public class PlaylistService
         if (track == null) return false;
 
         playlist.Tracks.Remove(track);
+        _db.SavePlaylist(playlist);
         return true;
     }
 
@@ -65,19 +76,20 @@ public class PlaylistService
         var track = playlist.Tracks[fromIndex];
         playlist.Tracks.RemoveAt(fromIndex);
         playlist.Tracks.Insert(toIndex, track);
+        
+        _db.SavePlaylist(playlist);
         return true;
     }
 
-    //  Rename 
     public bool Rename(Guid id, string newName)
     {
         var playlist = GetById(id);
         if (playlist == null) return false;
         playlist.Name = newName;
+        _db.SavePlaylist(playlist);
         return true;
     }
 
-    //  Stats 
     public int GetTrackCount(Guid id) => GetById(id)?.Tracks.Count ?? 0;
 
     public bool NameExists(string name) =>

@@ -1,4 +1,3 @@
-// PlaybackService.cs
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,7 +62,7 @@ public class PlaybackService : IDisposable
     {
         StateChanged?.Invoke(PlaybackState.Playing);
         
-        // Fix: Prevent native audio mutex deadlocks on Linux (PulseAudio/PipeWire). 
+        // Prevent native audio mutex deadlocks on Linux (PulseAudio/PipeWire). 
         // Only force the pipeline volume update if we aren't actively running a volume fade.
         if (_fadeCts == null || _fadeCts.IsCancellationRequested)
         {
@@ -144,7 +143,7 @@ public class PlaybackService : IDisposable
         if (!_fadeCts.Token.IsCancellationRequested)
         {
             _player.Pause();
-            Volume = originalVolume; // Restore under the hood for next manual resume
+            Volume = originalVolume;
         }
     }
 
@@ -160,8 +159,18 @@ public class PlaybackService : IDisposable
         await FadeVolumeAsync(_player, 0f, targetVolume, durationMs, _fadeCts.Token);
     }
 
+    /// <summary>
+    /// Crossfades from the current track to a new track. 
+    /// Safely aborts if nextPath is null/empty (e.g., end of queue).
+    /// </summary>
     public async Task CrossfadeToAsync(string nextPath, int durationMs, float targetVolume)
     {
+        if (string.IsNullOrWhiteSpace(nextPath))
+        {
+            Log.Debug("[PlaybackService] Crossfade skipped: No next track path provided.");
+            return;
+        }
+
         var isUrl = nextPath.StartsWith("http", StringComparison.OrdinalIgnoreCase);
         var nextMedia = isUrl ? new Media(_libVlc, new Uri(nextPath)) : new Media(_libVlc, nextPath);
         var nextPlayer = new MediaPlayer(_libVlc) { Media = nextMedia };
@@ -172,7 +181,6 @@ public class PlaybackService : IDisposable
         var oldPlayer = _player;
         var oldMedia = _currentMedia;
 
-        // Swap players instantly so UI binds to new duration/position
         _player = nextPlayer;
         _currentMedia = nextMedia;
         
@@ -203,7 +211,7 @@ public class PlaybackService : IDisposable
             if (ct.IsCancellationRequested) return;
             
             float progress = (float)i / steps;
-            float ease = (float)Math.Pow(progress, 2); // Natural exponential hearing curve
+            float ease = (float)Math.Pow(progress, 2);
             float current = start + (end - start) * ease;
             
             p.Volume = (int)Math.Clamp(current * 100, 0, 100);

@@ -8,7 +8,7 @@
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <!-- ── Data Folders ─────────────────────────────────────────── -->
+            <!--  Data Folders  -->
             <TextBlock Classes="section-label" Text="DATA" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
@@ -20,7 +20,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave — keys, db, downloads, art, logs"
+                            <TextBlock Text="~/.nullwave - keys, db, downloads, art, logs"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeSm}"/>
                         </StackPanel>
@@ -37,7 +37,7 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave/logs — system, user actions, errors"
+                            <TextBlock Text="~/.nullwave/logs - system, user actions, errors"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeSm}"/>
                         </StackPanel>
@@ -49,7 +49,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- ── Library Maintenance ──────────────────────────────────── -->
+            <!--  Library Maintenance  -->
             <TextBlock Classes="section-label" Text="LIBRARY MAINTENANCE" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
@@ -147,7 +147,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- ── Cache ────────────────────────────────────────────────── -->
+            <!--  Cache  -->
             <TextBlock Classes="section-label" Text="CACHE" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
@@ -174,7 +174,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- ── Danger Zone ──────────────────────────────────────────── -->
+            <!--  Danger Zone  -->
             <TextBlock Classes="section-label" Text="DANGER ZONE"
                        Foreground="{StaticResource BrushRed}"
                        Margin="0,0,0,12"/>
@@ -236,7 +236,7 @@
 
                 </StackPanel>
             </Border>
-
+            <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
 

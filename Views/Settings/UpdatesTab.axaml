@@ -146,7 +146,7 @@
 
                 </StackPanel>
             </Border>
-
+            <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
 

@@ -32,6 +32,7 @@ public class PlayerViewModel : ViewModelBase
     private string _statusText = "No track playing";
     private DateTime _trackStartTime = DateTime.MinValue;
     private bool _isCrossfading;
+    private bool _hasTriggeredCrossfade;
 
     private float _volumeBeforeMute = 0.8f;
     private bool _isMuted;
@@ -79,8 +80,10 @@ public class PlayerViewModel : ViewModelBase
             });
         };
 
-        _download.DownloadCompleted += (trackId, filePath) =>
+        _download.DownloadCompleted += (trackId, filePath, isInteractive) =>
         {
+            if (!isInteractive) return;
+
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 IsDownloading = false;
@@ -122,13 +125,16 @@ public class PlayerViewModel : ViewModelBase
             });
         };
 
-        _download.DownloadFailed += (url, error) =>
+        _download.DownloadFailed += (trackId, error, isInteractive) =>
         {
+            // FIX: Ignore background playlist download failures in the main Player UI
+            if (!isInteractive) return;
+
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 IsDownloading = false;
                 StatusText = $"Download failed: {error}";
-                NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"url={url}");
+                NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"trackId={trackId}");
             });
         };
 
@@ -207,8 +213,11 @@ public class PlayerViewModel : ViewModelBase
     {
         if (_currentTrack == null) return;
         if (_trackStartTime == DateTime.MinValue) return;
+        
         var elapsed = (DateTime.UtcNow - _trackStartTime).TotalSeconds;
         var window  = _settings.SkipPenaltyWindowSeconds;
+
+        if (elapsed < 0.5) return;
 
         if (elapsed <= window)
         {
@@ -228,7 +237,7 @@ public class PlayerViewModel : ViewModelBase
 
     private void CheckCrossfade(float pos)
     {
-        if (!_settings.CrossfadeEnabled || _isCrossfading || _currentTrack == null) return;
+        if (!_settings.CrossfadeEnabled || _isCrossfading || _hasTriggeredCrossfade || _currentTrack == null) return;
         
         var duration = _playback.Duration.TotalSeconds;
         if (duration <= 0) return;
@@ -236,9 +245,10 @@ public class PlayerViewModel : ViewModelBase
         var remaining = duration - (pos * duration);
         if (remaining <= _settings.CrossfadeDurationSeconds)
         {
+            _hasTriggeredCrossfade = true;
+
             var next = _navigator.GetNextTrack(_currentTrack);
             
-            // Enforce Local Files Only for crossfade as discussed
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && System.IO.File.Exists(next.FilePath))
             {
                 _isCrossfading = true;
@@ -256,6 +266,10 @@ public class PlayerViewModel : ViewModelBase
                         _isCrossfading = false;
                     });
                 });
+            }
+            else
+            {
+                Log.Debug("[PlayerViewModel] Approaching end of playlist or no valid next track. Crossfade bypassed.");
             }
         }
     }
@@ -276,7 +290,7 @@ public class PlayerViewModel : ViewModelBase
 
     public string CurrentTrackDisplay => _currentTrack == null
         ? "No track playing"
-        : $"{_currentTrack.Artist} — {_currentTrack.Title}";
+        : $"{_currentTrack.Artist} - {_currentTrack.Title}";
 
     private string? _albumArtPath;
     public string? AlbumArtPath
@@ -447,6 +461,8 @@ public class PlayerViewModel : ViewModelBase
     public void PlayTrack(Track? track)
     {
         if (track == null) return;
+
+        _hasTriggeredCrossfade = false;
 
         if (_currentTrack != null && track.Id == _currentTrack.Id
             && _state == PlaybackState.Playing)

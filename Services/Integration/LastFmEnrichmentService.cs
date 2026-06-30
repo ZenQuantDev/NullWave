@@ -22,7 +22,7 @@ public class LastFmEnrichmentService
     private readonly AlbumArtService _albumArt;
 
     /// <summary>
-    /// Fires once the startup BackfillAsync() run finishes — either after
+    /// Fires once the startup BackfillAsync() run finishes - either after
     /// processing every untagged track, or immediately if there was
     /// nothing to backfill. MainViewModel uses this to know when it's
     /// safe to generate a mood playlist with meaningfully-populated tags,
@@ -38,7 +38,7 @@ public class LastFmEnrichmentService
     }
 
     /// <summary>
-    /// Enrich a single track in the background — safe to fire-and-forget.
+    /// Enrich a single track in the background - safe to fire-and-forget.
     /// </summary>
     public void EnrichAsync(Track track)
     {
@@ -90,7 +90,7 @@ public class LastFmEnrichmentService
     {
         try
         {
-            // Use the shared parser to resolve clean search terms — this
+            // Use the shared parser to resolve clean search terms - this
             // fixes the case where Artist is "Unknown" and Title is a messy
             // YouTube string like "Mariah Carey - Obsessed (Official Music
             // Video)". Previously this method sent that raw title straight
@@ -150,7 +150,7 @@ public class LastFmEnrichmentService
             if (changed)
             {
                 _library.Update(track);
-                Log.Information("[LastFmEnrichment] Enriched: {Title} — tags: [{Tags}]",
+                Log.Information("[LastFmEnrichment] Enriched: {Title} - tags: [{Tags}]",
                     track.Title, string.Join(", ", track.Tags));
             }
         }

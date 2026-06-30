@@ -61,7 +61,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 
 ## API Keys
 
-Keys are stored encrypted at `~/.nullwave/keys.enc` — never in the project folder or git history. Manage them via **Settings → API Keys** inside the app, or set environment variables as fallback:
+Keys are stored encrypted at `~/.nullwave/keys.enc` - never in the project folder or git history. Manage them via **Settings → API Keys** inside the app, or set environment variables as fallback:
 
 ```bash
 export NULLWAVE_YOUTUBE_KEY="your_key"
@@ -72,8 +72,9 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 ## Requirements
 
 - .NET 8 SDK
-- libVLC — `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
-- yt-dlp — `pip install yt-dlp`
+- libVLC - `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
+- yt-dlp - `pip install yt-dlp`
+- node.js - `sudo dnf install nodejs`
 
 **Fedora note:** libVLC installs to `/usr/lib64`. NullWave expects `/usr/lib`. Create symlinks:
 ```bash
@@ -138,12 +139,12 @@ See [ROADMAP.md](ROADMAP.md) for the full phased development plan.
 
 ## Author
 
-ZenQuant — PackItPro Team
+ZenQuant
 
 ## Version
 
-v0.4.0
+v0.4.1
 
 ## License
 
-MIT — see [LICENSE](LICENSE). See [DISCLAIMER.md](DISCLAIMER.md) for terms of use.
+MIT - see [LICENSE](LICENSE). See [DISCLAIMER.md](DISCLAIMER.md) for terms of use.

@@ -20,7 +20,7 @@ public class TrackViewModel : ViewModelBase
 
     public string DisplayLabel => string.IsNullOrWhiteSpace(Track.Artist)
         ? Track.Title
-        : $"{Track.Artist} — {Track.Title}";
+        : $"{Track.Artist} - {Track.Title}";
 
     public string SourceBadge => Track.Source switch
     {

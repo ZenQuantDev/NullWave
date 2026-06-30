@@ -18,9 +18,9 @@ public class LibraryService : IDisposable
     private readonly List<Track> _history = new();
     public event EventHandler? LibraryChanged;
 
-    public LibraryService(MetadataService? metadata = null)
+    public LibraryService(DatabaseService db, MetadataService? metadata = null)
     {
-        _db = new DatabaseService();
+        _db = db;
         _metadata = metadata;
         _tracks = _db.LoadAll();
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
@@ -176,6 +176,9 @@ public class LibraryService : IDisposable
 
         _tracks.Add(track);
         _db.Insert(track);
+        
+        // FIX: Notify UI that a new track has been added
+        OnLibraryChanged();
     }
 
     public void Remove(Guid id)
@@ -184,6 +187,9 @@ public class LibraryService : IDisposable
         if (track == null) return;
         _tracks.Remove(track);
         _db.Delete(id);
+        
+        // FIX: Notify UI that a track has been removed
+        OnLibraryChanged();
     }
 
     public void Update(Track track)
@@ -191,6 +197,9 @@ public class LibraryService : IDisposable
         _db.Update(track);
         var idx = _tracks.FindIndex(t => t.Id == track.Id);
         if (idx >= 0) _tracks[idx] = track;
+        
+        // FIX: Notify UI that a track has been updated (e.g. FilePath assigned after download)
+        OnLibraryChanged();
     }
 
     public IReadOnlyList<Track> Search(
@@ -269,12 +278,16 @@ public class LibraryService : IDisposable
     public bool IsDuplicate(Track newTrack)
     {
         return _tracks.Any(t =>
-            (!string.IsNullOrWhiteSpace(newTrack.Url)      && t.Url      == newTrack.Url) ||
-            (!string.IsNullOrWhiteSpace(newTrack.FilePath) && t.FilePath == newTrack.FilePath) ||
+            (!string.IsNullOrWhiteSpace(newTrack.Url) && 
+             string.Equals(t.Url, newTrack.Url, StringComparison.OrdinalIgnoreCase)) ||
+             
+            (!string.IsNullOrWhiteSpace(newTrack.FilePath) && 
+             string.Equals(t.FilePath, newTrack.FilePath, StringComparison.OrdinalIgnoreCase)) ||
+             
             (!string.IsNullOrWhiteSpace(newTrack.Title) &&
              !string.IsNullOrWhiteSpace(newTrack.Artist) &&
-             t.Title.Equals(newTrack.Title,   StringComparison.OrdinalIgnoreCase) &&
-             t.Artist.Equals(newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
+             string.Equals(t.Title, newTrack.Title, StringComparison.OrdinalIgnoreCase) &&
+             string.Equals(t.Artist, newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
     }
 
     public IReadOnlyList<Track> GetQueue() => _queue.AsReadOnly();
@@ -341,12 +354,6 @@ public class LibraryService : IDisposable
         BackfillSoundCloudThumbnails();
     }
 
-    /// <summary>
-    /// Scans all tracks that have a FilePath and checks if the file still
-    /// exists on disk. When removeDeadEntries is true, clears the FilePath
-    /// on missing files so NullWave knows to re-download them.
-    /// Returns (totalChecked, missingCount, clearedCount).
-    /// </summary>
     public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
     {
         var withPath = _tracks.Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
@@ -373,12 +380,6 @@ public class LibraryService : IDisposable
         return (withPath.Count, missing, removed);
     }
 
-    /// <summary>
-    /// Scans a directory recursively for audio files and attempts to
-    /// re-link them to matching library tracks by filename/title similarity.
-    /// Updates FilePath in the DB for each matched track.
-    /// Returns the number of tracks re-linked.
-    /// </summary>
     public int ReimportAssets(string directoryPath)
     {
         if (!Directory.Exists(directoryPath))
@@ -422,11 +423,6 @@ public class LibraryService : IDisposable
         return relinked;
     }
 
-    /// <summary>
-    /// Clears all cached tags from every track in the library so the
-    /// Last.fm enrichment backfill will re-fetch them fresh.
-    /// Returns the number of tracks whose tags were cleared.
-    /// </summary>
     public int ClearTagsForReSync()
     {
         int cleared = 0;

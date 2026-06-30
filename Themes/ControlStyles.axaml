@@ -10,11 +10,11 @@
       Themes/Shapes.axaml     → radii and spacing
 
     Button classes:
-      .nav        — sidebar navigation item
-      .nav.active — currently selected nav item
-      .icon-btn   — borderless icon button (player controls, gear, etc.)
-      .primary    — accent-filled action button
-      .ghost      — border-only ghost button
+      .nav        - sidebar navigation item
+      .nav.active - currently selected nav item
+      .icon-btn   - borderless icon button (player controls, gear, etc.)
+      .primary    - accent-filled action button
+      .ghost      - border-only ghost button
 
     Usage example:
       <Button Classes="nav active" Content="Library" Command="..."/>
@@ -24,7 +24,7 @@
   -->
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       DANGER BUTTON  — destructive actions (remove, delete, wipe)
+       DANGER BUTTON  - destructive actions (remove, delete, wipe)
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.danger">
     <Setter Property="Background"   Value="{StaticResource BrushRedDim}"/>
@@ -51,7 +51,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       SECTION LABEL  — tiny all-caps category headers in sidebar
+       SECTION LABEL  - tiny all-caps category headers in sidebar
        Usage: <TextBlock Classes="section-label" Text="LIBRARY"/>
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="TextBlock.section-label">
@@ -89,7 +89,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       ICON BUTTON  — borderless square icon buttons (Standard 32x32)
+       ICON BUTTON  - borderless square icon buttons (Standard 32x32)
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.icon-btn">
     <Setter Property="Background"   Value="Transparent"/>
@@ -120,7 +120,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-     PLAYER BUTTON  — Spotify-style: no border, no background box,
+     PLAYER BUTTON  - Spotify-style: no border, no background box,
      icon centered, subtle hover glow only
      ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.player-btn">
@@ -159,7 +159,7 @@
     <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
   </Style>
 
-  <!-- Active state for shuffle/repeat — accent color -->
+  <!-- Active state for shuffle/repeat - accent color -->
   <Style Selector="Button.player-btn.active">
     <Setter Property="Foreground"  Value="{StaticResource BrushAccent}"/>
   </Style>
@@ -168,7 +168,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       PRIMARY BUTTON  — accent-filled
+       PRIMARY BUTTON  - accent-filled
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.primary">
     <Setter Property="Background"   Value="{StaticResource BrushAccent}"/>
@@ -184,7 +184,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       SECONDARY BUTTON  — subtle, less prominent than primary
+       SECONDARY BUTTON  - subtle, less prominent than primary
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.secondary">
     <Setter Property="Background"   Value="{StaticResource BrushSurface2}"/>
@@ -200,7 +200,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       GHOST BUTTON  — border only
+       GHOST BUTTON  - border only
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.ghost">
     <Setter Property="Background"        Value="Transparent"/>
@@ -218,7 +218,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       LISTBOX + LISTBOXITEM  — track rows
+       LISTBOX + LISTBOXITEM  - track rows
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="ListBox">
     <Setter Property="Background" Value="Transparent"/>
@@ -444,5 +444,11 @@
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
+
+    <Style Selector="Border.BottomSpacer">
+      <Setter Property="Height" Value="280"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="IsHitTestVisible" Value="False"/>
+    </Style>
 
 </Styles>

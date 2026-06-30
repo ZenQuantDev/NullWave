@@ -10,7 +10,7 @@ public partial class ConfirmDialog : Window
     public ConfirmDialog(string title, string message)
     {
         InitializeComponent();
-        Title = $"NullWave — {title}";
+        Title = $"NullWave - {title}";
         MessageText.Text = message;
     }
 

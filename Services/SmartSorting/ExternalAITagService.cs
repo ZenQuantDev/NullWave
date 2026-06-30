@@ -11,7 +11,7 @@ namespace NullWave.Services.SmartSorting;
 
 public class ExternalAITagService
 {
-    // ── Approved tag vocabulary (prevents fragmentation across exports) ──────
+    //  Approved tag vocabulary (prevents fragmentation across exports) 
     // The AI is instructed to only use these. On import we fuzzy-normalise
     // anything that slipped through anyway.
     public static readonly string[] ApprovedTags =
@@ -51,11 +51,11 @@ public class ExternalAITagService
         { "retro",          "Synthwave"   },
     };
 
-    // Max tracks per export chunk — anything over this gets split into
+    // Max tracks per export chunk - anything over this gets split into
     // multiple files to stay within LLM output token limits (~4-8k tokens).
     private const int ChunkSize = 50;
 
-    // ── Prompt generation ────────────────────────────────────────────────────
+    //  Prompt generation 
 
     public string GeneratePromptContent(IEnumerable<Track> tracksToTag)
     {
@@ -81,7 +81,7 @@ public class ExternalAITagService
     public string GenerateMarkdownContent(IEnumerable<Track> tracksToTag)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# NullWave — External AI Tagging Request");
+        sb.AppendLine("# NullWave - External AI Tagging Request");
         sb.AppendLine();
         sb.AppendLine("## Instructions");
         AppendSharedInstructions(sb, "Markdown");
@@ -100,7 +100,7 @@ public class ExternalAITagService
         }
 
         sb.AppendLine();
-        sb.AppendLine($"*{count} tracks — paste your JSON response back into NullWave → Settings → Smart Features → Import AI JSON.*");
+        sb.AppendLine($"*{count} tracks - paste your JSON response back into NullWave → Settings → Smart Features → Import AI JSON.*");
 
         Log.Information("[ExternalAI] Generated MD prompt for {Count} tracks", count);
         return sb.ToString();
@@ -124,7 +124,7 @@ public class ExternalAITagService
                 rules   = new[]
                 {
                     "Reply ONLY with a valid JSON array. No markdown. No extra text.",
-                    "Use the exact track IDs provided — do not invent or change them.",
+                    "Use the exact track IDs provided - do not invent or change them.",
                     "If Artist is Unknown or empty, infer it from the Title field.",
                     "Only use tags from the approved_tags list. If no tag fits, use 'Alternative'."
                 },
@@ -177,7 +177,7 @@ public class ExternalAITagService
         _      => GeneratePromptContent(tracks),
     };
 
-    // ── Import / Parsing ─────────────────────────────────────────────────────
+    //  Import / Parsing 
 
     public List<ExternalTagResult> ParseImportedJson(string jsonContent)
     {
@@ -193,7 +193,7 @@ public class ExternalAITagService
         // Step 4: if that failed, attempt truncation recovery
         if (results == null)
         {
-            Log.Warning("[ExternalAI] Full parse failed — attempting truncation recovery");
+            Log.Warning("[ExternalAI] Full parse failed - attempting truncation recovery");
             results = TryRecoverTruncated(clean);
         }
 
@@ -211,7 +211,7 @@ public class ExternalAITagService
         return results;
     }
 
-    // ── Shared instruction block ─────────────────────────────────────────────
+    //  Shared instruction block 
 
     private static void AppendSharedInstructions(StringBuilder sb, string context)
     {
@@ -219,7 +219,7 @@ public class ExternalAITagService
         sb.AppendLine();
         sb.AppendLine("RULES:");
         sb.AppendLine("- Reply ONLY with a valid JSON array. No markdown fences. No extra text.");
-        sb.AppendLine("- Use the exact track IDs provided — do not change them.");
+        sb.AppendLine("- Use the exact track IDs provided - do not change them.");
         sb.AppendLine("- If the Artist field is 'Unknown' or empty, infer the artist from the Title.");
         sb.AppendLine($"- Only use tags from this approved list:");
         sb.AppendLine($"  {string.Join(", ", ApprovedTags)}");
@@ -231,7 +231,7 @@ public class ExternalAITagService
         sb.AppendLine("]");
     }
 
-    // ── Parsing helpers ──────────────────────────────────────────────────────
+    //  Parsing helpers 
 
     private static string StripMarkdownFences(string input)
     {
@@ -254,7 +254,7 @@ public class ExternalAITagService
                     return arr.GetRawText();
             }
         }
-        catch { /* not valid JSON object — fall through */ }
+        catch { /* not valid JSON object - fall through */ }
 
         return input;
     }
@@ -285,7 +285,7 @@ public class ExternalAITagService
             if (lastBrace < 0) return null;
 
             var salvaged = json[..(lastBrace + 1)] + "]";
-            // The salvaged string may start mid-array — find the opening [
+            // The salvaged string may start mid-array - find the opening [
             var firstBracket = salvaged.IndexOf('[');
             if (firstBracket < 0) return null;
 
@@ -328,7 +328,7 @@ public class ExternalAITagService
               || a.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
         if (partial != null) return partial;
 
-        // Unknown tag — log it and fall back to Alternative
+        // Unknown tag - log it and fall back to Alternative
         Log.Debug("[ExternalAI] Unknown tag '{Tag}' → Alternative", trimmed);
         return "Alternative";
     }
