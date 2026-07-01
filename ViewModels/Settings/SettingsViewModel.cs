@@ -1,0 +1,664 @@
+// SettingsViewModel.cs
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using NullWave.Helpers;
+using NullWave.Models;
+using NullWave.Services;
+using NullWave.Services.SmartSorting;
+using Serilog;
+
+namespace NullWave.ViewModels;
+
+public enum AIServiceState { Stopped, Starting, Running, Error }
+public enum LastFmConnectionState { Disconnected, AwaitingAuth, Connected, Error }
+
+public partial class SettingsViewModel : ObservableObject
+{
+    private readonly KeyStoreService _keyStore;
+    private readonly SecureDeleteService _secureDelete;
+    private readonly PreferencesService _prefsService;
+    private readonly UpdateService _updater;
+    private readonly DependencyUpdateService _deps;
+    private readonly ExternalAITagService _externalAI = new();
+    
+    private System.Threading.Timer? _aiHealthTimer;
+    private CancellationTokenSource? _debounceCts;
+    private const int DebounceMs = 500;
+
+    private void ScheduleSave()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(DebounceMs, token);
+            Log.Verbose("[Settings] Debounced save completed");
+        }, token);
+    }
+
+    // API Keys (Explicit properties to sync with KeyStore)
+    private string _youtubeApiKey = string.Empty;
+    public string YouTubeApiKey
+    {
+        get => _youtubeApiKey;
+        set { _youtubeApiKey = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("YouTube", value); }
+    }
+
+    private string _spotifyClientId = string.Empty;
+    public string SpotifyClientId
+    {
+        get => _spotifyClientId;
+        set { _spotifyClientId = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("Spotify:ClientId", value); }
+    }
+
+    private string _spotifyClientSecret = string.Empty;
+    public string SpotifyClientSecret
+    {
+        get => _spotifyClientSecret;
+        set { _spotifyClientSecret = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("Spotify:ClientSecret", value); }
+    }
+
+    private string _soundCloudClientId = string.Empty;
+    public string SoundCloudClientId
+    {
+        get => _soundCloudClientId;
+        set { _soundCloudClientId = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("SoundCloud", value); }
+    }
+
+    private string _lastFmApiKey = string.Empty;
+    public string LastFmApiKey
+    {
+        get => _lastFmApiKey;
+        set { _lastFmApiKey = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("LastFm", value); }
+    }
+
+    private string _lastFmApiSecret = string.Empty;
+    public string LastFmApiSecret
+    {
+        get => _lastFmApiSecret;
+        set { _lastFmApiSecret = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("LastFm:Secret", value); }
+    }
+
+    private string _openWeatherApiKey = string.Empty;
+    public string OpenWeatherApiKey
+    {
+        get => _openWeatherApiKey;
+        set
+        {
+            _openWeatherApiKey = value;
+            OnPropertyChanged();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _keyStore.SaveKey("OpenWeather", value);
+                Log.Information("[Settings] OpenWeather key auto-saved ({Length} chars)", value.Length);
+            }
+        }
+    }
+
+    // Preferences pass-through properties
+    public string AudioQuality { get => _prefsService.Current.AudioQuality; set { _prefsService.Update(p => p.AudioQuality = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string AudioFormat { get => _prefsService.Current.AudioFormat; set { _prefsService.Update(p => p.AudioFormat = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string DownloadDirectory { get => _prefsService.Current.DownloadDirectory; set { _prefsService.Update(p => p.DownloadDirectory = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool AutoFetchMetadata { get => _prefsService.Current.AutoFetchMetadata; set { _prefsService.Update(p => p.AutoFetchMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool AutoPlayNext { get => _prefsService.Current.AutoPlayNext; set { _prefsService.Update(p => p.AutoPlayNext = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string AccentColor { get => _prefsService.Current.AccentColor; set { _prefsService.Update(p => p.AccentColor = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string TrackRowStyle { get => _prefsService.Current.TrackRowStyle; set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string FontScale { get => _prefsService.Current.FontScale; set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool CompactMode { get => _prefsService.Current.CompactMode; set { _prefsService.Update(p => p.CompactMode = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string SidebarWidth { get => _prefsService.Current.SidebarWidth; set { _prefsService.Update(p => p.SidebarWidth = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string SelectedModel { get => _prefsService.Current.SelectedAIModel; set { _prefsService.Update(p => p.SelectedAIModel = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool UseLocalAI { get => _prefsService.Current.UseLocalAI; set { _prefsService.Update(p => p.UseLocalAI = value); OnPropertyChanged(); ScheduleSave(); } }
+    public double Latitude { get => _prefsService.Current.Latitude; set { _prefsService.Update(p => p.Latitude = value); OnPropertyChanged(); ScheduleSave(); } }
+    public double Longitude { get => _prefsService.Current.Longitude; set { _prefsService.Update(p => p.Longitude = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool AutoGenerateMoodPlaylist { get => _prefsService.Current.AutoGenerateMoodPlaylist; set { _prefsService.Update(p => p.AutoGenerateMoodPlaylist = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string MoodRefreshInterval { get => _prefsService.Current.MoodRefreshInterval; set { _prefsService.Update(p => p.MoodRefreshInterval = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string AIConfidenceThreshold { get => _prefsService.Current.AIConfidenceThreshold; set { _prefsService.Update(p => p.AIConfidenceThreshold = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string ExportFormat { get => _prefsService.Current.ExternalAIExportFormat; set { _prefsService.Update(p => p.ExternalAIExportFormat = value); OnPropertyChanged(); ScheduleSave(); } }
+    
+    public bool AIFeaturesEnabled
+    {
+        get => _prefsService.Current.AIFeaturesEnabled;
+        set
+        {
+            _prefsService.Update(p => p.AIFeaturesEnabled = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AIFeaturesControlsEnabled));
+            ScheduleSave();
+            AIFeaturesEnabledChanged?.Invoke(value);
+        }
+    }
+
+    public bool FadeOnPauseEnabled { get => _prefsService.Current.FadeOnPauseEnabled; set { _prefsService.Update(p => p.FadeOnPauseEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
+    
+    public int FadeOnPauseDurationMs
+    {
+        get => _prefsService.Current.FadeOnPauseDurationMs;
+        set { _prefsService.Update(p => p.FadeOnPauseDurationMs = value); OnPropertyChanged(); OnPropertyChanged(nameof(FadeDurationDisplay)); ScheduleSave(); }
+    }
+    
+    public bool CrossfadeEnabled { get => _prefsService.Current.CrossfadeEnabled; set { _prefsService.Update(p => p.CrossfadeEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
+    
+    public int CrossfadeDurationSeconds
+    {
+        get => _prefsService.Current.CrossfadeDurationSeconds;
+        set { _prefsService.Update(p => p.CrossfadeDurationSeconds = value); OnPropertyChanged(); OnPropertyChanged(nameof(CrossfadeDurationDisplay)); ScheduleSave(); }
+    }
+    
+    public float ScrobbleThreshold
+    {
+        get => _prefsService.Current.ScrobbleThreshold;
+        set { _prefsService.Update(p => p.ScrobbleThreshold = value); OnPropertyChanged(); OnPropertyChanged(nameof(ScrobbleThresholdDisplay)); ScheduleSave(); }
+    }
+    
+    public int MaxConcurrentDownloads
+    {
+        get => _prefsService.Current.MaxConcurrentDownloads;
+        set { _prefsService.Update(p => p.MaxConcurrentDownloads = value); OnPropertyChanged(); ScheduleSave(); MaxConcurrentDownloadsChanged?.Invoke(value); }
+    }
+    
+    public int SkipPenaltyWindowSeconds { get => _prefsService.Current.SkipPenaltyWindowSeconds; set { _prefsService.Update(p => p.SkipPenaltyWindowSeconds = value); OnPropertyChanged(); ScheduleSave(); } }
+    public int SkipPenaltyCap { get => _prefsService.Current.SkipPenaltyCap; set { _prefsService.Update(p => p.SkipPenaltyCap = value); OnPropertyChanged(); ScheduleSave(); } }
+    
+    public string BatteryModel
+    {
+        get => _prefsService.Current.BatteryModel;
+        set { _prefsService.Update(p => p.BatteryModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(value, PerformanceModel, AutoPowerModelSwitch); }
+    }
+    
+    public string PerformanceModel
+    {
+        get => _prefsService.Current.PerformanceModel;
+        set { _prefsService.Update(p => p.PerformanceModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, value, AutoPowerModelSwitch); }
+    }
+    
+    public bool AutoPowerModelSwitch
+    {
+        get => _prefsService.Current.AutoPowerModelSwitch;
+        set { _prefsService.Update(p => p.AutoPowerModelSwitch = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, PerformanceModel, value); }
+    }
+
+    // Local UI State with [ObservableProperty]
+    [ObservableProperty] private int _currentSectionIndex = 0;
+    [ObservableProperty] private string _currentSettingsPage = "General";
+    [ObservableProperty] private string _externalAIStatus = string.Empty;
+    [ObservableProperty] private string _repairStatus = string.Empty;
+    [ObservableProperty] private bool _isRepairing = false;
+    [ObservableProperty] private string _updateStatus = "Not checked yet";
+    [ObservableProperty] private string _ytDlpStatus = string.Empty;
+    [ObservableProperty] private string _vlcStatus = string.Empty;
+    [ObservableProperty] private string _ffmpegStatus = string.Empty;
+    [ObservableProperty] private string _dotNetStatus = string.Empty;
+    [ObservableProperty] private bool _isCheckingUpdate;
+    [ObservableProperty] private bool _isUpdatingYtDlp;
+    [ObservableProperty] private bool _updateAvailable;
+    [ObservableProperty] private string _latestVersion = string.Empty;
+    [ObservableProperty] private string _releaseUrl = string.Empty;
+    [ObservableProperty] private string _thumbnailStatus = string.Empty;
+    [ObservableProperty] private string _hardwareInfo = "Not detected yet";
+    [ObservableProperty] private bool _isDetectingHardware;
+    [ObservableProperty] private bool _isDownloadingModel;
+    [ObservableProperty] private double _modelDownloadProgress;
+    [ObservableProperty] private string _modelDownloadStatus = string.Empty;
+    [ObservableProperty] private string _moodPlaylistStatus = string.Empty;
+    [ObservableProperty] private string _powerStateLabel = "Detecting...";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AIStatusLabel))]
+    [NotifyPropertyChangedFor(nameof(AIStatusDescription))]
+    [NotifyPropertyChangedFor(nameof(AIStatusDotColor))]
+    [NotifyPropertyChangedFor(nameof(AIToggleButtonLabel))]
+    private AIServiceState _aiServiceState = AIServiceState.Stopped;
+
+    // Last.fm Connection State
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastFmStateLabel))]
+    [NotifyPropertyChangedFor(nameof(IsLastFmConnected))]
+    [NotifyPropertyChangedFor(nameof(IsLastFmAwaitingAuth))]
+    private LastFmConnectionState _lastFmState = LastFmConnectionState.Disconnected;
+
+    [ObservableProperty] private string _lastFmUsername = string.Empty;
+    [ObservableProperty] private string _lastFmStatusMessage = string.Empty;
+
+    public bool IsLastFmConnected     => LastFmState == LastFmConnectionState.Connected;
+    public bool IsLastFmAwaitingAuth  => LastFmState == LastFmConnectionState.AwaitingAuth;
+    public string LastFmStateLabel => LastFmState switch
+    {
+        LastFmConnectionState.Connected     => $"Connected as {LastFmUsername}",
+        LastFmConnectionState.AwaitingAuth  => "Waiting for authorization in browser...",
+        LastFmConnectionState.Error         => "Connection failed",
+        _                                   => "Not connected"
+    };
+
+    public string AIStatusLabel => AiServiceState switch { AIServiceState.Running => "Active", AIServiceState.Starting => "Starting...", AIServiceState.Error => "Error", _ => "Stopped" };
+    public string AIStatusDescription => AiServiceState switch { AIServiceState.Running => $"Model '{SelectedModel}' is loaded and ready.", AIServiceState.Starting => "Loading model...", AIServiceState.Error => "Could not reach Ollama.", _ => "AI service is not running." };
+    public string AIStatusDotColor => AiServiceState switch { AIServiceState.Running => "#4CAF50", AIServiceState.Starting => "#FCD34D", AIServiceState.Error => "#F44336", _ => "#6B7280" };
+    public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running ? "Stop" : "Start";
+
+    public string[] ExportFormatOptions => new[] { "txt", "md", "json" };
+    public string[] AccentColorOptions => new[] { "Purple", "Blue", "Amber", "Green", "Red" };
+    public string[] TrackRowStyleOptions => new[] { "Comfortable", "Compact", "Cozy" };
+    public string[] FontScaleOptions => new[] { "Small", "Medium", "Large" };
+    public string[] SidebarWidthOptions => new[] { "Narrow", "Normal", "Wide" };
+    public string[] AudioQualityOptions => new[] { "best", "320", "192", "128", "96" };
+    public string[] AudioFormatOptions => new[] { "mp3", "flac", "ogg", "m4a", "wav" };
+    public string[] AIModelOptions => AIModelCatalog.AllIds;
+    public string[] AIModelDisplayOptions => AIModelCatalog.All.Select(m => m.OllamaId).ToArray();
+    public string[] MoodRefreshOptions => new[] { "Never", "Every hour", "Every 3 hours", "Daily" };
+    public string[] AIConfidenceOptions => new[] { "50%", "60%", "70%", "80%", "90%" };
+    public int[] ConcurrentDownloadOptions => new[] { 1, 2, 3, 4, 5 };
+    public int[] SkipWindowOptions => new[] { 5, 10, 15, 20, 30 };
+    public int[] SkipPenaltyCapOptions => new[] { 2, 3, 5, 10 };
+
+    public string CurrentVersion => _updater.CurrentVersion;
+    public string FadeDurationDisplay => $"{FadeOnPauseDurationMs} ms";
+    public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
+    public string ScrobbleThresholdDisplay => $"Scrobble after {ScrobbleThreshold:P0} of track duration";
+    public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+
+    public event Action? ClearThumbnailsRequested;
+    public event Action? GenerateMoodPlaylistRequested;
+    public event Action? RefreshWeatherRequested;
+    public event Action? ExportUntaggedTracksRequested;
+    public event Func<Task<string?>>? ImportAiTagsRequested;
+    public event Action<int>? MaxConcurrentDownloadsChanged;
+    public event Action<string, string, bool>? PowerModelsChanged;
+    public event Action<bool>? AIFeaturesEnabledChanged;
+    public event Action? RepairPathsRequested;
+    public event Action? ReimportAssetsRequested;
+    public event Action? ForceMetaResyncRequested;
+    public event Action? LastFmConnectRequested;
+    public event Action? LastFmConfirmAuthRequested;
+    public event Action? LastFmDisconnectRequested;
+
+    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService)
+    {
+        _keyStore = keyStore;
+        _secureDelete = secureDelete;
+        _prefsService = prefsService;
+        _updater = new UpdateService();
+        _deps = new DependencyUpdateService();
+
+        _youtubeApiKey = _keyStore.GetKey("YouTube") ?? string.Empty;
+        _spotifyClientId = _keyStore.GetKey("Spotify:ClientId") ?? string.Empty;
+        _spotifyClientSecret = _keyStore.GetKey("Spotify:ClientSecret") ?? string.Empty;
+        _soundCloudClientId = _keyStore.GetKey("SoundCloud") ?? string.Empty;
+        _lastFmApiKey = _keyStore.GetKey("LastFm") ?? string.Empty;
+        _lastFmApiSecret = _keyStore.GetKey("LastFm:Secret") ?? string.Empty;
+        _openWeatherApiKey = _keyStore.GetKey("OpenWeather") ?? string.Empty;
+
+        var existingUsername = _keyStore.GetKey("LastFm:Username");
+        if (!string.IsNullOrEmpty(existingUsername) && !string.IsNullOrEmpty(_keyStore.GetKey("LastFm:SessionKey")))
+        {
+            _lastFmUsername = existingUsername;
+            _lastFmState = LastFmConnectionState.Connected;
+        }
+
+        DetectHardware();
+        _ = ProbeOllamaOnStartupAsync();
+        StartAIHealthCheck();
+    }
+
+    [RelayCommand] private void RefreshWeather() => RefreshWeatherRequested?.Invoke();
+
+    [RelayCommand]
+    private void SaveKeys()
+    {
+        if (!string.IsNullOrWhiteSpace(YouTubeApiKey)) _keyStore.SaveKey("YouTube", YouTubeApiKey);
+        if (!string.IsNullOrWhiteSpace(SpotifyClientId)) _keyStore.SaveKey("Spotify:ClientId", SpotifyClientId);
+        if (!string.IsNullOrWhiteSpace(SpotifyClientSecret)) _keyStore.SaveKey("Spotify:ClientSecret", SpotifyClientSecret);
+        if (!string.IsNullOrWhiteSpace(SoundCloudClientId)) _keyStore.SaveKey("SoundCloud", SoundCloudClientId);
+        if (!string.IsNullOrWhiteSpace(LastFmApiKey)) _keyStore.SaveKey("LastFm", LastFmApiKey);
+        if (!string.IsNullOrWhiteSpace(LastFmApiSecret)) _keyStore.SaveKey("LastFm:Secret", LastFmApiSecret);
+        if (!string.IsNullOrWhiteSpace(OpenWeatherApiKey)) _keyStore.SaveKey("OpenWeather", OpenWeatherApiKey);
+    }
+
+    [RelayCommand]
+    private void DeleteApiKeys()
+    {
+        _secureDelete.DeleteApiKeys();
+        YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
+    }
+
+    [RelayCommand] private void DeleteLogs() => _secureDelete.DeleteLogs();
+
+    [RelayCommand]
+    private void DeleteEverything()
+    {
+        _secureDelete.DeleteEverything();
+        YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task BrowseDownloadDirAsync()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
+        var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Select Download Directory" });
+        if (folders.Count > 0) DownloadDirectory = folders[0].Path.LocalPath;
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdateAsync()
+    {
+        IsCheckingUpdate = true;
+        UpdateStatus = "Checking...";
+        try
+        {
+            var result = await _updater.CheckForUpdateAsync();
+            UpdateAvailable = result.IsUpdateAvailable;
+            LatestVersion = result.LatestVersion;
+            ReleaseUrl = result.ReleaseUrl;
+            UpdateStatus = result.IsUpdateAvailable ? $"Update available: v{result.LatestVersion}" : $"You are up to date (v{result.CurrentVersion})";
+        }
+        finally { IsCheckingUpdate = false; }
+    }
+
+    [RelayCommand]
+    private async Task UpdateYtDlpAsync()
+    {
+        IsUpdatingYtDlp = true;
+        YtDlpStatus = "Updating yt-dlp...";
+        try
+        {
+            await _deps.UpdateYtDlpAsync();
+            var info = await _deps.GetYtDlpInfoAsync();
+            YtDlpStatus = info.IsInstalled ? $"yt-dlp {info.InstalledVersion} (up to date)" : "yt-dlp not found";
+        }
+        finally { IsUpdatingYtDlp = false; }
+    }
+
+    [RelayCommand]
+    private async Task CheckDependenciesAsync()
+    {
+        YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Checking...";
+        var ytDlp = await _deps.GetYtDlpInfoAsync();
+        var vlc = await _deps.GetVlcInfoAsync();
+        var ffmpeg = await _deps.GetFfmpegInfoAsync();
+        var dotNet = await _deps.GetDotNetInfoAsync();
+        YtDlpStatus = ytDlp.IsInstalled ? ytDlp.InstalledVersion : "Not installed";
+        VlcStatus = vlc.IsInstalled ? vlc.InstalledVersion : "Not installed";
+        FfmpegStatus = ffmpeg.IsInstalled ? ffmpeg.InstalledVersion : "Not installed";
+        DotNetStatus = dotNet.IsInstalled ? dotNet.InstalledVersion : "Not found";
+    }
+
+    [RelayCommand] private void OpenDataFolder() => OpenFolder(NullWavePaths.DataDir);
+    [RelayCommand] private void OpenLogsFolder() => OpenFolder(NullWavePaths.LogsDir);
+
+    [RelayCommand]
+    private void OpenReleasePage()
+    {
+        if (!string.IsNullOrEmpty(ReleaseUrl))
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ReleaseUrl, UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void ClearThumbnails()
+    {
+        ThumbnailStatus = "Clearing thumbnails...";
+        ClearThumbnailsRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void RepairPaths()
+    {
+        IsRepairing = true;
+        RepairStatus = "Scanning file paths...";
+        RepairPathsRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void ReimportAssets()
+    {
+        IsRepairing = true;
+        RepairStatus = "Scanning download folder...";
+        ReimportAssetsRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void ForceMetaResync()
+    {
+        IsRepairing = true;
+        RepairStatus = "Clearing cached tags - re-sync starting...";
+        ForceMetaResyncRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void DetectHardware()
+    {
+        IsDetectingHardware = true;
+        try
+        {
+            var detector = new HardwareDetector();
+            var info = detector.Detect();
+            HardwareInfo = $"CPU: {info.CpuCores} cores | RAM: {info.RamGB}GB\nGPU: {info.GpuType} ({info.GpuVramGB}GB VRAM)\nRecommended: {info.RecommendedModel}\n{info.RecommendationReason}";
+            SelectedModel = info.RecommendedModel;
+            var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
+            var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
+            if (BatteryModel == "qwen2.5:3b" || string.IsNullOrEmpty(BatteryModel)) BatteryModel = suggestedBattery;
+            if (PerformanceModel == "qwen2.5:7b" || string.IsNullOrEmpty(PerformanceModel)) PerformanceModel = suggestedPerf;
+        }
+        catch (Exception ex) { HardwareInfo = $"Detection failed: {ex.Message}"; }
+        finally { IsDetectingHardware = false; }
+    }
+
+    [RelayCommand]
+    private async Task DownloadModelAsync()
+    {
+        if (IsDownloadingModel) return;
+        IsDownloadingModel = true;
+        ModelDownloadProgress = 0;
+        ModelDownloadStatus = $"Downloading {SelectedModel}...";
+        try
+        {
+            var ai = new LocalAIService();
+            var progress = new Progress<double>(pct => { ModelDownloadProgress = pct * 100; ModelDownloadStatus = $"Downloading {SelectedModel}... {pct:P0}"; });
+            await ai.DownloadModelAsync(SelectedModel, progress);
+            ModelDownloadStatus = $"✓ {SelectedModel} downloaded successfully";
+            await ToggleAIServiceAsync();
+        }
+        catch (Exception ex) { ModelDownloadStatus = $"✗ Download failed: {ex.Message}"; }
+        finally { IsDownloadingModel = false; }
+    }
+
+    [RelayCommand]
+    private void GenerateMoodPlaylist()
+    {
+        MoodPlaylistStatus = "Generating mood playlist...";
+        GenerateMoodPlaylistRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task ToggleAIServiceAsync()
+    {
+        if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
+        if (AiServiceState == AIServiceState.Running) { AiServiceState = AIServiceState.Stopped; return; }
+        AiServiceState = AIServiceState.Starting;
+        try
+        {
+            var ai = new LocalAIService();
+            ai.CurrentModel = SelectedModel;
+            bool ok = await ai.PingAsync();
+            AiServiceState = ok ? AIServiceState.Running : AIServiceState.Error;
+        }
+        catch { AiServiceState = AIServiceState.Error; }
+    }
+
+    [RelayCommand]
+    private async Task ExportUntaggedTracksAsync()
+    {
+        ExternalAIStatus = "Preparing export...";
+        ExportUntaggedTracksRequested?.Invoke();
+        await Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private async Task ImportAiTagsAsync()
+    {
+        var task = ImportAiTagsRequested?.Invoke();
+        if (task != null) await task;
+    }
+
+    [RelayCommand]
+    private void NavigateSettings(string page)
+    {
+        if (!string.IsNullOrWhiteSpace(page)) CurrentSettingsPage = page;
+    }
+
+    [RelayCommand]
+    private void LastFmConnect()
+    {
+        LastFmState = LastFmConnectionState.AwaitingAuth;
+        LastFmStatusMessage = "Opening browser for Last.fm authorization...";
+        LastFmConnectRequested?.Invoke();
+    }
+
+    [RelayCommand] private void LastFmConfirmAuth() => LastFmConfirmAuthRequested?.Invoke();
+    [RelayCommand] private void LastFmDisconnect() => LastFmDisconnectRequested?.Invoke();
+
+    private async Task ProbeOllamaOnStartupAsync()
+    {
+        try
+        {
+            if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
+            var ai = new LocalAIService();
+            bool running = await ai.PingAsync();
+            if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
+        }
+        catch { }
+    }
+
+    public void StartAIHealthCheck()
+    {
+        _aiHealthTimer = new System.Threading.Timer(async _ => await HealthCheckTickAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task HealthCheckTickAsync()
+    {
+        try
+        {
+            if (!AIFeaturesEnabled || AiServiceState == AIServiceState.Stopped) return;
+            var ai = new LocalAIService();
+            bool reachable = await ai.PingAsync();
+            var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
+            if (AiServiceState != newState) AiServiceState = newState;
+        }
+        catch { }
+    }
+
+    public void StopHealthCheck() { _aiHealthTimer?.Dispose(); _aiHealthTimer = null; }
+    public void SetAIServiceState(AIServiceState state) => AiServiceState = state;
+
+    public void ReportThumbnailsCleared(int count) { ThumbnailStatus = $"Cleared {count} thumbnails - re-fetching in background..."; }
+    public void ReportMoodPlaylistGenerated(int trackCount, string mood) { MoodPlaylistStatus = $"Generated {trackCount} tracks for mood: {mood}"; }
+    public void ReportMoodPlaylistFailed(string reason) { MoodPlaylistStatus = $"Failed: {reason}"; }
+    
+    public void ReportRepairPathsComplete(int total, int missing, int cleared)
+    {
+        IsRepairing = false;
+        RepairStatus = missing == 0 ? $"✓ All {total} file paths are valid." : $"Found {missing} missing file(s) - {cleared} path(s) cleared.";
+        ToastService.Instance.Show(RepairStatus, missing == 0 ? ToastType.Success : ToastType.Warning);
+    }
+
+    public void ReportReimportComplete(int relinked)
+    {
+        IsRepairing = false;
+        RepairStatus = relinked == 0 ? "No new file matches found." : $"✓ Re-linked {relinked} track(s).";
+        ToastService.Instance.Show(RepairStatus, relinked > 0 ? ToastType.Success : ToastType.Info);
+    }
+
+    public void ReportMetaResyncComplete(int cleared)
+    {
+        IsRepairing = false;
+        RepairStatus = $"✓ Cleared tags for {cleared} track(s) - re-sync running.";
+        ToastService.Instance.Show(RepairStatus, ToastType.Success);
+    }
+
+    public void ReportRepairFailed(string operation, string reason)
+    {
+        IsRepairing = false;
+        RepairStatus = $"✗ {operation} failed: {reason}";
+        ToastService.Instance.Show(RepairStatus, ToastType.Error);
+    }
+
+    public void ReportLastFmAwaitingAuth() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Browser opened — approve access, then click \"I've Authorized It\"."; }
+    
+    public void ReportLastFmConnected(string username)
+    {
+        LastFmUsername = username;
+        LastFmState = LastFmConnectionState.Connected;
+        LastFmStatusMessage = string.Empty;
+        ToastService.Instance.Show($"Connected to Last.fm as {username}", ToastType.Success);
+    }
+
+    public void ReportLastFmDisconnected()
+    {
+        LastFmUsername = string.Empty;
+        LastFmState = LastFmConnectionState.Disconnected;
+        LastFmStatusMessage = string.Empty;
+        ToastService.Instance.Show("Disconnected from Last.fm", ToastType.Info);
+    }
+
+    public void ReportLastFmAuthFailed(string reason)
+    {
+        LastFmState = LastFmConnectionState.Error;
+        LastFmStatusMessage = reason;
+        ToastService.Instance.Show($"Last.fm: {reason}", ToastType.Error);
+    }
+
+    public async Task ReportExportReadyAsync(IEnumerable<Track> tracks, Avalonia.Controls.Window parentWindow)
+    {
+        var trackList = tracks.ToList();
+        if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
+        var format = ExportFormat ?? "txt";
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+        var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
+        var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
+        var sp = new FilePickerSaveOptions
+        {
+            Title = chunks.Count > 1 ? $"Save AI Prompt - Part 1 of {chunks.Count}" : "Save AI Tagging Prompt",
+            SuggestedFileName = chunks[0].FileName,
+            FileTypeChoices = new[] { new FilePickerFileType("Text") { Patterns = new[] { "*.txt" } }, new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } }, new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } } }
+        };
+        int savedCount = 0;
+        foreach (var (content, fileName) in chunks)
+        {
+            sp.SuggestedFileName = fileName;
+            if (savedCount > 0) sp.Title = $"Save AI Prompt - Part {savedCount + 1} of {chunks.Count}";
+            var file = await parentWindow.StorageProvider.SaveFilePickerAsync(sp);
+            if (file == null) { ExternalAIStatus = savedCount == 0 ? "Export cancelled." : $"Partial export - saved {savedCount} of {chunks.Count} files."; return; }
+            try { await using var stream = await file.OpenWriteAsync(); await using var writer = new System.IO.StreamWriter(stream); await writer.WriteAsync(content); savedCount++; }
+            catch (Exception ex) { ExternalAIStatus = $"Export failed on part {savedCount + 1}: {ex.Message}"; return; }
+        }
+        ExternalAIStatus = chunks.Count > 1 ? $"Exported {trackList.Count} tracks in {chunks.Count} files" : $"Exported {trackList.Count} tracks → {chunks[0].FileName}";
+        ToastService.Instance.Show(ExternalAIStatus, ToastType.Success);
+    }
+
+    public void ReportImportComplete(int applied, int total)
+    {
+        if (applied == 0 && total == 0) { ExternalAIStatus = "Import cancelled or file was empty."; return; }
+        ExternalAIStatus = total == 0 ? "No matching tracks found in import." : $"Import complete - tagged {applied} of {total} tracks.";
+        ToastService.Instance.Show(ExternalAIStatus, applied > 0 ? ToastType.Success : ToastType.Warning);
+    }
+
+    public void ReportImportFailed(string reason)
+    {
+        ExternalAIStatus = $"Import failed: {reason}";
+        ToastService.Instance.Show($"Import failed: {reason}", ToastType.Error);
+    }
+
+    private static void OpenFolder(string path)
+    {
+        System.IO.Directory.CreateDirectory(path);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+    }
+}

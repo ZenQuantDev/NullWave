@@ -56,26 +56,40 @@ public class PlaybackService : IDisposable
         p.EndReached -= OnEndReached;
     }
 
-    private void OnPositionChanged(object? sender, MediaPlayerPositionChangedEventArgs e) => PositionChanged?.Invoke(e.Position);
+    private void OnPositionChanged(object? sender, MediaPlayerPositionChangedEventArgs e) 
+    {
+        // Marshal to UI thread to prevent cross-thread exceptions in ViewModels
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => PositionChanged?.Invoke(e.Position));
+    }
     
     private void OnPlaying(object? sender, EventArgs e)
     {
-        StateChanged?.Invoke(PlaybackState.Playing);
-        
-        // Prevent native audio mutex deadlocks on Linux (PulseAudio/PipeWire). 
-        // Only force the pipeline volume update if we aren't actively running a volume fade.
+        // Native volume fix must happen immediately on the native thread
         if (_fadeCts == null || _fadeCts.IsCancellationRequested)
         {
             _player.Volume = _player.Volume; 
         }
+        
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => StateChanged?.Invoke(PlaybackState.Playing));
     }
 
-    private void OnPaused(object? sender, EventArgs e) => StateChanged?.Invoke(PlaybackState.Paused);
-    private void OnStopped(object? sender, EventArgs e) => StateChanged?.Invoke(PlaybackState.Stopped);
+    private void OnPaused(object? sender, EventArgs e) 
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => StateChanged?.Invoke(PlaybackState.Paused));
+    }
+    
+    private void OnStopped(object? sender, EventArgs e) 
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => StateChanged?.Invoke(PlaybackState.Stopped));
+    }
+    
     private void OnEndReached(object? sender, EventArgs e)
     {
-        StateChanged?.Invoke(PlaybackState.Stopped);
-        TrackFinished?.Invoke();
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+        {
+            StateChanged?.Invoke(PlaybackState.Stopped);
+            TrackFinished?.Invoke();
+        });
     }
 
     public void Play(string path)
@@ -159,10 +173,6 @@ public class PlaybackService : IDisposable
         await FadeVolumeAsync(_player, 0f, targetVolume, durationMs, _fadeCts.Token);
     }
 
-    /// <summary>
-    /// Crossfades from the current track to a new track. 
-    /// Safely aborts if nextPath is null/empty (e.g., end of queue).
-    /// </summary>
     public async Task CrossfadeToAsync(string nextPath, int durationMs, float targetVolume)
     {
         if (string.IsNullOrWhiteSpace(nextPath))
@@ -214,9 +224,14 @@ public class PlaybackService : IDisposable
             float ease = (float)Math.Pow(progress, 2);
             float current = start + (end - start) * ease;
             
-            p.Volume = (int)Math.Clamp(current * 100, 0, 100);
             await Task.Delay(stepDelay, ct);
+            
+            if (ct.IsCancellationRequested) return;
+            
+            p.Volume = (int)Math.Clamp(current * 100, 0, 100);
         }
+        
+        if (ct.IsCancellationRequested) return;
         p.Volume = (int)Math.Clamp(end * 100, 0, 100);
     }
 

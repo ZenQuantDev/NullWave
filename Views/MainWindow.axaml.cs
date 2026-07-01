@@ -1,3 +1,4 @@
+// MainWindow.axaml.cs
 using System;
 using System.Diagnostics;
 using Avalonia;
@@ -36,7 +37,7 @@ public partial class MainWindow : Window
                 // but "ollama stop <model>" evicts the weights from memory.
                 var model = vm.Settings.SelectedModel;
                 if (!string.IsNullOrWhiteSpace(model) &&
-                    vm.Settings.AIServiceState == AIServiceState.Running)
+                    vm.Settings.AiServiceState == AIServiceState.Running)
                 {
                     Log.Information("[MainWindow] Unloading Ollama model '{Model}' before exit", model);
                     Process.Start(new ProcessStartInfo

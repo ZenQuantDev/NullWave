@@ -1,31 +1,40 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NullWave.Models;
-using NullWave.Services;
 using Serilog;
 
 namespace NullWave.Services;
 
 public class LastFmService
 {
-    private readonly HttpClient _http = new();
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private readonly string _apiKey;
+    private readonly LastFmAuthService _auth;
+    private readonly string _sessionKey;
     private const string BaseUrl = "https://ws.audioscrobbler.com/2.0/";
 
     public LastFmService(ConfigService config)
     {
-        _apiKey = config.GetLastFmApiKey();
+        _apiKey     = config.GetLastFmApiKey();
+        _sessionKey = config.GetLastFmSessionKey();
+        _auth       = new LastFmAuthService(_apiKey, config.GetLastFmApiSecret());
     }
 
+    // Legacy properties for backwards compatibility with MainViewModel
     public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
+    public bool CanScrobble => IsConfigured && !string.IsNullOrEmpty(_sessionKey);
 
-    // Search for a track - returns corrected title + artist if found
+    // Decoupled properties for granular validation (Settings UI vs Enrichment vs Scrobbling)
+    public bool IsConfiguredForRead => !string.IsNullOrWhiteSpace(_apiKey);
+    public bool IsConfiguredForScrobbling => !string.IsNullOrWhiteSpace(_apiKey) && !string.IsNullOrEmpty(_sessionKey) && _auth.IsConfigured;
+
     public async Task<(string Title, string Artist)> SearchTrackAsync(
         string title, string artist)
     {
-        if (!IsConfigured)
+        if (!IsConfiguredForRead)
         {
             Log.Warning("Last.fm API key not configured");
             return (title, artist);
@@ -67,10 +76,9 @@ public class LastFmService
         return (title, artist);
     }
 
-    // Get detailed track info - tags, listeners, wiki summary
     public async Task<LastFmTrackInfo?> GetTrackInfoAsync(string title, string artist)
     {
-        if (!IsConfigured) return null;
+        if (!IsConfiguredForRead) return null;
 
         try
         {
@@ -95,28 +103,38 @@ public class LastFmService
                     .GetProperty("name").GetString() ?? artist,
             };
 
-            // Listeners
-            if (track.TryGetProperty("listeners", out var listeners))
-                info.Listeners = listeners.GetString() ?? "0";
-
-            // Play count
-            if (track.TryGetProperty("playcount", out var playcount))
-                info.GlobalPlayCount = playcount.GetString() ?? "0";
-
-            // Tags
-            if (track.TryGetProperty("toptags", out var toptags) &&
-                toptags.TryGetProperty("tag", out var tags))
+            // Use DTO for accurate tag extraction from nested JSON structure
+            var responseObj = JsonSerializer.Deserialize<LastFmTrackResponse>(json);
+            if (responseObj?.Track?.TopTags?.TagList != null)
             {
-                foreach (var tag in tags.EnumerateArray())
+                info.Tags = responseObj.Track.TopTags.TagList
+                    .Select(t => t.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Take(5)
+                    .ToList();
+            }
+            else
+            {
+                // Fallback to JsonDocument if DTO deserialization fails
+                if (track.TryGetProperty("toptags", out var toptags) &&
+                    toptags.TryGetProperty("tag", out var tags))
                 {
-                    var tagName = tag.GetProperty("name").GetString();
-                    if (!string.IsNullOrEmpty(tagName))
-                        info.Tags.Add(tagName);
-                    if (info.Tags.Count >= 5) break;
+                    foreach (var tag in tags.EnumerateArray())
+                    {
+                        var tagName = tag.GetProperty("name").GetString();
+                        if (!string.IsNullOrEmpty(tagName))
+                            info.Tags.Add(tagName);
+                        if (info.Tags.Count >= 5) break;
+                    }
                 }
             }
 
-            // Album art (from album.image array, size "large" or "extralarge")
+            if (track.TryGetProperty("listeners", out var listeners))
+                info.Listeners = listeners.GetString() ?? "0";
+
+            if (track.TryGetProperty("playcount", out var playcount))
+                info.GlobalPlayCount = playcount.GetString() ?? "0";
+
             if (track.TryGetProperty("album", out var album) &&
                 album.TryGetProperty("image", out var images))
             {
@@ -135,12 +153,10 @@ public class LastFmService
                 }
             }
 
-            // Wiki summary
             if (track.TryGetProperty("wiki", out var wiki) &&
                 wiki.TryGetProperty("summary", out var summary))
             {
                 var raw = summary.GetString() ?? string.Empty;
-                // Strip Last.fm's appended HTML link
                 var cutoff = raw.IndexOf("<a href", StringComparison.OrdinalIgnoreCase);
                 info.WikiSummary = cutoff > 0
                     ? raw[..cutoff].Trim()
@@ -157,28 +173,69 @@ public class LastFmService
         }
     }
 
-    // Scrobble placeholder - full OAuth implementation in Phase 7
-    // Returns Task.CompletedTask (no async keyword) to avoid CS1998 warning
-    public Task ScrobbleAsync(string title, string artist, DateTime playedAt)
+    public async Task<bool> ScrobbleAsync(string title, string artist, DateTime playedAt)
     {
-        if (!IsConfigured) return Task.CompletedTask;
+        if (!IsConfiguredForScrobbling)
+        {
+            Log.Debug("[LastFm] Scrobble skipped — not fully configured for write operations");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(artist) ||
+            artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
+            artist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Debug("[LastFm] Scrobble skipped — missing or unknown artist for '{Title}'", title);
+            return false;
+        }
 
         try
         {
-            // Last.fm scrobble requires API signature (HMAC-MD5) + user session token
-            // For now we just log the attempt - full implementation in Phase 7
-            Log.Information("[LastFm] Scrobble: {Title} by {Artist} at {Time}",
-                title, artist, playedAt);
+            var timestamp = ((DateTimeOffset)playedAt.ToUniversalTime()).ToUnixTimeSeconds().ToString();
 
-            // TODO: Implement full scrobble with user session token in Phase 7
-            // This requires OAuth flow: last.fm/api/auth + track.scrobble method
+            var parameters = new SortedDictionary<string, string>
+            {
+                ["method"]    = "track.scrobble",
+                ["api_key"]   = _apiKey,
+                ["sk"]        = _sessionKey,
+                ["artist"]    = artist,
+                ["track"]     = title,
+                ["timestamp"] = timestamp
+            };
+
+            var sig = _auth.Sign(parameters);
+
+            var formContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("method",     "track.scrobble"),
+                new KeyValuePair<string, string>("api_key",   _apiKey),
+                new KeyValuePair<string, string>("sk",        _sessionKey),
+                new KeyValuePair<string, string>("artist",    artist),
+                new KeyValuePair<string, string>("track",     title),
+                new KeyValuePair<string, string>("timestamp", timestamp),
+                new KeyValuePair<string, string>("api_sig",   sig),
+                new KeyValuePair<string, string>("format",    "json")
+            });
+
+            var response = await _http.PostAsync(BaseUrl, formContent);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warning("[LastFm] Scrobble failed for '{Title}' by '{Artist}': {Response}",
+                    title, artist, responseJson);
+                return false;
+            }
+
+            Log.Information("[LastFm] Scrobbled: {Title} by {Artist} at {Time}",
+                title, artist, playedAt);
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[LastFm] Scrobble failed for {Title}", title);
+            return false;
         }
-
-        return Task.CompletedTask;
     }
 }
 
@@ -191,4 +248,41 @@ public class LastFmTrackInfo
     public System.Collections.Generic.List<string> Tags { get; set; } = new();
     public string? WikiSummary { get; set; }
     public string? AlbumArtUrl { get; set; }
+}
+
+// DTOs for accurate Last.fm API JSON mapping
+public class LastFmTrackResponse
+{
+    [System.Text.Json.Serialization.JsonPropertyName("track")]
+    public LastFmTrackDetails? Track { get; set; }
+}
+
+public class LastFmTrackDetails
+{
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("artist")]
+    public LastFmArtistDetails? Artist { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("toptags")]
+    public LastFmTopTags? TopTags { get; set; }
+}
+
+public class LastFmArtistDetails
+{
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+}
+
+public class LastFmTopTags
+{
+    [System.Text.Json.Serialization.JsonPropertyName("tag")]
+    public System.Collections.Generic.List<LastFmTag>? TagList { get; set; } = new();
+}
+
+public class LastFmTag
+{
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
 }

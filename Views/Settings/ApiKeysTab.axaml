@@ -41,32 +41,48 @@
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- Last.fm -->
-                    <Grid ColumnDefinitions="*,8,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="Last.fm"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="last.fm/api/account/create - free, no tier required"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
-                        </StackPanel>
-                        <TextBox Grid.Column="0" Margin="0,24,0,0"
-                                 Text="{Binding LastFmApiKey, Mode=TwoWay}"
-                                 PlaceholderText="API key"
-                                 PasswordChar="●"/>
-                        <Border Grid.Column="2" Margin="0,24,0,0"
-                                Background="{StaticResource BrushGreenDim}"
-                                CornerRadius="{StaticResource RadiusSm}"
-                                Padding="8,6"
-                                IsVisible="{Binding LastFmApiKey,
-                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                ToolTip.Tip="Key saved">
-                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                       FontWeight="Bold"/>
-                        </Border>
-                    </Grid>
+                    <!-- Last.fm API Keys -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Last.fm (API Key &amp; Secret)"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="last.fm/api/account/create - required for scrobbling"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeXs}"/>
+                        <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding LastFmApiKey, Mode=TwoWay}"
+                                     PlaceholderText="API Key"
+                                     PasswordChar="●"/>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource BrushGreenDim}"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Padding="8,6"
+                                    IsVisible="{Binding LastFmApiKey,
+                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    ToolTip.Tip="Key saved">
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
+                                           FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,8,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding LastFmApiSecret, Mode=TwoWay}"
+                                     PlaceholderText="Shared Secret"
+                                     PasswordChar="●"/>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource BrushGreenDim}"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Padding="8,6"
+                                    IsVisible="{Binding LastFmApiSecret,
+                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    ToolTip.Tip="Secret saved">
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
+                                           FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
@@ -174,11 +190,87 @@
                 </StackPanel>
             </Border>
 
+            <!-- Last.fm Account Connection -->
+            <Border Classes="settings-card" Margin="0,16,0,0">
+                <StackPanel Spacing="16">
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="🎵" 
+                                   FontSize="20"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="Last.fm Account"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Connection status row -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Width="10" Height="10" CornerRadius="5" Background="#4CAF50"
+                                    IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <Border Width="10" Height="10" CornerRadius="5" Background="#A8B4CC"
+                                    IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LastFmStateLabel}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Not connected: show Connect button -->
+                        <Button Grid.Column="1" Classes="primary"
+                                Content="Connect to Last.fm"
+                                Command="{Binding LastFmConnectCommand}"
+                                IsVisible="{Binding !IsLastFmConnected}"/>
+
+                        <!-- Connected: show Disconnect button -->
+                        <Button Grid.Column="1" Classes="danger"
+                                Content="Disconnect"
+                                Command="{Binding LastFmDisconnectCommand}"
+                                IsVisible="{Binding IsLastFmConnected}"/>
+                    </Grid>
+
+                    <!-- Awaiting auth: show confirm button + instructions -->
+                    <Border Background="{StaticResource BrushElevated}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="14,12"
+                            IsVisible="{Binding IsLastFmAwaitingAuth}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account."
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextWrapping="Wrap"/>
+                            <Button Classes="secondary"
+                                    Content="I've Authorized It — Finish Connecting"
+                                    Command="{Binding LastFmConfirmAuthCommand}"
+                                    HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error/status message -->
+                    <TextBlock Text="{Binding LastFmStatusMessage}"
+                               Foreground="{StaticResource BrushRed}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding LastFmStatusMessage,
+                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create."
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               TextWrapping="Wrap"/>
+
+                </StackPanel>
+            </Border>
+
             <!-- Security note -->
             <Border Background="{StaticResource BrushAccentDim}"
                     CornerRadius="{StaticResource RadiusMd}"
                     Padding="14,12"
-                    Margin="0,0,0,16">
+                    Margin="0,16,0,0">
                 <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control."
                            Foreground="{StaticResource BrushAccentHover}"
                            FontSize="{StaticResource FontSizeXs}"
@@ -190,7 +282,8 @@
                     Command="{Binding SaveKeysCommand}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
-                    Padding="0,12"/>
+                    Padding="0,12"
+                    Margin="0,16,0,0"/>
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>

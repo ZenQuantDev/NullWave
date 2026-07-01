@@ -48,14 +48,12 @@ public class UrlParserService
 
     public (string Title, string Artist)? ExtractLastFmTrack(string url)
     {
-        // Matches: last.fm/music/Artist/_/Track
         if (!url.Contains("last.fm/music/")) return null;
 
         try
         {
             var uri = new Uri(url);
             var segments = uri.AbsolutePath.Trim('/').Split('/');
-            // segments: ["music", "Tame+Impala", "_", "The+Less+I+Know+the+Better"]
             if (segments.Length >= 4 && segments[0] == "music" && segments[2] == "_")
             {
                 var artist = Uri.UnescapeDataString(segments[1]).Replace("+", " ");

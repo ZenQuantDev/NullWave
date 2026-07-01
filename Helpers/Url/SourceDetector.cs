@@ -1,3 +1,4 @@
+using System;
 using NullWave.Models;
 
 namespace NullWave.Helpers;
@@ -7,15 +8,20 @@ public static class SourceDetector
     public static TrackSource Detect(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return TrackSource.Unknown;
+        
         if (url.Contains("youtube.com") || url.Contains("youtu.be") ||
             url.Contains("music.youtube.com"))
             return TrackSource.YouTube;
+            
         if (url.Contains("spotify.com") || url.Contains("open.spotify.com"))
             return TrackSource.Spotify;
+            
         if (url.Contains("soundcloud.com"))
             return TrackSource.SoundCloud;
+            
         if (url.Contains("last.fm"))
             return TrackSource.LastFm;
+            
         return TrackSource.Unknown;
     }
 
@@ -40,8 +46,9 @@ public static class SourceDetector
             TrackSource.LastFm =>
                 url.Contains("/music/"),
             TrackSource.Unknown =>
-                !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                url.Length > 30,
+                // Accept non-HTTP local paths, or validate HTTP URLs properly
+                !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) || 
+                Uri.TryCreate(url, UriKind.Absolute, out _),
             _ => true
         };
     }

@@ -23,7 +23,7 @@ public class MainViewModel : ViewModelBase
     private readonly ConfigService _config;
     private readonly LibraryService _library;
     private readonly PlaylistService _playlists;
-    private readonly LastFmService _lastFm;
+    private LastFmService _lastFm;
     private readonly MetadataService _metadata;
     private readonly UrlParserService _urlParser = new();
     private readonly ExportService _export = new();
@@ -37,6 +37,9 @@ public class MainViewModel : ViewModelBase
     private readonly LocalAIService _localAI;
     private readonly MoodPlaylistService _moodPlaylist;
     private readonly PowerStateService _powerState;
+
+    private string? _pendingLastFmToken;
+    private LastFmAuthService? _pendingLastFmAuth;
 
     private readonly PlaceholderPageViewModel _queuePage = new(
         "🎵", "Queue", "The playback queue is coming soon.\nTracks you add to the queue will appear here.");
@@ -250,8 +253,85 @@ public class MainViewModel : ViewModelBase
 
         Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
         {
-            if (Settings.ScrobbleToLastFm)
-                await _lastFm.ScrobbleAsync(title, artist, playedAt);
+            if (!Settings.ScrobbleToLastFm) return;
+            if (!_lastFm.CanScrobble)
+            {
+                Log.Debug("[MainViewModel] Scrobble requested but Last.fm not connected");
+                return;
+            }
+
+            var success = await _lastFm.ScrobbleAsync(title, artist, playedAt);
+            if (!success)
+                Log.Warning("[MainViewModel] Scrobble failed for '{Title}' by '{Artist}'", title, artist);
+        };
+
+        Settings.LastFmConnectRequested += async () =>
+        {
+            try
+            {
+                var auth = new LastFmAuthService(_config.GetLastFmApiKey(), _config.GetLastFmApiSecret());
+                if (!auth.IsConfigured)
+                {
+                    Settings.ReportLastFmAuthFailed("Set your Last.fm API key and shared secret first.");
+                    return;
+                }
+
+                var token = await auth.GetRequestTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                {
+                    Settings.ReportLastFmAuthFailed("Could not get a request token from Last.fm.");
+                    return;
+                }
+
+                var authUrl = auth.GetAuthUrl(token);
+                Process.Start(new ProcessStartInfo { FileName = authUrl, UseShellExecute = true });
+
+                Settings.ReportLastFmAwaitingAuth();
+
+                _pendingLastFmToken = token;
+                _pendingLastFmAuth  = auth;
+            }
+            catch (Exception ex)
+            {
+                Settings.ReportLastFmAuthFailed(ex.Message);
+                NullActionLogger.Error(nameof(MainViewModel), ex, "Last.fm connect failed");
+            }
+        };
+
+        Settings.LastFmConfirmAuthRequested += async () =>
+        {
+            if (_pendingLastFmAuth == null || string.IsNullOrEmpty(_pendingLastFmToken))
+            {
+                Settings.ReportLastFmAuthFailed("No pending authorization — click Connect first.");
+                return;
+            }
+
+            var result = await _pendingLastFmAuth.GetSessionKeyAsync(_pendingLastFmToken);
+
+            if (!result.Success)
+            {
+                Settings.ReportLastFmAuthFailed(
+                    result.Error ?? "Authorization not yet granted — approve access in your browser first.");
+                return;
+            }
+
+            _keyStore.SaveKey("LastFm:SessionKey", result.SessionKey);
+            _keyStore.SaveKey("LastFm:Username", result.Username);
+
+            _pendingLastFmToken = null;
+            _pendingLastFmAuth  = null;
+
+            _lastFm = new LastFmService(_config);
+
+            Settings.ReportLastFmConnected(result.Username);
+        };
+
+        Settings.LastFmDisconnectRequested += () =>
+        {
+            _keyStore.DeleteKey("LastFm:SessionKey");
+            _keyStore.DeleteKey("LastFm:Username");
+            _lastFm = new LastFmService(_config);
+            Settings.ReportLastFmDisconnected();
         };
 
         Settings.ClearThumbnailsRequested += () =>

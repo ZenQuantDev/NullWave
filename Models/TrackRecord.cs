@@ -1,4 +1,3 @@
-// TrackRecord.cs
 using System;
 using SQLite;
 
@@ -10,20 +9,27 @@ public class TrackRecord
     [PrimaryKey]
     public string Id { get; set; } = string.Empty;
 
+    [Indexed] // Speeds up search queries
     public string Title      { get; set; } = string.Empty;
+
+    [Indexed] // Speeds up artist grouping/filtering
     public string Artist     { get; set; } = string.Empty;
+    
     public string? Url       { get; set; }
     public string? FilePath  { get; set; }
     public string Source     { get; set; } = "Unknown";
-    public DateTime DateAdded { get; set; } = DateTime.Now;
+    
+    public DateTime DateAdded { get; set; } = DateTime.UtcNow;
+    
+    [Indexed] // Speeds up the "Favorites" filter tab
     public bool IsFavorite   { get; set; }
+    
     public int PlayCount     { get; set; }
     public DateTime? LastPlayed { get; set; }
     public string? AlbumArtPath { get; set; }
     public string? Notes     { get; set; }
     public int SkipCount     { get; set; }
     public DateTime? LastSkipped { get; set; }
-
     public string? TagsRaw   { get; set; }
 
     public static TrackRecord FromTrack(Track t) => new()
@@ -62,7 +68,7 @@ public class TrackRecord
         SkipCount   = SkipCount,
         LastSkipped = LastSkipped,
         Tags        = string.IsNullOrEmpty(TagsRaw)
-                        ? new()
-                        : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            ? new()
+            : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries))
     };
 }

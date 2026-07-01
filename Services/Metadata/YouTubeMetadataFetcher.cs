@@ -1,12 +1,13 @@
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Serilog;
 
 namespace NullWave.Services.Metadata;
 
-public class YouTubeMetadataFetcher
+public partial class YouTubeMetadataFetcher
 {
     private readonly HttpClient _http = new();
     private readonly string _apiKey;
@@ -66,13 +67,13 @@ public class YouTubeMetadataFetcher
         return await ThumbnailDownloader.FetchAsync(thumbUrl, $"yt_{videoId}");
     }
 
+    [GeneratedRegex(@"(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s\?#]+)", RegexOptions.IgnoreCase)]
+    private static partial Regex YouTubeIdRegex();
+
     public static string? ExtractYouTubeId(string url)
     {
-        if (!url.Contains("youtube.com") && !url.Contains("youtu.be")) return null;
-        if (url.Contains("youtu.be/"))
-            return url.Split("youtu.be/")[1].Split('?')[0];
-        if (url.Contains("v="))
-            return url.Split("v=")[1].Split('&')[0];
-        return null;
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        var match = YouTubeIdRegex().Match(url);
+        return match.Success ? match.Groups[1].Value : null;
     }
 }

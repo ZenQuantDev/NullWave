@@ -1,4 +1,5 @@
 using System;
+using NullWave.Services;
 
 namespace NullWave.Services;
 
@@ -13,26 +14,37 @@ public class ConfigService
 
     public string GetYouTubeApiKey()
         => _keyStore.GetKey("YouTube")
-           ?? Environment.GetEnvironmentVariable("NULLWAVE_YOUTUBE_KEY")
-           ?? string.Empty;
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_YOUTUBE_KEY")
+        ?? string.Empty;
 
     public string GetSpotifyClientId()
         => _keyStore.GetKey("Spotify:ClientId")
-           ?? Environment.GetEnvironmentVariable("NULLWAVE_SPOTIFY_CLIENT_ID")
-           ?? string.Empty;
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_SPOTIFY_CLIENT_ID")
+        ?? string.Empty;
 
     public string GetSpotifyClientSecret()
         => _keyStore.GetKey("Spotify:ClientSecret")
-           ?? Environment.GetEnvironmentVariable("NULLWAVE_SPOTIFY_CLIENT_SECRET")
-           ?? string.Empty;
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_SPOTIFY_CLIENT_SECRET")
+        ?? string.Empty;
 
     public string GetSoundCloudClientId()
         => _keyStore.GetKey("SoundCloud")
-           ?? Environment.GetEnvironmentVariable("NULLWAVE_SOUNDCLOUD_CLIENT_ID")
-           ?? string.Empty;
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_SOUNDCLOUD_CLIENT_ID")
+        ?? string.Empty;
 
     public string GetLastFmApiKey()
         => _keyStore.GetKey("LastFm")
-           ?? Environment.GetEnvironmentVariable("NULLWAVE_LASTFM_KEY")
-           ?? string.Empty;
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_LASTFM_KEY")
+        ?? string.Empty;
+
+    public string GetLastFmApiSecret()
+        => _keyStore.GetKey("LastFm:Secret")
+        ?? Environment.GetEnvironmentVariable("NULLWAVE_LASTFM_SECRET")
+        ?? string.Empty;
+
+    public string GetLastFmSessionKey()
+        => _keyStore.GetKey("LastFm:SessionKey") ?? string.Empty;
+
+    public string GetLastFmUsername()
+        => _keyStore.GetKey("LastFm:Username") ?? string.Empty;
 }

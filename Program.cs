@@ -14,20 +14,14 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        //  1. Ensure ~/.nullwave/* directories exist 
+        //  1. Ensure ~/.nullwave/* directories exist
         NullWavePaths.EnsureDirectories();
-
-        //  2. Initialize Serilog before anything else 
+        //  2. Initialize Serilog before anything else
         NullWaveLogConfig.Initialize();
 
         try
         {
             var appBuilder = BuildAvaloniaApp();
-
-            // Fire validation visual checks as soon as initialization is complete
-            ToastService.Instance.Show("Welcome to NullWave! Library initialized successfully.", ToastType.Success, 5000);
-            ToastService.Instance.Show("Failed to sync local AI models. Using local cache fallback.", ToastType.Error, 6000);
-
             appBuilder.StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)

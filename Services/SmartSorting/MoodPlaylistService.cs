@@ -155,14 +155,6 @@ public class MoodPlaylistService
 /// LastFmEnrichmentService from real Last.fm community tags - genre and
 /// descriptor words like "pop", "dance", "rnb", "electronic", "90s",
 /// "female vocalists", "acoustic", "chill", "ambient", etc.
-///
-/// Earlier versions of this map used invented mood words (e.g. "mellow",
-/// "night") that essentially never appear in real Last.fm tag data, so
-/// matching almost always failed and fell back to the full library. This
-/// version uses words that genuinely show up in Last.fm's actual tag
-/// vocabulary, cross-referenced against tags observed in this project's
-/// own enrichment runs (pop, dance, electronic, rnb, trap, Hip-Hop, 90s,
-/// 2010s, female vocalists, sexy, acoustic, indie, chill, ambient).
 /// </summary>
 public static class WeatherMoodMap
 {
@@ -194,8 +186,7 @@ public static class WeatherMoodMap
             _ => new[] { "pop", "chill" }
         };
 
-        // Late night / early morning skews toward lower-energy descriptors -
-        // these are common standalone Last.fm tags, not invented words.
+        // Late night / early morning skews toward lower-energy descriptors
         if (hour >= 22 || hour < 5)
             tags = tags.Concat(new[] { "chill", "ambient", "rnb", "soul" }).Distinct().ToArray();
 

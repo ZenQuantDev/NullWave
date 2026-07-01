@@ -18,6 +18,8 @@ public class LibraryService : IDisposable
     private readonly List<Track> _history = new();
     public event EventHandler? LibraryChanged;
 
+    public int StateVersion { get; private set; } = 0;
+
     public LibraryService(DatabaseService db, MetadataService? metadata = null)
     {
         _db = db;
@@ -44,6 +46,7 @@ public class LibraryService : IDisposable
 
         _ = System.Threading.Tasks.Task.Run(async () =>
         {
+            var updatedTracks = new List<Track>();
             foreach (var track in ytTracks)
             {
                 try
@@ -55,13 +58,26 @@ public class LibraryService : IDisposable
                     if (string.IsNullOrEmpty(thumbPath)) continue;
 
                     track.AlbumArtPath = thumbPath;
-                    _db.Update(track);
+                    updatedTracks.Add(track);
                     Log.Information("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
                 }
                 catch (Exception ex)
                 {
                     Log.Warning(ex, "[LibraryService] YouTube thumbnail backfill failed for {Title}", track.Title);
                 }
+            }
+
+            if (updatedTracks.Count > 0)
+            {
+                _db.RunInTransaction(() =>
+                {
+                    foreach (var track in updatedTracks)
+                    {
+                        _db.Update(track);
+                    }
+                });
+                StateVersion++;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
             }
         });
     }
@@ -81,6 +97,8 @@ public class LibraryService : IDisposable
         _ = System.Threading.Tasks.Task.Run(async () =>
         {
             var fetcher = new Metadata.SoundCloudMetadataFetcher();
+            var updatedTracks = new List<Track>();
+            
             foreach (var track in scTracks)
             {
                 try
@@ -109,7 +127,7 @@ public class LibraryService : IDisposable
 
                     if (changed)
                     {
-                        _db.Update(track);
+                        updatedTracks.Add(track);
                         Log.Information("[LibraryService] SoundCloud backfilled: {Title}", track.Title);
                     }
                 }
@@ -117,6 +135,19 @@ public class LibraryService : IDisposable
                 {
                     Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}", track.Title);
                 }
+            }
+
+            if (updatedTracks.Count > 0)
+            {
+                _db.RunInTransaction(() =>
+                {
+                    foreach (var track in updatedTracks)
+                    {
+                        _db.Update(track);
+                    }
+                });
+                StateVersion++;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
             }
         });
     }
@@ -129,6 +160,8 @@ public class LibraryService : IDisposable
                      && string.IsNullOrEmpty(t.FilePath))
             .ToList();
 
+        if (bad.Count == 0) return;
+
         foreach (var track in bad)
         {
             _tracks.Remove(track);
@@ -136,14 +169,15 @@ public class LibraryService : IDisposable
             Log.Warning("[LibraryService] Removed track with bad URL: {Url}", track.Url);
         }
 
-        if (bad.Count > 0)
-            Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
+        StateVersion++;
+        Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
     }
 
     private void BackfillAlbumArt()
     {
         if (_metadata == null) return;
-        bool anyUpdated = false;
+        var updatedTracks = new List<Track>();
+        
         foreach (var track in _tracks)
         {
             if (!string.IsNullOrEmpty(track.AlbumArtPath)) continue;
@@ -154,11 +188,22 @@ public class LibraryService : IDisposable
             if (art == null) continue;
 
             track.AlbumArtPath = art;
-            _db.Update(track);
-            anyUpdated = true;
+            updatedTracks.Add(track);
         }
-        if (anyUpdated)
+        
+        if (updatedTracks.Count > 0)
+        {
+            _db.RunInTransaction(() =>
+            {
+                foreach (var track in updatedTracks)
+                {
+                    _db.Update(track);
+                }
+            });
+            StateVersion++;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
             Log.Information("[LibraryService] Album art backfill complete");
+        }
     }
 
     public IReadOnlyList<Track> GetAll() => _tracks.AsReadOnly();
@@ -176,8 +221,7 @@ public class LibraryService : IDisposable
 
         _tracks.Add(track);
         _db.Insert(track);
-        
-        // FIX: Notify UI that a new track has been added
+        StateVersion++;
         OnLibraryChanged();
     }
 
@@ -187,8 +231,7 @@ public class LibraryService : IDisposable
         if (track == null) return;
         _tracks.Remove(track);
         _db.Delete(id);
-        
-        // FIX: Notify UI that a track has been removed
+        StateVersion++;
         OnLibraryChanged();
     }
 
@@ -197,8 +240,7 @@ public class LibraryService : IDisposable
         _db.Update(track);
         var idx = _tracks.FindIndex(t => t.Id == track.Id);
         if (idx >= 0) _tracks[idx] = track;
-        
-        // FIX: Notify UI that a track has been updated (e.g. FilePath assigned after download)
+        StateVersion++;
         OnLibraryChanged();
     }
 
@@ -259,6 +301,7 @@ public class LibraryService : IDisposable
         if (track == null) return;
         track.IsFavorite = !track.IsFavorite;
         _db.Update(track);
+        StateVersion++;
     }
 
     public void RecordPlay(Guid id)
@@ -269,6 +312,7 @@ public class LibraryService : IDisposable
         track.PlayCount++;
         track.LastPlayed = DateTime.Now;
         _db.Update(track);
+        StateVersion++;
 
         _history.Add(track);
         if (_history.Count > 200)
@@ -328,6 +372,8 @@ public class LibraryService : IDisposable
             cleared++;
         }
 
+        if (cleared > 0) StateVersion++;
+
         try
         {
             if (Directory.Exists(NullWavePaths.ArtCacheDir))
@@ -374,6 +420,8 @@ public class LibraryService : IDisposable
             removed++;
         }
 
+        if (removed > 0) StateVersion++;
+
         Log.Information("[LibraryService] RepairPaths: {Total} checked, {Missing} missing, {Removed} cleared",
             withPath.Count, missing, removed);
 
@@ -417,6 +465,8 @@ public class LibraryService : IDisposable
             relinked++;
         }
 
+        if (relinked > 0) StateVersion++;
+
         Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
             files.Count, relinked);
 
@@ -433,6 +483,8 @@ public class LibraryService : IDisposable
             _db.Update(track);
             cleared++;
         }
+
+        if (cleared > 0) StateVersion++;
 
         Log.Information("[LibraryService] ClearTagsForReSync: cleared tags on {Count} tracks", cleared);
         return cleared;

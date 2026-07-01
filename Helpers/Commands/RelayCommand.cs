@@ -32,10 +32,11 @@ public class RelayCommand : ICommand
             _execute?.Invoke();
     }
 
-    public event EventHandler? CanExecuteChanged
+    public event EventHandler? CanExecuteChanged;
+
+    public void RaiseCanExecuteChanged()
     {
-        add { }
-        remove { }
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }
 
@@ -54,9 +55,10 @@ public class RelayCommand<T> : ICommand
 
     public void Execute(object? parameter) => _execute((T?)parameter);
 
-    public event EventHandler? CanExecuteChanged
+    public event EventHandler? CanExecuteChanged;
+
+    public void RaiseCanExecuteChanged()
     {
-        add { }
-        remove { }
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

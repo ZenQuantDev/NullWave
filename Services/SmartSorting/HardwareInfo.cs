@@ -26,7 +26,6 @@ public class HardwareDetector
         var cpuCores = Environment.ProcessorCount;
         var ramGB = GetTotalRamGB();
         var (gpuVram, gpuType, hasNvidia, hasAmd) = GetGpuInfo();
-
         var (recommendedModel, reason) = RecommendModel(cpuCores, ramGB, gpuVram, hasNvidia, hasAmd);
 
         return new HardwareInfo
@@ -69,6 +68,7 @@ public class HardwareDetector
                     FileName = "wmic",
                     Arguments = "OS get TotalVisibleMemorySize /Value",
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
@@ -110,6 +110,7 @@ public class HardwareDetector
                 FileName = "nvidia-smi",
                 Arguments = "--query-gpu=memory.total,name --format=csv,noheader,nounits",
                 RedirectStandardOutput = true,
+                RedirectStandardError = true, // FIX: Capture stderr to prevent driver error noise
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
@@ -149,6 +150,7 @@ public class HardwareDetector
                     FileName = "rocm-smi",
                     Arguments = "--showmeminfo vram",
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true, // FIX: Capture stderr to prevent driver error noise
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
@@ -193,28 +195,23 @@ public class HardwareDetector
         // GPU-accelerated models (fastest)
         if (gpuVram >= 24 && (hasNvidia || hasAmd))
             return ("qwen2.5:32b", $"32GB VRAM detected ({gpuVram}GB) - can run 32B model with GPU acceleration");
-
         if (gpuVram >= 16 && (hasNvidia || hasAmd))
             return ("qwen2.5:14b", $"16GB VRAM detected ({gpuVram}GB) - can run 14B model with GPU acceleration");
-
         if (gpuVram >= 8 && (hasNvidia || hasAmd))
             return ("mistral-nemo:12b", $"8GB VRAM detected ({gpuVram}GB) - can run 12B model with GPU acceleration");
-
         if (gpuVram >= 4 && (hasNvidia || hasAmd))
             return ("qwen2.5:7b", $"4GB VRAM detected ({gpuVram}GB) - can run 7B model with GPU acceleration");
 
         // CPU-only models (slower but works)
+        // FIX: Interpolate actual ramGB variable instead of hardcoded "8GB" strings
         if (ramGB >= 32)
-            return ("qwen2.5:32b", $"32GB RAM detected - can run 32B model (CPU-only, slower)");
-
+            return ("qwen2.5:32b", $"{ramGB}GB RAM detected - can run 32B model (CPU-only, slower)");
         if (ramGB >= 16)
-            return ("qwen2.5:14b", $"16GB RAM detected - can run 14B model (CPU-only, slower)");
-
+            return ("qwen2.5:14b", $"{ramGB}GB RAM detected - can run 14B model (CPU-only, slower)");
         if (ramGB >= 8)
-            return ("mistral-nemo:12b", $"8GB RAM detected - can run 12B model (CPU-only, slower)");
-
+            return ("mistral-nemo:12b", $"{ramGB}GB RAM detected - can run 12B model (CPU-only, slower)");
         if (ramGB >= 4)
-            return ("qwen2.5:7b", $"4GB RAM detected - can run 7B model (CPU-only, slower)");
+            return ("qwen2.5:7b", $"{ramGB}GB RAM detected - can run 7B model (CPU-only, slower)");
 
         // Fallback
         return ("qwen2.5:3b", $"Limited hardware ({ramGB}GB RAM) - using smallest model for best performance");

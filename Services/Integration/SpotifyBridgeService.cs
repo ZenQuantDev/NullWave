@@ -31,6 +31,7 @@ public class SpotifyBridgeService
     /// <summary>
     /// Given a Spotify track URL, fetch its title+artist from Spotify's
     /// oEmbed endpoint (no API key needed), then search YouTube for it.
+    /// TODO: Add caching to avoid redundant network round-trips for the same track.
     /// </summary>
     public async Task<SpotifyBridgeResult> BridgeAsync(string spotifyUrl)
     {
@@ -67,17 +68,12 @@ public class SpotifyBridgeService
         };
     }
 
-    //  Spotify oEmbed - no API key required 
-
     private async Task<(string Title, string Artist)> FetchSpotifyMetaAsync(string spotifyUrl)
     {
-        // Try yt-dlp first - it can handle Spotify URLs on some systems
         var ytDlpMeta = await GetYtDlpSpotifyMetaAsync(spotifyUrl);
         if (ytDlpMeta.HasValue && !string.IsNullOrEmpty(ytDlpMeta.Value.Title))
             return ytDlpMeta.Value;
 
-        // Fallback: extract track ID and use a basic title guess from URL
-        // spotify.com/track/TRACKID - not useful but prevents silent failure
         Log.Warning("[SpotifyBridge] All metadata methods failed for {Url}", spotifyUrl);
         return (string.Empty, string.Empty);
     }
@@ -87,7 +83,6 @@ public class SpotifyBridgeService
     {
         try
         {
-            // yt-dlp can extract Spotify metadata without downloading
             var psi = new ProcessStartInfo("yt-dlp",
                 $"--no-download --print \"%(title)s\" --print \"%(artist)s\" \"{spotifyUrl}\"")
             {
@@ -119,21 +114,17 @@ public class SpotifyBridgeService
         catch { return null; }
     }
 
-    //  YouTube search via YouTube Data API 
-
     private async Task<(string Url, string Title)> SearchYouTubeAsync(
         string title, string artist)
     {
         var apiKey = _config.GetYouTubeApiKey();
 
-        // Try YouTube Data API first
         if (!string.IsNullOrEmpty(apiKey))
         {
             var result = await SearchViaApiAsync(title, artist, apiKey);
             if (!string.IsNullOrEmpty(result.Url)) return result;
         }
 
-        // Fallback: use yt-dlp's ytsearch
         return await SearchViaYtDlpAsync(title, artist);
     }
 

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -45,9 +46,7 @@ public class DownloadService
     public DownloadService(LibraryService libraryService)
     {
         _libraryService = libraryService;
-        _downloadDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nullwave", "downloads");
+        _downloadDir = NullWavePaths.DownloadsDir;
         Directory.CreateDirectory(_downloadDir);
     }
 
@@ -421,9 +420,6 @@ public class DownloadService
                             dbTrack.FilePath = finalFilePath;
 
                             // ── Clean up YouTube channel artist names before enrichment ─────────
-                            // YouTube uploader field gives us "Lady Gaga - Topic", "Owl City - Topic",
-                            // etc. Strip the " - Topic" suffix so Last.fm can actually find the track.
-                            // Also handle "ArtistName - Topic" → "ArtistName" pattern.
                             if (!string.IsNullOrEmpty(dbTrack.Artist))
                             {
                                 var cleanArtist = Regex.Replace(
@@ -432,8 +428,6 @@ public class DownloadService
                                     string.Empty,
                                     RegexOptions.IgnoreCase).Trim();
 
-                                // If after stripping we still have "Unknown Artist" or empty,
-                                // try parsing the title itself for artist info
                                 if (string.IsNullOrWhiteSpace(cleanArtist) ||
                                     cleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
                                     cleanArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
@@ -452,13 +446,10 @@ public class DownloadService
                             }
 
                             // Also strip clutter from the title itself
-                            // ("Just Dance (Official Music Video)" → "Just Dance")
                             if (!string.IsNullOrEmpty(dbTrack.Title))
                             {
                                 var parsed = NullWave.Services.Metadata.TrackTitleParser
                                     .TryParseArtistTitle(dbTrack.Title);
-                                // Only use the title portion if parsing found an artist split;
-                                // otherwise leave the title alone (it's already clean from yt-dlp)
                                 if (parsed != null &&
                                     (dbTrack.Artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
                                      string.IsNullOrWhiteSpace(dbTrack.Artist)))

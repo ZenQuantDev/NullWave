@@ -1,3 +1,4 @@
+// AlbumArtService.cs
 using System;
 using System.Threading.Tasks;
 using NullWave.Models;
@@ -6,12 +7,6 @@ using Serilog;
 
 namespace NullWave.Services.Integration;
 
-/// <summary>
-/// Unified album art resolver. Tries each source in priority order and
-/// returns the first hit, falling back to a bundled placeholder image.
-/// Centralizes art-fetching logic previously duplicated across
-/// LibraryService backfill methods and LastFmEnrichmentService.
-/// </summary>
 public class AlbumArtService
 {
     private readonly LastFmService _lastFm;
@@ -23,11 +18,6 @@ public class AlbumArtService
         _lastFm = lastFm;
     }
 
-    /// <summary>
-    /// Resolves art for a track. Returns the existing AlbumArtPath if
-    /// already set; otherwise tries source-specific fetchers, then
-    /// Last.fm as a fallback, then the placeholder. Never returns null.
-    /// </summary>
     public async Task<string> GetArtPathAsync(Track track)
     {
         if (!string.IsNullOrEmpty(track.AlbumArtPath))
@@ -75,9 +65,26 @@ public class AlbumArtService
     {
         if (!_lastFm.IsConfigured) return null;
 
-        var (title, artist) = TrackTitleParser.ResolveSearchTerms(track);
+        var (searchArtist, searchTitle) = TitleSanitizer.Sanitize(track.Title);
+        
+        if (string.IsNullOrWhiteSpace(searchArtist) || searchArtist == "Unknown Artist" || searchArtist == "Unknown")
+        {
+            var parsed = TrackTitleParser.TryParseArtistTitle(track.Title);
+            if (parsed != null)
+            {
+                searchArtist = parsed.Value.Artist;
+                searchTitle = parsed.Value.Title;
+            }
+        }
 
-        var info = await _lastFm.GetTrackInfoAsync(title, artist);
+        var info = await _lastFm.GetTrackInfoAsync(searchTitle, searchArtist);
+        
+        if (info == null && !string.IsNullOrWhiteSpace(searchArtist) && searchArtist != "Unknown Artist" && searchArtist != "Unknown")
+        {
+            Log.Verbose("[AlbumArtService] No match for Artist={Artist} | Title={Title}. Retrying art resolution with reversed fields.", searchArtist, searchTitle);
+            info = await _lastFm.GetTrackInfoAsync(searchArtist, searchTitle);
+        }
+
         if (info == null || string.IsNullOrEmpty(info.AlbumArtUrl)) return null;
 
         return await ThumbnailDownloader.FetchAsync(info.AlbumArtUrl, $"lfm_{track.Id:N}");

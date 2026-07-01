@@ -20,7 +20,15 @@ public class ExportService
         sb.AppendLine("Title,Artist,Source,URL,FilePath,DateAdded");
 
         foreach (var t in tracks)
-            sb.AppendLine($"\"{t.Title}\",\"{t.Artist}\",{t.Source},\"{t.Url}\",\"{t.FilePath}\",{t.DateAdded:yyyy-MM-dd}");
+        {
+            // RFC-4180 CSV escaping: double up internal quotes
+            var escapedTitle = t.Title?.Replace("\"", "\"\"") ?? "";
+            var escapedArtist = t.Artist?.Replace("\"", "\"\"") ?? "";
+            var escapedUrl = t.Url?.Replace("\"", "\"\"") ?? "";
+            var escapedPath = t.FilePath?.Replace("\"", "\"\"") ?? "";
+
+            sb.AppendLine($"\"{escapedTitle}\",\"{escapedArtist}\",{t.Source},\"{escapedUrl}\",\"{escapedPath}\",{t.DateAdded:yyyy-MM-dd}");
+        }
 
         File.WriteAllText(filePath, sb.ToString());
     }

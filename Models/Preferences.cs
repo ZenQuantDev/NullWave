@@ -1,10 +1,12 @@
 using System;
-using System.Collections.Generic;
 
 namespace NullWave.Models;
 
 public class Preferences
 {
+    // Schema Version Control
+    public int Version { get; set; } = 1;
+
     // Audio
     public string AudioQuality { get; set; } = "best";
     public string AudioFormat { get; set; } = "mp3";
@@ -23,12 +25,12 @@ public class Preferences
     public bool   CompactMode    { get; set; } = false;
     public string SidebarWidth   { get; set; } = "Normal";
 
-    // Smart Sorting 
+    // Smart Sorting
     public string SelectedAIModel { get; set; } = "qwen2.5:7b";
     public bool   UseLocalAI      { get; set; } = true;
-    public double Latitude        { get; set; } = 0.0;   // 0 = not set yet
+    public double Latitude        { get; set; } = 0.0;
     public double Longitude       { get; set; } = 0.0;
-    
+
     // New Smart Features config
     public bool   AutoGenerateMoodPlaylist { get; set; } = false;
     public string MoodRefreshInterval      { get; set; } = "Never";
@@ -36,17 +38,15 @@ public class Preferences
 
     // External AI Export Format
     public string ExternalAIExportFormat { get; set; } = "txt";
-
     public float ScrobbleThreshold { get; set; } = 0.50f;
     public int SkipPenaltyWindowSeconds { get; set; } = 15;
     public int SkipPenaltyCap { get; set; } = 3;
     public int MaxConcurrentDownloads { get; set; } = 2;
 
-    // Model to use when running on battery power (prefer small/fast)
+    // Model to use when running on battery power
     public string BatteryModel { get; set; } = "qwen2.5:3b";
-    // Model to use when plugged in / GPU available (prefer quality)
+    // Model to use when plugged in / GPU available
     public string PerformanceModel { get; set; } = "qwen2.5:7b";
-    // Whether to automatically switch models based on power state
     public bool AutoPowerModelSwitch { get; set; } = false;
 
     // Master AI Toggle

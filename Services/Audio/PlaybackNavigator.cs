@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
 using NullWave.Models;
 using Serilog;
 
@@ -8,7 +9,7 @@ namespace NullWave.Services;
 
 public enum RepeatMode { None, One, All }
 
-public class PlaybackNavigator
+public partial class PlaybackNavigator : ObservableObject
 {
     private readonly LibraryService _library;
     private readonly Random _rng = new();
@@ -17,9 +18,22 @@ public class PlaybackNavigator
     private int _shuffleIndex = -1;
     private readonly Stack<Guid> _history = new();
 
-    public bool IsShuffle { get; set; }
-    public bool IsSmartShuffle { get; set; }
-    public RepeatMode RepeatMode { get; set; } = RepeatMode.None;
+    // O(1) Lookup Cache
+    private int _cachedLibraryVersion = -1;
+    private IReadOnlyList<Track> _cachedQueue = new List<Track>();
+    private Dictionary<Guid, int> _trackIndexMap = new();
+
+    [ObservableProperty]
+    private bool _isShuffle;
+
+    [ObservableProperty]
+    private bool _isSmartShuffle;
+
+    [ObservableProperty]
+    private RepeatMode _repeatMode = RepeatMode.None;
+
+    [ObservableProperty]
+    private Track? _currentTrack;
     
     /// <summary>
     /// Tracks with SkipCount >= this value are excluded from Smart Shuffle.
@@ -29,6 +43,20 @@ public class PlaybackNavigator
     public PlaybackNavigator(LibraryService library)
     {
         _library = library;
+    }
+
+    private void EnsureIndexMap(IReadOnlyList<Track> queue)
+    {
+        if (_cachedLibraryVersion != _library.StateVersion)
+        {
+            _cachedLibraryVersion = _library.StateVersion;
+            _cachedQueue = queue;
+            _trackIndexMap.Clear();
+            for (int i = 0; i < queue.Count; i++)
+            {
+                _trackIndexMap[queue[i].Id] = i;
+            }
+        }
     }
     
     public void CycleRepeat()
@@ -64,8 +92,10 @@ public class PlaybackNavigator
 
     public Track? GetNextTrack(Track? currentTrack)
     {
-        var queue = _library.GetAll().ToList();
+        var queue = _library.GetAll();
         if (queue.Count == 0) return null;
+
+        EnsureIndexMap(queue);
 
         if (currentTrack != null) _history.Push(currentTrack.Id);
 
@@ -74,7 +104,11 @@ public class PlaybackNavigator
             if (IsSmartShuffle && currentTrack != null && _rng.NextDouble() < 0.3)
             {
                 var smart = GetSmartRecommendation(currentTrack, queue);
-                if (smart != null) return smart;
+                if (smart != null) 
+                {
+                    CurrentTrack = smart;
+                    return smart;
+                }
             }
 
             if (_shuffleDeck.Count == 0 || _shuffleIndex >= _shuffleDeck.Count - 1)
@@ -82,42 +116,69 @@ public class PlaybackNavigator
 
             _shuffleIndex++;
             var nextId = _shuffleDeck[_shuffleIndex];
-            return queue.FirstOrDefault(t => t.Id == nextId);
+            
+            Track? nextTrack = null;
+            if (_trackIndexMap.TryGetValue(nextId, out var idx))
+                nextTrack = queue[idx];
+            else
+                nextTrack = queue.FirstOrDefault(t => t.Id == nextId);
+                
+            CurrentTrack = nextTrack;
+            return nextTrack;
         }
         
-        if (currentTrack == null) return queue[0];
-        
-        var idx = queue.FindIndex(t => t.Id == currentTrack.Id);
-        
-        if (idx >= 0 && idx < queue.Count - 1)
+        if (currentTrack == null) 
         {
-            return queue[idx + 1];
+            CurrentTrack = queue[0];
+            return queue[0];
+        }
+        
+        if (_trackIndexMap.TryGetValue(currentTrack.Id, out var currentIdx))
+        {
+            if (currentIdx >= 0 && currentIdx < queue.Count - 1)
+            {
+                CurrentTrack = queue[currentIdx + 1];
+                return queue[currentIdx + 1];
+            }
         }
         
         if (RepeatMode == RepeatMode.All)
         {
+            CurrentTrack = queue[0];
             return queue[0];
         }
             
+        CurrentTrack = null;
         return null;
     }
 
-    private Track? GetSmartRecommendation(Track current, List<Track> queue)
+    private Track? GetSmartRecommendation(Track current, IReadOnlyList<Track> queue)
     {
-        var candidates = queue.Where(t =>
-            t.Id != current.Id &&
-            !_history.Contains(t.Id) &&
-            (SkipPenaltyCap <= 0 || t.SkipCount < SkipPenaltyCap))
-            .ToList();
-        if (candidates.Count == 0) return null;
+        var historySet = _history.ToHashSet();
+        var currentTags = current.Tags.ToHashSet();
 
-        var scored = candidates.Select(t => new {
-            Track = t,
-            Score = (t.Artist == current.Artist && t.Artist != "Unknown" ? 5 : 0) +
-                    t.Tags.Intersect(current.Tags).Count() * 2 +
-                    (t.IsFavorite ? 1 : 0) -
-                    t.SkipCount
-        }).OrderByDescending(x => x.Score).ThenBy(_ => _rng.Next()).ToList();
+        var scored = queue
+            .Where(t => t.Id != current.Id &&
+                        !historySet.Contains(t.Id) &&
+                        (SkipPenaltyCap <= 0 || t.SkipCount < SkipPenaltyCap))
+            .Select(t => 
+            {
+                int matchingTags = 0;
+                foreach (var tag in t.Tags)
+                {
+                    if (currentTags.Contains(tag)) matchingTags++;
+                }
+
+                int score = (t.Artist == current.Artist && t.Artist != "Unknown" ? 5 : 0) +
+                            (matchingTags * 2) +
+                            (t.IsFavorite ? 1 : 0) -
+                            t.SkipCount;
+
+                return (Track: t, Score: score);
+            })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(_ => _rng.Next())
+            .ToList();
 
         var top = scored.Take(Math.Max(5, scored.Count / 10)).ToList();
         return top.Any() ? top[_rng.Next(top.Count)].Track : null;
@@ -125,29 +186,42 @@ public class PlaybackNavigator
     
     public Track? GetPreviousTrack(Track? currentTrack)
     {
-        var queue = _library.GetAll().ToList();
+        var queue = _library.GetAll();
         if (queue.Count == 0) return null;
+
+        EnsureIndexMap(queue);
 
         if (IsShuffle && _history.Count > 0)
         {
             var prevId = _history.Pop();
-            return queue.FirstOrDefault(t => t.Id == prevId);
+            Track? prevTrack = null;
+            if (_trackIndexMap.TryGetValue(prevId, out var pIdx))
+                prevTrack = queue[pIdx];
+            else
+                prevTrack = queue.FirstOrDefault(t => t.Id == prevId);
+                
+            CurrentTrack = prevTrack;
+            return prevTrack;
         }
 
         if (currentTrack == null) return null;
         
-        var idx = queue.FindIndex(t => t.Id == currentTrack.Id);
-        
-        if (idx > 0)
+        if (_trackIndexMap.TryGetValue(currentTrack.Id, out var idx))
         {
-            return queue[idx - 1];
+            if (idx > 0)
+            {
+                CurrentTrack = queue[idx - 1];
+                return queue[idx - 1];
+            }
         }
             
         if (RepeatMode == RepeatMode.All)
         {
+            CurrentTrack = queue[^1];
             return queue[^1];
         }
             
+        CurrentTrack = null;
         return null; 
     }
     
