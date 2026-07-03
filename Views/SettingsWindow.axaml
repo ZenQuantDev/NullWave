@@ -6,9 +6,9 @@
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="NullWave - Settings"
-        Width="900" Height="640"
-        MinWidth="760" MinHeight="520"
+        Title="NullWave Configuration Desk"
+        Width="940" Height="660"
+        MinWidth="800" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushBase}"
         CanResize="True">
@@ -17,25 +17,23 @@
         <converters:StringEqualsConverter x:Key="StrEq"/>
     </Window.Resources>
 
-        <Grid ColumnDefinitions="200,*"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch">
+    <Grid ColumnDefinitions="220,*">
 
-        <!--  Left sidebar  -->
+        <!-- Left Navigation Sidebar Platform -->
         <Border Grid.Column="0"
                 Background="{StaticResource BrushSurface}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="0,0,1,0">
             <DockPanel>
 
-                <!-- Branding header -->
+                <!-- Terminal Node Brand Header -->
                 <Border DockPanel.Dock="Top"
-                        Padding="20,22,20,18"
+                        Padding="20,24,20,20"
                         BorderBrush="{StaticResource BrushBorder}"
                         BorderThickness="0,0,0,1">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
                         <material:MaterialIcon Kind="Waveform"
-                                               Width="26" Height="26"
+                                               Width="28" Height="28"
                                                Foreground="{StaticResource BrushAccent}"
                                                VerticalAlignment="Center"/>
                         <StackPanel VerticalAlignment="Center">
@@ -43,177 +41,104 @@
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"
                                        FontWeight="Bold"/>
-                            <TextBlock Text="Settings"
+                            <TextBlock Text="Control Desk"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Version footer -->
+                <!-- Application System Software Version Footer -->
                 <TextBlock DockPanel.Dock="Bottom"
-                           Text="{Binding CurrentVersion, StringFormat='v{0}'}"
+                           Text="{Binding CurrentVersion, StringFormat='System Node Build v{0}'}"
                            Foreground="{StaticResource BrushTextMuted}"
                            FontSize="{StaticResource FontSizeXs}"
                            HorizontalAlignment="Center"
-                           Margin="0,0,0,14"/>
+                           Margin="0,0,0,16"/>
 
-                <!-- Nav buttons - reuse existing .nav + .nav.active styles -->
-                <StackPanel Margin="8,12,8,0" Spacing="2">
+                <!-- Left Structural Nav Deck (Restored to Classic Titles) -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
+                    <StackPanel Margin="8,4,8,0" Spacing="3">
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="General"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=General}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="TuneVariant" Width="16" Height="16"/>
-                            <TextBlock Text="General"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="General"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="TuneVariant" Width="16" Height="16"/>
+                                <TextBlock Text="General"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="Appearance"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=Appearance}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="Palette" Width="16" Height="16"/>
-                            <TextBlock Text="Appearance"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Appearance"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="Palette" Width="16" Height="16"/>
+                                <TextBlock Text="Appearance"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="ApiKeys"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=ApiKeys}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
-                            <TextBlock Text="API Keys"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="ApiKeys"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
+                                <TextBlock Text="API Keys"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="Audio"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=Audio}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="MusicNote" Width="16" Height="16"/>
-                            <TextBlock Text="Audio"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Audio"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="MusicNote" Width="16" Height="16"/>
+                                <TextBlock Text="Audio"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="SmartFeatures"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=SmartFeatures}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16"/>
-                            <TextBlock Text="Smart Features"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="SmartFeatures"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16"/>
+                                <TextBlock Text="Smart Features"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="Updates"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=Updates}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="Update" Width="16" Height="16"/>
-                            <TextBlock Text="Updates"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Updates"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="Update" Width="16" Height="16"/>
+                                <TextBlock Text="Updates"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="Advanced"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=Advanced}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="Cog" Width="16" Height="16"/>
-                            <TextBlock Text="Advanced"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Advanced"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="Cog" Width="16" Height="16"/>
+                                <TextBlock Text="Advanced"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding NavigateSettingsCommand}"
-                            CommandParameter="About"
-                            Classes="nav"
-                            Classes.active="{Binding CurrentSettingsPage,
-                                Converter={StaticResource StrEq},
-                                ConverterParameter=About}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"/>
-                            <TextBlock Text="About"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="About"
+                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"/>
+                                <TextBlock Text="About"/>
+                            </StackPanel>
+                        </Button>
 
-                </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
-        <!--  Right content - IsVisible toggling, same as MainWindow  -->
-        <Grid Grid.Column="1"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch">
-
-            <settings:GeneralTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=General}"/>
-
-            <settings:AppearanceTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=Appearance}"/>
-
-            <settings:ApiKeysTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=ApiKeys}"/>
-
-            <settings:AudioTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=Audio}"/>
-
-            <settings:SmartSortingTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=SmartFeatures}"/>
-
-            <settings:UpdatesTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=Updates}"/>
-
-            <settings:AdvancedTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=Advanced}"/>
-
-            <settings:AboutTab
-                DataContext="{Binding}"
-                IsVisible="{Binding CurrentSettingsPage,
-                    Converter={StaticResource StrEq},
-                    ConverterParameter=About}"/>
-
+        <!-- Right Side Viewport Core Workspace Layer -->
+        <Grid Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
+            <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
+            <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
+            <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
+            <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
+            <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
+            <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
+            <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
         </Grid>
     </Grid>
 </Window>

@@ -1,8 +1,9 @@
+// LocalAIService.cs
 using System;
-using System.Diagnostics;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -16,28 +17,20 @@ public class LocalAIService
 {
     // Short-timeout client for health checks (ping, tags list)
     private static readonly HttpClient _pingClient = new()
-        { Timeout = TimeSpan.FromSeconds(5) };
-
-    // Generation client - longer timeout, but bounded so we don't wait forever.
-    // 60s is enough for a 7B model on a modern CPU; 100s was too generous and
-    // caused the timeout errors shown in the logs.
+    { Timeout = TimeSpan.FromSeconds(5) };
+    
+    // Generation client - extended timeout to accommodate CPU token generation cycles on larger footprints
     private static readonly HttpClient _genClient = new()
-        { Timeout = TimeSpan.FromSeconds(60) };
-
+    { Timeout = TimeSpan.FromMinutes(3) };
+    
     private readonly string _ollamaUrl = "http://localhost:11434";
 
-    //  Active model 
-    private string _currentModel = "qwen2.5:7b";
-    public string CurrentModel
-    {
-        get => _currentModel;
-        set => _currentModel = value;
-    }
-
-    //  Power-aware model switching 
-    private string _batteryModel     = "qwen2.5:3b";
-    private string _performanceModel = "qwen2.5:7b";
-    private bool   _autoPowerSwitch  = false;
+    // Power-aware model switching infrastructure
+    private string _batteryModel = "qwen2.5:3b";
+    private string _preferredPerformanceModel = "gemma3:4b"; 
+    private string _currentModel = "qwen2.5:3b";
+    private PowerState _currentPowerState = PowerState.AC;
+    private bool _autoPowerSwitch = true;
 
     /// <summary>
     /// Configure the two models used for power-aware switching.
@@ -49,8 +42,45 @@ public class LocalAIService
         bool autoSwitch)
     {
         _batteryModel     = batteryModel;
-        _performanceModel = performanceModel;
+        _preferredPerformanceModel = performanceModel;
         _autoPowerSwitch  = autoSwitch;
+        
+        // Re-evaluate current model based on new preferences and power state
+        if (!_autoPowerSwitch || _currentPowerState == PowerState.AC)
+        {
+            if (!string.Equals(_currentModel, performanceModel, StringComparison.OrdinalIgnoreCase))
+            {
+                var old = _currentModel;
+                _currentModel = performanceModel;
+                if (!string.IsNullOrWhiteSpace(old)) _ = Task.Run(() => UnloadModelAsync(old));
+            }
+        }
+    }
+
+    public string CurrentModel 
+    { 
+        get => _currentModel; 
+        set 
+        {
+            _preferredPerformanceModel = value;
+            
+            // If we are on battery and auto-switch is enabled, do NOT clobber the battery model
+            if (_autoPowerSwitch && _currentPowerState == PowerState.Battery)
+            {
+                Log.Debug("[LocalAIService] Ignoring CurrentModel override to '{Requested}' because system is on Battery power.", value);
+                return;
+            }
+
+            if (!string.Equals(_currentModel, value, StringComparison.OrdinalIgnoreCase))
+            {
+                var oldModel = _currentModel;
+                _currentModel = value;
+                if (!string.IsNullOrWhiteSpace(oldModel))
+                {
+                    _ = Task.Run(async () => await UnloadModelAsync(oldModel));
+                }
+            }
+        } 
     }
 
     /// <summary>
@@ -59,18 +89,27 @@ public class LocalAIService
     /// </summary>
     public void OnPowerStateChanged(PowerState state)
     {
+        _currentPowerState = state;
+        
         if (!_autoPowerSwitch) return;
-
-        var target = state == PowerState.Battery ? _batteryModel : _performanceModel;
-        if (target == _currentModel) return;
-
+        
+        var target = (state == PowerState.Battery ? _batteryModel : _preferredPerformanceModel)?.Trim();
+        if (string.IsNullOrEmpty(target) || string.Equals(target, _currentModel?.Trim(), StringComparison.OrdinalIgnoreCase)) 
+            return;
+        
+        var oldModel = _currentModel; 
         _currentModel = target;
-        Log.Information("[LocalAIService] Power state changed to {State} → switching model to {Model}",
-            state, target);
+
+        Log.Warning("[LocalAIService] POWER COUPLING EVENT: System shifted to {State}. Swapping tracking target model from '{OldModel}' to '{NewModel}'", 
+            state, oldModel, target);
+            
+        if (!string.IsNullOrWhiteSpace(oldModel))
+        {
+            _ = Task.Run(async () => await UnloadModelAsync(oldModel));
+        }
     }
 
-    //  Health / status 
-
+    // Health / status
     public async Task<bool> PingAsync()
     {
         try
@@ -101,15 +140,18 @@ public class LocalAIService
         {
             var response = await _pingClient.GetAsync($"{_ollamaUrl}/api/tags");
             if (!response.IsSuccessStatusCode) return false;
-
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
+            
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+            
+            // OPTIMIZED: Hoisted split to eliminate micro-allocations inside the foreach loop
+            var targetPrefix = model.Split(':')[0];
+            
             var models = doc.RootElement.GetProperty("models");
-
             foreach (var m in models.EnumerateArray())
             {
                 var name = m.GetProperty("name").GetString();
-                if (name?.StartsWith(model.Split(':')[0]) == true)
+                if (name?.StartsWith(targetPrefix, StringComparison.OrdinalIgnoreCase) == true)
                     return true;
             }
             return false;
@@ -127,10 +169,9 @@ public class LocalAIService
         try
         {
             var payload = new { model = modelName, keep_alive = 0 };
-            var content = new StringContent(
-                JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            await _genClient.PostAsync($"{_ollamaUrl}/api/generate", content);
-            Log.Information("[LocalAIService] Evicted '{Model}' from RAM", modelName);
+            var response = await _pingClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", payload);
+            if (response.IsSuccessStatusCode)
+                Log.Information("[LocalAIService] Evicted '{Model}' from RAM", modelName);
         }
         catch (Exception ex)
         {
@@ -138,59 +179,45 @@ public class LocalAIService
         }
     }
 
-    //  Model download 
-
+    // Model download
     public async Task DownloadModelAsync(
         string model,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
-        var psi = new ProcessStartInfo
+        var payload = new { name = model, stream = true };
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{_ollamaUrl}/api/pull")
         {
-            FileName               = "ollama",
-            Arguments              = $"pull {model}",
-            RedirectStandardOutput = true,
-            RedirectStandardError  = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true
+            Content = JsonContent.Create(payload)
         };
 
-        using var proc = Process.Start(psi)
-            ?? throw new Exception("Failed to start ollama process");
+        using var response = await _genClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
 
-        _ = Task.Run(async () =>
+        using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var reader = new System.IO.StreamReader(stream);
+
+        while (!reader.EndOfStream && !ct.IsCancellationRequested)
         {
-            while (!proc.StandardOutput.EndOfStream && !ct.IsCancellationRequested)
+            var line = await reader.ReadLineAsync(ct);
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            using var doc = JsonDocument.Parse(line);
+            if (doc.RootElement.TryGetProperty("total", out var totalProp) && 
+                doc.RootElement.TryGetProperty("completed", out var completedProp))
             {
-                var line = await proc.StandardOutput.ReadLineAsync();
-                if (line != null && line.Contains("pulling"))
+                double total = totalProp.GetInt64();
+                double completed = completedProp.GetInt64();
+                if (total > 0)
                 {
-                    var percentStart = line.IndexOf('%');
-                    if (percentStart > 0)
-                    {
-                        var numStart = line.LastIndexOf(' ', percentStart - 1) + 1;
-                        if (double.TryParse(
-                                line.Substring(numStart, percentStart - numStart),
-                                out double pct))
-                            progress?.Report(pct / 100.0);
-                    }
+                    progress?.Report(completed / total);
                 }
             }
-        }, ct);
-
-        await proc.WaitForExitAsync(ct);
-
-        if (proc.ExitCode != 0)
-        {
-            var error = await proc.StandardError.ReadToEndAsync();
-            throw new Exception($"Model download failed: {error}");
         }
-
         progress?.Report(1.0);
     }
 
-    //  Track ranking 
-
+    // Track ranking Suite
     public async Task<string[]> RankTracksForMoodAsync(
         string mood,
         string weather,
@@ -199,84 +226,169 @@ public class LocalAIService
         int maxResults = 20,
         CancellationToken ct = default)
     {
-        var prompt = BuildMoodPrompt(mood, weather, temperature, candidateTracks, maxResults);
+        if (candidateTracks == null || candidateTracks.Length == 0) return Array.Empty<string>();
 
+        // Map track array positions to their source string IDs
+        var indexToIdMap = candidateTracks
+            .Select((track, idx) => new { idx, Id = track.Id.ToString() })
+            .ToDictionary(x => x.idx, x => x.Id);
+
+        var prompt = BuildIndexedMoodPrompt(mood, weather, temperature, candidateTracks, maxResults);
         var requestBody = new
         {
-            model  = _currentModel,
+            model = _currentModel,
             prompt = prompt,
             stream = false,
-            options = new { temperature = 0.7, top_p = 0.9, num_predict = 500 }
+            format = "json",
+            options = new 
+            { 
+                temperature = 0.6, 
+                top_p = 0.9, 
+                num_predict = 150,
+                num_thread = Math.Max(1, Environment.ProcessorCount / 2 - 1)
+            }
         };
-
-        var content = new StringContent(
-            JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-
+        
         try
         {
-            var response = await _genClient.PostAsync($"{_ollamaUrl}/api/generate", content, ct);
-            response.EnsureSuccessStatusCode();
+            Log.Debug("[LocalAI] Requesting fast indexed ranking using model: '{Model}' for {TrackCount} candidates", _currentModel, candidateTracks.Length);
 
-            var resultJson = await response.Content.ReadAsStringAsync(ct);
-            using var doc  = JsonDocument.Parse(resultJson);
+            var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync(ct);
+                Log.Error("[LocalAI] Ollama API returned HTTP {StatusCode}: {ErrorBody}. Falling back to local keyword sorting.", (int)response.StatusCode, errorResponse);
+                return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
+            }
+
+            using var responseStream = await response.Content.ReadAsStreamAsync(ct);
+            using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
             var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
-
-            return ParseTrackIdsFromResponse(responseText, candidateTracks);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[LocalAI] Failed to rank tracks");
-            return Array.Empty<string>();
-        }
-    }
-
-    private string BuildMoodPrompt(
-        string mood, string weather, double temp,
-        Track[] tracks, int maxResults)
-    {
-        var trackList = new StringBuilder();
-        foreach (var track in tracks)
-            trackList.AppendLine(
-                $"- ID: {track.Id}, Title: \"{track.Title}\", " +
-                $"Artist: \"{track.Artist}\", Tags: [{string.Join(", ", track.Tags)}], " +
-                $"Plays: {track.PlayCount}");
-
-        return $"""
-You are a music recommendation AI. Given the current weather and mood, rank the following tracks.
-
-Weather: {weather}, {temp:F0}°C
-Mood: {mood}
-
-Tracks:
-{trackList}
-Return ONLY a JSON array of track IDs, most suitable first. Max {maxResults} IDs.
-Example: ["id1","id2","id3"]
-
-Response:
-""";
-    }
-
-    private static string[] ParseTrackIdsFromResponse(string response, Track[] tracks)
-    {
-        try
-        {
-            var start = response.IndexOf('[');
-            var end   = response.LastIndexOf(']');
-            if (start < 0 || end <= start) return Array.Empty<string>();
-
-            var ids = JsonSerializer.Deserialize<string[]>(
-                response.Substring(start, end - start + 1));
-
-            if (ids == null) return Array.Empty<string>();
-
-            return ids
-                .Where(id => Guid.TryParse(id, out var g) && tracks.Any(t => t.Id == g))
+            
+            var orderedIndices = ParseTrackIndicesFromResponse(responseText);
+            
+            return orderedIndices
+                .Where(indexToIdMap.ContainsKey)
+                .Select(idx => indexToIdMap[idx])
                 .ToArray();
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[LocalAI] Failed to parse AI response");
-            return Array.Empty<string>();
+            Log.Error(ex, "[LocalAI] Critical failure or timeout during local AI calculation. Falling back to local keyword sorting.");
+            return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
         }
+    }
+
+    /// <summary>
+    /// Resilient, low-overhead fallback engine that scores and matches tracks via 
+    /// local keyword intersection when Ollama is unavailable.
+    /// </summary>
+    private string[] GetLocalFallbackRanking(string mood, string weather, Track[] candidateTracks, int maxResults)
+    {
+        Log.Information("[LocalAIService] Executing ultra-fast local memory fallback matching for requested context.");
+
+        // Normalize string parameters into searchable atomic tokens
+        var filterTokens = (mood + " " + weather)
+            .Split(new[] { ' ', ',', ';', '-', '_' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToArray();
+
+        if (filterTokens.Length == 0)
+        {
+            return candidateTracks.Take(maxResults).Select(t => t.Id.ToString()).ToArray();
+        }
+
+        return candidateTracks
+            .Select(track =>
+            {
+                int matchScore = 0;
+
+                // Priority 1: Direct Tag matches (Heavy weight)
+                foreach (var tag in track.Tags)
+                {
+                    if (string.IsNullOrEmpty(tag)) continue;
+                    var normalizedTag = tag.ToLowerInvariant();
+                    if (filterTokens.Any(token => normalizedTag.Contains(token)))
+                        matchScore += 3;
+                }
+
+                // Priority 2: Text inclusion in Title or Artist details (Lighter weight)
+                var titleLower = track.Title?.ToLowerInvariant() ?? "";
+                var artistLower = track.Artist?.ToLowerInvariant() ?? "";
+                foreach (var token in filterTokens)
+                {
+                    if (titleLower.Contains(token)) matchScore += 1;
+                    if (artistLower.Contains(token)) matchScore += 1;
+                }
+
+                return new { TrackId = track.Id.ToString(), Score = matchScore };
+            })
+            .Where(scoredTrack => scoredTrack.Score > 0)
+            .OrderByDescending(scoredTrack => scoredTrack.Score)
+            .Select(scoredTrack => scoredTrack.TrackId)
+            // Safety Check: Concat all track IDs to ensure we fill maxResults even if keyword intersection is thin
+            .Concat(candidateTracks.Select(t => t.Id.ToString()))
+            .Distinct()
+            .Take(maxResults)
+            .ToArray();
+    }
+
+    private string BuildIndexedMoodPrompt(string mood, string weather, double temp, Track[] tracks, int maxResults)
+    {
+        int estimatedCapacity = tracks.Length * 120;
+        var trackList = new StringBuilder(estimatedCapacity);
+        
+        for (int i = 0; i < tracks.Length; i++)
+        {
+            trackList.AppendLine($"[{i}] Title: \"{tracks[i].Title}\", Artist: \"{tracks[i].Artist}\", Tags: [{string.Join(", ", tracks[i].Tags.Take(3))}]");
+        }
+
+        return $$"""
+                You are a professional music recommendation engine.
+                Task: Select track indices from the list below that best fit the context provided at the end of this prompt.
+                Response Format: Return ONLY a JSON object containing an array of integers assigned to an "indices" key. Example: { "indices": [4, 12, 0] }. Do not include markdown code wrappers.
+
+                Tracks available:
+                {{trackList}}
+
+                [DYNAMIC CONTEXT]
+                Weather: {{weather}}
+                Temperature: {{temp}}°C
+                Target Moods: {{mood}}
+                Max Results Requested: {{maxResults}}
+                """;
+    }
+
+    private static int[] ParseTrackIndicesFromResponse(string response)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(response);
+            
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("indices", out var indicesArray) && 
+                indicesArray.ValueKind == JsonValueKind.Array)
+            {
+                return indicesArray.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.Number)
+                    .Select(e => e.GetInt32())
+                    .ToArray();
+            }
+            
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                return doc.RootElement.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.Number)
+                    .Select(e => e.GetInt32())
+                    .ToArray();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[LocalAI] Resilient index parser failed to process response payload: {Response}", response);
+        }
+        return Array.Empty<int>();
     }
 }

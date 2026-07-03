@@ -15,11 +15,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = new MainViewModel();
-
         Closing += OnMainWindowClosing;
-        
-        // Note: If OnKeyDown isn't already hooked up in your MainWindow.axaml file, 
-        // you may need to add `KeyDown += OnKeyDown;` here.
     }
 
     private void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
@@ -28,31 +24,41 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel vm)
             {
-                // Stop the 30-second health check timer so it doesn't
-                // fire after the window is gone
                 vm.Settings.StopHealthCheck();
 
-                // Unload the Ollama model from RAM/VRAM on exit.
-                // The daemon keeps running (we can't kill a system service),
-                // but "ollama stop <model>" evicts the weights from memory.
                 var model = vm.Settings.SelectedModel;
-                if (!string.IsNullOrWhiteSpace(model) &&
-                    vm.Settings.AiServiceState == AIServiceState.Running)
+                if (!string.IsNullOrWhiteSpace(model) && vm.Settings.AiServiceState == AIServiceState.Running)
                 {
                     Log.Information("[MainWindow] Unloading Ollama model '{Model}' before exit", model);
-                    Process.Start(new ProcessStartInfo
+                    
+                    var startInfo = new ProcessStartInfo
                     {
-                        FileName               = "ollama",
-                        Arguments              = $"stop {model}",
-                        UseShellExecute        = false,
-                        CreateNoWindow         = true
-                    });
+                        FileName = "ollama",
+                        Arguments = $"stop {model}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using (var ollamaProcess = Process.Start(startInfo))
+                    {
+                        if (ollamaProcess != null)
+                        {
+                            bool exitedCleanly = ollamaProcess.WaitForExit(TimeSpan.FromSeconds(2));
+                            if (exitedCleanly)
+                            {
+                                Log.Information("[MainWindow] Successfully unloaded model '{Model}' from VRAM.", model);
+                            }
+                            else
+                            {
+                                Log.Warning("[MainWindow] Ollama stop command timed out before application exit sequence.");
+                            }
+                        }
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
-            // Swallow - if ollama isn't on PATH or fails, the user still closes normally
             Log.Warning(ex, "[MainWindow] Could not unload Ollama model on exit");
         }
     }
@@ -61,7 +67,6 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm) return;
 
-        // Alt - toggle menu bar
         if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt)
         {
             vm.ToggleMenuBar();
@@ -69,7 +74,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Don't fire shortcuts when typing in a TextBox
         if (e.Source is TextBox) return;
 
         switch (e.Key)

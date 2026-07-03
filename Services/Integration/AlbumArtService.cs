@@ -1,4 +1,3 @@
-// AlbumArtService.cs
 using System;
 using System.Threading.Tasks;
 using NullWave.Models;

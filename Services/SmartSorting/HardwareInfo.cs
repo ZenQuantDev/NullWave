@@ -1,7 +1,8 @@
+// HardwareDetector.cs
 using System;
-using System.Linq;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Serilog;
 
@@ -9,36 +10,35 @@ namespace NullWave.Services.SmartSorting;
 
 public class HardwareInfo
 {
-    public int CpuCores { get; init; }
-    public long RamGB { get; init; }
-    public long GpuVramGB { get; init; }
-    public string GpuType { get; init; } = "Unknown";
-    public bool HasNvidia { get; init; }
-    public bool HasAmd { get; init; }
-    public string RecommendedModel { get; init; } = "qwen2.5:7b";
-    public string RecommendationReason { get; init; } = string.Empty;
+    public int CpuCores { get; set; }
+    public long RamGB { get; set; }
+    public long GpuVramGB { get; set; }
+    public string GpuType { get; set; } = "Unknown";
+    public bool HasNvidia { get; set; }
+    public bool HasAmd { get; set; }
+    public string RecommendedModel { get; set; } = "qwen2.5:7b";
+    public string RecommendationReason { get; set; } = string.Empty;
 }
 
 public class HardwareDetector
 {
     public HardwareInfo Detect()
     {
-        var cpuCores = Environment.ProcessorCount;
-        var ramGB = GetTotalRamGB();
-        var (gpuVram, gpuType, hasNvidia, hasAmd) = GetGpuInfo();
-        var (recommendedModel, reason) = RecommendModel(cpuCores, ramGB, gpuVram, hasNvidia, hasAmd);
-
-        return new HardwareInfo
+        var info = new HardwareInfo
         {
-            CpuCores = cpuCores,
-            RamGB = ramGB,
-            GpuVramGB = gpuVram,
-            GpuType = gpuType,
-            HasNvidia = hasNvidia,
-            HasAmd = hasAmd,
-            RecommendedModel = recommendedModel,
-            RecommendationReason = reason
+            CpuCores = Environment.ProcessorCount,
+            RamGB = GetTotalRamGB()
         };
+
+        GetGpuInfo(info);
+
+        var (recommendedModel, reason) = RecommendModel(
+            info.CpuCores, info.RamGB, info.GpuVramGB, info.HasNvidia, info.HasAmd);
+
+        info.RecommendedModel = recommendedModel;
+        info.RecommendationReason = reason;
+
+        return info;
     }
 
     private long GetTotalRamGB()
@@ -56,7 +56,8 @@ public class HardwareDetector
                         if (parts.Length >= 2)
                         {
                             var kb = long.Parse(new string(parts[1].Where(char.IsDigit).ToArray()));
-                            return kb / 1024 / 1024; // Convert KB to GB
+                            // Use floating-point division and rounding to prevent losing a model tier
+                            return (long)Math.Round((double)kb / 1024.0 / 1024.0); 
                         }
                     }
                 }
@@ -75,15 +76,23 @@ public class HardwareDetector
                 using var proc = Process.Start(psi);
                 if (proc != null)
                 {
-                    var output = proc.StandardOutput.ReadToEnd();
-                    proc.WaitForExit();
-                    foreach (var line in output.Split('\n'))
+                    // Wait for exit FIRST to prevent synchronous stream deadlocks
+                    if (proc.WaitForExit(3000))
                     {
-                        if (line.Contains("TotalVisibleMemorySize="))
+                        var output = proc.StandardOutput.ReadToEnd();
+                        foreach (var line in output.Split('\n'))
                         {
-                            var kb = long.Parse(line.Split('=')[1].Trim());
-                            return kb / 1024 / 1024;
+                            if (line.Contains("TotalVisibleMemorySize="))
+                            {
+                                var kb = long.Parse(line.Split('=')[1].Trim());
+                                return (long)Math.Round((double)kb / 1024.0 / 1024.0);
+                            }
                         }
+                    }
+                    else
+                    {
+                        Log.Warning("[HardwareDetector] wmic timed out after 3 seconds.");
+                        proc.Kill();
                     }
                 }
             }
@@ -95,99 +104,86 @@ public class HardwareDetector
         return 8; // Default fallback
     }
 
-    private (long vramGB, string gpuType, bool hasNvidia, bool hasAmd) GetGpuInfo()
+    private void GetGpuInfo(HardwareInfo info)
     {
-        long vram = 0;
-        string gpuType = "Unknown";
-        bool hasNvidia = false;
-        bool hasAmd = false;
-
-        // Try nvidia-smi first
+        // Try NVIDIA
         try
         {
-            var psi = new ProcessStartInfo
+            var psi = new ProcessStartInfo("nvidia-smi", "--query-gpu=name,memory.total --format=csv,noheader,nounits")
             {
-                FileName = "nvidia-smi",
-                Arguments = "--query-gpu=memory.total,name --format=csv,noheader,nounits",
                 RedirectStandardOutput = true,
-                RedirectStandardError = true, // FIX: Capture stderr to prevent driver error noise
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             using var proc = Process.Start(psi);
             if (proc != null)
             {
-                var output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit();
-                if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                // 1. Wait for exit FIRST with a strict 3-second ceiling
+                if (proc.WaitForExit(3000)) 
                 {
-                    hasNvidia = true;
-                    var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                    if (lines.Length > 0)
+                    // 2. Only read the stream if the process completed successfully
+                    var output = proc.StandardOutput.ReadToEnd();
+                    
+                    if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
                     {
-                        var parts = lines[0].Split(',');
+                        var parts = output.Split(',');
                         if (parts.Length >= 2)
                         {
-                            vram = long.Parse(parts[0].Trim()) / 1024; // MB to GB
-                            gpuType = parts[1].Trim();
-                        }
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // nvidia-smi not available
-        }
-
-        // Try rocm-smi for AMD
-        if (!hasNvidia)
-        {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "rocm-smi",
-                    Arguments = "--showmeminfo vram",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true, // FIX: Capture stderr to prevent driver error noise
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                if (proc != null)
-                {
-                    var output = proc.StandardOutput.ReadToEnd();
-                    proc.WaitForExit();
-                    if (proc.ExitCode == 0 && output.Contains("VRAM Total"))
-                    {
-                        hasAmd = true;
-                        gpuType = "AMD GPU";
-                        foreach (var line in output.Split('\n'))
-                        {
-                            if (line.Contains("VRAM Total") && line.Contains("GB"))
+                            info.GpuType = parts[0].Trim();
+                            info.HasNvidia = true;
+                            if (long.TryParse(parts[1].Trim(), out long mb))
                             {
-                                var parts = line.Split(' ');
-                                foreach (var part in parts)
-                                {
-                                    if (double.TryParse(part, out double gb))
-                                    {
-                                        vram = (long)gb;
-                                        break;
-                                    }
-                                }
+                                info.GpuVramGB = (long)Math.Round((double)mb / 1024.0);
                             }
                         }
                     }
                 }
-            }
-            catch
-            {
-                // rocm-smi not available
+                else
+                {
+                    Log.Warning("[HardwareDetector] nvidia-smi timed out after 3 seconds.");
+                    proc.Kill(); // Ensure we don't leave a zombie process dangling
+                }
             }
         }
+        catch { /* nvidia-smi not found or failed */ }
 
-        return (vram, gpuType, hasNvidia, hasAmd);
+        if (info.HasNvidia) return;
+
+        // Try AMD (rocm-smi)
+        try
+        {
+            var psi = new ProcessStartInfo("rocm-smi", "--showmeminfo vram --csv")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc != null)
+            {
+                // 1. Wait for exit FIRST
+                if (proc.WaitForExit(3000)) 
+                {
+                    // 2. Read only on success
+                    var output = proc.StandardOutput.ReadToEnd();
+                    
+                    if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        info.GpuType = "AMD Radeon";
+                        info.HasAmd = true;
+                        info.GpuVramGB = 8; // Fallback assumption if parsing is complex
+                    }
+                }
+                else
+                {
+                    Log.Warning("[HardwareDetector] rocm-smi timed out after 3 seconds.");
+                    proc.Kill();
+                }
+            }
+        }
+        catch { /* rocm-smi not found or failed */ }
     }
 
     private (string model, string reason) RecommendModel(int cpuCores, long ramGB, long gpuVram, bool hasNvidia, bool hasAmd)
@@ -203,7 +199,6 @@ public class HardwareDetector
             return ("qwen2.5:7b", $"4GB VRAM detected ({gpuVram}GB) - can run 7B model with GPU acceleration");
 
         // CPU-only models (slower but works)
-        // FIX: Interpolate actual ramGB variable instead of hardcoded "8GB" strings
         if (ramGB >= 32)
             return ("qwen2.5:32b", $"{ramGB}GB RAM detected - can run 32B model (CPU-only, slower)");
         if (ramGB >= 16)

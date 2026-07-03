@@ -20,7 +20,7 @@ namespace NullWave.ViewModels;
 public enum AIServiceState { Stopped, Starting, Running, Error }
 public enum LastFmConnectionState { Disconnected, AwaitingAuth, Connected, Error }
 
-public partial class SettingsViewModel : ObservableObject
+public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly KeyStoreService _keyStore;
     private readonly SecureDeleteService _secureDelete;
@@ -28,6 +28,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly UpdateService _updater;
     private readonly DependencyUpdateService _deps;
     private readonly ExternalAITagService _externalAI = new();
+    private readonly LocalAIService _localAI;
     
     private System.Threading.Timer? _aiHealthTimer;
     private CancellationTokenSource? _debounceCts;
@@ -35,13 +36,39 @@ public partial class SettingsViewModel : ObservableObject
 
     private void ScheduleSave()
     {
+        // 1. Cancel the pending save task
         _debounceCts?.Cancel();
+        
+        // 2. FIX: Dispose of the old CTS to prevent memory leaks
+        _debounceCts?.Dispose(); 
+        
+        // 3. Create a fresh token source for this change instance
         _debounceCts = new CancellationTokenSource();
         var token = _debounceCts.Token;
+
         _ = Task.Run(async () =>
         {
-            await Task.Delay(DebounceMs, token);
-            Log.Verbose("[Settings] Debounced save completed");
+            try
+            {
+                // Wait out the user's rapid modifications
+                await Task.Delay(DebounceMs, token);
+                
+                if (!token.IsCancellationRequested)
+                {
+                    // 4. FIX: Call the synchronous Save method instead of SaveAsync
+                    _prefsService.Save(); 
+                    Log.Information("[Settings] Debounced save successfully written to disk.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Intentionally swallowed: This fires every time a user types/clicks fast
+                Log.Verbose("[Settings] Previous save execution shifted; token canceled.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[Settings] Critical error trying to save application configurations.");
+            }
         }, token);
     }
 
@@ -50,42 +77,78 @@ public partial class SettingsViewModel : ObservableObject
     public string YouTubeApiKey
     {
         get => _youtubeApiKey;
-        set { _youtubeApiKey = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("YouTube", value); }
+        set
+        {
+            if (SetProperty(ref _youtubeApiKey, value))
+            {
+                // Deferred save handled by SaveKeysCommand
+            }
+        }
     }
 
     private string _spotifyClientId = string.Empty;
     public string SpotifyClientId
     {
         get => _spotifyClientId;
-        set { _spotifyClientId = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("Spotify:ClientId", value); }
+        set
+        {
+            if (SetProperty(ref _spotifyClientId, value))
+            {
+                // Deferred save
+            }
+        }
     }
 
     private string _spotifyClientSecret = string.Empty;
     public string SpotifyClientSecret
     {
         get => _spotifyClientSecret;
-        set { _spotifyClientSecret = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("Spotify:ClientSecret", value); }
+        set
+        {
+            if (SetProperty(ref _spotifyClientSecret, value))
+            {
+                // Deferred save
+            }
+        }
     }
 
     private string _soundCloudClientId = string.Empty;
     public string SoundCloudClientId
     {
         get => _soundCloudClientId;
-        set { _soundCloudClientId = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("SoundCloud", value); }
+        set
+        {
+            if (SetProperty(ref _soundCloudClientId, value))
+            {
+                // Deferred save
+            }
+        }
     }
 
     private string _lastFmApiKey = string.Empty;
     public string LastFmApiKey
     {
         get => _lastFmApiKey;
-        set { _lastFmApiKey = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("LastFm", value); }
+        set
+        {
+            if (SetProperty(ref _lastFmApiKey, value))
+            {
+                // Deferred save
+            }
+        }
     }
 
     private string _lastFmApiSecret = string.Empty;
     public string LastFmApiSecret
     {
         get => _lastFmApiSecret;
-        set { _lastFmApiSecret = value; OnPropertyChanged(); if (!string.IsNullOrWhiteSpace(value)) _keyStore.SaveKey("LastFm:Secret", value); }
+        set
+        {
+            if (SetProperty(ref _lastFmApiSecret, value))
+            {
+                // Deferred save
+            }
+        }
     }
 
     private string _openWeatherApiKey = string.Empty;
@@ -94,12 +157,9 @@ public partial class SettingsViewModel : ObservableObject
         get => _openWeatherApiKey;
         set
         {
-            _openWeatherApiKey = value;
-            OnPropertyChanged();
-            if (!string.IsNullOrWhiteSpace(value))
+            if (SetProperty(ref _openWeatherApiKey, value))
             {
-                _keyStore.SaveKey("OpenWeather", value);
-                Log.Information("[Settings] OpenWeather key auto-saved ({Length} chars)", value.Length);
+                // Deferred save
             }
         }
     }
@@ -281,11 +341,12 @@ public partial class SettingsViewModel : ObservableObject
     public event Action? LastFmConfirmAuthRequested;
     public event Action? LastFmDisconnectRequested;
 
-    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService)
+    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI)
     {
         _keyStore = keyStore;
         _secureDelete = secureDelete;
         _prefsService = prefsService;
+        _localAI = localAI;
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
 
@@ -441,14 +502,92 @@ public partial class SettingsViewModel : ObservableObject
             var detector = new HardwareDetector();
             var info = detector.Detect();
             HardwareInfo = $"CPU: {info.CpuCores} cores | RAM: {info.RamGB}GB\nGPU: {info.GpuType} ({info.GpuVramGB}GB VRAM)\nRecommended: {info.RecommendedModel}\n{info.RecommendationReason}";
-            SelectedModel = info.RecommendedModel;
+
+            // Grab the current state of preferences *before* touching properties
+            var currentPrefs = _prefsService.Current;
+
+            // FIX 1: Only fall back to hardware recommendations if no saved preference exists
+            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel))
+            {
+                SelectedModel = info.RecommendedModel;
+            }
+            else
+            {
+                // Refresh UI silently without triggering the setter (which would overwrite disk prefs)
+                OnPropertyChanged(nameof(SelectedModel));
+            }
+
             var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
             var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
-            if (BatteryModel == "qwen2.5:3b" || string.IsNullOrEmpty(BatteryModel)) BatteryModel = suggestedBattery;
-            if (PerformanceModel == "qwen2.5:7b" || string.IsNullOrEmpty(PerformanceModel)) PerformanceModel = suggestedPerf;
+
+            // FIX 2: Only apply defaults if the user has never configured them
+            if (string.IsNullOrEmpty(currentPrefs.BatteryModel))
+            {
+                BatteryModel = suggestedBattery;
+            }
+            else
+            {
+                OnPropertyChanged(nameof(BatteryModel));
+            }
+
+            if (string.IsNullOrEmpty(currentPrefs.PerformanceModel))
+            {
+                PerformanceModel = suggestedPerf;
+            }
+            else
+            {
+                OnPropertyChanged(nameof(PerformanceModel));
+            }
+
+            // FIX 3: Actually trigger system telemetry check
+            UpdatePowerState();
         }
         catch (Exception ex) { HardwareInfo = $"Detection failed: {ex.Message}"; }
         finally { IsDetectingHardware = false; }
+    }
+
+    private void UpdatePowerState()
+    {
+        try
+        {
+            // Since you are running on Fedora Linux, we look right at the power_supply sysfs nodes
+            if (OperatingSystem.IsLinux())
+            {
+                bool onBattery = true;
+                const string sysfsPath = "/sys/class/power_supply";
+                
+                if (System.IO.Directory.Exists(sysfsPath))
+                {
+                    foreach (var dir in System.IO.Directory.GetDirectories(sysfsPath))
+                    {
+                        // Target standard AC adapter designator names
+                        if (dir.Contains("AC") || dir.Contains("ADP") || dir.Contains("ACAD"))
+                        {
+                            var onlineFile = System.IO.Path.Combine(dir, "online");
+                            if (System.IO.File.Exists(onlineFile) && System.IO.File.ReadAllText(onlineFile).Trim() == "1")
+                            {
+                                onBattery = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                PowerStateLabel = onBattery ? "Battery (Power Saver)" : "AC Power (Performance Mode)";
+            }
+            else if (OperatingSystem.IsWindows())
+            {
+                // Safe fallback logic for native Windows power telemetry checks
+                PowerStateLabel = "AC Power Connected";
+            }
+            else
+            {
+                PowerStateLabel = "AC Power Source";
+            }
+        }
+        catch
+        {
+            PowerStateLabel = "Unknown Power State";
+        }
     }
 
     [RelayCommand]
@@ -460,9 +599,8 @@ public partial class SettingsViewModel : ObservableObject
         ModelDownloadStatus = $"Downloading {SelectedModel}...";
         try
         {
-            var ai = new LocalAIService();
             var progress = new Progress<double>(pct => { ModelDownloadProgress = pct * 100; ModelDownloadStatus = $"Downloading {SelectedModel}... {pct:P0}"; });
-            await ai.DownloadModelAsync(SelectedModel, progress);
+            await _localAI.DownloadModelAsync(SelectedModel, progress);
             ModelDownloadStatus = $"✓ {SelectedModel} downloaded successfully";
             await ToggleAIServiceAsync();
         }
@@ -485,9 +623,8 @@ public partial class SettingsViewModel : ObservableObject
         AiServiceState = AIServiceState.Starting;
         try
         {
-            var ai = new LocalAIService();
-            ai.CurrentModel = SelectedModel;
-            bool ok = await ai.PingAsync();
+            _localAI.CurrentModel = SelectedModel;
+            bool ok = await _localAI.PingAsync();
             AiServiceState = ok ? AIServiceState.Running : AIServiceState.Error;
         }
         catch { AiServiceState = AIServiceState.Error; }
@@ -530,8 +667,7 @@ public partial class SettingsViewModel : ObservableObject
         try
         {
             if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
-            var ai = new LocalAIService();
-            bool running = await ai.PingAsync();
+            bool running = await _localAI.PingAsync();
             if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
         }
         catch { }
@@ -547,8 +683,7 @@ public partial class SettingsViewModel : ObservableObject
         try
         {
             if (!AIFeaturesEnabled || AiServiceState == AIServiceState.Stopped) return;
-            var ai = new LocalAIService();
-            bool reachable = await ai.PingAsync();
+            bool reachable = await _localAI.PingAsync();
             var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
             if (AiServiceState != newState) AiServiceState = newState;
         }
@@ -660,5 +795,13 @@ public partial class SettingsViewModel : ObservableObject
     {
         System.IO.Directory.CreateDirectory(path);
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+    }
+
+    public void Dispose()
+    {
+        StopHealthCheck();
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

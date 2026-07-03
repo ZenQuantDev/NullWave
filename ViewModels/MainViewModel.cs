@@ -110,7 +110,7 @@ public class MainViewModel : ViewModelBase
         _localAI = new LocalAIService();
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
-        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService);
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI);
 
         var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport);

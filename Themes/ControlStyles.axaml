@@ -14,12 +14,9 @@
       .nav.active - currently selected nav item
       .icon-btn   - borderless icon button (player controls, gear, etc.)
       .primary    - accent-filled action button
+      .secondary  - container-colored secondary button
       .ghost      - border-only ghost button
-
-    Usage example:
-      <Button Classes="nav active" Content="Library" Command="..."/>
-      <Button Classes="icon-btn"   Content="⏸"       Command="..."/>
-      <Button Classes="primary"    Content="Save"     Command="..."/>
+      .danger     - destructive actions
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   -->
 
@@ -59,7 +56,7 @@
     <Setter Property="FontSize"       Value="{StaticResource FontSizeLabel}"/>
     <Setter Property="FontWeight"     Value="SemiBold"/>
     <Setter Property="LetterSpacing" Value="2"/>
-    <Setter Property="Margin"         Value="12,16,0,6"/>
+    <Setter Property="Margin"         Value="4,24,0,12"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
@@ -120,8 +117,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-     PLAYER BUTTON  - Spotify-style: no border, no background box,
-     icon centered, subtle hover glow only
+     PLAYER BUTTON  - Spotify-style: no border, no background box
      ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.player-btn">
     <Setter Property="Background"              Value="Transparent"/>
@@ -145,7 +141,6 @@
     <Setter Property="Foreground"  Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
-  <!-- Play/pause circle button -->
   <Style Selector="Button.player-btn.play">
     <Setter Property="Background"  Value="{StaticResource BrushTextPrimary}"/>
     <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
@@ -159,7 +154,6 @@
     <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
   </Style>
 
-  <!-- Active state for shuffle/repeat - accent color -->
   <Style Selector="Button.player-btn.active">
     <Setter Property="Foreground"  Value="{StaticResource BrushAccent}"/>
   </Style>
@@ -173,9 +167,9 @@
   <Style Selector="Button.primary">
     <Setter Property="Background"   Value="{StaticResource BrushAccent}"/>
     <Setter Property="Foreground"   Value="White"/>
-    <Setter Property="FontSize"     Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="FontSize"     Value="{StaticResource FontSizeBody}"/>
     <Setter Property="FontWeight"   Value="SemiBold"/>
-    <Setter Property="Padding"      Value="18,9"/>
+    <Setter Property="Padding"      Value="16,8"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
     <Setter Property="Cursor"       Value="Hand"/>
   </Style>
@@ -184,19 +178,22 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       SECONDARY BUTTON  - subtle, less prominent than primary
+       SECONDARY BUTTON  - container-colored, dark-mode friendly
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.secondary">
     <Setter Property="Background"   Value="{StaticResource BrushSurface2}"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushTextPrimary}"/>
-    <Setter Property="FontSize"     Value="{StaticResource FontSizeBodyLarge}"/>
+    <Setter Property="BorderBrush"  Value="{StaticResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="FontSize"     Value="{StaticResource FontSizeBody}"/>
     <Setter Property="FontWeight"   Value="Medium"/>
-    <Setter Property="Padding"      Value="18,9"/>
+    <Setter Property="Padding"      Value="16,8"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
     <Setter Property="Cursor"       Value="Hand"/>
   </Style>
   <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSub}"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
@@ -218,7 +215,7 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       LISTBOX + LISTBOXITEM  - track rows
+       LISTBOX + LISTBOXITEM
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="ListBox">
     <Setter Property="Background" Value="Transparent"/>
@@ -279,38 +276,6 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       MENU / MENU ITEM
-       ═══════════════════════════════════════════════════════════════════════ -->
-  <Style Selector="Menu">
-    <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
-    <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-    <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
-  </Style>
-  <Style Selector="MenuItem">
-    <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-    <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
-    <Setter Property="Padding"    Value="10,6"/>
-  </Style>
-  <Style Selector="MenuItem:pointerover /template/ Border#root">
-    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
-  </Style>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       SCROLL VIEWER
-       ═══════════════════════════════════════════════════════════════════════ -->
-  <Style Selector="ScrollBar">
-    <Setter Property="Background" Value="Transparent"/>
-  </Style>
-  <Style Selector="ScrollBar /template/ Border#VerticalRoot">
-    <Setter Property="Background" Value="Transparent"/>
-  </Style>
-  <Style Selector="ScrollBar:vertical Thumb">
-    <Setter Property="Background"   Value="{StaticResource BrushBorderSub}"/>
-    <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
-    <Setter Property="MinHeight"    Value="40"/>
-  </Style>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════
        COMBOBOX
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="ComboBox">
@@ -357,8 +322,8 @@
     <Setter Property="Background"        Value="{StaticResource BrushElevated}"/>
   </Style>
 
- <!-- ═══════════════════════════════════════════════════════════════════════
-       UNIFIED TOGGLE SWITCH STYLE (CUSTOM TEMPLATE)
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       UNIFIED TOGGLE SWITCH STYLE
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="ToggleSwitch">
     <Setter Property="Cursor" Value="Hand"/>
@@ -379,7 +344,6 @@
           
           <Panel>
             <Panel x:Name="PART_MovingKnobs"/>
-            
             <Border x:Name="SwitchKnob"
                     Width="14" Height="14"
                     CornerRadius="7"
@@ -404,7 +368,6 @@
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
-
   <Style Selector="ToggleSwitch:checked /template/ Border#SwitchTrack">
     <Setter Property="Background" Value="{StaticResource BrushAccent}"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
@@ -413,13 +376,12 @@
     <Setter Property="Margin" Value="26,0,0,0"/>
     <Setter Property="Background" Value="{StaticResource BrushBase}"/>
   </Style>
-
   <Style Selector="ToggleSwitch:checked:pointerover /template/ Border#SwitchTrack">
     <Setter Property="Background" Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-       SETTINGS CARD & ROWS
+       SETTINGS CARD, ROW BREAKS, AND INFO BANNERS
        ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Border.settings-card">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
@@ -430,7 +392,21 @@
     <Setter Property="Margin" Value="0,0,0,16"/>
   </Style>
 
-  <!-- Help Button (Small Circular Question Mark) -->
+  <Style Selector="Border.settings-banner">
+    <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSub}"/>
+    <Setter Property="BorderThickness" Value="1,1,1,1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Padding" Value="14,12"/>
+    <Setter Property="Margin" Value="0,4,0,16"/>
+  </Style>
+
+  <Style Selector="Border.separator">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Background" Value="{StaticResource BrushBorder}"/>
+    <Setter Property="Margin" Value="0,14"/>
+  </Style>
+
   <Style Selector="Button.help-btn">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
@@ -445,10 +421,10 @@
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
-    <Style Selector="Border.BottomSpacer">
-      <Setter Property="Height" Value="280"/>
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="IsHitTestVisible" Value="False"/>
-    </Style>
+  <Style Selector="Border.BottomSpacer">
+    <Setter Property="Height" Value="80"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+  </Style>
 
 </Styles>

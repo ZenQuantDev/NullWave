@@ -4,44 +4,45 @@
              x:Class="NullWave.Views.Settings.ApiKeysTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="0">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <!-- Changed Padding to Margin here -->
+        <StackPanel Spacing="0" Margin="24,20">
 
             <TextBlock Classes="section-label" Text="METADATA &amp; SEARCH" Margin="0,0,0,12"/>
 
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
 
-                    <!-- YouTube -->
+                    <!-- YouTube API Token -->
                     <Grid ColumnDefinitions="*,8,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="YouTube Data API v3"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="console.cloud.google.com → APIs → YouTube Data API v3 → Credentials"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="YouTube Data API v3"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="console.cloud.google.com → APIs → YouTube Data API v3 → Credentials"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}"
+                                     PlaceholderText="AIza..."
+                                     PasswordChar="●"/>
                         </StackPanel>
-                        <TextBox Grid.Column="0" Margin="0,24,0,0"
-                                 Text="{Binding YouTubeApiKey, Mode=TwoWay}"
-                                 PlaceholderText="AIza..."
-                                 PasswordChar="●"/>
-                        <Border Grid.Column="2" Margin="0,24,0,0"
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
                                 Background="{StaticResource BrushGreenDim}"
                                 CornerRadius="{StaticResource RadiusSm}"
                                 Padding="8,6"
-                                IsVisible="{Binding YouTubeApiKey,
-                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                IsVisible="{Binding YouTubeApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                 ToolTip.Tip="Key saved">
-                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                       FontWeight="Bold"/>
+                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- Last.fm API Keys -->
+                    <!-- Last.fm Profiles -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="Last.fm (API Key &amp; Secret)"
                                    Foreground="{StaticResource BrushTextPrimary}"
@@ -49,7 +50,8 @@
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="last.fm/api/account/create - required for scrobbling"
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   TextWrapping="Wrap"/>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
                             <TextBox Grid.Column="0"
                                      Text="{Binding LastFmApiKey, Mode=TwoWay}"
@@ -59,11 +61,9 @@
                                     Background="{StaticResource BrushGreenDim}"
                                     CornerRadius="{StaticResource RadiusSm}"
                                     Padding="8,6"
-                                    IsVisible="{Binding LastFmApiKey,
-                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    IsVisible="{Binding LastFmApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                     ToolTip.Tip="Key saved">
-                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                           FontWeight="Bold"/>
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                         <Grid ColumnDefinitions="*,8,Auto">
@@ -75,76 +75,74 @@
                                     Background="{StaticResource BrushGreenDim}"
                                     CornerRadius="{StaticResource RadiusSm}"
                                     Padding="8,6"
-                                    IsVisible="{Binding LastFmApiSecret,
-                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    IsVisible="{Binding LastFmApiSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                     ToolTip.Tip="Secret saved">
-                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                           FontWeight="Bold"/>
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                     </StackPanel>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- OpenWeather -->
+                    <!-- OpenWeather Channel -->
                     <Grid ColumnDefinitions="*,8,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="OpenWeather"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="openweathermap.org/api - free tier, 60 calls/minute"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="OpenWeather"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="openweathermap.org/api - free tier, 60 calls/minute"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBox Text="{Binding OpenWeatherApiKey, Mode=TwoWay}"
+                                     PlaceholderText="API key"
+                                     PasswordChar="●"/>
                         </StackPanel>
-                        <TextBox Grid.Column="0" Margin="0,24,0,0"
-                                 Text="{Binding OpenWeatherApiKey, Mode=TwoWay}"
-                                 PlaceholderText="API key"
-                                 PasswordChar="●"/>
-                        <Border Grid.Column="2" Margin="0,24,0,0"
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
                                 Background="{StaticResource BrushGreenDim}"
                                 CornerRadius="{StaticResource RadiusSm}"
                                 Padding="8,6"
-                                IsVisible="{Binding OpenWeatherApiKey,
-                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                IsVisible="{Binding OpenWeatherApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                 ToolTip.Tip="Key saved">
-                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                       FontWeight="Bold"/>
+                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- SoundCloud -->
+                    <!-- SoundCloud Configuration -->
                     <Grid ColumnDefinitions="*,8,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="SoundCloud"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="soundcloud.com/you/apps - new registrations limited by region"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="SoundCloud"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="soundcloud.com/you/apps - new registrations limited by region"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}"
+                                     PlaceholderText="Client ID"
+                                     PasswordChar="●"/>
                         </StackPanel>
-                        <TextBox Grid.Column="0" Margin="0,24,0,0"
-                                 Text="{Binding SoundCloudClientId, Mode=TwoWay}"
-                                 PlaceholderText="Client ID"
-                                 PasswordChar="●"/>
-                        <Border Grid.Column="2" Margin="0,24,0,0"
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
                                 Background="{StaticResource BrushGreenDim}"
                                 CornerRadius="{StaticResource RadiusSm}"
                                 Padding="8,6"
-                                IsVisible="{Binding SoundCloudClientId,
-                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                IsVisible="{Binding SoundCloudClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                 ToolTip.Tip="Key saved">
-                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                       FontWeight="Bold"/>
+                            <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- Spotify -->
+                    <!-- Spotify Configuration -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="Spotify (metadata only)"
                                    Foreground="{StaticResource BrushTextPrimary}"
@@ -152,7 +150,8 @@
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="developer.spotify.com/dashboard - metadata lookup only, not streaming"
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   TextWrapping="Wrap"/>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
                             <TextBox Grid.Column="0"
                                      Text="{Binding SpotifyClientId, Mode=TwoWay}"
@@ -162,11 +161,9 @@
                                     Background="{StaticResource BrushGreenDim}"
                                     CornerRadius="{StaticResource RadiusSm}"
                                     Padding="8,6"
-                                    IsVisible="{Binding SpotifyClientId,
-                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    IsVisible="{Binding SpotifyClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                     ToolTip.Tip="Key saved">
-                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                           FontWeight="Bold"/>
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                         <Grid ColumnDefinitions="*,8,Auto">
@@ -178,11 +175,9 @@
                                     Background="{StaticResource BrushGreenDim}"
                                     CornerRadius="{StaticResource RadiusSm}"
                                     Padding="8,6"
-                                    IsVisible="{Binding SpotifyClientSecret,
-                                        Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    IsVisible="{Binding SpotifyClientSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                     ToolTip.Tip="Key saved">
-                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}"
-                                           FontWeight="Bold"/>
+                                <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                     </StackPanel>
@@ -190,14 +185,11 @@
                 </StackPanel>
             </Border>
 
-            <!-- Last.fm Account Connection -->
+            <!-- Last.fm Account Tunnel Platform -->
             <Border Classes="settings-card" Margin="0,16,0,0">
                 <StackPanel Spacing="16">
-
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock Text="🎵" 
-                                   FontSize="20"
-                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="🎵" FontSize="20" VerticalAlignment="Center"/>
                         <TextBlock Text="Last.fm Account"
                                    Foreground="{StaticResource BrushTextPrimary}"
                                    FontSize="{StaticResource FontSizeBodyLarge}"
@@ -205,87 +197,37 @@
                                    VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Connection status row -->
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Width="10" Height="10" CornerRadius="5" Background="#4CAF50"
-                                    IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
-                            <Border Width="10" Height="10" CornerRadius="5" Background="#A8B4CC"
-                                    IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding LastFmStateLabel}"
-                                       Foreground="{StaticResource BrushTextSecondary}"
-                                       FontSize="{StaticResource FontSizeBody}"
-                                       VerticalAlignment="Center"/>
+                            <Border Width="10" Height="10" CornerRadius="5" Background="#4CAF50" IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <Border Width="10" Height="10" CornerRadius="5" Background="#A8B4CC" IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LastFmStateLabel}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeBody}" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <!-- Not connected: show Connect button -->
-                        <Button Grid.Column="1" Classes="primary"
-                                Content="Connect to Last.fm"
-                                Command="{Binding LastFmConnectCommand}"
-                                IsVisible="{Binding !IsLastFmConnected}"/>
-
-                        <!-- Connected: show Disconnect button -->
-                        <Button Grid.Column="1" Classes="danger"
-                                Content="Disconnect"
-                                Command="{Binding LastFmDisconnectCommand}"
-                                IsVisible="{Binding IsLastFmConnected}"/>
+                        <Button Grid.Column="1" Classes="primary" Content="Connect to Last.fm" Command="{Binding LastFmConnectCommand}" IsVisible="{Binding !IsLastFmConnected}"/>
+                        <Button Grid.Column="1" Classes="danger" Content="Disconnect" Command="{Binding LastFmDisconnectCommand}" IsVisible="{Binding IsLastFmConnected}"/>
                     </Grid>
 
-                    <!-- Awaiting auth: show confirm button + instructions -->
-                    <Border Background="{StaticResource BrushElevated}"
-                            CornerRadius="{StaticResource RadiusMd}"
-                            Padding="14,12"
-                            IsVisible="{Binding IsLastFmAwaitingAuth}">
+                    <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" IsVisible="{Binding IsLastFmAwaitingAuth}">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account."
-                                       Foreground="{StaticResource BrushTextSecondary}"
-                                       FontSize="{StaticResource FontSizeSm}"
-                                       TextWrapping="Wrap"/>
-                            <Button Classes="secondary"
-                                    Content="I've Authorized It — Finish Connecting"
-                                    Command="{Binding LastFmConfirmAuthCommand}"
-                                    HorizontalAlignment="Left"/>
+                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account." Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeSm}" TextWrapping="Wrap"/>
+                            <Button Classes="secondary" Content="I've Authorized It — Finish Connecting" Command="{Binding LastFmConfirmAuthCommand}" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Error/status message -->
-                    <TextBlock Text="{Binding LastFmStatusMessage}"
-                               Foreground="{StaticResource BrushRed}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding LastFmStatusMessage,
-                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
+                    <TextBlock Text="{Binding LastFmStatusMessage}" Foreground="{StaticResource BrushRed}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding LastFmStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
-                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
-                               TextWrapping="Wrap"/>
-
+                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create." Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
-            <!-- Security note -->
-            <Border Background="{StaticResource BrushAccentDim}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12"
-                    Margin="0,16,0,0">
-                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control."
-                           Foreground="{StaticResource BrushAccentHover}"
-                           FontSize="{StaticResource FontSizeXs}"
-                           TextWrapping="Wrap"/>
+            <!-- Security Encryption Notice -->
+            <Border Background="{StaticResource BrushAccentDim}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" Margin="0,16,0,0">
+                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control." Foreground="{StaticResource BrushAccentHover}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
             </Border>
 
-            <Button Classes="primary"
-                    Content="Save API Keys"
-                    Command="{Binding SaveKeysCommand}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    Padding="0,12"
-                    Margin="0,16,0,0"/>
+            <Button Classes="primary" Content="Save API Keys" Command="{Binding SaveKeysCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12" Margin="0,16,0,0"/>
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
-
 </UserControl>
