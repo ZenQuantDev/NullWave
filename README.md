@@ -108,9 +108,9 @@ Everything NullWave writes lives under `~/.nullwave/`:
   downloads/        ← yt-dlp audio downloads
   art/              ← cached album art (YouTube thumbnails, SoundCloud covers)
   logs/
-    NullWave-YYYYMMDD.log       ← all events
-    UserActions-YYYYMMDD.log    ← user action log
-    Errors-YYYYMMDD.log         ← errors with source attribution
+    NullWave-DDMMYYYY.log       ← all events
+    UserActions-DDMMYYYY.log    ← user action log
+    Errors-DDMMYYYY.log         ← errors with source attribution
 ```
 
 ---

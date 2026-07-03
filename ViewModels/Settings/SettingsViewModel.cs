@@ -755,7 +755,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var trackList = tracks.ToList();
         if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
         var format = ExportFormat ?? "txt";
-        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+        var timestamp = DateTime.Now.ToString("DDMMYYYY_HHmm");
         var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
         var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
         var sp = new FilePickerSaveOptions

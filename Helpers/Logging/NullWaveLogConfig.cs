@@ -9,9 +9,9 @@ namespace NullWave.Helpers.Logging;
 /// <summary>
 /// Configures Serilog with three separate file sinks:
 ///
-///   ~/.nullwave/logs/NullWave-YYYYMMDD.log       ← everything (system + general)
-///   ~/.nullwave/logs/UserActions-YYYYMMDD.log    ← [ACTION] entries only
-///   ~/.nullwave/logs/Errors-YYYYMMDD.log         ← errors with source attribution
+///   ~/.nullwave/logs/NullWave-DDMMYYYY.log       ← everything (system + general)
+///   ~/.nullwave/logs/UserActions-DDMMYYYY.log    ← [ACTION] entries only
+///   ~/.nullwave/logs/Errors-DDMMYYYY.log         ← errors with source attribution
 ///
 /// Call NullWaveLogConfig.Initialize() as the very first line of Program.cs,
 /// before any services are constructed.
