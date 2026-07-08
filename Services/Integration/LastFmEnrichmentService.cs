@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -9,85 +10,191 @@ using Avalonia.Threading;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Metadata;
+using NullWave.Services.SmartSorting;
 using Serilog;
 
 namespace NullWave.Services.Integration;
 
-public class LastFmEnrichmentService
+public partial class LastFmEnrichmentService
 {
     private readonly LastFmService _lastFm;
     private readonly LibraryService _library;
-    private readonly AlbumArtService _albumArt;
+    private readonly LocalAIService _localAi;
+    private readonly PreferencesService _prefsService;
+    private readonly SemaphoreSlim _enrichSemaphore = new(3);
+    private int _isBackfilling = 0;
+
+    [GeneratedRegex(@"\s*[\(\[].*?[\)\]]")]
+    private static partial Regex ParenthesesRegex();
+
+    [GeneratedRegex(@"\s+(ft\.|feat\.|featuring|Ft\.|Feat\.|Featuring).*", RegexOptions.IgnoreCase)]
+    private static partial Regex FeaturesRegex();
+
+    [GeneratedRegex(@"\b(focus|tdci|klima|szyby|swoje|fave|track|album|song)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex JunkTagsRegex();
 
     public event Action? BackfillCompleted;
 
-    public LastFmEnrichmentService(LastFmService lastFm, LibraryService library, AlbumArtService albumArt)
+    public LastFmEnrichmentService(LastFmService lastFm, LibraryService library, LocalAIService localAi, PreferencesService prefsService)
     {
-        _lastFm   = lastFm;
-        _library  = library;
-        _albumArt = albumArt;
+        _lastFm  = lastFm;
+        _library = library;
+        _localAi = localAi;
+        _prefsService = prefsService;
     }
 
     public void EnrichAsync(Track track, CancellationToken ct = default)
     {
-        if (!_lastFm.IsConfiguredForRead) return;
-        _ = Task.Run(() => EnrichTrackAsync(track, ct), ct);
+        _ = Task.Run(async () =>
+        {
+            await _enrichSemaphore.WaitAsync(ct);
+            try
+            {
+                await EnrichTrackAsync(track, ct);
+            }
+            finally
+            {
+                _enrichSemaphore.Release();
+            }
+        }, ct);
     }
 
     public void BackfillAsync(CancellationToken externalToken = default)
     {
-        if (!_lastFm.IsConfiguredForRead)
+        if (Interlocked.Exchange(ref _isBackfilling, 1) == 1)
         {
-            BackfillCompleted?.Invoke();
+            Log.Warning("[LastFmEnrichment] Batch backfill execution blocked; process is already running.");
             return;
         }
 
         var untagged = _library.GetAll()
-            .Where(t => t.Tags.Count == 0
-                     && !string.IsNullOrWhiteSpace(t.Title)
-                     && t.Title != t.Url)
+            .Where(t => t.Tags.Count == 0 && !string.IsNullOrWhiteSpace(t.Title) && t.Title != t.Url)
             .ToList();
 
         if (untagged.Count == 0)
         {
-            BackfillCompleted?.Invoke();
+            ResetBackfillAndNotify();
             return;
         }
 
-        Log.Information("[LastFmEnrichment] Starting batch backfill for {Count} untagged tracks", untagged.Count);
+        int totalTracks = untagged.Count;
+        Log.Information("[LastFmEnrichment] Starting batch backfill for {Count} untagged tracks", totalTracks);
+
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+        ToastService.Instance.Show($"Starting catalog synchronization for {totalTracks} tracks...", ToastType.Info, 4000);
 
         _ = Task.Run(async () =>
         {
             int enrichedCount = 0;
-            int skippedCount = 0;
             var timer = Stopwatch.StartNew();
-
-            var options = new ParallelOptions 
-            { 
+            var failedTracks = new ConcurrentBag<Track>();
+            var options = new ParallelOptions
+            {
                 MaxDegreeOfParallelism = 3,
-                CancellationToken = externalToken 
+                CancellationToken = cts.Token
             };
 
-            await Parallel.ForEachAsync(untagged, options, async (track, ct) =>
+            try
             {
-                bool success = await EnrichTrackAsync(track, ct);
-                if (success) 
-                    Interlocked.Increment(ref enrichedCount); 
-                else 
-                    Interlocked.Increment(ref skippedCount);
+                await Parallel.ForEachAsync(untagged, options, async (track, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    bool success = await EnrichTrackLastFmAsync(track, failedTracks, ct);
+                    if (success) Interlocked.Increment(ref enrichedCount);
+                    await Task.Delay(50, ct);
+                });
 
-                // Throttling safety valve: yields the thread for 250ms 
-                // to preserve API key integrity across parallel workers
-                await Task.Delay(250, ct); 
-            });
+                var failedList = failedTracks.ToList();
+                if (failedList.Count > 0 && PowerStateService.ReadPowerState() != PowerState.Battery)
+                {
+                    Log.Information("[LastFmEnrichment] Routing {Count} failed tracks to bulk AI fallback.", failedList.Count);
+                    var chunks = failedList.Chunk(10);
+                    foreach (var chunk in chunks)
+                    {
+                        cts.Token.ThrowIfCancellationRequested();
+                        var trackData = chunk.Select((t, idx) => (Index: idx + 1, t.Title, t.Artist, FilePath: t.FilePath ?? "")).ToList();
+                        var aiResults = await _localAi.GenerateTagsBulkAsync(trackData, cts.Token);
+                        for (int i = 0; i < chunk.Length; i++)
+                        {
+                            var track = chunk[i];
+                            if (aiResults != null && i < aiResults.Count)
+                            {
+                                var tags = aiResults[i];
+                                if (tags != null && tags.Length > 0)
+                                {
+                                    await ApplyTrackTagsAsync(track, tags);
+                                    Interlocked.Increment(ref enrichedCount);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (failedList.Count > 0)
+                {
+                    Log.Information("[LastFmEnrichment] Skipping AI fallback for {Count} tracks to preserve battery life.", failedList.Count);
+                }
 
-            timer.Stop();
-            
-            Log.Information("[LastFmEnrichment] Batch backfill complete in {ElapsedMs}ms. Enriched: {Enriched} | Skipped: {Skipped} | Total: {Total}",
-                timer.ElapsedMilliseconds, enrichedCount, skippedCount, untagged.Count);
-            
-            await Dispatcher.UIThread.InvokeAsync(() => BackfillCompleted?.Invoke());
-        });
+                timer.Stop();
+                Log.Information("[LastFmEnrichment] Batch backfill complete in {ElapsedMs}ms.", timer.ElapsedMilliseconds);
+                ToastService.Instance.Show($"Sync complete! Enriched {enrichedCount} track profiles.", ToastType.Success, 5000);
+            }
+            catch (OperationCanceledException)
+            {
+                timer.Stop();
+                Log.Warning("[LastFmEnrichment] Batch processing cancelled by user intercept.");
+                ToastService.Instance.Show("Metadata synchronization aborted.", ToastType.Warning, 4000);
+            }
+            finally
+            {
+                cts.Dispose();
+                Interlocked.Exchange(ref _isBackfilling, 0);
+                await Dispatcher.UIThread.InvokeAsync(() => BackfillCompleted?.Invoke());
+            }
+        }, externalToken);
+    }
+
+    private async Task<bool> EnrichTrackLastFmAsync(Track track, ConcurrentBag<Track> failedTracks, CancellationToken ct)
+    {
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            var (cleanTitle, cleanArtist) = _prefsService.Current.AutoCleanMetadata
+                ? NormalizeMetadata(track.Title ?? string.Empty, track.Artist ?? string.Empty)
+                : (track.Title ?? string.Empty, track.Artist ?? string.Empty);
+
+            if (!_lastFm.IsConfiguredForRead)
+            {
+                failedTracks.Add(track);
+                return false;
+            }
+
+            var info = await FetchLastFmInfoWithFallbackAsync(cleanTitle, cleanArtist, ct);
+            if (info == null || info.Tags.Count == 0)
+            {
+                failedTracks.Add(track);
+                return false;
+            }
+
+            var stagedTags = FilterJunkTags(info.Tags);
+            if (stagedTags.Count > 0)
+            {
+                await ApplyTrackTagsAsync(track, stagedTags);
+                return true;
+            }
+
+            failedTracks.Add(track);
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[LastFmEnrichment] Last.fm query failed for {Title}", track.Title);
+            failedTracks.Add(track);
+            return false;
+        }
     }
 
     private async Task<bool> EnrichTrackAsync(Track track, CancellationToken ct = default)
@@ -95,141 +202,46 @@ public class LastFmEnrichmentService
         try
         {
             ct.ThrowIfCancellationRequested();
+            var (cleanTitle, cleanArtist) = _prefsService.Current.AutoCleanMetadata
+                ? NormalizeMetadata(track.Title ?? string.Empty, track.Artist ?? string.Empty)
+                : (track.Title ?? string.Empty, track.Artist ?? string.Empty);
 
-            string searchArtist = track.Artist;
-            string searchTitle = track.Title;
-
-            bool isArtistGeneric = string.IsNullOrWhiteSpace(searchArtist) || 
-                                searchArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase) || 
-                                searchArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase);
-
-            if (isArtistGeneric)
+            LastFmTrackInfo? info = null;
+            if (_lastFm.IsConfiguredForRead)
             {
-                var sanitized = TitleSanitizer.Sanitize(track.Title);
-                searchArtist = sanitized.Artist;
-                searchTitle = sanitized.Title;
-
-                if (string.IsNullOrWhiteSpace(searchArtist) || searchArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parsed = TrackTitleParser.TryParseArtistTitle(track.Title);
-                    if (parsed != null)
-                    {
-                        searchArtist = parsed.Value.Artist;
-                        searchTitle = parsed.Value.Title;
-                    }
-                }
+                info = await FetchLastFmInfoWithFallbackAsync(cleanTitle, cleanArtist, ct);
             }
-            else
-            {
-                var sanitizedTitle = TitleSanitizer.Sanitize(track.Title);
-                searchTitle = !string.IsNullOrWhiteSpace(sanitizedTitle.Artist) 
-                    ? sanitizedTitle.Title 
-                    : TitleSanitizer.SanitizeSingle(track.Title);
-            }
-
-            if (string.IsNullOrWhiteSpace(searchArtist)) searchArtist = "Unknown";
-            if (string.IsNullOrWhiteSpace(searchTitle)) searchTitle = track.Title;
-
-            var info = await _lastFm.GetTrackInfoAsync(searchTitle, searchArtist);
-
-            if (info == null && searchArtist != "Unknown")
-            {
-                ct.ThrowIfCancellationRequested();
-                Log.Verbose("[LastFmEnrichment] No match for Artist={Artist} | Title={Title}. Retrying with reversed fields.", searchArtist, searchTitle);
-                info = await _lastFm.GetTrackInfoAsync(searchArtist, searchTitle);
-            }
-
-            ct.ThrowIfCancellationRequested();
 
             List<string>? stagedTags = null;
-            string stagedArtist = track.Artist;
-            string stagedTitle = track.Title;
-            string? stagedAlbumArt = track.AlbumArtPath;
-
-            if (info != null)
+            if (info != null && info.Tags.Count > 0 && track.Tags.Count == 0)
             {
-                if (info.Tags.Count > 0 && track.Tags.Count == 0)
+                stagedTags = FilterJunkTags(info.Tags);
+            }
+
+            if ((stagedTags == null || stagedTags.Count == 0) && track.Tags.Count == 0 && await _localAi.IsOllamaRunningAsync())
+            {
+                if (PowerStateService.ReadPowerState() == PowerState.Battery)
                 {
-                    stagedTags = new List<string>();
-                    foreach (var tag in info.Tags)
-                    {
-                        bool isTagJunk = tag.Length > 20 && tag.Contains(" ") || 
-                                        Regex.IsMatch(tag, @"\b(focus|tdci|klima|szyby|swoje|fave|track|album|song)\b", RegexOptions.IgnoreCase);
-                        
-                        if (!isTagJunk) stagedTags.Add(tag);
-                    }
+                    Log.Debug("[LastFmEnrichment] Skipping AI fallback for '{Title}' to preserve battery life.", track.Title);
                 }
-
-                string cleanArtist = TitleSanitizer.SanitizeSingle(info.Artist);
-                if (string.IsNullOrWhiteSpace(cleanArtist)) cleanArtist = info.Artist.Trim();
-
-                string cleanTitle = TitleSanitizer.SanitizeSingle(info.Title);
-                if (string.IsNullOrWhiteSpace(cleanTitle)) cleanTitle = info.Title.Trim();
-
-                if (!string.IsNullOrWhiteSpace(cleanArtist) && track.Artist != cleanArtist)
+                else
                 {
-                    stagedArtist = cleanArtist;
-                }
-
-                if (!string.IsNullOrWhiteSpace(cleanTitle) && track.Title != cleanTitle)
-                {
-                    bool isTruncatedGarbage = cleanTitle.EndsWith("ft", StringComparison.OrdinalIgnoreCase) || 
-                                            cleanTitle.EndsWith("ft.", StringComparison.OrdinalIgnoreCase) ||
-                                            cleanTitle.EndsWith("feat", StringComparison.OrdinalIgnoreCase);
-
-                    if (!isTruncatedGarbage)
+                    Log.Debug("[LastFmEnrichment] Internet scraper found zero tags for '{Title}'. Routing to local AI fallback.", track.Title);
+                    var aiTags = await _localAi.GenerateTagsForTrackAsync(cleanTitle, cleanArtist, track.FilePath ?? string.Empty, ct);
+                    if (aiTags != null && aiTags.Length > 0)
                     {
-                        stagedTitle = cleanTitle;
-                    }
-                    else
-                    {
-                        Log.Warning("[LastFmEnrichment] Rejected truncated title overwrite: '{Incoming}' for '{Current}'", cleanTitle, track.Title);
+                        stagedTags = aiTags.ToList();
                     }
                 }
             }
 
-            if (string.IsNullOrEmpty(stagedAlbumArt))
+            if (stagedTags != null && stagedTags.Count > 0)
             {
                 ct.ThrowIfCancellationRequested();
-                
-                var artPath = await _albumArt.GetArtPathAsync(track);
-                if (artPath != AlbumArtService.PlaceholderPath)
-                {
-                    stagedAlbumArt = artPath;
-                }
-            }
-
-            bool tagsChanged = stagedTags != null && stagedTags.Count > 0;
-            bool artistChanged = stagedArtist != track.Artist;
-            bool titleChanged = stagedTitle != track.Title;
-            bool artChanged = stagedAlbumArt != track.AlbumArtPath;
-
-            if (tagsChanged || artistChanged || titleChanged || artChanged)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                // Marshal ONLY the property updates to the UI
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (tagsChanged)
-                    {
-                        track.Tags.Clear();
-                        foreach (var tag in stagedTags!) track.Tags.Add(tag);
-                    }
-                    if (artistChanged) track.Artist = stagedArtist;
-                    if (titleChanged) track.Title = stagedTitle;
-                    if (artChanged) track.AlbumArtPath = stagedAlbumArt;
-                });
-
-                // ✅ Back on the thread pool worker! Perfectly safe for disk I/O
-                _library.Update(track);
-
+                await ApplyTrackTagsAsync(track, stagedTags);
                 Log.Verbose("[LastFmEnrichment] Enriched: {Title} - tags: [{Tags}]", track.Title, string.Join(", ", track.Tags));
                 return true;
             }
-
-            Log.Verbose("[LastFmEnrichment] Skipped {Title}: Match found={HasInfo}, New Tags found={HasTags}", 
-                track.Title, info != null, stagedTags?.Count > 0);
 
             return false;
         }
@@ -243,5 +255,52 @@ public class LastFmEnrichmentService
             Log.Warning(ex, "[LastFmEnrichment] Failed for {Title}", track.Title);
             return false;
         }
+    }
+
+    private async Task ApplyTrackTagsAsync(Track track, IEnumerable<string> tags)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            track.Tags.Clear();
+            foreach (var tag in tags) track.Tags.Add(tag);
+        });
+        await _library.UpdateTrackMetadataAsync(track);
+    }
+
+    private async Task<LastFmTrackInfo?> FetchLastFmInfoWithFallbackAsync(string title, string artist, CancellationToken ct)
+    {
+        var info = await _lastFm.GetTrackInfoAsync(title, artist);
+        if (info == null && artist != "Unknown")
+        {
+            ct.ThrowIfCancellationRequested();
+            info = await _lastFm.GetTrackInfoAsync(artist, title);
+        }
+        return info;
+    }
+
+    private (string Title, string Artist) NormalizeMetadata(string rawTitle, string rawArtist)
+    {
+        string cleanTitle = ParenthesesRegex().Replace(rawTitle ?? string.Empty, "").Trim();
+        cleanTitle = FeaturesRegex().Replace(cleanTitle, "").Trim();
+        string cleanArtist = string.IsNullOrWhiteSpace(rawArtist) ? "Unknown" : rawArtist.Trim();
+        if (string.IsNullOrWhiteSpace(cleanTitle)) cleanTitle = rawTitle ?? string.Empty;
+        return (cleanTitle, cleanArtist);
+    }
+
+    private List<string> FilterJunkTags(IEnumerable<string> tags)
+    {
+        var filtered = new List<string>();
+        foreach (var tag in tags)
+        {
+            bool isTagJunk = tag.Length > 20 && tag.Contains(" ") || JunkTagsRegex().IsMatch(tag);
+            if (!isTagJunk) filtered.Add(tag);
+        }
+        return filtered;
+    }
+
+    private void ResetBackfillAndNotify()
+    {
+        Interlocked.Exchange(ref _isBackfilling, 0);
+        _ = Dispatcher.UIThread.InvokeAsync(() => BackfillCompleted?.Invoke());
     }
 }

@@ -9,6 +9,7 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Services.Integration;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -22,6 +23,7 @@ public class TrackInputViewModel : ViewModelBase
     private readonly DownloadService _download;
     private readonly SpotifyBridgeService _spotifyBridge;
     private readonly SettingsViewModel _settings;
+    private readonly AlbumArtService _albumArtService;
 
     private string _inputUrl = string.Empty;
     private string _lastFetchedUrl = string.Empty;
@@ -103,7 +105,8 @@ public class TrackInputViewModel : ViewModelBase
         DownloadService download,
         SpotifyBridgeService spotifyBridge,
         SettingsViewModel settings,
-        PlaylistImportViewModel playlistImport)
+        PlaylistImportViewModel playlistImport,
+        AlbumArtService albumArtService)
     {
         _library = library;
         _metadata = metadata;
@@ -111,7 +114,20 @@ public class TrackInputViewModel : ViewModelBase
         _download = download;
         _spotifyBridge = spotifyBridge;
         _settings = settings;
+        _albumArtService = albumArtService;
         PlaylistImport = playlistImport;
+
+        _download.DownloadCompleted += async (trackId, filePath, _) =>
+        {
+            if (!Guid.TryParse(trackId, out var trackGuid)) return;
+
+            var track = _library.GetAll().FirstOrDefault(t => t.Id == trackGuid);
+            if (track == null) return;
+
+            track.FilePath = filePath;
+            track.AlbumArtPath = await _albumArtService.GetArtPathAsync(track);
+            _library.Update(track);
+        };
 
         AddTrackCommand = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());

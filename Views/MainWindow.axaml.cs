@@ -1,6 +1,6 @@
-// MainWindow.axaml.cs
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -25,35 +25,35 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.Settings.StopHealthCheck();
+                vm.DisposePowerState(); // Clean up native polling allocations
 
                 var model = vm.Settings.SelectedModel;
                 if (!string.IsNullOrWhiteSpace(model) && vm.Settings.AiServiceState == AIServiceState.Running)
                 {
-                    Log.Information("[MainWindow] Unloading Ollama model '{Model}' before exit", model);
+                    Log.Information("[MainWindow] Offloading Ollama model '{Model}' to background worker process for exit sequence", model);
                     
-                    var startInfo = new ProcessStartInfo
+                    // Run the process detached on a threadpool task worker so the UI shuts down instantly
+                    Task.Run(() =>
                     {
-                        FileName = "ollama",
-                        Arguments = $"stop {model}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    using (var ollamaProcess = Process.Start(startInfo))
-                    {
-                        if (ollamaProcess != null)
+                        try
                         {
-                            bool exitedCleanly = ollamaProcess.WaitForExit(TimeSpan.FromSeconds(2));
-                            if (exitedCleanly)
+                            var startInfo = new ProcessStartInfo
                             {
-                                Log.Information("[MainWindow] Successfully unloaded model '{Model}' from VRAM.", model);
-                            }
-                            else
-                            {
-                                Log.Warning("[MainWindow] Ollama stop command timed out before application exit sequence.");
-                            }
+                                FileName = "ollama",
+                                Arguments = $"stop {model}",
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+
+                            using var ollamaProcess = Process.Start(startInfo);
+                            ollamaProcess?.WaitForExit(2000);
+                            Log.Information("[MainWindow] Asynchronous VRAM flush call completed for '{Model}'.", model);
                         }
-                    }
+                        catch (Exception ex)
+                        {
+                            Log.Debug(ex, "[MainWindow] Background VRAM flush task encountered errors.");
+                        }
+                    });
                 }
             }
         }
@@ -67,13 +67,19 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm) return;
 
-        if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt)
+        // Clean hotkey implementation for tracking Alt modifiers
+        if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt || (e.KeyModifiers & KeyModifiers.Alt) != 0)
         {
-            vm.ToggleMenuBar();
-            e.Handled = true;
-            return;
+            // Only toggle if Alt is hit cleanly standalone or F10 fallback is used
+            if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt || e.Key == Key.F10)
+            {
+                vm.ToggleMenuBar();
+                e.Handled = true;
+                return;
+            }
         }
 
+        // Do not intercept hotkeys if typing inside data inputs or search boxes
         if (e.Source is TextBox) return;
 
         switch (e.Key)

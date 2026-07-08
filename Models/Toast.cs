@@ -2,31 +2,21 @@ using System;
 
 namespace NullWave.Models;
 
-public enum ToastType
+public class Toast
 {
-    Info,
-    Success,
-    Warning,
-    Error
-}
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Message { get; set; }
+    public ToastType Type { get; set; }
+    public string Scope { get; set; } = "Main";
 
-public record Toast(string Message, ToastType Type = ToastType.Info)
-{
-    public Guid Id { get; init; } = Guid.NewGuid();
-
-    public string BackgroundColor => Type switch
+    public Toast(string message, ToastType type)
     {
-        ToastType.Success => "#1E4620",
-        ToastType.Error   => "#5F1A1A",
-        ToastType.Warning => "#6A3B00",
-        _                 => "#1E1E24"
-    };
+        Message = message;
+        Type = type;
+    }
 
-    public string BorderColor => Type switch
-    {
-        ToastType.Success => "#4CAF50",
-        ToastType.Error   => "#F44336",
-        ToastType.Warning => "#FF9800",
-        _                 => "#3F3F46"
-    };
+    public bool IsSuccess => Type == ToastType.Success;
+    public bool IsError => Type == ToastType.Error;
+    public bool IsWarning => Type == ToastType.Warning;
+    public bool IsInfo => Type == ToastType.Info;
 }

@@ -1,25 +1,20 @@
 using System;
 using System.IO;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 using Serilog.Filters;
 
 namespace NullWave.Helpers.Logging;
 
-/// <summary>
-/// Configures Serilog with three separate file sinks:
-///
-///   ~/.nullwave/logs/NullWave-DDMMYYYY.log       ← everything (system + general)
-///   ~/.nullwave/logs/UserActions-DDMMYYYY.log    ← [ACTION] entries only
-///   ~/.nullwave/logs/Errors-DDMMYYYY.log         ← errors with source attribution
-///
-/// Call NullWaveLogConfig.Initialize() as the very first line of Program.cs,
-/// before any services are constructed.
-/// </summary>
 public static class NullWaveLogConfig
 {
-    public static void Initialize()
+    public static readonly LoggingLevelSwitch LevelSwitch = new();
+
+    public static void Initialize(bool useVerbose)
     {
+        LevelSwitch.MinimumLevel = useVerbose ? LogEventLevel.Debug : LogEventLevel.Information;
+
         var logDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".nullwave", "logs");
@@ -30,44 +25,45 @@ public static class NullWaveLogConfig
             "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}";
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.ControlledBy(LevelSwitch)
             .Enrich.FromLogContext()
+            .Enrich.With<ApiKeyRedactionEnricher>()
 
-            //  Sink 1: Main log - all events 
             .WriteTo.File(
                 path: Path.Combine(logDir, "NullWave-.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14,
+                retainedFileCountLimit: 7,
+                fileSizeLimitBytes: 10 * 1024 * 1024,
+                rollOnFileSizeLimit: true,
                 outputTemplate: outputTemplate)
 
-            //  Sink 2: Console (debug builds) 
+            .WriteTo.Sink(new InAppLogSink(outputTemplate))
+
             .WriteTo.Console(outputTemplate: outputTemplate)
 
-            //  Sink 3: UserActions - only entries with Channel=UserAction 
             .WriteTo.Logger(lc => lc
-                .Filter.ByIncludingOnly(
-                    Matching.WithProperty<string>(
-                        "Channel", v => v == "UserAction"))
+                .Filter.ByIncludingOnly(Matching.WithProperty<string>("Channel", v => v == "UserAction"))
                 .WriteTo.File(
                     path: Path.Combine(logDir, "UserActions-.log"),
                     rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 30,
+                    retainedFileCountLimit: 14,
+                    fileSizeLimitBytes: 5 * 1024 * 1024,
+                    rollOnFileSizeLimit: true,
                     outputTemplate: outputTemplate))
 
-            //  Sink 4: Errors - Error level and above 
             .WriteTo.Logger(lc => lc
                 .MinimumLevel.Error()
                 .WriteTo.File(
                     path: Path.Combine(logDir, "Errors-.log"),
                     rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 30,
+                    retainedFileCountLimit: 14,
+                    fileSizeLimitBytes: 5 * 1024 * 1024,
+                    rollOnFileSizeLimit: true,
                     outputTemplate: outputTemplate))
-
             .CreateLogger();
 
-        Log.Information("Serilog initialized - logs at {LogDir}", logDir);
+        Log.Information("Serilog initialized under dynamic operational modes.");
     }
 
-    public static void CloseAndFlush()
-        => Log.CloseAndFlush();
+    public static void CloseAndFlush() => Log.CloseAndFlush();
 }

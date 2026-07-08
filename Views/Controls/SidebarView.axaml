@@ -150,6 +150,5 @@
                 <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
             </StackPanel>
         </ScrollViewer>
-
     </DockPanel>
 </Border>

@@ -10,6 +10,12 @@ namespace NullWave.Services;
 
 public class LastFmService
 {
+    private const int MaxTagsPerTrack = 8;
+    private static readonly HashSet<string> TagDenylist = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "seen live", "favorite", "favourites", "awesome", "amazing"
+    };
+
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private readonly string _apiKey;
     private readonly LastFmAuthService _auth;
@@ -109,8 +115,8 @@ public class LastFmService
             {
                 info.Tags = responseObj.Track.TopTags.TagList
                     .Select(t => t.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .Take(5)
+                    .Where(n => !string.IsNullOrEmpty(n) && !TagDenylist.Contains(n))
+                    .Take(MaxTagsPerTrack)
                     .ToList();
             }
             else
@@ -122,9 +128,9 @@ public class LastFmService
                     foreach (var tag in tags.EnumerateArray())
                     {
                         var tagName = tag.GetProperty("name").GetString();
-                        if (!string.IsNullOrEmpty(tagName))
+                        if (!string.IsNullOrEmpty(tagName) && !TagDenylist.Contains(tagName))
                             info.Tags.Add(tagName);
-                        if (info.Tags.Count >= 5) break;
+                        if (info.Tags.Count >= MaxTagsPerTrack) break;
                     }
                 }
             }

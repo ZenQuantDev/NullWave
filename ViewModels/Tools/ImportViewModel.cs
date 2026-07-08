@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
@@ -64,8 +66,7 @@ public class ImportViewModel : ViewModelBase
 
     private async Task ImportFolderAsync()
     {
-        var window = Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow : null;
         if (window == null) return;
 
@@ -80,74 +81,94 @@ public class ImportViewModel : ViewModelBase
         if (folders.Count == 0) return;
         var folderPath = folders[0].Path.LocalPath;
 
-        // Ask about subfolders - use a simple bool dialog via MessageBox
-        var includeSubfolders = await AskIncludeSubfoldersAsync(window);
-
-        // Collect files
-        var searchOption = includeSubfolders
-            ? SearchOption.AllDirectories
-            : SearchOption.TopDirectoryOnly;
-
-        var files = Directory.GetFiles(folderPath, "*.*", searchOption)
-            .Where(f => SupportedExtensions.Contains(
-                Path.GetExtension(f).ToLower()))
-            .ToList();
-
-        if (files.Count == 0)
+        try
         {
-            ImportStatus = "No supported audio files found.";
-            return;
-        }
+            // 1. Log the initiation of the import stream
+            NullActionLogger.ImportStarted(folderPath, "ImportViewModel");
+            var stopwatch = Stopwatch.StartNew();
 
-        // Import with progress
-        IsImporting = true;
-        ImportTotal = files.Count;
-        ImportProgress = 0;
-        int added = 0;
-        int skipped = 0;
+            // Ask about subfolders
+            var includeSubfolders = await AskIncludeSubfoldersAsync(window);
 
-        foreach (var filePath in files)
-        {
-            ImportStatus = $"Importing {ImportProgress + 1}/{ImportTotal}...";
+            // Collect files
+            var searchOption = includeSubfolders
+                ? SearchOption.AllDirectories
+                : SearchOption.TopDirectoryOnly;
 
-            var (title, artist) = _metadata.FetchFromLocalFile(filePath);
+            var files = Directory.GetFiles(folderPath, "*.*", searchOption)
+                .Where(f => SupportedExtensions.Contains(Path.GetExtension(f).ToLower()))
+                .ToList();
 
-            var track = new Track
+            if (files.Count == 0)
             {
-                Title = title,
-                Artist = artist,
-                FilePath = filePath,
-                Source = TrackSource.Local
-            };
-
-            if (!_library.IsDuplicate(track))
-            {
-                _library.Add(track);
-                added++;
-            }
-            else
-            {
-                skipped++;
+                ImportStatus = "No supported audio files found.";
+                NullActionLogger.ImportFailed(folderPath, "No supported audio files found.", "ImportViewModel");
+                return;
             }
 
-            ImportProgress++;
-            // Yield to UI thread
-            await Task.Delay(1);
+            // Import with progress
+            IsImporting = true;
+            ImportTotal = files.Count;
+            ImportProgress = 0;
+            int added = 0;
+            int skipped = 0;
+
+            foreach (var filePath in files)
+            {
+                ImportStatus = $"Importing {ImportProgress + 1}/{ImportTotal}...";
+
+                var (title, artist) = _metadata.FetchFromLocalFile(filePath);
+
+                var track = new Track
+                {
+                    Title = title,
+                    Artist = artist,
+                    FilePath = filePath,
+                    Source = TrackSource.Local
+                };
+
+                if (!_library.IsDuplicate(track))
+                {
+                    _library.Add(track);
+                    added++;
+
+                    // 2. Log every individual local track commitment
+                    NullActionLogger.TrackAdded(track.FilePath, "LocalFolder", "ImportViewModel");
+                }
+                else
+                {
+                    skipped++;
+                }
+
+                ImportProgress++;
+                // Yield to UI thread
+                await Task.Delay(1);
+            }
+
+            stopwatch.Stop();
+            ImportStatus = $"Done - {added} added, {skipped} skipped (duplicates).";
+            IsImporting = false;
+
+            // 3. Log the successful batch execution completion metric
+            NullActionLogger.ImportCompleted(folderPath, $"{added} tracks added", stopwatch.ElapsedMilliseconds, "ImportViewModel");
+            Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}",
+                added, skipped, folderPath);
+
+            ImportCompleted?.Invoke();
         }
-
-        ImportStatus = $"Done - {added} added, {skipped} skipped (duplicates).";
-        IsImporting = false;
-        Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}",
-            added, skipped, folderPath);
-
-        ImportCompleted?.Invoke();
+        catch (Exception ex)
+        {
+            IsImporting = false;
+            ImportStatus = "An unexpected error occurred during execution.";
+            
+            // 4. Trace the unhandled faults straight to your error channel files
+            NullActionLogger.ImportFailed(folderPath, ex.Message, "ImportViewModel");
+            NullActionLogger.Error("ImportViewModel", ex, $"Failed while executing folder batch processing layout for: {folderPath}");
+        }
     }
 
-    private static async Task<bool> AskIncludeSubfoldersAsync(
-        Avalonia.Controls.Window window)
+    private static async Task<bool> AskIncludeSubfoldersAsync(Avalonia.Controls.Window window)
     {
-        // Simple dialog using Avalonia MessageBox equivalent
-        // We'll use a basic Window dialog for now
         var dialog = new Views.ConfirmDialog(
             "Import Subfolders?",
             "Include all subfolders in the import?");

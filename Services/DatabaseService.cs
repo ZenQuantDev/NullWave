@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -13,24 +14,34 @@ public class DatabaseService : IDisposable
 {
     private readonly SQLiteAsyncConnection _db;
     private bool _disposed;
+    public string DbPath { get; }
 
     public DatabaseService()
     {
         var path = NullWavePaths.DatabasePath;
+        DbPath = path;
         _db = new SQLiteAsyncConnection(path);
-        
+
         // Table initializations run at setup
         _db.CreateTableAsync<TrackRecord>().Wait();
         _db.CreateTableAsync<PlaylistRecord>().Wait();
         _db.CreateTableAsync<PlaylistTrackRecord>().Wait();
-        
+
         Log.Information("[DatabaseService] Opened DB at {Path}", path);
+    }
+
+    public void Vacuum()
+    {
+        var sizeBefore = new FileInfo(DbPath).Length;
+        _db.GetConnection().Execute("VACUUM;");
+        var sizeAfter = new FileInfo(DbPath).Length;
+        Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
+            sizeBefore / 1024, sizeAfter / 1024);
     }
 
     // ==========================================
     // ASYNC API (For PlaybackNavigator / New Code)
     // ==========================================
-
     public async Task<List<Track>> LoadAllAsync()
     {
         try
@@ -47,37 +58,37 @@ public class DatabaseService : IDisposable
 
     public async Task InsertAsync(Track track)
     {
-        try 
-        { 
-            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track)); 
+        try
+        {
+            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track));
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title);
         }
     }
 
     public async Task UpdateAsync(Track track)
     {
-        try 
-        { 
-            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track)); 
+        try
+        {
+            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track));
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title);
         }
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        try 
-        { 
-            await _db.DeleteAsync<TrackRecord>(id.ToString()); 
+        try
+        {
+            await _db.DeleteAsync<TrackRecord>(id.ToString());
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id);
         }
     }
 
@@ -87,22 +98,21 @@ public class DatabaseService : IDisposable
         {
             await _db.RunInTransactionAsync(tran =>
             {
-                tran.InsertOrReplace(new PlaylistRecord 
-                { 
-                    Id = playlist.Id.ToString(), 
-                    Name = playlist.Name, 
-                    Description = playlist.Description 
+                tran.InsertOrReplace(new PlaylistRecord
+                {
+                    Id = playlist.Id.ToString(),
+                    Name = playlist.Name,
+                    Description = playlist.Description
                 });
-
                 tran.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
-                
+
                 for (int i = 0; i < playlist.Tracks.Count; i++)
                 {
-                    tran.Insert(new PlaylistTrackRecord 
-                    { 
-                        PlaylistId = playlist.Id.ToString(), 
-                        TrackId = playlist.Tracks[i].Id.ToString(), 
-                        SortOrder = i 
+                    tran.Insert(new PlaylistTrackRecord
+                    {
+                        PlaylistId = playlist.Id.ToString(),
+                        TrackId = playlist.Tracks[i].Id.ToString(),
+                        SortOrder = i
                     });
                 }
             });
@@ -119,21 +129,21 @@ public class DatabaseService : IDisposable
         try
         {
             var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
-
             var dbPlaylists = await _db.Table<PlaylistRecord>().ToListAsync();
+
             foreach (var plRecord in dbPlaylists)
             {
-                var pList = new Playlist 
-                { 
-                    Id = Guid.Parse(plRecord.Id), 
-                    Name = plRecord.Name, 
-                    Description = plRecord.Description 
+                var pList = new Playlist
+                {
+                    Id = Guid.Parse(plRecord.Id),
+                    Name = plRecord.Name,
+                    Description = plRecord.Description
                 };
 
                 var dbTracks = await _db.Table<PlaylistTrackRecord>()
-                                      .Where(pt => pt.PlaylistId == plRecord.Id)
-                                      .OrderBy(pt => pt.SortOrder)
-                                      .ToListAsync();
+                    .Where(pt => pt.PlaylistId == plRecord.Id)
+                    .OrderBy(pt => pt.SortOrder)
+                    .ToListAsync();
 
                 foreach (var pt in dbTracks)
                 {
@@ -142,6 +152,7 @@ public class DatabaseService : IDisposable
                         pList.Tracks.Add(track);
                     }
                 }
+
                 playlists.Add(pList);
             }
         }
@@ -149,6 +160,7 @@ public class DatabaseService : IDisposable
         {
             Log.Error(ex, "Failed to load playlists from database.");
         }
+
         return playlists;
     }
 
@@ -169,7 +181,6 @@ public class DatabaseService : IDisposable
     // ==========================================
     // SYNCHRONOUS COMPLIANCE BRIDGE (For Services)
     // ==========================================
-
     public List<Track> LoadAll()
     {
         try
@@ -186,37 +197,37 @@ public class DatabaseService : IDisposable
 
     public void Insert(Track track)
     {
-        try 
-        { 
-            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track)); 
+        try
+        {
+            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track));
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title);
         }
     }
 
     public void Update(Track track)
     {
-        try 
-        { 
-            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track)); 
+        try
+        {
+            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track));
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title);
         }
     }
 
     public void Delete(Guid id)
     {
-        try 
-        { 
-            _db.GetConnection().Delete<TrackRecord>(id.ToString()); 
+        try
+        {
+            _db.GetConnection().Delete<TrackRecord>(id.ToString());
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id);
         }
     }
 
@@ -239,22 +250,21 @@ public class DatabaseService : IDisposable
             var syncDb = _db.GetConnection();
             syncDb.RunInTransaction(() =>
             {
-                syncDb.InsertOrReplace(new PlaylistRecord 
-                { 
-                    Id = playlist.Id.ToString(), 
-                    Name = playlist.Name, 
-                    Description = playlist.Description 
+                syncDb.InsertOrReplace(new PlaylistRecord
+                {
+                    Id = playlist.Id.ToString(),
+                    Name = playlist.Name,
+                    Description = playlist.Description
                 });
-
                 syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
-                
+
                 for (int i = 0; i < playlist.Tracks.Count; i++)
                 {
-                    syncDb.Insert(new PlaylistTrackRecord 
-                    { 
-                        PlaylistId = playlist.Id.ToString(), 
-                        TrackId = playlist.Tracks[i].Id.ToString(), 
-                        SortOrder = i 
+                    syncDb.Insert(new PlaylistTrackRecord
+                    {
+                        PlaylistId = playlist.Id.ToString(),
+                        TrackId = playlist.Tracks[i].Id.ToString(),
+                        SortOrder = i
                     });
                 }
             });
@@ -272,21 +282,21 @@ public class DatabaseService : IDisposable
         {
             var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
             var syncDb = _db.GetConnection();
-
             var dbPlaylists = syncDb.Table<PlaylistRecord>().ToList();
+
             foreach (var plRecord in dbPlaylists)
             {
-                var pList = new Playlist 
-                { 
-                    Id = Guid.Parse(plRecord.Id), 
-                    Name = plRecord.Name, 
-                    Description = plRecord.Description 
+                var pList = new Playlist
+                {
+                    Id = Guid.Parse(plRecord.Id),
+                    Name = plRecord.Name,
+                    Description = plRecord.Description
                 };
 
                 var dbTracks = syncDb.Table<PlaylistTrackRecord>()
-                                    .Where(pt => pt.PlaylistId == plRecord.Id)
-                                    .OrderBy(pt => pt.SortOrder)
-                                    .ToList();
+                    .Where(pt => pt.PlaylistId == plRecord.Id)
+                    .OrderBy(pt => pt.SortOrder)
+                    .ToList();
 
                 foreach (var pt in dbTracks)
                 {
@@ -295,6 +305,7 @@ public class DatabaseService : IDisposable
                         pList.Tracks.Add(track);
                     }
                 }
+
                 playlists.Add(pList);
             }
         }
@@ -302,6 +313,7 @@ public class DatabaseService : IDisposable
         {
             Log.Error(ex, "Failed to load playlists from database.");
         }
+
         return playlists;
     }
 

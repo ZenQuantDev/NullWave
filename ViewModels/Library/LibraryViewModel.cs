@@ -1,34 +1,30 @@
 using System;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 
 namespace NullWave.ViewModels;
 
 public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _library;
+    private CancellationTokenSource? _stateCts;
 
-    [ObservableProperty]
-    private string _searchQuery = string.Empty;
-
-    [ObservableProperty]
-    private Track? _selectedTrack;
-
-    [ObservableProperty]
-    private SortField _currentSort = SortField.DateAdded;
-
-    [ObservableProperty]
-    private bool _sortAscending = true;
+    [ObservableProperty] private string _searchQuery = string.Empty;
+    [ObservableProperty] private Track? _selectedTrack;
+    [ObservableProperty] private SortField _currentSort = SortField.DateAdded;
+    [ObservableProperty] private bool _sortAscending = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFavoritesView))]
@@ -37,6 +33,7 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsLastFmFilter))]
     [NotifyPropertyChangedFor(nameof(IsSoundCloudFilter))]
     [NotifyPropertyChangedFor(nameof(IsLocalFilter))]
+    [NotifyPropertyChangedFor(nameof(IsSpotifyFilter))]
     private LibraryView _currentView = LibraryView.All;
 
     [ObservableProperty]
@@ -44,11 +41,12 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsLastFmFilter))]
     [NotifyPropertyChangedFor(nameof(IsSoundCloudFilter))]
     [NotifyPropertyChangedFor(nameof(IsLocalFilter))]
+    [NotifyPropertyChangedFor(nameof(IsSpotifyFilter))]
     private TrackSource? _activeSourceFilter = null;
 
     public enum LibraryView { All, Favorites, Recent, Source }
 
-    public ObservableCollection<Track> Tracks { get; } = new();
+    public BulkObservableCollection<Track> Tracks { get; } = new();
     public Array SortOptions => Enum.GetValues(typeof(SortField));
 
     public bool IsFavoritesView => CurrentView == LibraryView.Favorites;
@@ -57,6 +55,7 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsLastFmFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.LastFm;
     public bool IsSoundCloudFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.SoundCloud;
     public bool IsLocalFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Local;
+    public bool IsSpotifyFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Spotify;
 
     public event Action<Track>? TrackDetailRequested;
     public event Action<Track>? PlayTrackRequested;
@@ -64,19 +63,77 @@ public partial class LibraryViewModel : ObservableObject
     public LibraryViewModel(LibraryService library)
     {
         _library = library;
-        Refresh();
+        TriggerRefresh(debounce: false);
     }
 
-    partial void OnSearchQueryChanged(string value) => Refresh();
-    partial void OnCurrentSortChanged(SortField value) => Refresh();
-    partial void OnSortAscendingChanged(bool value) => Refresh();
+    partial void OnSearchQueryChanged(string value) => TriggerRefresh(debounce: true);
+    partial void OnCurrentSortChanged(SortField value) => TriggerRefresh(debounce: false);
+    partial void OnSortAscendingChanged(bool value) => TriggerRefresh(debounce: false);
+    partial void OnCurrentViewChanged(LibraryView value) => TriggerRefresh(debounce: false);
+    partial void OnActiveSourceFilterChanged(TrackSource? value) => TriggerRefresh(debounce: false);
 
-    public void Refresh()
+    public void Refresh() => TriggerRefresh(debounce: false);
+
+    private void TriggerRefresh(bool debounce = false)
     {
-        Tracks.Clear();
-        IEnumerable<Track> results;
+        _stateCts?.Cancel();
+        _stateCts?.Dispose();
+        _stateCts = new CancellationTokenSource();
+        var token = _stateCts.Token;
 
-        switch (CurrentView)
+        string query = SearchQuery;
+        SortField sort = CurrentSort;
+        bool ascending = SortAscending;
+        LibraryView view = CurrentView;
+        TrackSource? filter = ActiveSourceFilter;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (debounce)
+                {
+                    await Task.Delay(300, token);
+                }
+
+                var (results, wasSearch) = FetchLibraryDataInternal(query, sort, ascending, view, filter);
+
+                if (token.IsCancellationRequested) return;
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (token.IsCancellationRequested) return;
+
+                    Guid? previousSelectedId = SelectedTrack?.Id;
+
+                    Tracks.ReplaceAll(results);
+
+                    if (previousSelectedId.HasValue)
+                    {
+                        SelectedTrack = Tracks.FirstOrDefault(t => t.Id == previousSelectedId.Value);
+                    }
+
+                    if (wasSearch)
+                    {
+                        NullActionLogger.SearchPerformed(query, Tracks.Count, "LibraryViewModel");
+                    }
+                });
+            }
+            catch (TaskCanceledException) { }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed background state synchronization inside LibraryViewModel.");
+            }
+        });
+    }
+
+    private (IEnumerable<Track> Results, bool WasSearchExecuted) FetchLibraryDataInternal(
+        string query, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
+    {
+        IEnumerable<Track> results;
+        bool wasSearch = false;
+
+        switch (view)
         {
             case LibraryView.Favorites:
                 results = _library.GetFavorites();
@@ -85,20 +142,24 @@ public partial class LibraryViewModel : ObservableObject
                 results = _library.GetRecentlyAdded();
                 break;
             case LibraryView.Source:
-                results = ActiveSourceFilter.HasValue
-                    ? _library.FilterBySource(ActiveSourceFilter.Value)
-                    : _library.GetSorted(CurrentSort, SortAscending);
+                results = filter.HasValue
+                    ? _library.FilterBySource(filter.Value)
+                    : _library.GetSorted(sort, ascending);
                 break;
             default:
-                if (!string.IsNullOrWhiteSpace(SearchQuery))
-                    results = _library.Search(SearchQuery, CurrentSort, SortAscending);
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    results = _library.Search(query, sort, ascending);
+                    wasSearch = true;
+                }
                 else
-                    results = _library.GetSorted(CurrentSort, SortAscending);
+                {
+                    results = _library.GetSorted(sort, ascending);
+                }
                 break;
         }
 
-        foreach (var track in results)
-            Tracks.Add(track);
+        return (results, wasSearch);
     }
 
     private void SetSourceFilter(TrackSource source)
@@ -113,25 +174,46 @@ public partial class LibraryViewModel : ObservableObject
             CurrentView = LibraryView.Source;
             ActiveSourceFilter = source;
         }
-        Refresh();
     }
 
     [RelayCommand]
-    private void RemoveTrack(Track? t)
+    private async Task RemoveTrackAsync(Track? t)
     {
         var target = t ?? SelectedTrack;
         if (target == null) return;
-        _library.Remove(target.Id);
-        if (SelectedTrack?.Id == target.Id) SelectedTrack = null;
-        Refresh();
+
+        Guid targetId = target.Id;
+        if (SelectedTrack?.Id == targetId) SelectedTrack = null;
+
+        await Task.Run(() => _library.Remove(targetId));
+
+        NullActionLogger.TrackRemoved(targetId.ToString(), "LibraryViewModel");
+        TriggerRefresh(debounce: false);
     }
 
     [RelayCommand]
-    private void ToggleFavorite()
+    private async Task ToggleFavoriteAsync()
     {
         if (SelectedTrack == null) return;
-        _library.ToggleFavorite(SelectedTrack.Id);
-        Refresh();
+
+        Guid targetId = SelectedTrack.Id;
+        bool expectedNewState = !SelectedTrack.IsFavorite;
+
+        await Task.Run(() => _library.ToggleFavorite(targetId));
+
+        NullActionLogger.FavoriteToggled(targetId.ToString(), expectedNewState, "LibraryViewModel");
+        TriggerRefresh(debounce: false);
+    }
+
+    [RelayCommand]
+    private async Task RecordPlayAsync()
+    {
+        if (SelectedTrack == null) return;
+        
+        Guid targetId = SelectedTrack.Id;
+        await Task.Run(() => _library.RecordPlay(targetId));
+        
+        TriggerRefresh(debounce: false);
     }
 
     [RelayCommand]
@@ -139,14 +221,7 @@ public partial class LibraryViewModel : ObservableObject
     {
         if (SelectedTrack == null) return;
         _library.AddToQueue(SelectedTrack.Id);
-    }
-
-    [RelayCommand]
-    private void RecordPlay()
-    {
-        if (SelectedTrack == null) return;
-        _library.RecordPlay(SelectedTrack.Id);
-        Refresh();
+        NullActionLogger.User("AddToQueue", SelectedTrack.Id.ToString(), "LibraryViewModel");
     }
 
     [RelayCommand] private void SortByTitle() => CurrentSort = SortField.Title;
@@ -161,18 +236,39 @@ public partial class LibraryViewModel : ObservableObject
         SearchQuery = string.Empty;
         CurrentView = LibraryView.All;
         ActiveSourceFilter = null;
-        Refresh();
     }
 
-    [RelayCommand] private void ShowFavorites() { CurrentView = LibraryView.Favorites; ActiveSourceFilter = null; Refresh(); }
-    [RelayCommand] private void ShowRecent() { CurrentView = LibraryView.Recent; ActiveSourceFilter = null; Refresh(); }
+    [RelayCommand] 
+    private void ShowFavorites() 
+    { 
+        CurrentView = LibraryView.Favorites; 
+        ActiveSourceFilter = null; 
+    }
+
+    [RelayCommand] 
+    private void ShowRecent() 
+    { 
+        CurrentView = LibraryView.Recent; 
+        ActiveSourceFilter = null; 
+    }
+
     [RelayCommand] private void FilterYouTube() => SetSourceFilter(TrackSource.YouTube);
     [RelayCommand] private void FilterSpotify() => SetSourceFilter(TrackSource.Spotify);
     [RelayCommand] private void FilterSoundCloud() => SetSourceFilter(TrackSource.SoundCloud);
     [RelayCommand] private void FilterLocal() => SetSourceFilter(TrackSource.Local);
     [RelayCommand] private void FilterLastFm() => SetSourceFilter(TrackSource.LastFm);
+    
     [RelayCommand] private void OpenDetail() { if (SelectedTrack != null) TrackDetailRequested?.Invoke(SelectedTrack); }
-    [RelayCommand] private void PlayTrack(Track? t) { if (t != null) PlayTrackRequested?.Invoke(t); }
+
+    [RelayCommand]
+    private void PlayTrack(Track? t)
+    {
+        if (t != null)
+        {
+            NullActionLogger.TrackPlayed(t.Id.ToString(), t.Title, t.Artist, "LibraryViewModel");
+            PlayTrackRequested?.Invoke(t);
+        }
+    }
 
     [RelayCommand]
     private async Task CopyUrlAsync()
@@ -181,7 +277,7 @@ public partial class LibraryViewModel : ObservableObject
         if (string.IsNullOrEmpty(url)) return;
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {
                 var clipboard = TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
                 if (clipboard != null)
@@ -193,7 +289,7 @@ public partial class LibraryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to copy URL to clipboard");
+            NullActionLogger.Error("LibraryViewModel", ex, "Failed to copy target link asset route destination to local clipboard stack.");
         }
     }
 }

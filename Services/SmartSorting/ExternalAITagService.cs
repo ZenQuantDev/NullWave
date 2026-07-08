@@ -11,6 +11,12 @@ namespace NullWave.Services.SmartSorting;
 
 public class ExternalAITagService
 {
+    private const int MaxTagsPerTrack = 8;
+    private static readonly HashSet<string> TagDenylist = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "seen live", "favorite", "favourites", "awesome", "amazing"
+    };
+
     //  Approved tag vocabulary (prevents fragmentation across exports) 
     // The AI is instructed to only use these. On import we fuzzy-normalise
     // anything that slipped through anyway.
@@ -120,7 +126,7 @@ public class ExternalAITagService
             instructions = new
             {
                 role    = "Expert music curator AI",
-                task    = "Assign exactly 3 tags to each track from the approved_tags list.",
+                task    = "Assign exactly 8 tags to each track from the approved_tags list.",
                 rules   = new[]
                 {
                     "Reply ONLY with a valid JSON array. No markdown. No extra text.",
@@ -205,7 +211,12 @@ public class ExternalAITagService
 
         // Step 5: normalise tags against approved vocabulary
         foreach (var r in results)
-            r.Tags = r.Tags.Select(NormaliseTag).Where(t => t != null).Select(t => t!).ToList();
+            r.Tags = r.Tags
+                .Select(NormaliseTag)
+                .Where(t => t != null && !TagDenylist.Contains(t))
+                .Take(MaxTagsPerTrack)
+                .Select(t => t!)
+                .ToList();
 
         Log.Information("[ExternalAI] Parsed and normalised {Count} tag results", results.Count);
         return results;
@@ -215,7 +226,7 @@ public class ExternalAITagService
 
     private static void AppendSharedInstructions(StringBuilder sb, string context)
     {
-        sb.AppendLine("You are an expert music curator AI. Assign exactly 3 tags to each track.");
+        sb.AppendLine("You are an expert music curator AI. Assign exactly 8 tags to each track.");
         sb.AppendLine();
         sb.AppendLine("RULES:");
         sb.AppendLine("- Reply ONLY with a valid JSON array. No markdown fences. No extra text.");
