@@ -3,7 +3,6 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using NullWave.Helpers;
@@ -94,6 +93,7 @@ public class TrackDetailViewModel : ViewModelBase
     public ICommand RemoveTagCommand       { get; }
     public ICommand ToggleFavoriteCommand  { get; }
     public ICommand CopyUrlCommand         { get; }
+    public ICommand RelinkFileCommand      { get; }
 
     public TrackDetailViewModel(LibraryService library)
     {
@@ -104,6 +104,7 @@ public class TrackDetailViewModel : ViewModelBase
         RemoveTagCommand      = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
         CopyUrlCommand        = new RelayCommand(async () => await CopyUrlAsync());
+        RelinkFileCommand     = new RelayCommand(async () => await RelinkFileAsync());
     }
 
     public void OpenFor(Track track)
@@ -144,9 +145,14 @@ public class TrackDetailViewModel : ViewModelBase
     private void Save()
     {
         if (_currentTrack == null) return;
-        _currentTrack.Title  = EditTitle;
-        _currentTrack.Artist = EditArtist;
+        
+        _currentTrack.Title  = EditTitle.Trim();
+        _currentTrack.Artist = EditArtist.Trim();
         _currentTrack.Notes  = EditNotes;
+        
+        // Manual edit = authoritative, never auto-reprocess via ForceCleanTitles
+        _currentTrack.TitleForceCleaned = true; 
+        
         _currentTrack.Tags.Clear();
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
         
@@ -162,7 +168,6 @@ public class TrackDetailViewModel : ViewModelBase
         var tag = NewTag.Trim();
         if (string.IsNullOrWhiteSpace(tag) || Tags.Contains(tag)) return;
         
-        // Fully unrestricted collection additions enabled!
         Tags.Add(tag);
         NewTag = string.Empty;
     }
@@ -220,5 +225,37 @@ public class TrackDetailViewModel : ViewModelBase
             CopyStatus = "Copy";
             _isCopying = false;
         }
+    }
+
+    private async Task RelinkFileAsync()
+    {
+        if (_currentTrack == null) return;
+
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (window == null) return;
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select the correct audio file",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Audio Files")
+                { Patterns = new[] { "*.mp3", "*.flac", "*.wav", "*.ogg", "*.m4a", "*.aac" } }
+            }
+        });
+
+        if (files.Count == 0) return;
+
+        var newPath = files[0].Path.LocalPath;
+        _currentTrack.FilePath = newPath;
+        _library.RefreshAlbumArt(_currentTrack); // extracts art from the new file and persists it immediately
+
+        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(),
+            $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
+        Log.Information("Track relinked: {Title} → {Path}", _currentTrack.Title, newPath);
+
+        RefreshDisplayProperties(); // updates DisplayUrl and CurrentTrackArtPath bindings
     }
 }

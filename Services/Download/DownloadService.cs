@@ -226,7 +226,10 @@ public class DownloadService
         }
 
         ct = cts.Token;
-        Log.Information("Starting download: {Url} (format={Format}, quality={Quality})",
+        // Demoted to Debug: fires once per track, which floods the default log during
+        // large playlist downloads. The playlist-level "Playlist has N tracks" and the
+        // final "Bulk download complete" summary are what Default mode users need to see.
+        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
         try
@@ -276,8 +279,12 @@ public class DownloadService
 
             process.ErrorDataReceived += (_, e) =>
             {
+                // Demoted to Debug: yt-dlp emits one of these per unavailable/removed video,
+                // which is routine link-rot noise on older playlists (80+ in a single run
+                // is normal). The aggregate failed-count in the batch summary is what
+                // Default mode should show; Verbose mode surfaces the per-track reason.
                 if (!string.IsNullOrEmpty(e.Data))
-                    Log.Warning("yt-dlp stderr: {Line}", e.Data);
+                    Log.Debug("yt-dlp stderr: {Line}", e.Data);
             };
 
             process.Start();
@@ -287,7 +294,10 @@ public class DownloadService
 
             if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
-                Log.Information("Download complete: {Path}", outputFilePath);
+                // Demoted to Debug: per-track success. The interactive single-track case
+                // already gets a toast via DownloadCompleted; the playlist case is covered
+                // by the batch progress toast and final summary.
+                Log.Debug("Download complete: {Path}", outputFilePath);
                 DownloadCompleted?.Invoke(trackId, outputFilePath, isInteractive);
             }
             else if (process.ExitCode == 0)
@@ -467,7 +477,10 @@ public class DownloadService
 
                 if (_prefsService.Current.PreventDuplicateDownloads && _libraryService.IsDuplicate(newTrack))
                 {
-                    Log.Information("[DownloadService] Skipped duplicate: {Artist} - {Title}", artist, title);
+                    // Demoted to Debug: this can fire 100+ times per playlist re-run during
+                    // testing. The final "duplicates skipped" count in the batch summary
+                    // is what matters for Default mode.
+                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", artist, title);
                     skippedCount++;
                     PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
                     continue;
@@ -575,7 +588,8 @@ public class DownloadService
                     if (i < tracks.Count - 1)
                     {
                         var delayMs = GetThrottleDelayMs();
-                        Log.Information("Throttling download to avoid rate limits... sleeping for {Delay}ms", delayMs);
+                        // Demoted to Debug: fires once per track (up to hundreds per playlist).
+                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms", delayMs);
                         await Task.Delay(delayMs, ct);
                     }
                 }
@@ -588,7 +602,10 @@ public class DownloadService
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning("Skipping unavailable track {Url}: {Msg}", cleanUrl, ex.Message);
+                    // Demoted to Debug: this is a redundant safety-net catch around an
+                    // already-logged DownloadAsync failure; the aggregate failed count
+                    // in the batch summary covers it for Default mode.
+                    Log.Debug(ex, "Skipping unavailable track {Url}: {Msg}", cleanUrl, ex.Message);
                     _libraryService.Remove(trackId);
                     failedCount++;
                     DownloadCompleted -= OnCompleted;

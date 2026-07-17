@@ -1,4 +1,3 @@
-// LibraryService.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +9,20 @@ using SQLite;
 using Serilog;
 
 namespace NullWave.Services;
+
+/// <summary>
+/// A track whose stored title doesn't match the title embedded in its linked audio
+/// file's tags — a strong signal the FilePath points at the wrong file.
+/// </summary>
+public record LinkMismatch(
+    Guid TrackId,
+    string StoredTitle,
+    string StoredArtist,
+    string EmbeddedTitle,
+    string EmbeddedArtist,
+    string FilePath);
+
+public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
 
 public class LibraryService : IDisposable
 {
@@ -59,7 +72,7 @@ public class LibraryService : IDisposable
                     if (string.IsNullOrEmpty(thumbPath)) continue;
                     track.AlbumArtPath = thumbPath;
                     updatedTracks.Add(track);
-                    Log.Information("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
+                    Log.Debug("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
                 }
                 catch (Exception ex)
                 {
@@ -128,7 +141,7 @@ public class LibraryService : IDisposable
                     if (changed)
                     {
                         updatedTracks.Add(track);
-                        Log.Information("[LibraryService] SoundCloud backfilled: {Title}", track.Title);
+                        Log.Debug("[LibraryService] SoundCloud backfilled: {Title}", track.Title);
                     }
                 }
                 catch (Exception ex)
@@ -166,7 +179,7 @@ public class LibraryService : IDisposable
         {
             _tracks.Remove(track);
             _db.Delete(track.Id);
-            Log.Warning("[LibraryService] Removed track with bad URL: {Url}", track.Url);
+            Log.Debug("[LibraryService] Removed track with bad URL: {Url}", track.Url);
         }
 
         StateVersion++;
@@ -412,6 +425,22 @@ public class LibraryService : IDisposable
         BackfillSoundCloudThumbnails();
     }
 
+    /// <summary>
+    /// Re-extracts embedded album art from a track's current FilePath and persists
+    /// it immediately. Used after RelinkFile so a relinked track gets its correct
+    /// artwork right away instead of waiting for the next startup's BackfillAlbumArt
+    /// pass (which would otherwise leave the thumbnail blank until app restart).
+    /// </summary>
+    public void RefreshAlbumArt(Track track)
+    {
+        if (_metadata == null || string.IsNullOrEmpty(track.FilePath)) return;
+
+        track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
+        _db.Update(track);
+        StateVersion++;
+        OnLibraryChanged();
+    }
+
     public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
     {
         var withPath = _tracks.Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
@@ -422,7 +451,7 @@ public class LibraryService : IDisposable
         {
             if (File.Exists(track.FilePath)) continue;
             missing++;
-            Log.Warning("[LibraryService] Dead file path: {Path} (track: {Title})",
+            Log.Debug("[LibraryService] Dead file path: {Path} (track: {Title})",
                 track.FilePath, track.Title);
 
             if (!removeDeadEntries) continue;
@@ -439,6 +468,31 @@ public class LibraryService : IDisposable
         return (withPath.Count, missing, removed);
     }
 
+    /// <summary>
+    /// Re-links downloaded audio files to library tracks whose FilePath is missing or
+    /// dead. Two-pass matching, safest signal first:
+    ///
+    ///   Pass 1 — exact match: filename (no extension) equals the track title,
+    ///   case-insensitive. The only fully trustworthy signal, so it runs first and
+    ///   can't be overridden by a looser match below.
+    ///
+    ///   Pass 2 — token match: both strings are split into alphanumeric words (words
+    ///   of length ≤2 dropped as noise — "ft", "hd", etc). A track only matches a file
+    ///   if every one of its title's tokens appears as a whole word in the filename.
+    ///   Titles with fewer than 2 significant tokens are skipped entirely in this pass,
+    ///   since a single short word ("Low", "Down", "Scream") can appear inside unrelated
+    ///   filenames (slowed, windows, screamer) — that was the actual bug that mis-linked
+    ///   several tracks to the wrong audio in production.
+    ///
+    /// Within one call, a track can be matched at most once and a file can be claimed
+    /// by at most one track (matchedTrackIds/matchedFiles), which also fixes a second
+    /// bug: the same track being re-linked twice in a single run, with the second match
+    /// silently overwriting the first.
+    ///
+    /// Only tracks with a missing or already-dead FilePath are eligible, so a track
+    /// that's already correctly linked can never have its file stolen by a looser match
+    /// found later in the scan.
+    /// </summary>
     public int ReimportAssets(string directoryPath)
     {
         if (!Directory.Exists(directoryPath))
@@ -454,32 +508,210 @@ public class LibraryService : IDisposable
             .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
             .ToList();
 
-        int relinked = 0;
+        var candidates = _tracks
+            .Where(t => string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath))
+            .ToList();
+
+        var matchedTrackIds = new HashSet<Guid>();
+        var matchedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toUpdate = new List<Track>();
+
+        // Pass 1: exact title == filename match.
         foreach (var file in files)
         {
-            var fileNameNoExt = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-            var match = _tracks.FirstOrDefault(t =>
-                !string.Equals(t.FilePath, file, StringComparison.OrdinalIgnoreCase) &&
-                (fileNameNoExt.Contains(t.Title.ToLowerInvariant(), StringComparison.Ordinal) ||
-                 t.Title.ToLowerInvariant().Contains(fileNameNoExt, StringComparison.Ordinal) ||
-                 (t.FilePath != null &&
-                  Path.GetFileNameWithoutExtension(t.FilePath)
-                      .Equals(Path.GetFileNameWithoutExtension(file),
-                          StringComparison.OrdinalIgnoreCase))));
+            var fileNameNoExt = Path.GetFileNameWithoutExtension(file);
+            var exact = candidates.FirstOrDefault(t =>
+                !matchedTrackIds.Contains(t.Id) &&
+                string.Equals(t.Title, fileNameNoExt, StringComparison.OrdinalIgnoreCase));
+
+            if (exact == null) continue;
+
+            exact.FilePath = file;
+            matchedTrackIds.Add(exact.Id);
+            matchedFiles.Add(file);
+            toUpdate.Add(exact);
+            Log.Debug("[LibraryService] Re-linked (exact) '{Title}' → {File}", exact.Title, file);
+        }
+
+        // Pass 2: word-boundary token match for remaining files/tracks.
+        foreach (var file in files)
+        {
+            if (matchedFiles.Contains(file)) continue;
+
+            var fileTokens = Tokenize(Path.GetFileNameWithoutExtension(file));
+            if (fileTokens.Count == 0) continue;
+
+            var match = candidates.FirstOrDefault(t =>
+            {
+                if (matchedTrackIds.Contains(t.Id)) return false;
+                var titleTokens = Tokenize(t.Title);
+                return titleTokens.Count >= 2 && titleTokens.IsSubsetOf(fileTokens);
+            });
 
             if (match == null) continue;
 
-            Log.Information("[LibraryService] Re-linked '{Title}' → {File}", match.Title, file);
             match.FilePath = file;
-            _db.Update(match);
-            relinked++;
+            matchedTrackIds.Add(match.Id);
+            matchedFiles.Add(file);
+            toUpdate.Add(match);
+            Log.Debug("[LibraryService] Re-linked (token match) '{Title}' → {File}", match.Title, file);
         }
 
-        if (relinked > 0) StateVersion++;
-        Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
-            files.Count, relinked);
+        foreach (var track in toUpdate)
+            _db.Update(track);
 
-        return relinked;
+        if (toUpdate.Count > 0) StateVersion++;
+        Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
+            files.Count, toUpdate.Count);
+
+        return toUpdate.Count;
+    }
+
+    private static HashSet<string> Tokenize(string s) =>
+        System.Text.RegularExpressions.Regex
+            .Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
+            .Select(m => m.Value)
+            .Where(w => w.Length > 2)
+            .ToHashSet();
+
+    /// <summary>
+    /// Cross-checks every track with an existing FilePath against that file's embedded
+    /// tags, catching links that point at the wrong audio — the kind of damage the old
+    /// ReimportAssets substring bug caused, which file-existence checks like RepairPaths
+    /// can never detect since the file at the wrong path genuinely exists.
+    ///
+    /// A mismatch is flagged when neither the stored title nor the embedded tag title
+    /// (both normalised: lowercased, punctuation stripped) contains the other. Tracks
+    /// whose file has no readable title tag are skipped rather than flagged — an absent
+    /// tag isn't evidence of a wrong link, just an untagged file.
+    /// </summary>
+    public (int Checked, List<LinkMismatch> Mismatches) VerifyLinks()
+    {
+        var mismatches = new List<LinkMismatch>();
+
+        if (_metadata == null)
+        {
+            Log.Warning("[LibraryService] VerifyLinks: no MetadataService available, cannot read embedded tags");
+            return (0, mismatches);
+        }
+
+        var withFile = _tracks
+            .Where(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
+            .ToList();
+
+        foreach (var track in withFile)
+        {
+            (string Title, string Artist) embedded;
+            try
+            {
+                embedded = _metadata.FetchFromLocalFile(track.FilePath!);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[LibraryService] VerifyLinks: couldn't read tags for {Path}", track.FilePath);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(embedded.Title)) continue;
+
+            if (TitlesLooselyMatch(track.Title, embedded.Title)) continue;
+
+            var mismatch = new LinkMismatch(
+                track.Id, track.Title, track.Artist,
+                embedded.Title, embedded.Artist, track.FilePath!);
+            mismatches.Add(mismatch);
+
+            Log.Warning(
+                "[LibraryService] Possible mis-link: stored '{StoredTitle}' by '{StoredArtist}' " +
+                "→ file tagged '{EmbeddedTitle}' by '{EmbeddedArtist}' ({Path})",
+                mismatch.StoredTitle, mismatch.StoredArtist,
+                mismatch.EmbeddedTitle, mismatch.EmbeddedArtist, mismatch.FilePath);
+        }
+
+        Log.Information("[LibraryService] VerifyLinks: {Checked} tracks checked, {Mismatches} possible mismatch(es) found",
+            withFile.Count, mismatches.Count);
+
+        return (withFile.Count, mismatches);
+    }
+
+    private static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle)
+    {
+        var a = NormalizeForCompare(storedTitle);
+        var b = NormalizeForCompare(embeddedTitle);
+        if (a.Length == 0 || b.Length == 0) return true; // nothing usable to compare, don't flag
+        return a.Contains(b) || b.Contains(a);
+    }
+
+    private static string NormalizeForCompare(string s)
+    {
+        var decomposed = (s ?? string.Empty).Normalize(System.Text.NormalizationForm.FormD);
+        var stripped = new string(decomposed
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                        != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray());
+        return new string(stripped.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    }
+
+    /// <summary>
+    /// Retroactively re-parses every track's Title for an embedded "Artist - Title"
+    /// pattern and, where found, overwrites both Title and Artist with the parsed
+    /// values — unconditionally, even if Artist already has a value. This exists
+    /// because YouTube uploads from compilation/repost channels (e.g. a "Minecraft
+    /// Volume Alpha" playlist uploaded by a channel called "SMORT") store the channel
+    /// name as Artist, which is wrong but not "empty," so the normal title-splitting
+    /// fallback used elsewhere in the app (which only fires when Artist is missing or
+    /// "Unknown") never corrects it.
+    ///
+    /// This is a best-effort heuristic, not a guarantee: titles with more than one
+    /// " - " segment (e.g. "Bitter Sweet - Kanye West - Def Poetry") can parse into
+    /// the wrong artist/title split, since there's no reliable way to know which
+    /// segment is the real artist — spot-check results afterward, especially on
+    /// multi-dash titles.
+    /// </summary>
+    public int ForceCleanTitles()
+    {
+        int cleaned = 0;
+        foreach (var track in _tracks)
+        {
+            if (track.TitleForceCleaned) continue; // never re-split a track twice
+
+            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(track.Title);
+            if (parsed == null) 
+            { 
+                track.TitleForceCleaned = true; 
+                _db.Update(track); 
+                continue; 
+            }
+
+            var (parsedArtist, parsedTitle) = parsed.Value;
+            if (string.IsNullOrWhiteSpace(parsedArtist) || string.IsNullOrWhiteSpace(parsedTitle))
+            {
+                track.TitleForceCleaned = true;
+                _db.Update(track);
+                continue;
+            }
+
+            if (parsedArtist == track.Artist && parsedTitle == track.Title)
+            {
+                track.TitleForceCleaned = true;
+                _db.Update(track);
+                continue;
+            }
+
+            Log.Debug("[LibraryService] Force-cleaned: '{OldTitle}' by '{OldArtist}' → '{NewTitle}' by '{NewArtist}'",
+                track.Title, track.Artist, parsedTitle, parsedArtist);
+
+            track.Title = parsedTitle;
+            track.Artist = parsedArtist;
+            track.TitleForceCleaned = true; // mark done regardless of outcome
+            _db.Update(track);
+            cleaned++;
+        }
+
+        if (cleaned > 0) StateVersion++;
+        Log.Information("[LibraryService] ForceCleanTitles: {Count} of {Total} tracks cleaned",
+            cleaned, _tracks.Count);
+        return cleaned;
     }
 
     public int ClearTagsForReSync()
@@ -532,7 +764,7 @@ public class LibraryService : IDisposable
             {
                 File.Delete(fullPath);
                 deleted++;
-                Log.Information("[LibraryService] Swept orphaned file: {Path}", fullPath);
+                Log.Debug("[LibraryService] Swept orphaned file: {Path}", fullPath);
             }
             catch (Exception ex)
             {
@@ -541,7 +773,58 @@ public class LibraryService : IDisposable
             }
         }
 
+        Log.Information("[LibraryService] SweepOrphanedFiles: {Scanned} scanned, {Orphaned} orphaned, {Deleted} deleted, {Failed} failed (dryRun={DryRun})",
+            audioFiles.Count, orphaned, deleted, failed, dryRun);
+
         return (audioFiles.Count, orphaned, deleted, failed);
+    }
+
+    /// <summary>
+    /// Finds tracks sharing the same normalized (Title, Artist) — a real duplicate
+    /// signal now that ForceCleanTitles/ImportViewModel's sanitizer normalize titles
+    /// on both import and force-clean. Within each duplicate group, keeps one "best"
+    /// track and (if not dryRun) deletes the rest. Keeper priority: has a FilePath
+    /// that exists on disk > higher PlayCount > IsFavorite > earliest DateAdded.
+    /// </summary>
+    public (int Scanned, int DuplicateGroups, int Removed) RemoveDuplicates(bool dryRun = true)
+    {
+        var groups = _tracks
+            .GroupBy(t => (Title: t.Title.Trim().ToLowerInvariant(), Artist: t.Artist.Trim().ToLowerInvariant()))
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        int removed = 0;
+        foreach (var group in groups)
+        {
+            var ordered = group
+                .OrderByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
+                .ThenByDescending(t => t.PlayCount)
+                .ThenByDescending(t => t.IsFavorite)
+                .ThenBy(t => t.DateAdded)
+                .ToList();
+
+            var keeper = ordered[0];
+            var duplicates = ordered.Skip(1).ToList();
+
+            foreach (var dup in duplicates)
+            {
+                Log.Information("[LibraryService] Duplicate: keeping '{KeepTitle}' ({KeepPath}), removing '{DupTitle}' ({DupPath})",
+                    keeper.Title, keeper.FilePath ?? keeper.Url, dup.Title, dup.FilePath ?? dup.Url);
+
+                if (!dryRun)
+                {
+                    _tracks.Remove(dup);
+                    _db.Delete(dup.Id);
+                    removed++;
+                }
+            }
+        }
+
+        if (removed > 0) StateVersion++;
+        Log.Information("[LibraryService] RemoveDuplicates: {Scanned} tracks scanned, {Groups} duplicate group(s) found, {Removed} removed (dryRun={DryRun})",
+            _tracks.Count, groups.Count, removed, dryRun);
+
+        return (_tracks.Count, groups.Count, removed);
     }
 
     public (long BeforeKB, long AfterKB) VacuumDatabase()

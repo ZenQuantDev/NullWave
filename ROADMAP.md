@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 30-Jun-2026
+> Last updated: 17-Jul-2026
 
 ---
 
@@ -259,3 +259,103 @@ main                  ← always stable, builds clean
 | CommunityToolkit.Mvvm | latest stable | RelayCommand, ObservableProperty |
 
 ---
+---
+
+## Phase 9 - Stability, Feedback & Naming Audit 🔄
+
+**Goal:** Fix confirmed playback/data bugs, make every action give visible feedback,
+and replace vague descriptions ("left side bar", "top bar") with the actual
+component names below so future planning stays unambiguous.
+
+### 9.1 Confirmed bugs (this session)
+
+- ✅ `LibraryService.ReimportAssets` - fixed substring false-positive matching
+  (e.g. "Low" matching "s-low-ed"); rewritten as two-pass exact + word-boundary
+  token matching
+- ✅ `LibraryService.VerifyLinks` - new: cross-checks stored track titles against
+  embedded file tags, flags mis-links `RepairPaths`/`ReimportAssets` can't detect
+- ✅ `NullWaveLogConfig` - Default vs Advanced/Verbose logging modes, live-switchable
+  via `SettingsViewModel.VerboseLogging`, no restart needed
+- ✅ `PlaybackService.CrossfadeToAsync` / `OnPlaying` - fixed the "silent playback"
+  bug: the native volume-reapply nudge was gated on `_fadeCts` state that never
+  reset after a fade completed, so after the *first* crossfade or fade-pause in a
+  session, the nudge silently stopped firing for all future track starts. Also
+  fixed event-handler attach order in crossfade (was attaching to the new
+  `MediaPlayer` *after* calling `Play()`).
+- 📋 SoundCloud import - a track was found with its `Title` field containing a raw
+  pasted SoundCloud URL instead of a resolved title. Ruled out
+  `SoundCloudMetadataFetcher` (its failure path falls back to literal
+  "SoundCloud track", not the raw URL) - likely originates in
+  `TrackInputViewModel`'s add-track flow. Needs that file to confirm.
+- 📋 `LocalAIService.RankTracksForMoodAsync` - observed a real `HttpIOException`
+  mid-ranking that silently falls back to keyword sorting with no user-facing
+  indication anything went wrong.
+- 💡 `TitleSanitizer.cs` and `TrackTitleParser.cs` - two separate implementations
+  doing largely the same job (strip bracket junk, strip ft./feat., split
+  "Artist - Title"). Candidate for consolidation under Phase 7.3 Code Splitting.
+
+
+### 9.1b Confirmed bugs (17-Jul-2026 session)
+- ✅ `LibraryService.ForceCleanTitles` - fixed non-idempotency: a track whose
+  title still contained a residual separator after a partial clean (e.g.
+  "Door - Minecraft Volume Alpha") could get re-split on a later run, since
+  the method had no memory of what it had already processed. Added
+  `Track.TitleForceCleaned` bool (also added to `TrackRecord.FromTrack`/
+  `ToTrack` - the flag wasn't persisted at all initially, so it silently
+  reset every restart). Guard now skips any track already marked cleaned.
+- ✅ `LibraryService.VerifyLinks` - `NormalizeForCompare` now decomposes
+  Unicode diacritics (`NormalizationForm.FormD` + strip `NonSpacingMark`)
+  before stripping punctuation, fixing false-positive mismatches on titles
+  like "Oxygène" vs a manually-typed "Oxygene".
+- ✅ `TrackDetailViewModel.RelinkFileCommand` - new: file picker to manually
+  repoint a track's `FilePath` when `VerifyLinks` flags a wrong-file link.
+  Paired with `LibraryService.RefreshAlbumArt()`, which re-extracts embedded
+  art immediately on relink instead of waiting for the next startup's
+  `BackfillAlbumArt` pass.
+- ✅ `ImportViewModel.ImportFolderAsync` - fixed duplicate imports: re-importing
+  a folder whose files were already in the library (under a raw, uncleaned
+  tag like "PASTEL GHOST ~ ETHEREALITY") bypassed `IsDuplicate()`'s exact
+  Title+Artist match, since the existing library entry had a cleaned title
+  ("Ethereality"). Now runs `TitleSanitizer.Sanitize()` on the raw tag before
+  constructing the candidate `Track`, so both copies normalize to the same
+  Title/Artist and are correctly recognized as duplicates.
+- ✅ `LibraryService.RemoveDuplicates` - new maintenance tool (Preview/Remove,
+  same pattern as `SweepOrphanedFiles`): groups tracks by normalized
+  (Title, Artist) and removes all but a "best" keeper per group (priority:
+  file exists on disk > PlayCount > IsFavorite > earliest DateAdded). Used
+  once to clear 22 duplicates left over from repeated test imports.
+  ⚠️ Known limitation: keeper selection checks only `File.Exists`, not
+  whether the file's embedded tags actually match the track - in one run
+  this kept 3 tracks whose `FilePath` pointed at an unrelated song (a
+  pre-existing bug, not caused by this tool) and deleted the correctly-linked
+  copies instead. Fixed manually via Relink File; a future pass could
+  strengthen the keeper check to also require `VerifyLinks`-style tag
+  agreement, not just file existence.
+### 9.2 Universal action feedback
+
+- 📋 Audit every user-triggered action for a live/toast notification, not just
+  maintenance operations (`RepairPaths`, `SweepOrphanedFiles`, etc. already
+  covered). Known gaps: `MoodPlaylistService` AI ranking (silent fallback), track
+  edits in `TrackDetailViewModel`, playlist CRUD in `PlaylistViewModel`.
+
+### 9.3 Component naming reference (use these in future roadmap entries, not descriptions)
+
+| Informal description | Actual component |
+|---|---|
+| "left side bar" | `Views/Controls/SidebarView.axaml` |
+| "the profile thing" | `UserProfileViewModel.cs` + `Views/ProfileWindow.axaml` |
+| "top bar" / "add button" | The toolbar inside `Views/Controls/TrackListView.axaml` (search box + sort `ComboBox` + `+ Add` `SplitButton`) - **not** `MenuBarView.axaml`, the separate Alt-key-toggled File/Library/Settings/Help bar |
+| "search tab" | ❓ Unclear - `LibraryViewModel.SearchQuery`/`Search()` is already wired into `TrackListView`'s search box. Is this about that search box, or a separate dedicated Search page that was never built? |
+| "appearance tab is a placeholder" | `AppearanceTab.axaml` is built and saves via `PreferencesService` (Phase 5 ✅) - but "wire appearance settings to actual UI (live accent color, row height, font scale)" is still 📋. The tab works but doesn't re-skin the app live yet, which likely reads as "placeholder" |
+| "updates tab is useless" | `UpdatesTab.axaml` + `UpdateService`/`DependencyUpdateService` are real and wired (`CheckForUpdateAsync`, `UpdateYtDlpAsync`, `CheckDependenciesAsync`) - worth re-checking before assuming nothing works |
+| "sorting doesn't work as intended" | ❓ Needs repro steps - `LibraryViewModel.SortByTitle/Artist/Date/PlayCount` and `LibraryService.GetSorted()` appear wired |
+
+### 9.4 Deferred (explicitly, not forgotten)
+
+- 💡 Modular/independent feature architecture (e.g. profile removable without
+  breaking core) - large architectural change, own future phase
+- 💡 Top bar / Add-track flow redesign - frontend, after 9.1-9.2 land per
+  "backend first" priority
+- 💡 `SidebarView` padding/spacing pass
+- 💡 Unique/creative differentiator features - ideas welcome, not yet scoped
+

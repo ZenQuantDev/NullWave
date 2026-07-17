@@ -131,6 +131,16 @@ public class MainViewModel : ViewModelBase
 
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
+        // Surfaces silent AI-ranking fallbacks (Ollama unreachable, timed out, bad
+        // response) as a toast. Previously the only trace was the raw exception in
+        // the log file — the mood playlist would still "succeed" from the user's
+        // point of view with zero indication the AI step was actually skipped.
+        _localAI.FallbackNotice += message =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                ToastService.Instance.Show(message, ToastType.Warning));
+        };
+
         Settings.SweepOrphanedFilesRequested += dryRun =>
         {
             if (_isMaintenanceRunning) return;
@@ -169,6 +179,64 @@ public class MainViewModel : ViewModelBase
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     Settings.ReportVacuumComplete(before, after);
+                    _isMaintenanceRunning = false;
+                });
+            });
+        };
+
+        // Verify Links: cross-checks stored track metadata against each linked file's
+        // embedded tags. Catches "correctly-existing but wrong" links that RepairPaths
+        // and ReimportAssets can't detect, since both only check file existence.
+        Settings.VerifyLinksRequested += () =>
+        {
+            if (_isMaintenanceRunning) return;
+            _isMaintenanceRunning = true;
+
+            _ = Task.Run(() =>
+            {
+                var (checkedCount, mismatches) = _library.VerifyLinks();
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    Settings.ReportVerifyLinksComplete(checkedCount, mismatches.Count);
+                    _isMaintenanceRunning = false;
+                });
+            });
+        };
+
+        Settings.RemoveDuplicatesRequested += dryRun =>
+        {
+            if (_isMaintenanceRunning) return;
+            _isMaintenanceRunning = true;
+
+            _ = Task.Run(() =>
+            {
+                var (scanned, groups, removed) = _library.RemoveDuplicates(dryRun);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    Settings.ReportDedupeComplete(scanned, groups, removed, dryRun);
+                    Library.Refresh();
+                    _isMaintenanceRunning = false;
+                });
+            });
+        };
+
+        // Force Clean Titles: retroactively re-parses every track's title for an
+        // embedded "Artist - Title" pattern, overriding a wrong channel-name-as-artist
+        // value (e.g. a Minecraft OST playlist uploaded by "SMORT" instead of C418).
+        Settings.ForceCleanTitlesRequested += () =>
+        {
+            if (_isMaintenanceRunning) return;
+            _isMaintenanceRunning = true;
+
+            _ = Task.Run(() =>
+            {
+                var cleaned = _library.ForceCleanTitles();
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    Settings.ReportForceCleanComplete(cleaned);
+                    Library.Refresh();
                     _isMaintenanceRunning = false;
                 });
             });

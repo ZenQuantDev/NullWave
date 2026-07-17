@@ -37,6 +37,16 @@ public class LocalAIService
     private volatile PowerState _currentPowerState = PowerState.AC;
     private volatile bool _autoPowerSwitch = true;
 
+    /// <summary>
+    /// Fires whenever RankTracksForMoodAsync silently falls back to local keyword
+    /// sorting instead of using the AI model — e.g. Ollama returned a non-success
+    /// HTTP status, or the request threw (timeout, connection reset, etc). Without
+    /// this, the only sign anything went wrong was the raw exception in the log
+    /// file; the mood playlist would still "succeed" from the caller's point of
+    /// view with no indication the AI step was skipped.
+    /// </summary>
+    public event Action<string>? FallbackNotice;
+
     public LocalAIService()
     {
         // Fire up the long-running sequential queue processor
@@ -297,6 +307,7 @@ public class LocalAIService
                 {
                     var errorResponse = await response.Content.ReadAsStringAsync(ct);
                     Log.Error("[LocalAI] Ollama API returned HTTP {StatusCode}: {ErrorBody}. Falling back to local keyword sorting.", (int)response.StatusCode, errorResponse);
+                    FallbackNotice?.Invoke($"Local AI request failed (HTTP {(int)response.StatusCode}) — used keyword-based sorting instead.");
                     return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
                 }
 
@@ -313,6 +324,7 @@ public class LocalAIService
             catch (Exception ex)
             {
                 Log.Error(ex, "[LocalAI] Critical failure or timeout during local AI calculation. Falling back to local keyword sorting.");
+                FallbackNotice?.Invoke("Local AI timed out or was unreachable — used keyword-based sorting instead.");
                 return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
             }
         }

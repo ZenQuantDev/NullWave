@@ -14,6 +14,15 @@ public class PlaybackService : IDisposable
     private bool _disposed;
     private CancellationTokenSource? _fadeCts;
 
+    // Explicit fade-state flag, separate from _fadeCts's lifetime. The previous code
+    // gated the OnPlaying volume-nudge on "_fadeCts == null || _fadeCts.IsCancellationRequested",
+    // but _fadeCts is never nulled or cancelled after a fade completes normally — so after
+    // the *first* crossfade or fade-pause/resume in a session, that check went permanently
+    // false and the nudge silently stopped firing for every track start afterward. This was
+    // the root cause of "plays with zero audio until I touch play or the volume slider":
+    // touching volume forces a real native set_volume call, bypassing the broken nudge.
+    private bool _isFading;
+
     public event Action<float>? PositionChanged;
     public event Action<PlaybackState>? StateChanged;
     public event Action? TrackFinished;
@@ -64,8 +73,11 @@ public class PlaybackService : IDisposable
     
     private void OnPlaying(object? sender, EventArgs e)
     {
-        // Native volume fix must happen immediately on the native thread
-        if (_fadeCts == null || _fadeCts.IsCancellationRequested)
+        // Native volume fix must happen immediately on the native thread. Only skipped
+        // while a fade/crossfade is actively ramping volume on this player — _isFading
+        // is explicitly cleared in a finally block by every fade method, so this check
+        // can't go stale the way the old _fadeCts-based check did.
+        if (!_isFading)
         {
             _player.Volume = _player.Volume; 
         }
@@ -97,6 +109,7 @@ public class PlaybackService : IDisposable
         try
         {
             _fadeCts?.Cancel();
+            _isFading = false;
             _currentMedia?.Dispose();
             
             var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
@@ -119,6 +132,7 @@ public class PlaybackService : IDisposable
         if (_player.IsPlaying)
         {
             _fadeCts?.Cancel();
+            _isFading = false;
             _player.Pause();
             Log.Debug("Playback paused");
         }
@@ -129,6 +143,7 @@ public class PlaybackService : IDisposable
         if (!_player.IsPlaying && _player.Media != null)
         {
             _fadeCts?.Cancel();
+            _isFading = false;
             _player.Play();
             Log.Debug("Playback resumed");
         }
@@ -137,6 +152,7 @@ public class PlaybackService : IDisposable
     public void Stop()
     {
         _fadeCts?.Cancel();
+        _isFading = false;
         _player.Stop();
         Log.Debug("Playback stopped");
     }
@@ -150,14 +166,22 @@ public class PlaybackService : IDisposable
     {
         _fadeCts?.Cancel();
         _fadeCts = new CancellationTokenSource();
-        
-        float originalVolume = Volume;
-        await FadeVolumeAsync(_player, originalVolume, 0f, durationMs, _fadeCts.Token);
-        
-        if (!_fadeCts.Token.IsCancellationRequested)
+        _isFading = true;
+
+        try
         {
-            _player.Pause();
-            Volume = originalVolume;
+            float originalVolume = Volume;
+            await FadeVolumeAsync(_player, originalVolume, 0f, durationMs, _fadeCts.Token);
+
+            if (!_fadeCts.Token.IsCancellationRequested)
+            {
+                _player.Pause();
+                Volume = originalVolume;
+            }
+        }
+        finally
+        {
+            _isFading = false;
         }
     }
 
@@ -165,12 +189,20 @@ public class PlaybackService : IDisposable
     {
         _fadeCts?.Cancel();
         _fadeCts = new CancellationTokenSource();
-        
-        float targetVolume = Volume > 0 ? Volume : 0.8f;
-        _player.Volume = 0;
-        _player.Play();
-        
-        await FadeVolumeAsync(_player, 0f, targetVolume, durationMs, _fadeCts.Token);
+        _isFading = true;
+
+        try
+        {
+            float targetVolume = Volume > 0 ? Volume : 0.8f;
+            _player.Volume = 0;
+            _player.Play();
+
+            await FadeVolumeAsync(_player, 0f, targetVolume, durationMs, _fadeCts.Token);
+        }
+        finally
+        {
+            _isFading = false;
+        }
     }
 
     public async Task CrossfadeToAsync(string nextPath, int durationMs, float targetVolume)
@@ -184,30 +216,42 @@ public class PlaybackService : IDisposable
         var isUrl = nextPath.StartsWith("http", StringComparison.OrdinalIgnoreCase);
         var nextMedia = isUrl ? new Media(_libVlc, new Uri(nextPath)) : new Media(_libVlc, nextPath);
         var nextPlayer = new MediaPlayer(_libVlc) { Media = nextMedia };
-        
-        nextPlayer.Volume = 0;
-        nextPlayer.Play();
 
         var oldPlayer = _player;
         var oldMedia = _currentMedia;
 
+        // Attach events and swap the active player reference BEFORE starting playback.
+        // The old code called nextPlayer.Play() first and only attached events / swapped
+        // _player afterward — risking a missed Playing event entirely (no handler attached
+        // yet), or the eventual handler firing against a stale _player reference. Doing the
+        // swap first means OnPlaying's volume-nudge always targets the right instance.
+        DetachEvents(oldPlayer);
         _player = nextPlayer;
         _currentMedia = nextMedia;
-        
-        DetachEvents(oldPlayer);
         AttachEvents(_player);
 
         _fadeCts?.Cancel();
         _fadeCts = new CancellationTokenSource();
-        
-        var fadeOutTask = FadeVolumeAsync(oldPlayer, oldPlayer.Volume / 100f, 0f, durationMs, _fadeCts.Token);
-        var fadeInTask = FadeVolumeAsync(nextPlayer, 0f, targetVolume, durationMs, _fadeCts.Token);
-        
-        await Task.WhenAll(fadeOutTask, fadeInTask);
+        _isFading = true;
 
-        oldPlayer.Stop();
-        oldPlayer.Dispose();
-        oldMedia?.Dispose();
+        try
+        {
+            nextPlayer.Volume = 0;
+            nextPlayer.Play();
+
+            var fadeOutTask = FadeVolumeAsync(oldPlayer, oldPlayer.Volume / 100f, 0f, durationMs, _fadeCts.Token);
+            var fadeInTask = FadeVolumeAsync(nextPlayer, 0f, targetVolume, durationMs, _fadeCts.Token);
+
+            await Task.WhenAll(fadeOutTask, fadeInTask);
+
+            oldPlayer.Stop();
+            oldPlayer.Dispose();
+            oldMedia?.Dispose();
+        }
+        finally
+        {
+            _isFading = false;
+        }
     }
 
     private async Task FadeVolumeAsync(MediaPlayer p, float start, float end, int durationMs, CancellationToken ct)

@@ -32,43 +32,47 @@ public class TrackRecord
     public DateTime? LastSkipped { get; set; }
     public string? TagsRaw   { get; set; }
 
+    public bool TitleForceCleaned { get; set; } = false;
+
     public static TrackRecord FromTrack(Track t) => new()
     {
-        Id          = t.Id.ToString(),
-        Title       = t.Title,
-        Artist      = t.Artist,
-        Url         = t.Url,
-        FilePath    = t.FilePath,
-        Source      = t.Source.ToString(),
-        DateAdded   = t.DateAdded,
-        IsFavorite  = t.IsFavorite,
-        PlayCount   = t.PlayCount,
-        LastPlayed  = t.LastPlayed,
-        AlbumArtPath = t.AlbumArtPath,
-        Notes       = t.Notes,
-        SkipCount   = t.SkipCount,
-        LastSkipped = t.LastSkipped,
-        TagsRaw     = t.Tags.Count > 0 ? string.Join("|", t.Tags) : null
+        Id                = t.Id.ToString(),
+        Title             = t.Title,
+        Artist            = t.Artist,
+        Url               = t.Url,
+        FilePath          = t.FilePath,
+        Source            = t.Source.ToString(),
+        DateAdded         = t.DateAdded,
+        IsFavorite        = t.IsFavorite,
+        PlayCount         = t.PlayCount,
+        LastPlayed        = t.LastPlayed,
+        AlbumArtPath      = t.AlbumArtPath,
+        Notes             = t.Notes,
+        SkipCount         = t.SkipCount,
+        LastSkipped       = t.LastSkipped,
+        TagsRaw           = t.Tags.Count > 0 ? string.Join("|", t.Tags) : null,
+        TitleForceCleaned = t.TitleForceCleaned
     };
 
     public Track ToTrack() => new()
     {
-        Id          = Guid.TryParse(Id, out var g) ? g : Guid.NewGuid(),
-        Title       = Title,
-        Artist      = Artist,
-        Url         = Url,
-        FilePath    = FilePath,
-        Source      = Enum.TryParse<TrackSource>(Source, out var s) ? s : TrackSource.Unknown,
-        DateAdded   = DateAdded,
-        IsFavorite  = IsFavorite,
-        PlayCount   = PlayCount,
-        LastPlayed  = LastPlayed,
-        AlbumArtPath = AlbumArtPath,
-        Notes       = Notes,
-        SkipCount   = SkipCount,
-        LastSkipped = LastSkipped,
-        Tags        = string.IsNullOrEmpty(TagsRaw)
+        Id                = Guid.TryParse(Id, out var g) ? g : Guid.NewGuid(),
+        Title             = Title,
+        Artist            = Artist,
+        Url               = Url,
+        FilePath          = FilePath,
+        Source            = Enum.TryParse<TrackSource>(Source, out var s) ? s : TrackSource.Unknown,
+        DateAdded         = DateAdded,
+        IsFavorite        = IsFavorite,
+        PlayCount         = PlayCount,
+        LastPlayed        = LastPlayed,
+        AlbumArtPath      = AlbumArtPath,
+        Notes             = Notes,
+        SkipCount         = SkipCount,
+        LastSkipped       = LastSkipped,
+        Tags              = string.IsNullOrEmpty(TagsRaw)
             ? new()
-            : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries)),
+        TitleForceCleaned = TitleForceCleaned
     };
 }

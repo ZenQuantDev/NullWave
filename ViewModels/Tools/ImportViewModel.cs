@@ -117,7 +117,22 @@ public class ImportViewModel : ViewModelBase
             {
                 ImportStatus = $"Importing {ImportProgress + 1}/{ImportTotal}...";
 
-                var (title, artist) = _metadata.FetchFromLocalFile(filePath);
+                var (rawTitle, rawArtist) = _metadata.FetchFromLocalFile(filePath);
+                var (sanitizedArtist, sanitizedTitle) =
+                    NullWave.Services.Metadata.TitleSanitizer.Sanitize(rawTitle);
+
+                // TagLib's embedded artist tag is usually correct when present — only fall
+                // back to the divider-derived artist (from splitting "Artist ~ Title") when
+                // the tag was missing or generic "Unknown". This prevents a raw tag like
+                // "PASTEL GHOST ~ ETHEREALITY" from being imported as a separate track from
+                // an already-cleaned "Ethereality" by "PASTEL GHOST" entry.
+                string title = string.IsNullOrWhiteSpace(sanitizedTitle) ? rawTitle : sanitizedTitle;
+                string artist = rawArtist;
+                if ((string.IsNullOrWhiteSpace(artist) || artist == "Unknown") &&
+                    !string.IsNullOrWhiteSpace(sanitizedArtist))
+                {
+                    artist = sanitizedArtist;
+                }
 
                 var track = new Track
                 {

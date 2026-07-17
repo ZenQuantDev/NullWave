@@ -9,10 +9,12 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.SmartSorting;
 using Serilog;
+using Serilog.Events;
 using System.Collections.ObjectModel;
 
 namespace NullWave.ViewModels;
@@ -185,6 +187,28 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public string YtDlpBrowserCookies { get => _prefsService.Current.YtDlpBrowserCookies; set { _prefsService.Update(p => p.YtDlpBrowserCookies = value); OnPropertyChanged(); ScheduleSave(); } }
     public string[] BrowserCookieOptions => new[] { "", "firefox", "chrome", "chromium", "brave", "vivaldi", "edge" };
 
+    /// <summary>
+    /// Logging mode toggle: Default (Information+) vs Advanced/Verbose (Debug+).
+    /// Updates NullWaveLogConfig's LoggingLevelSwitch immediately — no restart needed,
+    /// since Serilog's LoggingLevelSwitch is designed to be flipped at runtime.
+    /// </summary>
+    public bool VerboseLogging
+    {
+        get => _prefsService.Current.VerboseLogging;
+        set
+        {
+            _prefsService.Update(p => p.VerboseLogging = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LoggingModeLabel));
+            ScheduleSave();
+
+            NullWaveLogConfig.LevelSwitch.MinimumLevel = value ? LogEventLevel.Debug : LogEventLevel.Information;
+            Log.Information("[Settings] Logging mode changed to {Mode}", value ? "Advanced/Verbose" : "Default");
+        }
+    }
+
+    public string LoggingModeLabel => VerboseLogging ? "Advanced / Verbose" : "Default";
+
     public string AccentColor { get => _prefsService.Current.AccentColor; set { _prefsService.Update(p => p.AccentColor = value); OnPropertyChanged(); ScheduleSave(); } }
     public string TrackRowStyle { get => _prefsService.Current.TrackRowStyle; set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); ScheduleSave(); } }
     public string FontScale { get => _prefsService.Current.FontScale; set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); ScheduleSave(); } }
@@ -259,6 +283,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _repairStatus = string.Empty;
     [ObservableProperty] private string _sweepStatus = string.Empty;
     [ObservableProperty] private string _vacuumStatus = string.Empty;
+    [ObservableProperty] private string _verifyLinksStatus = string.Empty;
+    [ObservableProperty] private string _forceCleanStatus = string.Empty;
+    [ObservableProperty] private string _dedupeStatus = string.Empty;
     [ObservableProperty] private bool _isRepairing = false;
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private string _ytDlpStatus = string.Empty;
@@ -349,6 +376,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ClearYtDlpCacheRequested;
     public event Action<bool>? SweepOrphanedFilesRequested; // bool = dryRun
     public event Action? VacuumDatabaseRequested;
+    public event Action? VerifyLinksRequested;
+    public event Action? ForceCleanTitlesRequested;
+    public event Action<bool>? RemoveDuplicatesRequested; // bool = dryRun
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI)
     {
@@ -533,6 +563,47 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         VacuumDatabaseRequested?.Invoke();
     }
 
+    [RelayCommand]
+    private void VerifyLinks()
+    {
+        IsRepairing = true;
+        VerifyLinksStatus = "Checking file links against embedded metadata...";
+        VerifyLinksRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void ForceCleanTitles()
+    {
+        IsRepairing = true;
+        ForceCleanStatus = "Re-parsing track titles for embedded artist names...";
+        ForceCleanTitlesRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void PreviewDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Scanning for duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(true);
+    }
+
+    [RelayCommand]
+    private void RemoveDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Removing duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(false);
+    }
+
+    public void ReportDedupeComplete(int scanned, int groups, int removed, bool wasDryRun)
+    {
+        IsRepairing = false;
+        DedupeStatus = wasDryRun
+            ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up."
+            : $"✓ Removed {removed} duplicate track(s) across {groups} group(s).";
+        ToastService.Instance.Show(DedupeStatus, ToastType.Success);
+    }
+
     public void ReportSweepComplete(int scanned, int orphaned, int deleted, int failed, bool wasDryRun)
     {
         IsRepairing = false;
@@ -552,6 +623,24 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ? $"✓ Optimized: {beforeKB}KB → {afterKB}KB ({saved}KB reclaimed)"
             : $"✓ Database already optimal ({afterKB}KB)";
         ToastService.Instance.Show(VacuumStatus, ToastType.Success);
+    }
+
+    public void ReportVerifyLinksComplete(int checkedCount, int mismatchCount)
+    {
+        IsRepairing = false;
+        VerifyLinksStatus = mismatchCount == 0
+            ? $"✓ Checked {checkedCount} linked track(s) — no mismatches found."
+            : $"⚠ Checked {checkedCount} track(s) — found {mismatchCount} possible mis-link(s). See logs for details.";
+        ToastService.Instance.Show(VerifyLinksStatus, mismatchCount > 0 ? ToastType.Warning : ToastType.Success);
+    }
+
+    public void ReportForceCleanComplete(int cleaned)
+    {
+        IsRepairing = false;
+        ForceCleanStatus = cleaned == 0
+            ? "No titles needed cleaning."
+            : $"✓ Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
+        ToastService.Instance.Show(ForceCleanStatus, ToastType.Success);
     }
 
     [RelayCommand]

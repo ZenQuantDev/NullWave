@@ -6,7 +6,32 @@
              x:DataType="vm:SettingsViewModel">
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
-            
+
+            <!--  Logging  -->
+            <TextBlock Classes="section-label" Text="LOGGING" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Advanced / Verbose logging"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <Button Classes="help-btn"
+                                    ToolTip.Tip="Default mode logs summaries only (playlist totals, repair counts, errors). Advanced mode also logs every individual item — per-track downloads, per-file relinks, yt-dlp's raw output for each skipped video. Takes effect immediately, no restart needed.">
+                                <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding LoggingModeLabel, StringFormat='Current mode: {0}'}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{StaticResource FontSizeSm}"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1"
+                                  IsChecked="{Binding VerboseLogging}"
+                                  VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
             <!--  Data Folders  -->
             <TextBlock Classes="section-label" Text="DATA" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
@@ -46,20 +71,65 @@
             <!--  Metadata Engine  -->
             <TextBlock Classes="section-label" Text="METADATA ENGINE" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="AI Metadata Cleaning"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
-                                   FontWeight="SemiBold"/>
-                        <TextBlock Text="Automatically remove clutter like 'ft.', '(Official)', or '- Topic' from track data."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeSm}"/>
-                    </StackPanel>
-                    <ToggleSwitch Grid.Column="1" 
-                                  IsChecked="{Binding AutoCleanMetadata}" 
-                                  VerticalAlignment="Center"/>
-                </Grid>
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="AI Metadata Cleaning"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Automatically remove clutter like 'ft.', '(Official)', or '- Topic' from track data."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" 
+                                      IsChecked="{Binding AutoCleanMetadata}" 
+                                      VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Force clean titles"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <Button Classes="help-btn"
+                                        ToolTip.Tip="Re-parses every track's title for an embedded 'Artist - Title' pattern and overwrites both fields when found — even if Artist already has a value. Fixes tracks where a compilation or repost channel's name got stored as the artist instead of the real one (e.g. a Minecraft OST playlist uploaded by a channel called 'SMORT' instead of C418). This is a best-effort heuristic: titles with more than one dash-separated segment can occasionally split incorrectly, so it's worth spot-checking results afterward.">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Retroactively fix wrong artist names caused by compilation/repost channels"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary"
+                                Content="Force Clean"
+                                Command="{Binding ForceCleanTitlesCommand}"
+                                IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+
+                    <!-- Force Clean status feedback -->
+                    <Border Background="{StaticResource BrushElevated}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12,8"
+                            IsVisible="{Binding ForceCleanStatus,
+                            Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="InformationOutline"
+                                                   Width="14" Height="14"
+                                                   Foreground="{StaticResource BrushAccent}"
+                                                   VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ForceCleanStatus}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Border>
 
             <!--  Download Behavior  -->
@@ -228,7 +298,68 @@
                                     IsEnabled="{Binding !IsRepairing}"/>
                         </StackPanel>
                     </Grid>
-                    
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Verify links"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <Button Classes="help-btn"
+                                        ToolTip.Tip="Reads the embedded title tag from every linked audio file and compares it against the track's stored title. Flags tracks whose file appears to be the wrong one — something Repair Paths and Reimport Assets can't catch, since both only check whether a file exists, not whether it's the correct file. Results are written to the log.">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Cross-check linked files' embedded tags against stored track titles"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary"
+                                Content="Verify Links"
+                                Command="{Binding VerifyLinksCommand}"
+                                IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Remove duplicate tracks"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Find tracks with matching title and artist, keep the best copy"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="Preview"
+                                    Command="{Binding PreviewDuplicatesCommand}"
+                                    IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="danger" Content="Remove"
+                                    Command="{Binding RemoveDuplicatesCommand}"
+                                    IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Dedupe status feedback -->
+                    <Border Background="{StaticResource BrushElevated}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12,8"
+                            IsVisible="{Binding DedupeStatus,
+                            Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="InformationOutline"
+                                                   Width="14" Height="14"
+                                                   Foreground="{StaticResource BrushAccent}"
+                                                   VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DedupeStatus}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Repair status feedback -->
                     <Border Background="{StaticResource BrushElevated}"
                             CornerRadius="{StaticResource RadiusMd}"
@@ -260,6 +391,25 @@
                                                    Foreground="{StaticResource BrushAccent}"
                                                    VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding SweepStatus}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Verify Links status feedback (separate property, since mismatch text can be longer) -->
+                    <Border Background="{StaticResource BrushElevated}"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="12,8"
+                            IsVisible="{Binding VerifyLinksStatus,
+                            Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="InformationOutline"
+                                                   Width="14" Height="14"
+                                                   Foreground="{StaticResource BrushAccent}"
+                                                   VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding VerifyLinksStatus}"
                                        Foreground="{StaticResource BrushTextSecondary}"
                                        FontSize="{StaticResource FontSizeXs}"
                                        VerticalAlignment="Center"
