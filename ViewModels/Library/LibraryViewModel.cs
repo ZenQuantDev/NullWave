@@ -21,10 +21,38 @@ public partial class LibraryViewModel : ObservableObject
     private readonly LibraryService _library;
     private CancellationTokenSource? _stateCts;
 
-    [ObservableProperty] private string _searchQuery = string.Empty;
-    [ObservableProperty] private Track? _selectedTrack;
-    [ObservableProperty] private SortField _currentSort = SortField.DateAdded;
-    [ObservableProperty] private bool _sortAscending = true;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSearchQuery))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByTitle))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByArtist))]
+    [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSortedByTitle))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByArtist))]
+    [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    private Track? _selectedTrack;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSortedByTitle))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByArtist))]
+    [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    private SortField _currentSort = SortField.DateAdded;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSortedByTitle))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByArtist))]
+    [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    private bool _sortAscending = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFavoritesView))]
@@ -56,6 +84,16 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsSoundCloudFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.SoundCloud;
     public bool IsLocalFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Local;
     public bool IsSpotifyFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Spotify;
+    
+    public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery);
+    
+    public bool IsSortedByTitle => CurrentSort == SortField.Title;
+    public bool IsSortedByArtist => CurrentSort == SortField.Artist;
+    public bool IsSortedBySource => CurrentSort == SortField.Source;
+    public bool IsSortedByPlayCount => CurrentSort == SortField.PlayCount;
+    public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
+    
+    public string ResultCountLabel => Tracks.Count == 1 ? "1 track" : $"{Tracks.Count} tracks";
 
     public event Action<Track>? TrackDetailRequested;
     public event Action<Track>? PlayTrackRequested;
@@ -107,6 +145,7 @@ public partial class LibraryViewModel : ObservableObject
                     Guid? previousSelectedId = SelectedTrack?.Id;
 
                     Tracks.ReplaceAll(results);
+                    OnPropertyChanged(nameof(ResultCountLabel));
 
                     if (previousSelectedId.HasValue)
                     {
@@ -127,39 +166,124 @@ public partial class LibraryViewModel : ObservableObject
         });
     }
 
+    private void SetSort(SortField field)
+    {
+        if (CurrentSort == field) SortAscending = !SortAscending;
+        else { CurrentSort = field; SortAscending = true; }
+    }
+
+    private IEnumerable<Track> ApplySmartSearch(IEnumerable<Track> tracks, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return tracks;
+
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var filters = new List<Func<Track, bool>>();
+        var globalTerms = new List<string>();
+
+        string? pendingKey = null;
+        var pendingValueParts = new List<string>();
+
+        void FlushPending()
+        {
+            if (pendingKey == null) return;
+            var value = string.Join(' ', pendingValueParts).ToLowerInvariant();
+            var negate = pendingKey.StartsWith('-');
+            var key = negate ? pendingKey[1..] : pendingKey;
+
+            Func<Track, bool> filter = key switch
+            {
+                "artist" or "a" => t => t.Artist.ToLowerInvariant().Contains(value),
+                "title" or "t"  => t => t.Title.ToLowerInvariant().Contains(value),
+                "source" or "s" => t => t.Source.ToString().ToLowerInvariant().Contains(value),
+                "tag" or "genre" => t => t.Tags.Any(tag => tag.ToLowerInvariant().Contains(value)),
+                "is" => (value == "favorite" || value == "fav")
+                    ? (Func<Track, bool>)(t => t.IsFavorite)
+                    : t => true,
+                _ => t => true // unknown key, ignore rather than break the whole query
+            };
+
+            filters.Add(negate ? (t => !filter(t)) : filter);
+            pendingKey = null;
+            pendingValueParts.Clear();
+        }
+
+        foreach (var word in words)
+        {
+            var colonIndex = word.IndexOf(':');
+            if (colonIndex > 0)
+            {
+                FlushPending(); // a new key: starts — close out whatever we were accumulating
+                pendingKey = word[..colonIndex];
+                var firstValuePart = word[(colonIndex + 1)..];
+                if (!string.IsNullOrEmpty(firstValuePart))
+                    pendingValueParts.Add(firstValuePart);
+            }
+            else if (pendingKey != null)
+            {
+                pendingValueParts.Add(word); // still part of the previous key's value
+            }
+            else if (word.StartsWith('-'))
+            {
+                // bare "-word" excludes tracks matching that word in Title/Artist
+                var excluded = word[1..].ToLowerInvariant();
+                filters.Add(t => !t.Title.ToLowerInvariant().Contains(excluded)
+                               && !t.Artist.ToLowerInvariant().Contains(excluded));
+            }
+            else
+            {
+                globalTerms.Add(word.ToLowerInvariant());
+            }
+        }
+        FlushPending();
+
+        return tracks.Where(t =>
+        {
+            if (!filters.All(f => f(t))) return false;
+
+            if (globalTerms.Count > 0)
+            {
+                return globalTerms.Any(term =>
+                    t.Title.ToLowerInvariant().Contains(term) ||
+                    t.Artist.ToLowerInvariant().Contains(term));
+            }
+
+            return true;
+        });
+    }
+
     private (IEnumerable<Track> Results, bool WasSearchExecuted) FetchLibraryDataInternal(
         string query, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
     {
-        IEnumerable<Track> results;
-        bool wasSearch = false;
-
-        switch (view)
+        // Step 1: pick the base candidate set for the active view/filter.
+        IEnumerable<Track> baseSet = view switch
         {
-            case LibraryView.Favorites:
-                results = _library.GetFavorites();
-                break;
-            case LibraryView.Recent:
-                results = _library.GetRecentlyAdded();
-                break;
-            case LibraryView.Source:
-                results = filter.HasValue
-                    ? _library.FilterBySource(filter.Value)
-                    : _library.GetSorted(sort, ascending);
-                break;
-            default:
-                if (!string.IsNullOrWhiteSpace(query))
-                {
-                    results = _library.Search(query, sort, ascending);
-                    wasSearch = true;
-                }
-                else
-                {
-                    results = _library.GetSorted(sort, ascending);
-                }
-                break;
+            LibraryView.Favorites => _library.GetFavorites(),
+            LibraryView.Recent    => _library.GetRecentlyAdded(),
+            LibraryView.Source    => filter.HasValue ? _library.FilterBySource(filter.Value) : _library.GetAll(),
+            _                     => _library.GetAll()
+        };
+
+        // Step 2: Apply Smart Search (handles both global text and key:value filters)
+        bool wasSearch = false;
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            baseSet = ApplySmartSearch(baseSet, query);
+            wasSearch = true;
         }
 
-        return (results, wasSearch);
+        // Step 3: sort always applies too, with secondary tie-breakers to stabilize groups
+        IEnumerable<Track> sorted = sort switch
+        {
+            SortField.Title      => baseSet.OrderBy(t => t.Title).ThenBy(t => t.Artist),
+            SortField.Artist     => baseSet.OrderBy(t => t.Artist).ThenBy(t => t.Title),
+            SortField.DateAdded  => baseSet.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),
+            SortField.Source     => baseSet.OrderBy(t => t.Source).ThenBy(t => t.Title),
+            SortField.PlayCount  => baseSet.OrderBy(t => t.PlayCount).ThenBy(t => t.Title),
+            SortField.LastPlayed => baseSet.OrderBy(t => t.LastPlayed).ThenBy(t => t.Title),
+            _ => baseSet
+        };
+
+        return ((ascending ? sorted : sorted.Reverse()).ToList(), wasSearch);
     }
 
     private void SetSourceFilter(TrackSource source)
@@ -224,11 +348,15 @@ public partial class LibraryViewModel : ObservableObject
         NullActionLogger.User("AddToQueue", SelectedTrack.Id.ToString(), "LibraryViewModel");
     }
 
-    [RelayCommand] private void SortByTitle() => CurrentSort = SortField.Title;
-    [RelayCommand] private void SortByArtist() => CurrentSort = SortField.Artist;
-    [RelayCommand] private void SortByDate() => CurrentSort = SortField.DateAdded;
-    [RelayCommand] private void SortByPlayCount() => CurrentSort = SortField.PlayCount;
+    [RelayCommand] private void SortByTitle() => SetSort(SortField.Title);
+    [RelayCommand] private void SortByArtist() => SetSort(SortField.Artist);
+    [RelayCommand] private void SortByDate() => SetSort(SortField.DateAdded);
+    [RelayCommand] private void SortByPlayCount() => SetSort(SortField.PlayCount);
+    [RelayCommand] private void SortBySource() => SetSort(SortField.Source);
+    [RelayCommand] private void SortByLastPlayed() => SetSort(SortField.LastPlayed);
     [RelayCommand] private void FocusSearch() => SearchQuery = string.Empty;
+    [RelayCommand] private void ClearSearchText() => SearchQuery = string.Empty;
+    [RelayCommand] private void ToggleSortDirection() => SortAscending = !SortAscending;
 
     [RelayCommand]
     private void ClearSearch()

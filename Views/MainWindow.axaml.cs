@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using NullWave.ViewModels;
 using Serilog;
 
@@ -31,7 +32,6 @@ public partial class MainWindow : Window
                 if (!string.IsNullOrWhiteSpace(model) && vm.Settings.AiServiceState == AIServiceState.Running)
                 {
                     Log.Information("[MainWindow] Offloading Ollama model '{Model}' to background worker process for exit sequence", model);
-                    
                     // Run the process detached on a threadpool task worker so the UI shuts down instantly
                     Task.Run(() =>
                     {
@@ -79,8 +79,14 @@ public partial class MainWindow : Window
             }
         }
 
-        // Do not intercept hotkeys if typing inside data inputs or search boxes
-        if (e.Source is TextBox) return;
+        // Do not intercept hotkeys while typing inside any text input. e.Source is
+        // usually the TextBox's internal TextPresenter (not the TextBox itself), so
+        // a bare "e.Source is TextBox" check silently fails and lets keys like
+        // M/N/Space leak through as global hotkeys (mute/next/play-pause) while the
+        // user is typing in the search box. Walking up the visual tree from the
+        // actual source catches the TextBox regardless of which internal element
+        // raised the event.
+        if (IsWithinTextInput(e.Source)) return;
 
         switch (e.Key)
         {
@@ -109,5 +115,17 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
         }
+    }
+
+    private static bool IsWithinTextInput(object? source)
+    {
+        if (source is not Visual visual) return false;
+
+        foreach (var ancestor in visual.GetVisualAncestors())
+        {
+            if (ancestor is TextBox or AutoCompleteBox) return true;
+        }
+
+        return source is TextBox or AutoCompleteBox;
     }
 }

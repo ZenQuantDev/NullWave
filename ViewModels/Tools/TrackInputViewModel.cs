@@ -52,8 +52,6 @@ public class TrackInputViewModel : ViewModelBase
     public event Action? TrackMetadataUpdated;
     private string? _lastFetchedThumbnail;
 
-    public PlaylistImportViewModel PlaylistImport { get; }
-
     public bool IsFetching
     {
         get => _isFetching;
@@ -79,6 +77,7 @@ public class TrackInputViewModel : ViewModelBase
         {
             _inputUrl = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsInputUrlValid));
             SelectedSource = SourceDetector.Detect(value);
 
             if (_urlParser.IsValidUrl(value) && value != _lastFetchedUrl)
@@ -86,6 +85,19 @@ public class TrackInputViewModel : ViewModelBase
                 _lastFetchedUrl = value;
                 _ = FetchMetadataAsync(value);
             }
+        }
+    }
+
+    public bool IsInputUrlValid
+    {
+        get
+        {
+            var url = InputUrl.Trim();
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            if (_urlParser.IsValidUrl(url) && SourceDetector.IsPlayableUrl(url)) return true;
+            if (System.IO.Directory.Exists(url)) return true;
+            if (System.IO.File.Exists(url) && _urlParser.IsSupportedAudioFile(url)) return true;
+            return false;
         }
     }
 
@@ -114,7 +126,6 @@ public class TrackInputViewModel : ViewModelBase
         DownloadService download,
         SpotifyBridgeService spotifyBridge,
         SettingsViewModel settings,
-        PlaylistImportViewModel playlistImport,
         AlbumArtService albumArtService)
     {
         _library = library;
@@ -124,7 +135,6 @@ public class TrackInputViewModel : ViewModelBase
         _spotifyBridge = spotifyBridge;
         _settings = settings;
         _albumArtService = albumArtService;
-        PlaylistImport = playlistImport;
 
         _download.DownloadCompleted += async (trackId, filePath, _) =>
         {

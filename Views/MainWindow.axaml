@@ -46,7 +46,6 @@
         <DockPanel>
             <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
             <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
-            <controls:ImportProgressView DockPanel.Dock="Bottom"/>
             <Grid ColumnDefinitions="Auto,4,*,4,Auto">
                 <controls:SidebarView Grid.Column="0" MinWidth="180" MaxWidth="350"/>
                 <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"

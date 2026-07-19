@@ -14,6 +14,8 @@
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
+        <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
+        <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
     </DockPanel.Resources>
 
     <!--  TOOLBAR  -->
@@ -22,126 +24,95 @@
             BorderBrush="{StaticResource BrushBorder}"
             BorderThickness="0,0,0,1"
             Padding="12,8">
-        <Grid ColumnDefinitions="*,8,Auto,8,Auto" VerticalAlignment="Center">
+        <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
             <TextBox Grid.Column="0"
                      Text="{Binding Library.SearchQuery, Mode=TwoWay}"
-                     PlaceholderText="Search tracks..."
-                     VerticalAlignment="Center"/>
+                     PlaceholderText="Search (e.g., 'artist:tame impala' or 'is:favorite')..."
+                     VerticalAlignment="Center">
+                <TextBox.InnerLeftContent>
+                    <material:MaterialIcon Kind="Magnify"
+                                           Width="16" Height="16"
+                                           Margin="8,0,0,0"
+                                           Foreground="{StaticResource BrushTextMuted}"/>
+                </TextBox.InnerLeftContent>
+                <TextBox.InnerRightContent>
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="help-btn" VerticalAlignment="Center" ToolTip.Tip="Search syntax">
+                            <material:MaterialIcon Kind="HelpCircleOutline" Width="16" Height="16"/>
+                            <Button.Flyout>
+                                <Flyout>
+                                    <StackPanel Spacing="6" MaxWidth="260" Margin="4">
+                                        <TextBlock FontWeight="SemiBold" Text="Search syntax"/>
+                                        <TextBlock Text="artist:name or a:name — filter by artist" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="title:name or t:name — filter by title" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="source:youtube or s:youtube — filter by source" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="tag:chill or genre:chill — filter by tag" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="is:favorite — favorites only" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="-word or -artist:name — exclude matches" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <Button Classes="icon-btn sm"
+                                Command="{Binding Library.ClearSearchTextCommand}"
+                                IsVisible="{Binding Library.HasSearchQuery}"
+                                ToolTip.Tip="Clear search">
+                            <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+                        </Button>
+                    </StackPanel>
+                </TextBox.InnerRightContent>
+            </TextBox>
             <ComboBox Grid.Column="2"
                       ItemsSource="{Binding Library.SortOptions}"
                       SelectedItem="{Binding Library.CurrentSort}"
                       MinWidth="130"
-                      VerticalAlignment="Center"/>
-            <SplitButton Grid.Column="4"
+                      VerticalAlignment="Center">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource SortFieldDisplay}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Column="4"
+                    Classes="icon-btn"
+                    Command="{Binding Library.ToggleSortDirectionCommand}"
+                    ToolTip.Tip="Toggle sort direction"
+                    VerticalAlignment="Center">
+                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                        Width="18" Height="18"/>
+            </Button>
+            <SplitButton Grid.Column="6"
                          Classes="primary"
-                         Content="+ Add"
-                         Command="{Binding Input.ShowUrlInputCommand}"
+                         ToolTip.Tip="Add a track"
                          VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <material:MaterialIcon Kind="Plus" Width="16" Height="16"/>
+                    <TextBlock Text="Add Track"/>
+                </StackPanel>
                 <SplitButton.Flyout>
-                    <MenuFlyout>
-                        <MenuItem Header="Add from URL / path"
-                                  Command="{Binding Input.ShowUrlInputCommand}"/>
-                        <MenuItem Header="Local file..."
-                                  Command="{Binding Input.AddLocalFileCommand}"/>
-                        <MenuItem Header="Folder..."
-                                  Command="{Binding Import.ImportFolderCommand}"/>
-                    </MenuFlyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <StackPanel Spacing="10" Width="340" Margin="4">
+                            <TextBlock FontWeight="SemiBold" Text="Add from URL"/>
+                            <TextBox Text="{Binding Input.InputUrl, Mode=TwoWay}"
+                                     PlaceholderText="Paste a YouTube, SoundCloud, or Spotify link..."/>
+                            <Button Classes="primary" Content="Add"
+                                    Command="{Binding Input.AddTrackCommand}"
+                                    IsEnabled="{Binding Input.IsInputUrlValid}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"/>
+                            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                            <Button Classes="ghost" Content="Choose local file..."
+                                    Command="{Binding Input.AddLocalFileCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"/>
+                            <Button Classes="ghost" Content="Import a folder..."
+                                    Command="{Binding Import.ImportFolderCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"/>
+                        </StackPanel>
+                    </Flyout>
                 </SplitButton.Flyout>
             </SplitButton>
-        </Grid>
-    </Border>
-
-    <!--  URL INPUT  -->
-    <Border DockPanel.Dock="Top"
-            Background="{StaticResource BrushSurface2}"
-            BorderBrush="{StaticResource BrushBorder}"
-            BorderThickness="0,0,0,1"
-            Padding="12,8"
-            IsVisible="{Binding Input.IsUrlInputVisible}">
-        <Border.Transitions>
-            <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-            </Transitions>
-        </Border.Transitions>
-        <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
-            <TextBox Grid.Column="0"
-                     Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                     PlaceholderText="Paste URL, file path, or folder path here..."
-                     VerticalAlignment="Center"/>
-            <Button Grid.Column="2"
-                    Classes="primary"
-                    Content="Add"
-                    Command="{Binding Input.AddTrackCommand}"
-                    Padding="18,8"/>
-        </Grid>
-    </Border>
-
-    <!--  FOLDER IMPORT PROGRESS  -->
-    <Border DockPanel.Dock="Top"
-            Background="{StaticResource BrushGreenDim}"
-            BorderBrush="{StaticResource BrushGreen}"
-            BorderThickness="0,0,0,1"
-            Padding="12,8"
-            IsVisible="{Binding Import.IsImporting}">
-        <Grid ColumnDefinitions="*,Auto">
-            <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock Text="{Binding Import.ImportStatus}"
-                           Foreground="{StaticResource BrushGreen}"
-                           FontSize="{StaticResource FontSizeBody}"
-                           FontWeight="SemiBold"/>
-                <ProgressBar Value="{Binding Import.ImportProgress}"
-                             Maximum="{Binding Import.ImportTotal}"
-                             Height="4"/>
-            </StackPanel>
-            <TextBlock Grid.Column="1"
-                       VerticalAlignment="Center"
-                       Margin="16,0,0,0"
-                       Foreground="{StaticResource BrushTextMuted}"
-                       FontSize="{StaticResource FontSizeSm}">
-                <TextBlock.Text>
-                    <MultiBinding StringFormat="{}{0} / {1}">
-                        <Binding Path="Import.ImportProgress"/>
-                        <Binding Path="Import.ImportTotal"/>
-                    </MultiBinding>
-                </TextBlock.Text>
-            </TextBlock>
-        </Grid>
-    </Border>
-
-    <!--  PLAYLIST IMPORT PROGRESS  -->
-    <Border DockPanel.Dock="Top"
-            Background="{StaticResource BrushBlueDim}"
-            BorderBrush="{StaticResource BrushBlue}"
-            BorderThickness="0,0,0,1"
-            Padding="12,8"
-            IsVisible="{Binding Input.PlaylistImport.IsImporting}">
-        <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
-            <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock Text="{Binding Input.PlaylistImport.CurrentTrack}"
-                           Foreground="{StaticResource BrushBlue}"
-                           FontSize="{StaticResource FontSizeBody}"
-                           FontWeight="SemiBold"
-                           TextTrimming="CharacterEllipsis"/>
-                <ProgressBar Value="{Binding Input.PlaylistImport.Progress}"
-                             Maximum="{Binding Input.PlaylistImport.Total}"
-                             Height="4"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
-                <TextBlock Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeSm}">
-                    <TextBlock.Text>
-                        <MultiBinding StringFormat="{}{0} / {1}">
-                            <Binding Path="Input.PlaylistImport.Progress"/>
-                            <Binding Path="Input.PlaylistImport.Total"/>
-                        </MultiBinding>
-                    </TextBlock.Text>
-                </TextBlock>
-                <Button Content="Cancel"
-                        Command="{Binding Input.PlaylistImport.CancelCommand}"
-                        Classes="danger"
-                        FontSize="{StaticResource FontSizeXs}"
-                        Padding="8,4"/>
-            </StackPanel>
         </Grid>
     </Border>
 
@@ -149,10 +120,50 @@
     <Grid DockPanel.Dock="Top"
           ColumnDefinitions="48,*,150,80,110,36,36"
           Margin="16,8,16,2">
-        <TextBlock Grid.Column="1" Classes="section-label" Text="TITLE / ARTIST" Margin="10,0,0,0"/>
-        <TextBlock Grid.Column="2" Classes="section-label" Text="SOURCE"/>
-        <TextBlock Grid.Column="3" Classes="section-label" Text="PLAYS"/>
-        <TextBlock Grid.Column="4" Classes="section-label" Text="ADDED"/>
+        <TextBlock Grid.Column="0" Classes="section-label"
+                   Text="{Binding Library.ResultCountLabel}"
+                   FontSize="{StaticResource FontSizeXs}"
+                   Margin="4,0,0,0"/>
+        <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" Command="{Binding Library.SortByTitleCommand}"
+                HorizontalContentAlignment="Left" Margin="10,0,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Classes="section-label" Text="TITLE / ARTIST" Margin="0"/>
+                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                        Width="12" Height="12"
+                                        IsVisible="{Binding Library.IsSortedByTitle}"/>
+            </StackPanel>
+        </Button>
+        <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" Command="{Binding Library.SortBySourceCommand}"
+                HorizontalContentAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Classes="section-label" Text="SOURCE" Margin="0"/>
+                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                        Width="12" Height="12"
+                                        IsVisible="{Binding Library.IsSortedBySource}"/>
+            </StackPanel>
+        </Button>
+        <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" Command="{Binding Library.SortByPlayCountCommand}"
+                HorizontalContentAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
+                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                        Width="12" Height="12"
+                                        IsVisible="{Binding Library.IsSortedByPlayCount}"/>
+            </StackPanel>
+        </Button>
+        <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" Command="{Binding Library.SortByDateCommand}"
+                HorizontalContentAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Classes="section-label" Text="ADDED" Margin="0"/>
+                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                        Width="12" Height="12"
+                                        IsVisible="{Binding Library.IsSortedByDate}"/>
+            </StackPanel>
+        </Button>
     </Grid>
 
     <!--  TRACK LIST  -->
