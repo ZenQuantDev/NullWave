@@ -161,6 +161,7 @@ public class TrackDetailViewModel : ViewModelBase
         string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
         NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), alteredFieldsSummary, "TrackDetailViewModel");
         Log.Information("Track details saved: {Title}", EditTitle);
+        ToastService.Instance.Show("Track details saved.", ToastType.Success);
     }
 
     private void AddTag()
@@ -255,6 +256,7 @@ public class TrackDetailViewModel : ViewModelBase
         NullActionLogger.TrackEdited(_currentTrack.Id.ToString(),
             $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
         Log.Information("Track relinked: {Title} → {Path}", _currentTrack.Title, newPath);
+        ToastService.Instance.Show($"'{_currentTrack.Title}' relinked to new file.", ToastType.Success);
 
         RefreshDisplayProperties(); // updates DisplayUrl and CurrentTrackArtPath bindings
     }
