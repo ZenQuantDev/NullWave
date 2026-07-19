@@ -104,14 +104,33 @@ public class PlaylistViewModel : ViewModelBase
         Playlists.Add(playlist);
         SelectedPlaylist = playlist;
         Log.Information("[Playlist] Created: {Name}", name);
+        ToastService.Instance.Show($"Playlist '{playlist.Name}' created.", ToastType.Success);
     }
 
     private void RemovePlaylist()
     {
         if (SelectedPlaylist == null) return;
-        _playlists.Remove(SelectedPlaylist.Id);
-        Playlists.Remove(SelectedPlaylist);
-        SelectedPlaylist = null;
+        _ = RemovePlaylistAsync(SelectedPlaylist);
+    }
+
+    private async Task RemovePlaylistAsync(Playlist target)
+    {
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (window == null) return;
+
+        var dialog = new Views.ConfirmDialog(
+            "Delete Playlist?",
+            $"Delete '{target.Name}'? This can't be undone. Tracks in your library are not affected.");
+        var confirmed = await dialog.ShowDialog<bool>(window);
+        if (!confirmed) return;
+
+        _playlists.Remove(target.Id);
+        Playlists.Remove(target);
+        if (SelectedPlaylist?.Id == target.Id) SelectedPlaylist = null;
+
+        ToastService.Instance.Show($"Playlist '{target.Name}' deleted.", ToastType.Info);
+        Log.Information("[Playlist] Removed: {Name}", target.Name);
     }
 
     private void StartRename()
@@ -126,28 +145,42 @@ public class PlaylistViewModel : ViewModelBase
         if (SelectedPlaylist == null) return;
 
         var trimmed = RenameText.Trim();
-        if (!string.IsNullOrWhiteSpace(trimmed))
+        if (string.IsNullOrWhiteSpace(trimmed))
         {
-            _playlists.Rename(SelectedPlaylist.Id, trimmed);
-            // Playlist is a reference type held in both _playlists and
-            // Playlists collection, but Rename() may not raise property
-            // change on its own - force a refresh so the UI updates.
-            Refresh();
-            SelectedPlaylist = Playlists.FirstOrDefault(p => p.Name == trimmed) ?? SelectedPlaylist;
+            ToastService.Instance.Show("Playlist name can't be empty.", ToastType.Warning);
+            return; // keep IsRenaming = true so the user can fix it
         }
 
+        var oldName = SelectedPlaylist.Name;
+        _playlists.Rename(SelectedPlaylist.Id, trimmed);
+        
+        // Playlist is a reference type held in both _playlists and
+        // Playlists collection, but Rename() may not raise property
+        // change on its own - force a refresh so the UI updates.
+        Refresh();
+        SelectedPlaylist = Playlists.FirstOrDefault(p => p.Name == trimmed) ?? SelectedPlaylist;
+
+        ToastService.Instance.Show($"Renamed '{oldName}' to '{trimmed}'.", ToastType.Success);
         IsRenaming = false;
     }
 
     private void AddToPlaylist(Track? track)
     {
         if (track == null || SelectedPlaylist == null) return;
-        _playlists.AddTrack(SelectedPlaylist.Id, track);
+
+        var added = _playlists.AddTrack(SelectedPlaylist.Id, track);
+        if (added)
+            ToastService.Instance.Show($"Added '{track.Title}' to '{SelectedPlaylist.Name}'.", ToastType.Success);
+        else
+            ToastService.Instance.Show($"'{track.Title}' is already in '{SelectedPlaylist.Name}'.", ToastType.Info);
     }
 
     private void RemoveFromPlaylist(Track? track)
     {
         if (track == null || SelectedPlaylist == null) return;
-        _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
+
+        var removed = _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
+        if (removed)
+            ToastService.Instance.Show($"Removed '{track.Title}' from '{SelectedPlaylist.Name}'.", ToastType.Info);
     }
 }

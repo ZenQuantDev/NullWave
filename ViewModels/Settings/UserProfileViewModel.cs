@@ -14,6 +14,7 @@ using NullWave.Services;
 using NullWave.ViewModels.Base;
 using NullWave.Helpers;
 using Serilog;
+using System.Collections.ObjectModel;
 
 namespace NullWave.ViewModels;
 
@@ -53,6 +54,8 @@ public class UserProfileViewModel : ViewModelBase, IDisposable
 
     private string? _avatarPath;
     private string _toastMessage = "Saved";
+
+    public System.Collections.ObjectModel.ObservableCollection<NullWave.Models.LiveNotification> ActiveToasts => NullWave.Services.ToastService.Instance.ActiveToasts;
 
     public string ToastMessage
     {

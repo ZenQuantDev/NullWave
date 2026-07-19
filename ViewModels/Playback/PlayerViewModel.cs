@@ -370,6 +370,38 @@ public class PlayerViewModel : ViewModelBase
         private set { _isDownloading = value; OnPropertyChanged(); }
     }
 
+    private bool _smartShuffleEnabled;
+    public bool SmartShuffleEnabled
+    {
+        get => _smartShuffleEnabled;
+        set
+        {
+            if (_smartShuffleEnabled == value) return;
+            _smartShuffleEnabled = value;
+            OnPropertyChanged();
+
+            _navigator.IsSmartShuffle = value;
+            if (value && _shuffleMode == ShuffleMode.Off)
+            {
+                _shuffleMode = ShuffleMode.Smart;
+                _navigator.IsShuffle = true;
+                OnPropertyChanged(nameof(ShuffleMode));
+                OnPropertyChanged(nameof(IsShuffle));
+                OnPropertyChanged(nameof(ShuffleIconKind));
+                OnPropertyChanged(nameof(ShuffleTooltip));
+                OnPropertyChanged(nameof(ShuffleForeground));
+            }
+            else if (!value && _shuffleMode == ShuffleMode.Smart)
+            {
+                _shuffleMode = ShuffleMode.Normal;
+                OnPropertyChanged(nameof(ShuffleMode));
+                OnPropertyChanged(nameof(ShuffleIconKind));
+                OnPropertyChanged(nameof(ShuffleTooltip));
+                OnPropertyChanged(nameof(ShuffleForeground));
+            }
+        }
+    }
+
     public float DownloadProgress
     {
         get => _downloadProgress;

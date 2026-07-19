@@ -1,4 +1,3 @@
-// SettingsViewModel.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,10 +9,13 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.SmartSorting;
 using Serilog;
+using Serilog.Events;
+using System.Collections.ObjectModel;
 
 namespace NullWave.ViewModels;
 
@@ -33,6 +35,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private System.Threading.Timer? _aiHealthTimer;
     private CancellationTokenSource? _debounceCts;
     private const int DebounceMs = 500;
+
+    public System.Collections.ObjectModel.ObservableCollection<NullWave.Models.LiveNotification> ActiveToasts => NullWave.Services.ToastService.Instance.ActiveToasts;
 
     private void ScheduleSave()
     {
@@ -172,6 +176,39 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool AutoPlayNext { get => _prefsService.Current.AutoPlayNext; set { _prefsService.Update(p => p.AutoPlayNext = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); ScheduleSave(); } }
+    
+    // FIX: Added missing properties for AdvancedTab bindings
+    public bool AutoCleanMetadata { get => _prefsService.Current.AutoCleanMetadata; set { _prefsService.Update(p => p.AutoCleanMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool PreventDuplicateDownloads { get => _prefsService.Current.PreventDuplicateDownloads; set { _prefsService.Update(p => p.PreventDuplicateDownloads = value); OnPropertyChanged(); ScheduleSave(); } }
+
+    // Download speed & auth (Advanced tab): aria2c multi-connection downloads and
+    // browser-cookie auth, both consumed directly by DownloadService.
+    public bool UseAria2c { get => _prefsService.Current.UseAria2c; set { _prefsService.Update(p => p.UseAria2c = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string YtDlpBrowserCookies { get => _prefsService.Current.YtDlpBrowserCookies; set { _prefsService.Update(p => p.YtDlpBrowserCookies = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string[] BrowserCookieOptions => new[] { "", "firefox", "chrome", "chromium", "brave", "vivaldi", "edge" };
+
+    /// <summary>
+    /// Logging mode toggle: Default (Information+) vs Advanced/Verbose (Debug+).
+    /// Updates NullWaveLogConfig's LoggingLevelSwitch immediately — no restart needed,
+    /// since Serilog's LoggingLevelSwitch is designed to be flipped at runtime.
+    /// </summary>
+    public bool VerboseLogging
+    {
+        get => _prefsService.Current.VerboseLogging;
+        set
+        {
+            _prefsService.Update(p => p.VerboseLogging = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LoggingModeLabel));
+            ScheduleSave();
+
+            NullWaveLogConfig.LevelSwitch.MinimumLevel = value ? LogEventLevel.Debug : LogEventLevel.Information;
+            Log.Information("[Settings] Logging mode changed to {Mode}", value ? "Advanced/Verbose" : "Default");
+        }
+    }
+
+    public string LoggingModeLabel => VerboseLogging ? "Advanced / Verbose" : "Default";
+
     public string AccentColor { get => _prefsService.Current.AccentColor; set { _prefsService.Update(p => p.AccentColor = value); OnPropertyChanged(); ScheduleSave(); } }
     public string TrackRowStyle { get => _prefsService.Current.TrackRowStyle; set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); ScheduleSave(); } }
     public string FontScale { get => _prefsService.Current.FontScale; set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); ScheduleSave(); } }
@@ -200,48 +237,39 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     public bool FadeOnPauseEnabled { get => _prefsService.Current.FadeOnPauseEnabled; set { _prefsService.Update(p => p.FadeOnPauseEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
-    
     public int FadeOnPauseDurationMs
     {
         get => _prefsService.Current.FadeOnPauseDurationMs;
         set { _prefsService.Update(p => p.FadeOnPauseDurationMs = value); OnPropertyChanged(); OnPropertyChanged(nameof(FadeDurationDisplay)); ScheduleSave(); }
     }
-    
     public bool CrossfadeEnabled { get => _prefsService.Current.CrossfadeEnabled; set { _prefsService.Update(p => p.CrossfadeEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
-    
     public int CrossfadeDurationSeconds
     {
         get => _prefsService.Current.CrossfadeDurationSeconds;
         set { _prefsService.Update(p => p.CrossfadeDurationSeconds = value); OnPropertyChanged(); OnPropertyChanged(nameof(CrossfadeDurationDisplay)); ScheduleSave(); }
     }
-    
     public float ScrobbleThreshold
     {
         get => _prefsService.Current.ScrobbleThreshold;
         set { _prefsService.Update(p => p.ScrobbleThreshold = value); OnPropertyChanged(); OnPropertyChanged(nameof(ScrobbleThresholdDisplay)); ScheduleSave(); }
     }
-    
     public int MaxConcurrentDownloads
     {
         get => _prefsService.Current.MaxConcurrentDownloads;
         set { _prefsService.Update(p => p.MaxConcurrentDownloads = value); OnPropertyChanged(); ScheduleSave(); MaxConcurrentDownloadsChanged?.Invoke(value); }
     }
-    
     public int SkipPenaltyWindowSeconds { get => _prefsService.Current.SkipPenaltyWindowSeconds; set { _prefsService.Update(p => p.SkipPenaltyWindowSeconds = value); OnPropertyChanged(); ScheduleSave(); } }
     public int SkipPenaltyCap { get => _prefsService.Current.SkipPenaltyCap; set { _prefsService.Update(p => p.SkipPenaltyCap = value); OnPropertyChanged(); ScheduleSave(); } }
-    
     public string BatteryModel
     {
         get => _prefsService.Current.BatteryModel;
         set { _prefsService.Update(p => p.BatteryModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(value, PerformanceModel, AutoPowerModelSwitch); }
     }
-    
     public string PerformanceModel
     {
         get => _prefsService.Current.PerformanceModel;
         set { _prefsService.Update(p => p.PerformanceModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, value, AutoPowerModelSwitch); }
     }
-    
     public bool AutoPowerModelSwitch
     {
         get => _prefsService.Current.AutoPowerModelSwitch;
@@ -253,6 +281,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _currentSettingsPage = "General";
     [ObservableProperty] private string _externalAIStatus = string.Empty;
     [ObservableProperty] private string _repairStatus = string.Empty;
+    [ObservableProperty] private string _sweepStatus = string.Empty;
+    [ObservableProperty] private string _vacuumStatus = string.Empty;
+    [ObservableProperty] private string _verifyLinksStatus = string.Empty;
+    [ObservableProperty] private string _forceCleanStatus = string.Empty;
+    [ObservableProperty] private string _dedupeStatus = string.Empty;
     [ObservableProperty] private bool _isRepairing = false;
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private string _ytDlpStatus = string.Empty;
@@ -340,6 +373,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? LastFmConnectRequested;
     public event Action? LastFmConfirmAuthRequested;
     public event Action? LastFmDisconnectRequested;
+    public event Action? ClearYtDlpCacheRequested;
+    public event Action<bool>? SweepOrphanedFilesRequested; // bool = dryRun
+    public event Action? VacuumDatabaseRequested;
+    public event Action? VerifyLinksRequested;
+    public event Action? ForceCleanTitlesRequested;
+    public event Action<bool>? RemoveDuplicatesRequested; // bool = dryRun
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI)
     {
@@ -469,6 +508,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         ClearThumbnailsRequested?.Invoke();
     }
 
+    // ADD THIS BLOCK:
+    [RelayCommand]
+    private void ClearYtDlpCache()
+    {
+        ClearYtDlpCacheRequested?.Invoke();
+    }
+
     [RelayCommand]
     private void RepairPaths()
     {
@@ -491,6 +537,110 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IsRepairing = true;
         RepairStatus = "Clearing cached tags - re-sync starting...";
         ForceMetaResyncRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void PreviewOrphanedFiles()
+    {
+        IsRepairing = true;
+        SweepStatus = "Scanning for orphaned files...";
+        SweepOrphanedFilesRequested?.Invoke(true);
+    }
+
+    [RelayCommand]
+    private void SweepOrphanedFiles()
+    {
+        IsRepairing = true;
+        SweepStatus = "Deleting orphaned files...";
+        SweepOrphanedFilesRequested?.Invoke(false);
+    }
+
+    [RelayCommand]
+    private void VacuumDatabase()
+    {
+        IsRepairing = true;
+        VacuumStatus = "Optimizing database...";
+        VacuumDatabaseRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void VerifyLinks()
+    {
+        IsRepairing = true;
+        VerifyLinksStatus = "Checking file links against embedded metadata...";
+        VerifyLinksRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void ForceCleanTitles()
+    {
+        IsRepairing = true;
+        ForceCleanStatus = "Re-parsing track titles for embedded artist names...";
+        ForceCleanTitlesRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void PreviewDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Scanning for duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(true);
+    }
+
+    [RelayCommand]
+    private void RemoveDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Removing duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(false);
+    }
+
+    public void ReportDedupeComplete(int scanned, int groups, int removed, bool wasDryRun)
+    {
+        IsRepairing = false;
+        DedupeStatus = wasDryRun
+            ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up."
+            : $"✓ Removed {removed} duplicate track(s) across {groups} group(s).";
+        ToastService.Instance.Show(DedupeStatus, ToastType.Success);
+    }
+
+    public void ReportSweepComplete(int scanned, int orphaned, int deleted, int failed, bool wasDryRun)
+    {
+        IsRepairing = false;
+        SweepStatus = wasDryRun
+            ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to delete."
+            : failed == 0
+                ? $"✓ Deleted {deleted} orphaned file(s)."
+                : $"Deleted {deleted} file(s), {failed} failed (check logs).";
+        ToastService.Instance.Show(SweepStatus, failed > 0 ? ToastType.Warning : ToastType.Success);
+    }
+
+    public void ReportVacuumComplete(long beforeKB, long afterKB)
+    {
+        IsRepairing = false;
+        var saved = beforeKB - afterKB;
+        VacuumStatus = saved > 0
+            ? $"✓ Optimized: {beforeKB}KB → {afterKB}KB ({saved}KB reclaimed)"
+            : $"✓ Database already optimal ({afterKB}KB)";
+        ToastService.Instance.Show(VacuumStatus, ToastType.Success);
+    }
+
+    public void ReportVerifyLinksComplete(int checkedCount, int mismatchCount)
+    {
+        IsRepairing = false;
+        VerifyLinksStatus = mismatchCount == 0
+            ? $"✓ Checked {checkedCount} linked track(s) — no mismatches found."
+            : $"⚠ Checked {checkedCount} track(s) — found {mismatchCount} possible mis-link(s). See logs for details.";
+        ToastService.Instance.Show(VerifyLinksStatus, mismatchCount > 0 ? ToastType.Warning : ToastType.Success);
+    }
+
+    public void ReportForceCleanComplete(int cleaned)
+    {
+        IsRepairing = false;
+        ForceCleanStatus = cleaned == 0
+            ? "No titles needed cleaning."
+            : $"✓ Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
+        ToastService.Instance.Show(ForceCleanStatus, ToastType.Success);
     }
 
     [RelayCommand]

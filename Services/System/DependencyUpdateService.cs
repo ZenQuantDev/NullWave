@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -9,11 +11,11 @@ namespace NullWave.Services;
 
 public class DependencyInfo
 {
-    public string Name          { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
     public string InstalledVersion { get; init; } = string.Empty;
     public string LatestVersion { get; init; } = string.Empty;
-    public bool   CanSelfUpdate { get; init; }
-    public bool   IsInstalled   { get; init; }
+    public bool CanSelfUpdate { get; init; }
+    public bool IsInstalled { get; init; }
 }
 
 public class DependencyUpdateService
@@ -26,12 +28,11 @@ public class DependencyUpdateService
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
     }
 
-    //  yt-dlp 
-
+    // yt-dlp
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
         var installed = await RunCommandAsync("yt-dlp", "--version");
-        if (installed == null)
+        if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "yt-dlp", IsInstalled = false };
 
         string latest = "unknown";
@@ -47,84 +48,86 @@ public class DependencyUpdateService
 
         return new DependencyInfo
         {
-            Name             = "yt-dlp",
+            Name = "yt-dlp",
             InstalledVersion = installed.Trim(),
-            LatestVersion    = latest,
-            CanSelfUpdate    = true,
-            IsInstalled      = true
+            LatestVersion = latest,
+            CanSelfUpdate = true,
+            IsInstalled = true
         };
     }
 
     public async Task<string> UpdateYtDlpAsync()
     {
-        try
+        // Try standard yt-dlp update first
+        var standardUpdate = await RunCommandAsync("yt-dlp", "-U");
+        if (standardUpdate != null)
         {
-            var result = await RunCommandAsync("yt-dlp", "-U");
-            Log.Information("[DependencyUpdate] yt-dlp update: {Result}", result);
-            return result ?? "Update completed";
+            Log.Information("[DependencyUpdate] yt-dlp updated successfully via standard method");
+            return "Update completed via yt-dlp -U";
         }
-        catch (Exception ex)
+
+        // Fallback to pip if the standard update fails or gets blocked
+        var pipUpdate = await RunCommandAsync("pip", "install --upgrade yt-dlp");
+        if (pipUpdate != null)
         {
-            Log.Error(ex, "[DependencyUpdate] yt-dlp update failed");
-            return $"Update failed: {ex.Message}";
+            Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
+            return "Update completed via pip install --upgrade yt-dlp";
         }
+
+        return "Update failed: yt-dlp is not installed or not accessible";
     }
 
-    //  VLC 
-
+    // VLC
     public async Task<DependencyInfo> GetVlcInfoAsync()
     {
         var installed = await RunCommandAsync("vlc", "--version");
-        if (installed == null)
+        if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "VLC", IsInstalled = false };
 
         var firstLine = installed.Split('\n')[0].Trim();
         return new DependencyInfo
         {
-            Name             = "VLC",
+            Name = "VLC",
             InstalledVersion = firstLine,
-            LatestVersion    = "Check vlc.videolan.org",
-            CanSelfUpdate    = false,
-            IsInstalled      = true
+            LatestVersion = "Check vlc.videolan.org",
+            CanSelfUpdate = false,
+            IsInstalled = true
         };
     }
 
-    //  FFmpeg 
-
+    // FFmpeg
     public async Task<DependencyInfo> GetFfmpegInfoAsync()
     {
         var installed = await RunCommandAsync("ffmpeg", "-version");
-        if (installed == null)
+        if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "FFmpeg", IsInstalled = false };
 
         var firstLine = installed.Split('\n')[0].Trim();
         return new DependencyInfo
         {
-            Name             = "FFmpeg",
+            Name = "FFmpeg",
             InstalledVersion = firstLine,
-            LatestVersion    = "Check ffmpeg.org",
-            CanSelfUpdate    = false,
-            IsInstalled      = true
+            LatestVersion = "Check ffmpeg.org",
+            CanSelfUpdate = false,
+            IsInstalled = true
         };
     }
 
-    //  .NET 
-
+    // .NET
     public async Task<DependencyInfo> GetDotNetInfoAsync()
     {
         var installed = await RunCommandAsync("dotnet", "--version");
         return new DependencyInfo
         {
-            Name             = ".NET",
+            Name = ".NET",
             InstalledVersion = installed?.Trim() ?? "unknown",
-            LatestVersion    = "Check dot.net",
-            CanSelfUpdate    = false,
-            IsInstalled      = installed != null
+            LatestVersion = "Check dot.net",
+            CanSelfUpdate = false,
+            IsInstalled = !string.IsNullOrWhiteSpace(installed)
         };
     }
 
-    //  Helper 
-
+    // Helper: Returns standard output string on success, null on failure
     private static async Task<string?> RunCommandAsync(string cmd, string args)
     {
         try
@@ -132,16 +135,23 @@ public class DependencyUpdateService
             var psi = new ProcessStartInfo(cmd, args)
             {
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
+
             using var proc = Process.Start(psi);
             if (proc == null) return null;
+
             var output = await proc.StandardOutput.ReadToEndAsync();
             await proc.WaitForExitAsync();
-            return string.IsNullOrWhiteSpace(output) ? null : output;
+
+            return proc.ExitCode == 0 ? output : null;
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DependencyUpdate] Command failed: {Cmd} {Args}", cmd, args);
+            return null;
+        }
     }
 }

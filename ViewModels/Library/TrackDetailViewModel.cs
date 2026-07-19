@@ -3,10 +3,10 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
@@ -24,14 +24,28 @@ public class TrackDetailViewModel : ViewModelBase
     private string _editNotes  = string.Empty;
     private string _newTag     = string.Empty;
     private string _copyStatus = "Copy";
+    private bool _isCopying;
 
     public bool IsOpen
     {
         get => _isOpen;
-        set { _isOpen = value; OnPropertyChanged(); OnPropertyChanged(nameof(PanelWidth)); }
+        set 
+        { 
+            _isOpen = value; 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(PanelWidth)); 
+            OnPropertyChanged(nameof(PanelOpacity)); 
+            
+            if (!_isOpen && _currentTrack != null)
+            {
+                _currentTrack.PropertyChanged -= OnTrackPropertyChanged;
+                _currentTrack = null;
+            }
+        }
     }
 
     public double PanelWidth => _isOpen ? 320 : 0;
+    public double PanelOpacity => _isOpen ? 1.0 : 0.0;
 
     public string EditTitle
     {
@@ -79,6 +93,7 @@ public class TrackDetailViewModel : ViewModelBase
     public ICommand RemoveTagCommand       { get; }
     public ICommand ToggleFavoriteCommand  { get; }
     public ICommand CopyUrlCommand         { get; }
+    public ICommand RelinkFileCommand      { get; }
 
     public TrackDetailViewModel(LibraryService library)
     {
@@ -89,11 +104,11 @@ public class TrackDetailViewModel : ViewModelBase
         RemoveTagCommand      = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
         CopyUrlCommand        = new RelayCommand(async () => await CopyUrlAsync());
+        RelinkFileCommand     = new RelayCommand(async () => await RelinkFileAsync());
     }
 
     public void OpenFor(Track track)
     {
-        // Unsubscribe from previous track
         if (_currentTrack != null)
             _currentTrack.PropertyChanged -= OnTrackPropertyChanged;
 
@@ -111,8 +126,7 @@ public class TrackDetailViewModel : ViewModelBase
         IsOpen = true;
     }
 
-    private void OnTrackPropertyChanged(
-        object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         RefreshDisplayProperties();
     }
@@ -131,67 +145,119 @@ public class TrackDetailViewModel : ViewModelBase
     private void Save()
     {
         if (_currentTrack == null) return;
-        _currentTrack.Title  = EditTitle;
-        _currentTrack.Artist = EditArtist;
+        
+        _currentTrack.Title  = EditTitle.Trim();
+        _currentTrack.Artist = EditArtist.Trim();
         _currentTrack.Notes  = EditNotes;
+        
+        // Manual edit = authoritative, never auto-reprocess via ForceCleanTitles
+        _currentTrack.TitleForceCleaned = true; 
+        
         _currentTrack.Tags.Clear();
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
+        
         _library.Update(_currentTrack);
+
+        string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
+        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), alteredFieldsSummary, "TrackDetailViewModel");
         Log.Information("Track details saved: {Title}", EditTitle);
+        ToastService.Instance.Show("Track details saved.", ToastType.Success);
     }
 
     private void AddTag()
     {
         var tag = NewTag.Trim();
         if (string.IsNullOrWhiteSpace(tag) || Tags.Contains(tag)) return;
+        
         Tags.Add(tag);
         NewTag = string.Empty;
     }
 
     private void RemoveTag(string? tag)
     {
-        if (tag != null) Tags.Remove(tag);
+        if (tag == null) return;
+        Tags.Remove(tag);
     }
 
     private void ToggleFavorite()
     {
         if (_currentTrack == null) return;
+        
+        bool expectedNewState = !_currentTrack.IsFavorite;
         _library.ToggleFavorite(_currentTrack.Id);
+        
+        NullActionLogger.FavoriteToggled(_currentTrack.Id.ToString(), expectedNewState, "TrackDetailViewModel");
         OnPropertyChanged(nameof(IsFavorite));
     }
 
     private async Task CopyUrlAsync()
     {
+        if (_isCopying) return;
+
         var url = _currentTrack?.Url ?? _currentTrack?.FilePath;
         if (string.IsNullOrEmpty(url)) return;
 
         try
         {
-            if (Application.Current?.ApplicationLifetime
-                    is IClassicDesktopStyleApplicationLifetime desktop
-                && desktop.MainWindow != null)
+            _isCopying = true;
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {
-                var clipboard = TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
+                var clipboard = desktop.MainWindow.Clipboard;
                 if (clipboard != null)
                 {
                     await clipboard.SetTextAsync(url);
                     CopyStatus = "Copied!";
                     await Task.Delay(2000);
-                    CopyStatus = "Copy";
                     Log.Debug("URL copied to clipboard: {Url}", url);
                     return;
                 }
             }
             CopyStatus = "Failed";
             await Task.Delay(2000);
-            CopyStatus = "Copy";
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to copy URL to clipboard");
+            NullActionLogger.Error("TrackDetailViewModel", ex, "Failed to copy target details locator route asset down to platform window clipboard space layout context.");
             CopyStatus = "Failed";
             await Task.Delay(2000);
-            CopyStatus = "Copy";
         }
+        finally
+        {
+            CopyStatus = "Copy";
+            _isCopying = false;
+        }
+    }
+
+    private async Task RelinkFileAsync()
+    {
+        if (_currentTrack == null) return;
+
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (window == null) return;
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select the correct audio file",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Audio Files")
+                { Patterns = new[] { "*.mp3", "*.flac", "*.wav", "*.ogg", "*.m4a", "*.aac" } }
+            }
+        });
+
+        if (files.Count == 0) return;
+
+        var newPath = files[0].Path.LocalPath;
+        _currentTrack.FilePath = newPath;
+        _library.RefreshAlbumArt(_currentTrack); // extracts art from the new file and persists it immediately
+
+        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(),
+            $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
+        Log.Information("Track relinked: {Title} → {Path}", _currentTrack.Title, newPath);
+        ToastService.Instance.Show($"'{_currentTrack.Title}' relinked to new file.", ToastType.Success);
+
+        RefreshDisplayProperties(); // updates DisplayUrl and CurrentTrackArtPath bindings
     }
 }

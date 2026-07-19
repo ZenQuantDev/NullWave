@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
@@ -19,41 +21,11 @@ public class ImportViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
     private readonly MetadataService _metadata;
-    private bool _isImporting;
-    private int _importProgress;
-    private int _importTotal;
-    private string _importStatus = string.Empty;
-
-    public bool IsImporting
-    {
-        get => _isImporting;
-        set { _isImporting = value; OnPropertyChanged(); }
-    }
-
-    public int ImportProgress
-    {
-        get => _importProgress;
-        set { _importProgress = value; OnPropertyChanged(); }
-    }
-
-    public int ImportTotal
-    {
-        get => _importTotal;
-        set { _importTotal = value; OnPropertyChanged(); }
-    }
-
-    public string ImportStatus
-    {
-        get => _importStatus;
-        set { _importStatus = value; OnPropertyChanged(); }
-    }
 
     public ICommand ImportFolderCommand { get; }
-
     public event Action? ImportCompleted;
 
-    private static readonly string[] SupportedExtensions =
-        { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac" };
+    private static readonly string[] SupportedExtensions = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac" };
 
     public ImportViewModel(LibraryService library, MetadataService metadata)
     {
@@ -64,90 +36,109 @@ public class ImportViewModel : ViewModelBase
 
     private async Task ImportFolderAsync()
     {
-        var window = Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow : null;
         if (window == null) return;
 
-        // Pick folder
         var folders = await window.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select Folder to Import",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select Folder to Import", AllowMultiple = false });
 
         if (folders.Count == 0) return;
         var folderPath = folders[0].Path.LocalPath;
 
-        // Ask about subfolders - use a simple bool dialog via MessageBox
-        var includeSubfolders = await AskIncludeSubfoldersAsync(window);
+        LiveNotification? activity = null;
 
-        // Collect files
-        var searchOption = includeSubfolders
-            ? SearchOption.AllDirectories
-            : SearchOption.TopDirectoryOnly;
-
-        var files = Directory.GetFiles(folderPath, "*.*", searchOption)
-            .Where(f => SupportedExtensions.Contains(
-                Path.GetExtension(f).ToLower()))
-            .ToList();
-
-        if (files.Count == 0)
+        try
         {
-            ImportStatus = "No supported audio files found.";
-            return;
-        }
+            NullActionLogger.ImportStarted(folderPath, "ImportViewModel");
+            var stopwatch = Stopwatch.StartNew();
 
-        // Import with progress
-        IsImporting = true;
-        ImportTotal = files.Count;
-        ImportProgress = 0;
-        int added = 0;
-        int skipped = 0;
+            var includeSubfolders = await AskIncludeSubfoldersAsync(window);
+            var searchOption = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
 
-        foreach (var filePath in files)
-        {
-            ImportStatus = $"Importing {ImportProgress + 1}/{ImportTotal}...";
+            var files = Directory.GetFiles(folderPath, "*.*", searchOption)
+                .Where(f => SupportedExtensions.Contains(Path.GetExtension(f).ToLower()))
+                .ToList();
 
-            var (title, artist) = _metadata.FetchFromLocalFile(filePath);
-
-            var track = new Track
+            if (files.Count == 0)
             {
-                Title = title,
-                Artist = artist,
-                FilePath = filePath,
-                Source = TrackSource.Local
-            };
-
-            if (!_library.IsDuplicate(track))
-            {
-                _library.Add(track);
-                added++;
-            }
-            else
-            {
-                skipped++;
+                ToastService.Instance.Show("No supported audio files found in that folder.", ToastType.Warning);
+                NullActionLogger.ImportFailed(folderPath, "No supported audio files found.", "ImportViewModel");
+                return;
             }
 
-            ImportProgress++;
-            // Yield to UI thread
-            await Task.Delay(1);
+            activity = ToastService.Instance.StartLiveActivity(
+                "Importing Folder",
+                $"Importing 0/{files.Count}...",
+                isIndeterminate: false);
+
+            int added = 0;
+            int skipped = 0;
+
+            for (int i = 0; i < files.Count; i++)
+            {
+                var filePath = files[i];
+                var (rawTitle, rawArtist) = _metadata.FetchFromLocalFile(filePath);
+                var (sanitizedArtist, sanitizedTitle) =
+                    NullWave.Services.Metadata.TitleSanitizer.Sanitize(rawTitle);
+
+                string title = string.IsNullOrWhiteSpace(sanitizedTitle) ? rawTitle : sanitizedTitle;
+                string artist = rawArtist;
+                if ((string.IsNullOrWhiteSpace(artist) || artist == "Unknown") &&
+                    !string.IsNullOrWhiteSpace(sanitizedArtist))
+                {
+                    artist = sanitizedArtist;
+                }
+
+                var track = new Track
+                {
+                    Title = title,
+                    Artist = artist,
+                    FilePath = filePath,
+                    Source = TrackSource.Local
+                };
+
+                if (!_library.IsDuplicate(track))
+                {
+                    _library.Add(track);
+                    added++;
+                    NullActionLogger.TrackAdded(track.FilePath, "LocalFolder", "ImportViewModel");
+                }
+                else
+                {
+                    skipped++;
+                }
+
+                ToastService.Instance.UpdateLiveActivity(
+                    activity,
+                    message: $"Importing {i + 1}/{files.Count}... ({added} added, {skipped} skipped)",
+                    progressValue: (i + 1) * 100.0 / files.Count,
+                    isIndeterminate: false);
+
+                await Task.Delay(1); // yield to UI thread
+            }
+
+            stopwatch.Stop();
+            ToastService.Instance.CompleteLiveActivity(
+                activity, $"Import complete — {added} added, {skipped} skipped (duplicates).");
+
+            NullActionLogger.ImportCompleted(folderPath, $"{added} tracks added", stopwatch.ElapsedMilliseconds, "ImportViewModel");
+            Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}", added, skipped, folderPath);
+
+            ImportCompleted?.Invoke();
         }
+        catch (Exception ex)
+        {
+            if (activity != null) ToastService.Instance.Dismiss(activity);
+            ToastService.Instance.Show($"Folder import failed: {ex.Message}", ToastType.Error);
 
-        ImportStatus = $"Done - {added} added, {skipped} skipped (duplicates).";
-        IsImporting = false;
-        Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}",
-            added, skipped, folderPath);
-
-        ImportCompleted?.Invoke();
+            NullActionLogger.ImportFailed(folderPath, ex.Message, "ImportViewModel");
+            NullActionLogger.Error("ImportViewModel", ex, $"Failed while executing folder batch processing layout for: {folderPath}");
+        }
     }
 
-    private static async Task<bool> AskIncludeSubfoldersAsync(
-        Avalonia.Controls.Window window)
+    private static async Task<bool> AskIncludeSubfoldersAsync(Avalonia.Controls.Window window)
     {
-        // Simple dialog using Avalonia MessageBox equivalent
-        // We'll use a basic Window dialog for now
         var dialog = new Views.ConfirmDialog(
             "Import Subfolders?",
             "Include all subfolders in the import?");

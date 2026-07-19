@@ -85,6 +85,8 @@ public class Track : INotifyPropertyChanged
         get => _albumArtPath;
         set { if (_albumArtPath != value) { _albumArtPath = value; OnPropertyChanged(); } }
     }
+
+    public bool TitleForceCleaned { get; set; } = false;
 }
 
 public enum TrackSource 

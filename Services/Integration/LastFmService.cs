@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NullWave.Models;
+using NullWave.Services.Integration;
 using Serilog;
 
 namespace NullWave.Services;
@@ -109,7 +111,7 @@ public class LastFmService
             {
                 info.Tags = responseObj.Track.TopTags.TagList
                     .Select(t => t.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Where(n => !string.IsNullOrEmpty(n) && !TagDenylist.IsBlocked(n))
                     .Take(5)
                     .ToList();
             }
@@ -122,7 +124,7 @@ public class LastFmService
                     foreach (var tag in tags.EnumerateArray())
                     {
                         var tagName = tag.GetProperty("name").GetString();
-                        if (!string.IsNullOrEmpty(tagName))
+                        if (!string.IsNullOrEmpty(tagName) && !TagDenylist.IsBlocked(tagName))
                             info.Tags.Add(tagName);
                         if (info.Tags.Count >= 5) break;
                     }

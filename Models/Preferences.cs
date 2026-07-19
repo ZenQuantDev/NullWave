@@ -4,57 +4,54 @@ namespace NullWave.Models;
 
 public class Preferences
 {
-    // Schema Version Control
     public int Version { get; set; } = 1;
-
-    // Audio
     public string AudioQuality { get; set; } = "best";
     public string AudioFormat { get; set; } = "mp3";
     public string DownloadDirectory { get; set; } = string.Empty;
-
-    // Behavior
+    public string YtDlpProxy { get; set; } = string.Empty;
+    public string YtDlpGeoProxy { get; set; } = string.Empty;
+    public string YtDlpBrowserCookies { get; set; } = string.Empty;
     public bool AutoFetchMetadata { get; set; } = true;
     public bool AutoPlayNext { get; set; } = true;
     public bool DownloadOnAdd { get; set; } = true;
     public bool ScrobbleToLastFm { get; set; } = true;
-
-    // Appearance
+    public bool AutoCleanMetadata { get; set; } = true;
+    public bool PreventDuplicateDownloads { get; set; } = true;
     public string AccentColor    { get; set; } = "Purple";
     public string TrackRowStyle  { get; set; } = "Comfortable";
     public string FontScale      { get; set; } = "Medium";
     public bool   CompactMode    { get; set; } = false;
     public string SidebarWidth   { get; set; } = "Normal";
-
-    // Smart Sorting
     public string SelectedAIModel { get; set; } = "qwen2.5:7b";
     public bool   UseLocalAI      { get; set; } = true;
     public double Latitude        { get; set; } = 0.0;
     public double Longitude       { get; set; } = 0.0;
-
-    // New Smart Features config
     public bool   AutoGenerateMoodPlaylist { get; set; } = false;
     public string MoodRefreshInterval      { get; set; } = "Never";
     public string AIConfidenceThreshold    { get; set; } = "70%";
-
-    // External AI Export Format
     public string ExternalAIExportFormat { get; set; } = "txt";
     public float ScrobbleThreshold { get; set; } = 0.50f;
     public int SkipPenaltyWindowSeconds { get; set; } = 15;
     public int SkipPenaltyCap { get; set; } = 3;
     public int MaxConcurrentDownloads { get; set; } = 2;
-
-    // Model to use when running on battery power
     public string BatteryModel { get; set; } = "qwen2.5:3b";
-    // Model to use when plugged in / GPU available
     public string PerformanceModel { get; set; } = "qwen2.5:7b";
     public bool AutoPowerModelSwitch { get; set; } = false;
-
-    // Master AI Toggle
     public bool AIFeaturesEnabled { get; set; } = true;
-
-    // Playback Transitions
     public bool FadeOnPauseEnabled { get; set; } = true;
     public int FadeOnPauseDurationMs { get; set; } = 300;
     public bool CrossfadeEnabled { get; set; } = true;
     public int CrossfadeDurationSeconds { get; set; } = 5;
+
+    /// <summary>
+    /// When true and aria2c is available on PATH, yt-dlp delegates downloading to it
+    /// for multi-connection transfers. Opt-in because it's an external dependency —
+    /// DownloadService checks availability at runtime and falls back silently if missing.
+    /// </summary>
+    public bool UseAria2c { get; set; } = false;
+
+    /// <summary>
+    /// When enabled, sets system log levels to Verbose/Debug. When disabled, filters down to Information.
+    /// </summary>
+    public bool VerboseLogging { get; set; } = false;
 }

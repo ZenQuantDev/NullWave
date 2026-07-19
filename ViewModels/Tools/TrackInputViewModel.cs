@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -9,6 +10,7 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Services.Integration;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -22,6 +24,7 @@ public class TrackInputViewModel : ViewModelBase
     private readonly DownloadService _download;
     private readonly SpotifyBridgeService _spotifyBridge;
     private readonly SettingsViewModel _settings;
+    private readonly AlbumArtService _albumArtService;
 
     private string _inputUrl = string.Empty;
     private string _lastFetchedUrl = string.Empty;
@@ -32,6 +35,14 @@ public class TrackInputViewModel : ViewModelBase
     private bool _isUrlInputVisible;
     private string _statusMessage = string.Empty;
 
+    // Guards against the live-typing preview fetch (InputUrl setter) and the
+    // guaranteed-backfill fetch (AddTrack, when no title was provided yet) racing
+    // each other for the same URL — previously both could fire within the same
+    // add-flow, spawning two separate yt-dlp processes for one track. Entries are
+    // removed once their fetch completes, so a later, genuinely separate fetch for
+    // the same URL (a different session, or after this one finished) still works.
+    private readonly HashSet<string> _fetchesInFlight = new();
+
     public Array SourceOptions => Enum.GetValues(typeof(TrackSource));
     public ICommand AddTrackCommand { get; }
     public ICommand AddLocalFileCommand { get; }
@@ -40,8 +51,6 @@ public class TrackInputViewModel : ViewModelBase
     public event Action? TrackAdded;
     public event Action? TrackMetadataUpdated;
     private string? _lastFetchedThumbnail;
-
-    public PlaylistImportViewModel PlaylistImport { get; }
 
     public bool IsFetching
     {
@@ -68,6 +77,7 @@ public class TrackInputViewModel : ViewModelBase
         {
             _inputUrl = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsInputUrlValid));
             SelectedSource = SourceDetector.Detect(value);
 
             if (_urlParser.IsValidUrl(value) && value != _lastFetchedUrl)
@@ -75,6 +85,19 @@ public class TrackInputViewModel : ViewModelBase
                 _lastFetchedUrl = value;
                 _ = FetchMetadataAsync(value);
             }
+        }
+    }
+
+    public bool IsInputUrlValid
+    {
+        get
+        {
+            var url = InputUrl.Trim();
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            if (_urlParser.IsValidUrl(url) && SourceDetector.IsPlayableUrl(url)) return true;
+            if (System.IO.Directory.Exists(url)) return true;
+            if (System.IO.File.Exists(url) && _urlParser.IsSupportedAudioFile(url)) return true;
+            return false;
         }
     }
 
@@ -103,7 +126,7 @@ public class TrackInputViewModel : ViewModelBase
         DownloadService download,
         SpotifyBridgeService spotifyBridge,
         SettingsViewModel settings,
-        PlaylistImportViewModel playlistImport)
+        AlbumArtService albumArtService)
     {
         _library = library;
         _metadata = metadata;
@@ -111,16 +134,39 @@ public class TrackInputViewModel : ViewModelBase
         _download = download;
         _spotifyBridge = spotifyBridge;
         _settings = settings;
-        PlaylistImport = playlistImport;
+        _albumArtService = albumArtService;
+
+        _download.DownloadCompleted += async (trackId, filePath, _) =>
+        {
+            if (!Guid.TryParse(trackId, out var trackGuid)) return;
+
+            var track = _library.GetAll().FirstOrDefault(t => t.Id == trackGuid);
+            if (track == null) return;
+
+            track.FilePath = filePath;
+            track.AlbumArtPath = await _albumArtService.GetArtPathAsync(track);
+            _library.Update(track);
+        };
 
         AddTrackCommand = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
         ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
     }
 
+    /// <summary>
+    /// Strips the query string from a URL, purely for use as a cosmetic placeholder
+    /// title. The real Url field used for playback/download always keeps the full,
+    /// untouched string — this only affects what's shown before metadata resolves.
+    /// </summary>
+    private static string StripQueryStringForDisplay(string url)
+    {
+        var qIndex = url.IndexOf('?');
+        return qIndex > 0 ? url[..qIndex] : url;
+    }
+
     public void AddTrack()
     {
-        var title = InputTitle.Trim();
+        var providedTitle = InputTitle.Trim();
         var url = InputUrl.Trim();
 
         if (string.IsNullOrWhiteSpace(url))
@@ -152,7 +198,7 @@ public class TrackInputViewModel : ViewModelBase
                 var (t, a) = _metadata.FetchFromLocalFile(url);
                 var track = new Track
                 {
-                    Title = string.IsNullOrWhiteSpace(title) ? t : title,
+                    Title = string.IsNullOrWhiteSpace(providedTitle) ? t : providedTitle,
                     Artist = InputArtist.Trim().Length > 0 ? InputArtist.Trim() : a,
                     FilePath = url,
                     Source = TrackSource.Local
@@ -166,9 +212,6 @@ public class TrackInputViewModel : ViewModelBase
             }
         }
 
-        if (string.IsNullOrWhiteSpace(title))
-            title = url;
-
         // Reject bare domain roots and unplayable URLs
         if (!SourceDetector.IsPlayableUrl(url))
         {
@@ -178,6 +221,19 @@ public class TrackInputViewModel : ViewModelBase
                 nameof(TrackInputViewModel), url);
             return;
         }
+
+        // The raw pasted URL (tracking params and all) used to become the *permanent*
+        // title whenever InputTitle was empty, relying entirely on the live-typing
+        // preview fetch (FetchMetadataAsync, triggered by the InputUrl setter) to
+        // backfill a real title later. That preview fetch is deduped and gets
+        // abandoned the moment ClearInputs() resets InputUrl below — so a track added
+        // before the preview resolves could keep a raw URL as its title forever with
+        // no retry path. Fix: query-strip the placeholder, and always guarantee a
+        // backfill attempt when no title was provided — FetchMetadataAsync itself now
+        // dedupes against the live-typing fetch via _fetchesInFlight, so this no
+        // longer double-spawns yt-dlp for the same URL.
+        var usedFallbackTitle = string.IsNullOrWhiteSpace(providedTitle);
+        var title = usedFallbackTitle ? StripQueryStringForDisplay(url) : providedTitle;
 
         var source = SelectedSource;
         var newTrack = new Track
@@ -192,6 +248,12 @@ public class TrackInputViewModel : ViewModelBase
 
         _library.Add(newTrack);
         NullActionLogger.TrackAdded(newTrack.Id.ToString(), url, nameof(TrackInputViewModel));
+
+        if (usedFallbackTitle)
+        {
+            _ = FetchMetadataAsync(url);
+        }
+
         ClearInputs();
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
@@ -208,6 +270,17 @@ public class TrackInputViewModel : ViewModelBase
 
     private async Task FetchMetadataAsync(string url)
     {
+        if (!_fetchesInFlight.Add(url))
+        {
+            // Another fetch for this exact URL is already running (the live-typing
+            // preview fetch and the guaranteed post-add backfill can both target the
+            // same URL when Add is clicked before typing has resolved) — skip the
+            // duplicate yt-dlp spawn, the in-flight one will complete the backfill.
+            Log.Debug("[{Source}] Skipping duplicate in-flight metadata fetch for {Url}",
+                nameof(TrackInputViewModel), url);
+            return;
+        }
+
         IsFetching = true;
         try
         {
@@ -223,7 +296,9 @@ public class TrackInputViewModel : ViewModelBase
                 .FirstOrDefault(t => t.Url == url);
             if (existing != null)
             {
-                if (existing.Title == url || existing.Title == "Unknown Title"
+                if (existing.Title == url
+                    || existing.Title == StripQueryStringForDisplay(url)
+                    || existing.Title == "Unknown Title"
                     || string.IsNullOrWhiteSpace(existing.Title))
                     existing.Title = title;
                 if (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist))
@@ -243,6 +318,7 @@ public class TrackInputViewModel : ViewModelBase
         }
         finally
         {
+            _fetchesInFlight.Remove(url);
             IsFetching = false;
         }
     }

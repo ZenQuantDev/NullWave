@@ -3,6 +3,8 @@
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:settings="using:NullWave.Views.Settings"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:services="using:NullWave.Services"
+        xmlns:models="using:NullWave.Models"
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
@@ -17,128 +19,293 @@
         <converters:StringEqualsConverter x:Key="StrEq"/>
     </Window.Resources>
 
-    <Grid ColumnDefinitions="220,*">
+    <Window.Styles>
+        <!-- Base layout styles for all toasts -->
+        <Style Selector="Border.success, Border.error, Border.warning, Border.info">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
 
-        <!-- Left Navigation Sidebar Platform -->
-        <Border Grid.Column="0"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
-                BorderThickness="0,0,1,0">
-            <DockPanel>
+        <!-- Theme-mapped colors using your shared resources -->
+        <Style Selector="Border.success">
+            <Setter Property="Background" Value="{DynamicResource BrushGreenDim}"/>
+        </Style>
+        <Style Selector="Border.error">
+            <Setter Property="Background" Value="{DynamicResource BrushRedDim}"/>
+        </Style>
+        <Style Selector="Border.warning">
+            <Setter Property="Background" Value="{DynamicResource BrushAmberDim}"/>
+        </Style>
+        <Style Selector="Border.info">
+            <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
+        </Style>
+    </Window.Styles>
 
-                <!-- Terminal Node Brand Header -->
-                <Border DockPanel.Dock="Top"
-                        Padding="20,24,20,20"
-                        BorderBrush="{StaticResource BrushBorder}"
-                        BorderThickness="0,0,0,1">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <material:MaterialIcon Kind="Waveform"
-                                               Width="28" Height="28"
-                                               Foreground="{StaticResource BrushAccent}"
-                                               VerticalAlignment="Center"/>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="NullWave"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="Bold"/>
-                            <TextBlock Text="Control Desk"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"/>
+    <Panel>
+        <Grid ColumnDefinitions="220,*">
+
+            <!-- Left Navigation Sidebar Platform -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource BrushSurface}"
+                    BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+
+                    <!-- Terminal Node Brand Header -->
+                    <Border DockPanel.Dock="Top"
+                            Padding="20,24,20,20"
+                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <material:MaterialIcon Kind="Waveform"
+                                                   Width="28" Height="28"
+                                                   Foreground="{StaticResource BrushAccent}"
+                                                   VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="NullWave"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="Bold"/>
+                                <TextBlock Text="Settings"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{StaticResource FontSizeXs}"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <!-- Application System Software Version Footer -->
-                <TextBlock DockPanel.Dock="Bottom"
-                           Text="{Binding CurrentVersion, StringFormat='System Node Build v{0}'}"
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,16"/>
+                    <!-- Application System Software Version Footer -->
+                    <TextBlock DockPanel.Dock="Bottom"
+                               Text="{Binding CurrentVersion, StringFormat='System Node Build v{0}'}"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{StaticResource FontSizeXs}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,16"/>
 
-                <!-- Left Structural Nav Deck (Restored to Classic Titles) -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
-                    <StackPanel Margin="8,4,8,0" Spacing="3">
+                    <!-- Left Structural Nav Deck (Restored to Classic Titles) -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
+                        <StackPanel Margin="8,4,8,0" Spacing="3">
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="General"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="TuneVariant" Width="16" Height="16"/>
-                                <TextBlock Text="General"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="General"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="TuneVariant" Width="16" Height="16"/>
+                                    <TextBlock Text="General"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Appearance"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="Palette" Width="16" Height="16"/>
-                                <TextBlock Text="Appearance"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Appearance"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Palette" Width="16" Height="16"/>
+                                    <TextBlock Text="Appearance"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="ApiKeys"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
-                                <TextBlock Text="API Keys"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="ApiKeys"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
+                                    <TextBlock Text="API Keys"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Audio"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="MusicNote" Width="16" Height="16"/>
-                                <TextBlock Text="Audio"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Audio"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="MusicNote" Width="16" Height="16"/>
+                                    <TextBlock Text="Audio"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="SmartFeatures"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16"/>
-                                <TextBlock Text="Smart Features"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="SmartFeatures"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16"/>
+                                    <TextBlock Text="Smart Features"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Updates"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="Update" Width="16" Height="16"/>
-                                <TextBlock Text="Updates"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Updates"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Update" Width="16" Height="16"/>
+                                    <TextBlock Text="Updates"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Advanced"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="Cog" Width="16" Height="16"/>
-                                <TextBlock Text="Advanced"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Advanced"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Cog" Width="16" Height="16"/>
+                                    <TextBlock Text="Advanced"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="About"
-                                Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"/>
-                                <TextBlock Text="About"/>
-                            </StackPanel>
-                        </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="About"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"/>
+                                    <TextBlock Text="About"/>
+                                </StackPanel>
+                            </Button>
 
-                    </StackPanel>
-                </ScrollViewer>
-            </DockPanel>
-        </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
 
-        <!-- Right Side Viewport Core Workspace Layer -->
-        <Grid Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
-            <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
-            <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
-            <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
-            <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
-            <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
-            <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
-            <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
+            <!-- Right Side Viewport Core Workspace Layer -->
+            <Grid Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
+                <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
+                <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
+                <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
+                <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
+                <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
+                <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
+                <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
+            </Grid>
         </Grid>
-    </Grid>
+
+        <!-- THE TOAST OVERLAY LAYER -->
+        <ItemsControl DataContext="{x:Static services:ToastService.Instance}"
+                      ItemsSource="{Binding ActiveNotifications}"
+                      x:DataType="services:ToastService"
+                      VerticalAlignment="Bottom"
+                      HorizontalAlignment="Center"
+                      Margin="0,0,0,30"
+                      IsHitTestVisible="True">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:LiveNotification">
+                    <!-- Unified Fixed Box Size & Premium Rounded Edge Profiles -->
+                    <Border Width="360"
+                            Margin="0,2"
+                            Background="{StaticResource BrushSurface}"
+                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            BoxShadow="0 4 20 0 #55000000"
+                            ClipToBounds="True">
+                        <Grid ColumnDefinitions="Auto, *">
+                            <!-- Left Edge Colored Structural Status Accent Line -->
+                            <Border Width="5"
+                                    VerticalAlignment="Stretch"
+                                    Background="{Binding NotificationColor}"/>
+                            
+                            <!-- FIX: Swapped invalid Padding property for Margin on StackPanel -->
+                            <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
+                                <!-- Header Layer: Dynamic Icon + Informative Title Context + Close Control -->
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <!-- Dynamic Vector Icon based on status type -->
+                                    <Path Grid.Column="0"
+                                          Width="15" Height="15"
+                                          Margin="0,0,8,0"
+                                          Fill="{Binding NotificationColor}"
+                                          Data="{Binding IconData}"
+                                          Stretch="Uniform"
+                                          VerticalAlignment="Center"/>
+                                    
+                                    <!-- Context-Aware Custom or Type Title -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Title}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    
+                                    <!-- Dismiss Trigger Cross Button -->
+                                    <Button Grid.Column="2"
+                                            Command="{Binding CloseCommand}"
+                                            Background="Transparent" BorderThickness="0"
+                                            Padding="4" MinWidth="0" MinHeight="0"
+                                            Cursor="Hand">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Opacity" Value="0.7"/>
+                                            </Style>
+                                        </Button.Styles>
+                                        <material:MaterialIcon Kind="Close" Width="14" Height="14"
+                                                               Foreground="{StaticResource BrushTextMuted}"/>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Core Message Description Body -->
+                                <TextBlock Text="{Binding Message}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource BrushTextSecondary}"
+                                           TextWrapping="Wrap"
+                                           Margin="23,0,0,2"/>
+
+                                <!-- Live Background Sync Progress Infrastructure -->
+                                <ProgressBar IsVisible="{Binding ShowProgressBar}"
+                                             Value="{Binding ProgressValue}"
+                                             IsIndeterminate="{Binding IsIndeterminate}"
+                                             Height="4"
+                                             Margin="23,2,0,2"
+                                             CornerRadius="2"
+                                             Background="{StaticResource BrushBorder}"
+                                             Foreground="{Binding NotificationColor}"/>
+
+                                <!-- Secondary Action Command Attachment Anchors -->
+                                <Button IsVisible="{Binding ShowActionButton}"
+                                        Command="{Binding ActionCommand}"
+                                        Content="{Binding ActionButtonText}"
+                                        HorizontalAlignment="Right"
+                                        FontSize="{StaticResource FontSizeXs}" 
+                                        Padding="10,4"
+                                        Background="{StaticResource BrushSurface2}"
+                                        Foreground="{StaticResource BrushTextPrimary}"
+                                        CornerRadius="6"/>
+
+                                <!-- Native Double-State Detailed Information Expander Drawer -->
+                                <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
+                                    <Button Command="{Binding ToggleExpandCommand}"
+                                            Background="Transparent" BorderThickness="0" Padding="0"
+                                            HorizontalAlignment="Left" Cursor="Hand">
+                                        <Panel>
+                                            <!-- Dynamic Closed Label Toggle State -->
+                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
+                                                <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <!-- Dynamic Opened Label Toggle State -->
+                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
+                                                <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Panel>
+                                    </Button>
+                                    
+                                    <!-- Collapsible Container Drawer Layer -->
+                                    <Border IsVisible="{Binding IsExpanded}"
+                                            Margin="0,6,0,0" Padding="8"
+                                            Background="{StaticResource BrushBase}"
+                                            CornerRadius="6"
+                                            BorderBrush="{StaticResource BrushBorder}"
+                                            BorderThickness="1">
+                                        <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding DetailedMessage}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource BrushTextMuted}"
+                                                       TextWrapping="Wrap"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Panel>
 </Window>

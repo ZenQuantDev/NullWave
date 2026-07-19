@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
+using NullWave.Services.Integration;
 using Serilog;
 
 namespace NullWave.Services;
@@ -16,19 +18,32 @@ public class DownloadService
 {
     private readonly string _downloadDir;
     private readonly LibraryService _libraryService;
+    private readonly PreferencesService _prefsService;
+    private readonly AlbumArtService _albumArtService;
 
     public event Action<string, float>? ProgressChanged;
     public event Action<string, string, bool>? DownloadCompleted;
     public event Action<string, string, bool>? DownloadFailed;
 
+    // Batch-level events, purpose-built for wiring up ToastService live activities
+    // without requiring the call site to thread callbacks through by hand.
+    public event Action<int>? PlaylistBatchStarted;               // totalTracks
+    public event Action<int, int, int>? PlaylistBatchProgress;    // completed, total, skipped
+    public event Action<int, int, int>? PlaylistBatchCompleted;   // completed, failed, skipped
+
     private static readonly Regex ProgressRegex = new(
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
-
+    private static readonly Regex TopicSuffixRegex = new(
+        @"\s*-\s*Topic\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private readonly HashSet<string> _activeDownloads = new();
     private CancellationTokenSource? _currentDownloadCts;
-
     private SemaphoreSlim _semaphore = new(2, 5);
     private int _currentLimit = 2;
+
+    // aria2c availability is checked once and cached; if it's missing we silently
+    // fall back to yt-dlp's native downloader instead of failing every download.
+    private static bool? _aria2cAvailable;
+    private static readonly object _aria2cLock = new();
 
     public void UpdateConcurrencyLimit(int newLimit)
     {
@@ -39,13 +54,14 @@ public class DownloadService
         _semaphore = new SemaphoreSlim(newLimit, 5);
         _currentLimit = newLimit;
         old.Dispose();
-
         Log.Information("[DownloadService] Concurrency limit updated to {Limit}", newLimit);
     }
 
-    public DownloadService(LibraryService libraryService)
+    public DownloadService(LibraryService libraryService, PreferencesService prefsService, AlbumArtService albumArtService)
     {
         _libraryService = libraryService;
+        _prefsService = prefsService;
+        _albumArtService = albumArtService;
         _downloadDir = NullWavePaths.DownloadsDir;
         Directory.CreateDirectory(_downloadDir);
     }
@@ -54,6 +70,77 @@ public class DownloadService
     {
         _currentDownloadCts?.Cancel();
         Log.Debug("[DownloadService] Current download cancelled by caller");
+    }
+
+    /// <summary>
+    /// Checks once (and caches) whether aria2c is on PATH. Cheap enough to call
+    /// per-download since after the first check it's just a bool read.
+    /// </summary>
+    private static bool IsAria2cAvailable()
+    {
+        if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
+
+        lock (_aria2cLock)
+        {
+            if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "aria2c",
+                    Arguments = "--version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(2000);
+                _aria2cAvailable = proc != null && proc.ExitCode == 0;
+            }
+            catch
+            {
+                _aria2cAvailable = false;
+            }
+
+            if (!_aria2cAvailable.Value)
+                Log.Information("[DownloadService] aria2c not found on PATH — using yt-dlp's native downloader");
+            else
+                Log.Information("[DownloadService] aria2c detected — enabling multi-connection downloads");
+
+            return _aria2cAvailable.Value;
+        }
+    }
+
+    private void AppendSpeedAndAuthArgs(List<string> args)
+    {
+        if (_prefsService.Current.UseAria2c && IsAria2cAvailable())
+        {
+            args.Add("--downloader");
+            args.Add("aria2c");
+            args.Add("--downloader-args");
+            args.Add("aria2c:-x 16 -k 1M -s 16");
+        }
+
+        var browserCookies = _prefsService.Current.YtDlpBrowserCookies;
+        if (!string.IsNullOrWhiteSpace(browserCookies))
+        {
+            args.Add("--cookies-from-browser");
+            args.Add(browserCookies);
+        }
+    }
+
+    /// <summary>
+    /// The inter-track delay exists to dodge YouTube rate limiting. If the user has
+    /// browser cookies configured, YouTube trusts the request more and we can shrink
+    /// the delay substantially instead of dropping it to zero (which still risks 429s).
+    /// </summary>
+    private int GetThrottleDelayMs()
+    {
+        return string.IsNullOrWhiteSpace(_prefsService.Current.YtDlpBrowserCookies)
+            ? Random.Shared.Next(3000, 8000)
+            : Random.Shared.Next(600, 1800);
     }
 
     public async Task DownloadAsync(
@@ -73,7 +160,6 @@ public class DownloadService
         }
 
         var outputTemplate = Path.Combine(_downloadDir, "%(title)s.%(ext)s");
-
         var qualityValue = audioQuality switch
         {
             "best" => "0",
@@ -90,19 +176,20 @@ public class DownloadService
             "--extract-audio",
             "--audio-format", audioFormat,
             "--audio-quality", qualityValue,
+            "-f", "bestaudio/best",
             "--output", outputTemplate,
             "--print", "after_move:filepath",
             "--ignore-errors",
             "--js-runtimes", "node",
             "--remote-components", "ejs:github",
-            
             "--embed-metadata",
             "--embed-thumbnail",
             "--write-thumbnail",
-            
             "--parse-metadata", "uploader:%(artist)s",
             "--parse-metadata", "channel:%(artist)s"
         };
+
+        AppendSpeedAndAuthArgs(args);
 
         if (!allowPlaylist)
         {
@@ -137,9 +224,12 @@ public class DownloadService
                 cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             }
         }
-        ct = cts.Token;
 
-        Log.Information("Starting download: {Url} (format={Format}, quality={Quality})",
+        ct = cts.Token;
+        // Demoted to Debug: fires once per track, which floods the default log during
+        // large playlist downloads. The playlist-level "Playlist has N tracks" and the
+        // final "Bulk download complete" summary are what Default mode users need to see.
+        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
         try
@@ -157,7 +247,7 @@ public class DownloadService
             var psi = new ProcessStartInfo
             {
                 FileName               = "yt-dlp",
-                Arguments              = string.Join(" ", args),
+                Arguments              = string.Join(" ", args.Select(QuoteIfNeeded)),
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
@@ -170,13 +260,11 @@ public class DownloadService
             process.OutputDataReceived += (_, e) =>
             {
                 if (string.IsNullOrEmpty(e.Data)) return;
-
                 if (e.Data.StartsWith("/") || e.Data.StartsWith("~"))
                 {
                     outputFilePath = e.Data.Trim();
                     return;
                 }
-
                 var match = ProgressRegex.Match(e.Data);
                 if (match.Success &&
                     float.TryParse(match.Groups[1].Value,
@@ -186,25 +274,30 @@ public class DownloadService
                 {
                     ProgressChanged?.Invoke(trackId, pct / 100f);
                 }
-
                 Log.Debug("yt-dlp: {Line}", e.Data);
             };
 
             process.ErrorDataReceived += (_, e) =>
             {
+                // Demoted to Debug: yt-dlp emits one of these per unavailable/removed video,
+                // which is routine link-rot noise on older playlists (80+ in a single run
+                // is normal). The aggregate failed-count in the batch summary is what
+                // Default mode should show; Verbose mode surfaces the per-track reason.
                 if (!string.IsNullOrEmpty(e.Data))
-                    Log.Warning("yt-dlp stderr: {Line}", e.Data);
+                    Log.Debug("yt-dlp stderr: {Line}", e.Data);
             };
 
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-
             await process.WaitForExitAsync(ct);
 
             if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
-                Log.Information("Download complete: {Path}", outputFilePath);
+                // Demoted to Debug: per-track success. The interactive single-track case
+                // already gets a toast via DownloadCompleted; the playlist case is covered
+                // by the batch progress toast and final summary.
+                Log.Debug("Download complete: {Path}", outputFilePath);
                 DownloadCompleted?.Invoke(trackId, outputFilePath, isInteractive);
             }
             else if (process.ExitCode == 0)
@@ -244,6 +337,15 @@ public class DownloadService
         }
     }
 
+    // yt-dlp's --downloader-args value ("aria2c:-x 16 -k 1M -s 16") contains spaces and
+    // must stay as one shell token; everything else passes through untouched.
+    private static string QuoteIfNeeded(string arg)
+    {
+        if (arg.Contains(' ') && !arg.StartsWith("\""))
+            return $"\"{arg}\"";
+        return arg;
+    }
+
     public async Task DownloadPlaylistAsync(
         string playlistUrl,
         Action<Track>? onTrackReady = null,
@@ -253,11 +355,9 @@ public class DownloadService
         CancellationToken ct = default)
     {
         Log.Information("Starting playlist download: {Url}", playlistUrl);
-
         try
         {
             var metadataArgs = $"--flat-playlist --dump-json --ignore-errors --no-download --js-runtimes node --remote-components ejs:github \"{playlistUrl}\"";
-            
             var metadataPsi = new ProcessStartInfo
             {
                 FileName               = "yt-dlp",
@@ -295,44 +395,41 @@ public class DownloadService
                     var rawTitle = root.TryGetProperty("title", out var titleProp)
                         ? titleProp.GetString() ?? "Unknown Track" : "Unknown Track";
 
-                    // ── Try every field yt-dlp may provide for artist name ──────────
-                    // Priority order: "artist" (best) → "creator" → "uploader"
-                    // → "channel" (worst - often "Lady Gaga - Topic")
                     string artist = "Unknown Artist";
-
                     if (root.TryGetProperty("artist", out var artistProp) &&
                         !string.IsNullOrWhiteSpace(artistProp.GetString()))
                     {
                         artist = artistProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("creator", out var creatorProp) &&
-                             !string.IsNullOrWhiteSpace(creatorProp.GetString()))
+                        !string.IsNullOrWhiteSpace(creatorProp.GetString()))
                     {
                         artist = creatorProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("uploader", out var uploaderProp) &&
-                             !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
+                        !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
                     {
                         artist = uploaderProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("channel", out var channelProp) &&
-                             !string.IsNullOrWhiteSpace(channelProp.GetString()))
+                        !string.IsNullOrWhiteSpace(channelProp.GetString()))
                     {
                         artist = channelProp.GetString()!.Trim();
                     }
 
-                    // Strip " - Topic" suffix that YouTube appends to official artist channels
-                    artist = Regex.Replace(artist, @"\s*-\s*Topic\s*$", "",
-                        RegexOptions.IgnoreCase).Trim();
+                    if (_prefsService.Current.AutoCleanMetadata)
+                    {
+                        // Strip " - Topic" suffix that YouTube appends to official artist channels
+                        artist = TopicSuffixRegex.Replace(artist, string.Empty).Trim();
+                    }
 
-                    // If we still have no useful artist, try splitting the title
-                    // e.g. "Lady Gaga - Just Dance" → artist="Lady Gaga", title="Just Dance"
                     string cleanTitle = rawTitle;
                     if (string.IsNullOrWhiteSpace(artist) ||
                         artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase))
                     {
                         var parsed = NullWave.Services.Metadata.TrackTitleParser
                             .TryParseArtistTitle(rawTitle);
+
                         if (parsed != null)
                         {
                             artist     = parsed.Value.Artist;
@@ -350,6 +447,11 @@ public class DownloadService
             }
 
             Log.Information("Playlist has {Count} tracks", tracks.Count);
+            PlaylistBatchStarted?.Invoke(tracks.Count);
+
+            int completedCount = 0;
+            int failedCount = 0;
+            int skippedCount = 0;
 
             for (int i = 0; i < tracks.Count; i++)
             {
@@ -373,36 +475,47 @@ public class DownloadService
                     DateAdded = DateTime.UtcNow
                 };
 
-                _libraryService.Add(newTrack); 
+                if (_prefsService.Current.PreventDuplicateDownloads && _libraryService.IsDuplicate(newTrack))
+                {
+                    // Demoted to Debug: this can fire 100+ times per playlist re-run during
+                    // testing. The final "duplicates skipped" count in the batch summary
+                    // is what matters for Default mode.
+                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", artist, title);
+                    skippedCount++;
+                    PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
+                    continue;
+                }
+
+                _libraryService.Add(newTrack);
 
                 var tcs = new TaskCompletionSource<bool>();
 
                 System.Action<string, string, bool> OnCompleted = (id, filePath, isInteractive) =>
                 {
-                    if (id == trackId.ToString()) 
-                    { 
+                    if (id == trackId.ToString())
+                    {
                         finalFilePath = filePath;
-                        onTrackCompleted?.Invoke(title ?? "Unknown", artist ?? "Unknown", filePath); 
-                        tcs.TrySetResult(true); 
-                    }
-                };
-                
-                System.Action<string, string, bool> OnFailed = (id, error, isInteractive) =>
-                {
-                    if (id == trackId.ToString()) 
-                    { 
-                        onTrackFailed?.Invoke(title ?? "Unknown", error); 
-                        tcs.TrySetResult(false); 
+                        onTrackCompleted?.Invoke(title ?? "Unknown", artist ?? "Unknown", filePath);
+                        tcs.TrySetResult(true);
                     }
                 };
 
-                try 
+                System.Action<string, string, bool> OnFailed = (id, error, isInteractive) =>
+                {
+                    if (id == trackId.ToString())
+                    {
+                        onTrackFailed?.Invoke(title ?? "Unknown", error);
+                        tcs.TrySetResult(false);
+                    }
+                };
+
+                try
                 {
                     DownloadCompleted += OnCompleted;
                     DownloadFailed    += OnFailed;
-                    
+
                     await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "mp3", audioQuality: "best", allowPlaylist: false, isInteractive: false, ct: ct);
-                    
+
                     DownloadCompleted -= OnCompleted;
                     DownloadFailed    -= OnFailed;
 
@@ -411,16 +524,18 @@ public class DownloadService
                     if (!success)
                     {
                         _libraryService.Remove(trackId);
+                        failedCount++;
                     }
                     else if (!string.IsNullOrEmpty(finalFilePath))
                     {
+                        completedCount++;
                         var dbTrack = _libraryService.GetAll().FirstOrDefault(t => t.Id == trackId);
+
                         if (dbTrack != null)
                         {
                             dbTrack.FilePath = finalFilePath;
 
-                            // ── Clean up YouTube channel artist names before enrichment ─────────
-                            if (!string.IsNullOrEmpty(dbTrack.Artist))
+                            if (_prefsService.Current.AutoCleanMetadata && !string.IsNullOrEmpty(dbTrack.Artist))
                             {
                                 var cleanArtist = Regex.Replace(
                                     dbTrack.Artist,
@@ -434,6 +549,7 @@ public class DownloadService
                                 {
                                     var parsed = NullWave.Services.Metadata.TrackTitleParser
                                         .TryParseArtistTitle(dbTrack.Title);
+
                                     if (parsed != null)
                                     {
                                         cleanArtist    = parsed.Value.Artist;
@@ -445,33 +561,35 @@ public class DownloadService
                                     dbTrack.Artist = cleanArtist;
                             }
 
-                            // Also strip clutter from the title itself
                             if (!string.IsNullOrEmpty(dbTrack.Title))
                             {
                                 var parsed = NullWave.Services.Metadata.TrackTitleParser
                                     .TryParseArtistTitle(dbTrack.Title);
+
                                 if (parsed != null &&
                                     (dbTrack.Artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
-                                     string.IsNullOrWhiteSpace(dbTrack.Artist)))
+                                    string.IsNullOrWhiteSpace(dbTrack.Artist)))
                                 {
                                     dbTrack.Artist = parsed.Value.Artist;
                                     dbTrack.Title  = parsed.Value.Title;
                                 }
                             }
 
+                            dbTrack.AlbumArtPath = await _albumArtService.GetArtPathAsync(dbTrack);
                             _libraryService.Update(dbTrack);
-
                             Log.Debug("[DownloadService] Track ready: '{Title}' by '{Artist}' → {Path}",
                                 dbTrack.Title, dbTrack.Artist, finalFilePath);
-
                             onTrackReady?.Invoke(dbTrack);
                         }
                     }
 
-                    if (i < tracks.Count - 1) 
+                    PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
+
+                    if (i < tracks.Count - 1)
                     {
-                        var delayMs = Random.Shared.Next(3000, 8000);
-                        Log.Information("Throttling download to avoid rate limits... sleeping for {Delay}ms", delayMs);
+                        var delayMs = GetThrottleDelayMs();
+                        // Demoted to Debug: fires once per track (up to hundreds per playlist).
+                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms", delayMs);
                         await Task.Delay(delayMs, ct);
                     }
                 }
@@ -484,23 +602,29 @@ public class DownloadService
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning("Skipping unavailable track {Url}: {Msg}", cleanUrl, ex.Message);
+                    // Demoted to Debug: this is a redundant safety-net catch around an
+                    // already-logged DownloadAsync failure; the aggregate failed count
+                    // in the batch summary covers it for Default mode.
+                    Log.Debug(ex, "Skipping unavailable track {Url}: {Msg}", cleanUrl, ex.Message);
                     _libraryService.Remove(trackId);
+                    failedCount++;
                     DownloadCompleted -= OnCompleted;
                     DownloadFailed    -= OnFailed;
+                    PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
                     continue;
                 }
             }
 
             Log.Information("Playlist download complete");
+            PlaylistBatchCompleted?.Invoke(completedCount, failedCount, skippedCount);
         }
-        catch (OperationCanceledException) 
-        { 
-            Log.Warning("Playlist download cancelled"); 
+        catch (OperationCanceledException)
+        {
+            Log.Warning("Playlist download cancelled");
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "Playlist download failed"); 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Playlist download failed");
         }
     }
 
@@ -508,10 +632,12 @@ public class DownloadService
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
+
         FileInfo? newest = null;
         foreach (var file in dir.GetFiles("*.mp3"))
             if (newest == null || file.LastWriteTime > newest.LastWriteTime)
                 newest = file;
+
         return newest?.FullName;
     }
 

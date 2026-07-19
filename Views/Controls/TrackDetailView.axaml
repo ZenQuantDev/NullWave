@@ -9,88 +9,86 @@
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="1,0,0,0"
-        Width="320"
-        MinWidth="320"
-        MaxWidth="320"
-        IsVisible="{Binding Detail.IsOpen}"
+        Width="{Binding Detail.PanelWidth}"
+        Opacity="{Binding Detail.PanelOpacity}"
         ClipToBounds="True">
-
     <Border.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </Border.Resources>
-
     <Border.Transitions>
         <Transitions>
-            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
+            <DoubleTransition Property="Width" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
         </Transitions>
     </Border.Transitions>
-
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="0" HorizontalAlignment="Stretch">
-
-            <!--  Album art  -->
-            <Border Height="220"
-                    Background="{StaticResource BrushSurface2}"
-                    ClipToBounds="True">
-                <Panel>
-                    <Image Source="{Binding Detail.CurrentTrackArtPath,
-                               Converter={StaticResource PathToBitmap}}"
-                           Stretch="UniformToFill"
-                           IsVisible="{Binding Detail.CurrentTrackArtPath,
-                               Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                    <StackPanel HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="8"
-                                IsVisible="{Binding Detail.CurrentTrackArtPath,
-                                    Converter={x:Static ObjectConverters.IsNull}}">
-                        <material:MaterialIcon Kind="MusicNote"
-                                   Width="52" Height="52"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="No artwork"
-                                   FontSize="{StaticResource FontSizeSm}"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Panel>
-            </Border>
-
-            <!--  Content  -->
-            <StackPanel Spacing="16" Margin="16,16,16,20">
-
-                <!-- Header -->
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0"
-                               Text="Track Details"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeLg}"
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
-                    <Button Grid.Column="1"
-                            Classes="icon-btn"
-                            Command="{Binding Detail.CloseCommand}">
-                        <material:MaterialIcon Kind="Close" Width="18" Height="18"/>
-                    </Button>
-                </Grid>
-
-                <Separator Background="{StaticResource BrushBorder}"/>
-
+    
+    <!-- Switched to a Grid layout to pin the top sections fixed in place -->
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- ROW 0: Fixed Album Art -->
+        <Border Grid.Row="0" Height="220"
+                Background="{StaticResource BrushSurface2}"
+                ClipToBounds="True">
+            <Panel>
+                <Image Source="{Binding Detail.CurrentTrackArtPath,
+                           Converter={StaticResource PathToBitmap}}"
+                       Stretch="UniformToFill"
+                       IsVisible="{Binding Detail.CurrentTrackArtPath,
+                           Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8"
+                            IsVisible="{Binding Detail.CurrentTrackArtPath,
+                           Converter={x:Static ObjectConverters.IsNull}}">
+                    <material:MaterialIcon Kind="MusicNote"
+                                           Width="52" Height="52"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           HorizontalAlignment="Center"/>
+                    <TextBlock Text="No artwork"
+                               FontSize="{StaticResource FontSizeSm}"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Panel>
+        </Border>
+        
+        <!-- ROW 1: Fixed Header -->
+        <StackPanel Grid.Row="1" Spacing="0" Margin="16,16,16,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="Track Details"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           FontSize="{StaticResource FontSizeLg}"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Classes="icon-btn"
+                        Command="{Binding Detail.CloseCommand}">
+                    <material:MaterialIcon Kind="Close" Width="18" Height="18"/>
+                </Button>
+            </Grid>
+            <Separator Background="{StaticResource BrushBorder}" Margin="0,12,0,0"/>
+        </StackPanel>
+        
+        <!-- ROW 2: Scrollable Content Area -->
+        <ScrollViewer Grid.Row="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16" Margin="16,12,16,20">
                 <!-- Title -->
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="TITLE" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
                 </StackPanel>
-
+                
                 <!-- Artist -->
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="ARTIST" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                 </StackPanel>
-
+                
                 <!-- Source + Favorite -->
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="6">
@@ -113,13 +111,13 @@
                             Command="{Binding Detail.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
                             VerticalAlignment="Bottom">
-                        <material:MaterialIcon Kind="{Binding Detail.IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" 
-                                               Width="22" Height="22" 
-                                               Foreground="{StaticResource BrushAmber}" 
+                        <material:MaterialIcon Kind="{Binding Detail.IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}"
+                                               Width="22" Height="22"
+                                               Foreground="{StaticResource BrushAmber}"
                                                Opacity="{Binding Detail.IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
                     </Button>
                 </Grid>
-
+                
                 <!-- Stats -->
                 <Grid ColumnDefinitions="*,*">
                     <StackPanel Grid.Column="0" Spacing="4">
@@ -137,7 +135,7 @@
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
-
+                
                 <!-- Date added -->
                 <StackPanel Spacing="4">
                     <TextBlock Classes="section-label" Text="DATE ADDED" Margin="0"/>
@@ -145,7 +143,7 @@
                                Foreground="{StaticResource BrushTextSecondary}"
                                FontSize="{StaticResource FontSizeBody}"/>
                 </StackPanel>
-
+                
                 <!-- URL / Path -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
@@ -153,16 +151,22 @@
                                Foreground="{StaticResource BrushBlue}"
                                FontSize="{StaticResource FontSizeXs}"
                                TextWrapping="Wrap"/>
-                    <Button Classes="ghost"
-                            Content="{Binding Detail.CopyStatus}"
-                            Command="{Binding Detail.CopyUrlCommand}"
-                            HorizontalAlignment="Left"
-                            Padding="12,5"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="ghost"
+                                Content="{Binding Detail.CopyStatus}"
+                                Command="{Binding Detail.CopyUrlCommand}"
+                                Padding="12,5"/>
+                        <Button Classes="ghost"
+                                Content="Relink File..."
+                                Command="{Binding Detail.RelinkFileCommand}"
+                                ToolTip.Tip="Point this track at a different audio file on disk — use when Verify Links flags a mis-linked file."
+                                Padding="12,5"/>
+                    </StackPanel>
                 </StackPanel>
-
+                
                 <Separator Background="{StaticResource BrushBorder}"/>
-
-                <!-- Tags -->
+                
+                <!-- Redesigned High-Density Tag Cloud -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="section-label" Text="TAGS" Margin="0"/>
                     <ItemsControl ItemsSource="{Binding Detail.Tags}">
@@ -172,23 +176,47 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Classes="tag-chip" Margin="0,0,6,6">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                            <DataTemplate x:DataType="x:String">
+                                <Border Background="{StaticResource BrushSurface2}"
+                                        BorderBrush="{StaticResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="8,3,4,3"
+                                        Margin="0,0,4,4"
+                                        VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
                                         <TextBlock Text="{Binding}"
                                                    Foreground="{StaticResource BrushAccentHover}"
-                                                   FontSize="{StaticResource FontSizeSm}"/>
-                                        <Button Classes="icon-btn"
-                                                Command="{Binding $parent[ItemsControl].((vm:TrackDetailViewModel)DataContext).RemoveTagCommand}"
-                                                CommandParameter="{Binding}">
-                                            <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+                                                   FontSize="11"
+                                                   FontWeight="Medium"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Width="14" Height="14"
+                                                Padding="0"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Cursor="Hand"
+                                                Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Detail.RemoveTagCommand}"
+                                                CommandParameter="{Binding}"
+                                                VerticalAlignment="Center"
+                                                HorizontalContentAlignment="Center"
+                                                VerticalContentAlignment="Center">
+                                            <Button.Styles>
+                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="TextBlock.Foreground" Value="{StaticResource BrushRed}"/>
+                                                </Style>
+                                            </Button.Styles>
+                                            <material:MaterialIcon Kind="Close"
+                                                                   Width="8"
+                                                                   Height="8"
+                                                                   Foreground="{StaticResource BrushTextMuted}"/>
                                         </Button>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Grid ColumnDefinitions="*,Auto">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
                         <TextBox Grid.Column="0"
                                  Text="{Binding Detail.NewTag, Mode=TwoWay}"
                                  PlaceholderText="Add tag..."
@@ -201,9 +229,9 @@
                         </Button>
                     </Grid>
                 </StackPanel>
-
+                
                 <Separator Background="{StaticResource BrushBorder}"/>
-
+                
                 <!-- Notes -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="NOTES" Margin="0"/>
@@ -212,15 +240,14 @@
                              AcceptsReturn="True"
                              Height="80"/>
                 </StackPanel>
-
+                
                 <!-- Save -->
                 <Button Classes="primary"
                         Content="Save Changes"
                         Command="{Binding Detail.SaveCommand}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"/>
-
             </StackPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 </Border>
