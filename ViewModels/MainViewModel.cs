@@ -50,7 +50,7 @@ public class MainViewModel : ViewModelBase
     private readonly PlaceholderPageViewModel _queuePage = new(
         "🎵", "Queue", "The playback queue is coming soon.\nTracks you add to the queue will appear here.");
     private readonly PlaceholderPageViewModel _statsPage = new(
-        "📊", "Stats", "Listening stats are coming soon.\nYour play history and trends will appear here.");
+        "", "Stats", "Listening stats are coming soon.\nYour play history and trends will appear here.");
 
     private bool _isMenuBarVisible;
     public bool IsMenuBarVisible
@@ -119,8 +119,7 @@ public class MainViewModel : ViewModelBase
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
 
-        var playlistImport = new PlaylistImportViewModel(_library, _metadata, _downloadService);
-        Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, playlistImport, albumArtService);
+        Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, albumArtService);
         Library = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
         Export = new ExportViewModel(_library, _export);
