@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
 using SQLite;
@@ -12,7 +11,7 @@ namespace NullWave.Services;
 
 public class DatabaseService : IDisposable
 {
-    private readonly SQLiteAsyncConnection _db;
+    private readonly SQLiteConnection _db;
     private bool _disposed;
     public string DbPath { get; }
 
@@ -20,12 +19,12 @@ public class DatabaseService : IDisposable
     {
         var path = NullWavePaths.DatabasePath;
         DbPath = path;
-        _db = new SQLiteAsyncConnection(path);
+        _db = new SQLiteConnection(path);
 
         // Table initializations run at setup
-        _db.CreateTableAsync<TrackRecord>().Wait();
-        _db.CreateTableAsync<PlaylistRecord>().Wait();
-        _db.CreateTableAsync<PlaylistTrackRecord>().Wait();
+        _db.CreateTable<TrackRecord>();
+        _db.CreateTable<PlaylistRecord>();
+        _db.CreateTable<PlaylistTrackRecord>();
 
         Log.Information("[DatabaseService] Opened DB at {Path}", path);
     }
@@ -33,159 +32,20 @@ public class DatabaseService : IDisposable
     public void Vacuum()
     {
         var sizeBefore = new FileInfo(DbPath).Length;
-        _db.GetConnection().Execute("VACUUM;");
+        _db.Execute("VACUUM;");
         var sizeAfter = new FileInfo(DbPath).Length;
         Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
             sizeBefore / 1024, sizeAfter / 1024);
     }
 
     // ==========================================
-    // ASYNC API (For PlaybackNavigator / New Code)
-    // ==========================================
-    public async Task<List<Track>> LoadAllAsync()
-    {
-        try
-        {
-            var records = await _db.Table<TrackRecord>().ToListAsync();
-            return records.Select(r => r.ToTrack()).ToList();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Failed to load tracks");
-            return new List<Track>();
-        }
-    }
-
-    public async Task InsertAsync(Track track)
-    {
-        try
-        {
-            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title);
-        }
-    }
-
-    public async Task UpdateAsync(Track track)
-    {
-        try
-        {
-            await _db.InsertOrReplaceAsync(TrackRecord.FromTrack(track));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title);
-        }
-    }
-
-    public async Task DeleteAsync(Guid id)
-    {
-        try
-        {
-            await _db.DeleteAsync<TrackRecord>(id.ToString());
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id);
-        }
-    }
-
-    public async Task SavePlaylistAsync(Playlist playlist)
-    {
-        try
-        {
-            await _db.RunInTransactionAsync(tran =>
-            {
-                tran.InsertOrReplace(new PlaylistRecord
-                {
-                    Id = playlist.Id.ToString(),
-                    Name = playlist.Name,
-                    Description = playlist.Description
-                });
-                tran.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
-
-                for (int i = 0; i < playlist.Tracks.Count; i++)
-                {
-                    tran.Insert(new PlaylistTrackRecord
-                    {
-                        PlaylistId = playlist.Id.ToString(),
-                        TrackId = playlist.Tracks[i].Id.ToString(),
-                        SortOrder = i
-                    });
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to save playlist to database.");
-        }
-    }
-
-    public async Task<List<Playlist>> LoadPlaylistsAsync(List<Track> entireLibrary)
-    {
-        var playlists = new List<Playlist>();
-        try
-        {
-            var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
-            var dbPlaylists = await _db.Table<PlaylistRecord>().ToListAsync();
-
-            foreach (var plRecord in dbPlaylists)
-            {
-                var pList = new Playlist
-                {
-                    Id = Guid.Parse(plRecord.Id),
-                    Name = plRecord.Name,
-                    Description = plRecord.Description
-                };
-
-                var dbTracks = await _db.Table<PlaylistTrackRecord>()
-                    .Where(pt => pt.PlaylistId == plRecord.Id)
-                    .OrderBy(pt => pt.SortOrder)
-                    .ToListAsync();
-
-                foreach (var pt in dbTracks)
-                {
-                    if (trackMap.TryGetValue(pt.TrackId, out var track))
-                    {
-                        pList.Tracks.Add(track);
-                    }
-                }
-
-                playlists.Add(pList);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to load playlists from database.");
-        }
-
-        return playlists;
-    }
-
-    public async Task DeletePlaylistAsync(Guid id)
-    {
-        try
-        {
-            var strId = id.ToString();
-            await _db.DeleteAsync<PlaylistRecord>(strId);
-            await _db.ExecuteAsync("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to delete playlist from database.");
-        }
-    }
-
-    // ==========================================
-    // SYNCHRONOUS COMPLIANCE BRIDGE (For Services)
+    // DATABASE ACCESS
     // ==========================================
     public List<Track> LoadAll()
     {
         try
         {
-            var records = _db.GetConnection().Table<TrackRecord>().ToList();
+            var records = _db.Table<TrackRecord>().ToList();
             return records.Select(r => r.ToTrack()).ToList();
         }
         catch (Exception ex)
@@ -199,7 +59,7 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track));
+            _db.InsertOrReplace(TrackRecord.FromTrack(track));
         }
         catch (Exception ex)
         {
@@ -211,7 +71,7 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            _db.GetConnection().InsertOrReplace(TrackRecord.FromTrack(track));
+            _db.InsertOrReplace(TrackRecord.FromTrack(track));
         }
         catch (Exception ex)
         {
@@ -223,7 +83,7 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            _db.GetConnection().Delete<TrackRecord>(id.ToString());
+            _db.Delete<TrackRecord>(id.ToString());
         }
         catch (Exception ex)
         {
@@ -235,7 +95,7 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            _db.GetConnection().RunInTransaction(action);
+            _db.RunInTransaction(action);
         }
         catch (Exception ex)
         {
@@ -247,7 +107,7 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            var syncDb = _db.GetConnection();
+            var syncDb = _db;
             syncDb.RunInTransaction(() =>
             {
                 syncDb.InsertOrReplace(new PlaylistRecord
@@ -281,7 +141,7 @@ public class DatabaseService : IDisposable
         try
         {
             var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
-            var syncDb = _db.GetConnection();
+            var syncDb = _db;
             var dbPlaylists = syncDb.Table<PlaylistRecord>().ToList();
 
             foreach (var plRecord in dbPlaylists)
@@ -322,7 +182,7 @@ public class DatabaseService : IDisposable
         try
         {
             var strId = id.ToString();
-            var syncDb = _db.GetConnection();
+            var syncDb = _db;
             syncDb.Delete<PlaylistRecord>(strId);
             syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
         }
@@ -336,5 +196,6 @@ public class DatabaseService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _db.Close();
     }
 }
