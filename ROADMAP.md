@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 17-Jul-2026
+> Last updated: 19-Jul-2026
 
 ---
 
@@ -331,6 +331,67 @@ component names below so future planning stays unambiguous.
   copies instead. Fixed manually via Relink File; a future pass could
   strengthen the keeper check to also require `VerifyLinks`-style tag
   agreement, not just file existence.
+
+  ### 9.1c Search, sort & add-track overhaul (19-Jul-2026 session)
+
+- ✅ `LibraryViewModel.FetchLibraryDataInternal` - fixed the core search bug: the
+  `LibraryView.Source` branch (active when a sidebar source filter like "YouTube"
+  is selected) never applied the search query at all, only the source filter -
+  typing in the search box silently did nothing whenever a source filter was
+  active. Rewritten to layer base-set selection → search → sort unconditionally,
+  which also fixed a secondary bug where `FilterBySource` results were returned
+  completely unsorted regardless of the chosen `SortField`.
+- ✅ `LibraryViewModel.ApplySmartSearch` - new smart query syntax: `artist:`/`a:`,
+  `title:`/`t:`, `source:`/`s:`, `tag:`/`genre:`, `is:favorite`/`fav`, plus bare
+  global terms (OR-matched against Title/Artist). Uses a `pendingKey`/
+  `pendingValueParts`/`FlushPending()` accumulator so multi-word values
+  (`artist:tame impala`) parse correctly as a single filter instead of splitting
+  on whitespace. Also supports negation: `-word` (bare exclusion) and
+  `-key:value` (negated filter, e.g. `-artist:eminem`).
+- ✅ `ViewModels/Playlists/PlaylistImportViewModel.cs` - removed. Constructed and
+  wired into `TrackInputViewModel` but its one real method (`ImportPlaylist`) had
+  no call sites anywhere in the app; the actual playlist-download flow has run
+  through `MainViewModel`'s `DownloadPlaylistAsync` wiring since Phase 8. Also
+  removed `Views/Controls/ImportProgressView.axaml` (and its reference in
+  `MainWindow.axaml`) - dead markup left over from before the toast-based live
+  activity system replaced inline progress bars.
+- ✅ `Views/Controls/TrackListView.axaml` - toolbar redesigned:
+  - Search box gets a magnifying-glass icon, an inline "×" clear button
+    (`Library.ClearSearchTextCommand`, `Library.HasSearchQuery`), and a "?" help
+    flyout documenting the smart search syntax.
+  - New sort-direction toggle button (`Library.ToggleSortDirectionCommand`) next
+    to the sort `ComboBox` - previously `SortAscending` existed on the ViewModel
+    with no UI control to change it.
+  - Sort `ComboBox` now shows human-readable labels ("Date Added" not
+    "DateAdded") via `SortFieldDisplayConverter`.
+  - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
+    triggers with a direction-arrow indicator; clicking the active column's
+    header flips direction instead of no-op.
+  - New track-count label ("415 tracks") in the header row.
+  - "+ Add Track" `SplitButton`'s dropdown replaced with a self-contained flyout
+    form (URL input + Add button + local file/folder options), replacing the
+    separate always-in-layout "URL INPUT" row. Add button gated on
+    `TrackInputViewModel.IsInputUrlValid`.
+- ✅ `LibraryService`/`LibraryViewModel` sort now applies a secondary `.ThenBy`
+  tie-breaker per `SortField` (mostly by Title) so equal-value groups (e.g. many
+  tracks with `PlayCount == 0`) render in a stable, predictable order instead of
+  arbitrary/insertion order.
+- ✅ `Views/MainWindow.axaml.cs` - fixed a real hotkey bug: `OnKeyDown`'s guard
+  against intercepting keystrokes while typing (`e.Source is TextBox`) only
+  matched the exact source type, but Avalonia's `TextBox` is templated - the
+  actual typing source is an internal `TextPresenter`, so the check silently
+  failed and `M`/`N`/`Space` fired as global hotkeys (mute/next-track/play-pause)
+  while typing in the search box. Fixed by walking the visual tree
+  (`GetVisualAncestors()`) from `e.Source` to check for any ancestor `TextBox`.
+- 💡 Clipboard pre-fill for the Add Track flyout - deferred. Avalonia's
+  `IClipboard` surface on the current build doesn't expose `GetTextAsync()` or
+  the attempted `GetDataAsync(DataFormats.Text)` fallback (`DataFormats` itself
+  is obsolete, superseded by `DataFormat`). Code is commented out in
+  `TrackListView.axaml.cs` (`OnAddFlyoutOpened`) pending confirmation of the
+  correct method signature for this Avalonia version.
+- 💡 Autocomplete/hint UI for search keys (inline suggestions while typing
+  `a:`/`t:`/etc.) - not started, natural follow-up to the help flyout.
+
 ### 9.2 Universal action feedback
 
 - 📋 Audit every user-triggered action for a live/toast notification, not just

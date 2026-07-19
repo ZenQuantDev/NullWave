@@ -5,6 +5,66 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.2] - 19-Jul-2026
+
+### Added
+- **Smart Search Syntax**
+  - `LibraryViewModel.ApplySmartSearch` - key:value query syntax: `artist:`/`a:`,
+    `title:`/`t:`, `source:`/`s:`, `tag:`/`genre:`, `is:favorite`/`fav`, combined
+    with bare global terms (OR-matched against Title/Artist).
+  - Multi-word value support via a `pendingKey`/`pendingValueParts` accumulator,
+    so `artist:tame impala` parses as a single filter instead of splitting on
+    whitespace.
+  - Negation support: `-word` (bare exclusion) and `-key:value` (negated filter,
+    e.g. `-artist:eminem`).
+- **Toolbar Redesign** (`Views/Controls/TrackListView.axaml`)
+  - Search box: magnifying-glass icon, inline "×" clear button, and a "?" help
+    flyout documenting the smart search syntax.
+  - Sort-direction toggle button next to the sort dropdown.
+  - Sort dropdown now shows human-readable labels ("Date Added" instead of
+    "DateAdded") via new `SortFieldDisplayConverter`.
+  - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
+    triggers with a direction-arrow indicator; clicking the active column
+    flips sort direction.
+  - Track-count label ("415 tracks") added to the header row.
+  - "+ Add Track" redesigned as a self-contained flyout (URL input + Add button
+    - local file/folder options), replacing the old always-visible "URL INPUT"
+    row. Add button gated on new `TrackInputViewModel.IsInputUrlValid`.
+- `Helpers/Converters/SortFieldDisplayConverter.cs` and `BoolToSortIconConverter.cs`
+
+### Changed
+- `LibraryService`/`LibraryViewModel` sorting now applies a secondary `.ThenBy`
+  tie-breaker per `SortField` (mostly by Title), so equal-value groups (e.g.
+  many tracks with `PlayCount == 0`) render in a stable, predictable order.
+- `TrackInputViewModel.InputUrl` setter now also notifies `IsInputUrlValid`.
+
+### Fixed
+- `LibraryViewModel.FetchLibraryDataInternal` - search was silently ignored
+  whenever a sidebar source filter (e.g. "YouTube") was active, because the
+  `LibraryView.Source` branch never applied the query at all. Also fixed a
+  secondary bug where `FilterBySource` results were returned completely
+  unsorted regardless of the chosen `SortField`.
+- `Views/MainWindow.axaml.cs` - `OnKeyDown`'s typing guard (`e.Source is
+  TextBox`) only matched the exact source type, but Avalonia's `TextBox` is
+  templated - the real typing source is an internal `TextPresenter` - so the
+  check silently failed and `M`/`N`/`Space` fired as global hotkeys (mute,
+  next track, play/pause) while typing in the search box. Fixed by walking
+  the visual tree from `e.Source` to check for any ancestor `TextBox`.
+- `Views/Controls/TrackListView.axaml` - toolbar `Grid.ColumnDefinitions`
+  didn't declare enough columns for the controls actually placed in it
+  (Avalonia silently tolerates out-of-range `Grid.Column` values rather than
+  erroring), leaving the layout fragile against future changes.
+
+### Removed
+- `ViewModels/Playlists/PlaylistImportViewModel.cs` - constructed and wired
+  into `TrackInputViewModel`, but its one real method (`ImportPlaylist`) had
+  no call sites anywhere in the app; the actual playlist-download flow has
+  run through `MainViewModel`'s `DownloadPlaylistAsync` wiring since v0.4.0.
+- `Views/Controls/ImportProgressView.axaml` (+ code-behind) - dead markup
+  left over from before the toast-based live activity system replaced inline
+  progress bars; also removed its stale reference from `MainWindow.axaml`.
+
+
 ## [0.4.1] - 30-Jun-2026
 
 ### Added
