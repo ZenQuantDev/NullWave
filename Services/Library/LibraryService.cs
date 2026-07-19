@@ -653,6 +653,32 @@ public class LibraryService : IDisposable
     }
 
     /// <summary>
+    /// True if the track has a FilePath that exists on disk AND that file's
+    /// embedded title tag agrees with the track's stored title. Stronger than a
+    /// bare File.Exists check — used by RemoveDuplicates to avoid keeping a track
+    /// whose FilePath happens to exist but points at unrelated audio (the bug that
+    /// let a prior dedup run keep 3 wrongly-linked tracks and delete their correct
+    /// counterparts). Returns false (not true) when tags can't be read, since an
+    /// unverifiable file shouldn't be preferred over one we can actually confirm.
+    /// </summary>
+    private bool HasVerifiedFile(Track t)
+    {
+        if (string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)) return false;
+        if (_metadata == null) return true; // can't verify, but at least the file exists
+
+        try
+        {
+            var embedded = _metadata.FetchFromLocalFile(t.FilePath);
+            if (string.IsNullOrWhiteSpace(embedded.Title)) return true; // untagged file, can't disprove it
+            return TitlesLooselyMatch(t.Title, embedded.Title);
+        }
+        catch
+        {
+            return true; // couldn't read tags — don't penalize, fall back to existence-only trust
+        }
+    }
+
+    /// <summary>
     /// Retroactively re-parses every track's Title for an embedded "Artist - Title"
     /// pattern and, where found, overwrites both Title and Artist with the parsed
     /// values — unconditionally, even if Artist already has a value. This exists
@@ -797,7 +823,8 @@ public class LibraryService : IDisposable
         foreach (var group in groups)
         {
             var ordered = group
-                .OrderByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
+                .OrderByDescending(t => HasVerifiedFile(t))
+                .ThenByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
                 .ThenByDescending(t => t.PlayCount)
                 .ThenByDescending(t => t.IsFavorite)
                 .ThenBy(t => t.DateAdded)
