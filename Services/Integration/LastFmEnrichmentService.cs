@@ -30,9 +30,6 @@ public partial class LastFmEnrichmentService
     [GeneratedRegex(@"\s+(ft\.|feat\.|featuring|Ft\.|Feat\.|Featuring).*", RegexOptions.IgnoreCase)]
     private static partial Regex FeaturesRegex();
 
-    [GeneratedRegex(@"\b(focus|tdci|klima|szyby|swoje|fave|track|album|song)\b", RegexOptions.IgnoreCase)]
-    private static partial Regex JunkTagsRegex();
-
     public event Action? BackfillCompleted;
 
     public LastFmEnrichmentService(LastFmService lastFm, LibraryService library, LocalAIService localAi, PreferencesService prefsService)
@@ -292,7 +289,8 @@ public partial class LastFmEnrichmentService
         var filtered = new List<string>();
         foreach (var tag in tags)
         {
-            bool isTagJunk = tag.Length > 20 && tag.Contains(" ") || JunkTagsRegex().IsMatch(tag);
+            bool isTagJunk = (tag.Length > 20 && tag.Contains(" "))
+                || TagDenylist.IsBlocked(tag);
             if (!isTagJunk) filtered.Add(tag);
         }
         return filtered;
