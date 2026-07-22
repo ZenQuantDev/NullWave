@@ -49,11 +49,8 @@ public partial class SidebarView : Border
 
     private void UpdateButtonClasses(MainViewModel vm)
     {
-        SetActive(LibBtn, vm.CurrentPage == "Library");
-        SetActive(PlBtn, vm.CurrentPage == "Playlists");
-        SetActive(QueueBtn, vm.CurrentPage == "Queue");
-        SetActive(StatsBtn, vm.CurrentPage == "Stats");
-
+        // Core nav items are now data-driven via NavItem.IsActive, so we only manage Filters/Sources here
+        
         var isOnLibrary = vm.CurrentPage == "Library";
         SetActive(FavBtn, isOnLibrary && vm.Library.IsFavoritesView);
         SetActive(RecentBtn, isOnLibrary && vm.Library.IsRecentView);

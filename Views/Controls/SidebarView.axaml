@@ -1,6 +1,7 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:models="using:NullWave.Models"
         xmlns:helpers="using:NullWave.Helpers"
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.Controls.SidebarView"
@@ -48,7 +49,6 @@
                 BorderThickness="0,1,0,0"
                 Padding="12,10">
             <Grid ColumnDefinitions="*,Auto">
-
                 <!-- Profile Button -->
                 <Button Grid.Column="0"
                         Command="{Binding OpenProfileCommand}"
@@ -133,21 +133,57 @@
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="8,4">
             <StackPanel Spacing="0">
-                <TextBlock Classes="section-label" Text="LIBRARY"/>
-                <Button x:Name="LibBtn"   Classes="nav" Content="Library"       Command="{Binding NavigateLibraryCommand}"/>
-                <Button x:Name="PlBtn"    Classes="nav" Content="Playlists"     Command="{Binding NavigatePlaylistsCommand}"/>
-                <Button x:Name="QueueBtn" Classes="nav" Content="Queue"         Command="{Binding NavigateQueueCommand}"/>
-                <Button x:Name="StatsBtn" Classes="nav" Content="Stats"         Command="{Binding NavigateStatsCommand}"/>
+                
+                <!-- DATA-DRIVEN LIBRARY SECTION -->
+                <Grid ColumnDefinitions="*,Auto" Margin="4,0,0,12">
+                    <TextBlock Grid.Column="0" Classes="section-label" Text="LIBRARY" Margin="0"/>
+                    <Button Grid.Column="1" Classes="icon-btn sm"
+                            Command="{Binding ToggleCustomizeSidebarCommand}"
+                            ToolTip.Tip="Reorder nav items"
+                            VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="Pencil" Width="14" Height="14"/>
+                    </Button>
+                </Grid>
 
-                <TextBlock Classes="section-label" Text="FILTERS"/>
+                <ItemsControl ItemsSource="{Binding Nav.Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:NavItem">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <Button Grid.Column="0"
+                                        Classes="nav"
+                                        Classes.active="{Binding IsActive}"
+                                        Content="{Binding Label}"
+                                        Command="{Binding Command}"/>
+                                <Button Grid.Column="1" Classes="icon-btn sm"
+                                        Command="{Binding $parent[ItemsControl].DataContext.Nav.MoveUpCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{Binding $parent[ItemsControl].DataContext.IsCustomizingSidebar}"
+                                        ToolTip.Tip="Move up">
+                                    <material:MaterialIcon Kind="MenuUp" Width="14" Height="14"/>
+                                </Button>
+                                <Button Grid.Column="2" Classes="icon-btn sm"
+                                        Command="{Binding $parent[ItemsControl].DataContext.Nav.MoveDownCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{Binding $parent[ItemsControl].DataContext.IsCustomizingSidebar}"
+                                        ToolTip.Tip="Move down">
+                                    <material:MaterialIcon Kind="MenuDown" Width="14" Height="14"/>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- UNTOUCHED FILTERS & SOURCES SECTIONS -->
+                <TextBlock Classes="section-label" Text="FILTERS" Margin="4,12,0,0"/>
                 <Button x:Name="FavBtn"    Classes="nav" Content="Favorites"      Command="{Binding Library.ShowFavoritesCommand}"/>
                 <Button x:Name="RecentBtn" Classes="nav" Content="Recently Added" Command="{Binding Library.ShowRecentCommand}"/>
 
-                <TextBlock Classes="section-label" Text="SOURCES"/>
+                <TextBlock Classes="section-label" Text="SOURCES" Margin="4,12,0,0"/>
                 <Button x:Name="YTBtn"    Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
                 <Button x:Name="LFMBtn"   Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
                 <Button x:Name="SCBtn"    Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
                 <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
+                
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

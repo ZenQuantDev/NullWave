@@ -42,15 +42,7 @@ public class MainViewModel : ViewModelBase
     private string? _pendingLastFmToken;
     private LastFmAuthService? _pendingLastFmAuth;
 
-    // Holds the single active "Downloading Playlist" live toast, so batch progress
-    // events (which fire off the UI thread from DownloadService) know which
-    // notification to update. Only one bulk playlist download runs at a time today.
     private LiveNotification? _currentPlaylistActivity;
-
-    private readonly PlaceholderPageViewModel _queuePage = new(
-        "🎵", "Queue", "The playback queue is coming soon.\nTracks you add to the queue will appear here.");
-    private readonly PlaceholderPageViewModel _statsPage = new(
-        "", "Stats", "Listening stats are coming soon.\nYour play history and trends will appear here.");
 
     private bool _isMenuBarVisible;
     public bool IsMenuBarVisible
@@ -60,11 +52,24 @@ public class MainViewModel : ViewModelBase
     }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
+    private bool _isCustomizingSidebar;
+    public bool IsCustomizingSidebar
+    {
+        get => _isCustomizingSidebar;
+        set { _isCustomizingSidebar = value; OnPropertyChanged(); }
+    }
+    public ICommand ToggleCustomizeSidebarCommand { get; }
+
     private string _currentPage = "Library";
     public string CurrentPage
     {
         get => _currentPage;
-        set { _currentPage = value; OnPropertyChanged(); }
+        set
+        {
+            _currentPage = value;
+            OnPropertyChanged();
+            Nav?.SetActivePage(value);
+        }
     }
 
     private bool _initialMoodPlaylistRun;
@@ -79,8 +84,6 @@ public class MainViewModel : ViewModelBase
     public ImportViewModel Import { get; }
     public PlayerViewModel Player { get; }
     public UserProfileViewModel Profile { get; }
-    public PlaceholderPageViewModel QueuePage => _queuePage;
-    public PlaceholderPageViewModel StatsPage => _statsPage;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
 
@@ -95,9 +98,11 @@ public class MainViewModel : ViewModelBase
     public ICommand NavigateQueueCommand { get; }
     public ICommand NavigateStatsCommand { get; }
 
+    public NavigationViewModel Nav { get; private set; } = null!;
+    public QueueViewModel Queue { get; private set; } = null!;
+
     public MainViewModel()
     {
-        // FIX: Instantiate _prefsService early to prevent NullReferenceException in DownloadService
         _prefsService = new PreferencesService();
 
         _secureDelete = new SecureDeleteService(_keyStore);
@@ -127,13 +132,15 @@ public class MainViewModel : ViewModelBase
         Import = new ImportViewModel(_library, _metadata);
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
+        Queue = new QueueViewModel(_library);
+        Queue.PlayTrackRequested += Player.PlayTrack;
+
+        // Wire pin/unpin events
+        Playlist.PinRequested += p => Nav.PinPlaylist(p.Id, p.Name);
+        Playlist.UnpinRequested += p => Nav.UnpinPlaylist(p.Id);
 
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
-        // Surfaces silent AI-ranking fallbacks (Ollama unreachable, timed out, bad
-        // response) as a toast. Previously the only trace was the raw exception in
-        // the log file — the mood playlist would still "succeed" from the user's
-        // point of view with zero indication the AI step was actually skipped.
         _localAI.FallbackNotice += message =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -183,9 +190,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Verify Links: cross-checks stored track metadata against each linked file's
-        // embedded tags. Catches "correctly-existing but wrong" links that RepairPaths
-        // and ReimportAssets can't detect, since both only check file existence.
         Settings.VerifyLinksRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -220,9 +224,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Force Clean Titles: retroactively re-parses every track's title for an
-        // embedded "Artist - Title" pattern, overriding a wrong channel-name-as-artist
-        // value (e.g. a Minecraft OST playlist uploaded by "SMORT" instead of C418).
         Settings.ForceCleanTitlesRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -241,7 +242,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // AI State Switch Interceptor with Visual Alerts
         Settings.AIFeaturesEnabledChanged += enabled =>
         {
             if (!enabled)
@@ -275,7 +275,6 @@ public class MainViewModel : ViewModelBase
                             ToastService.Instance.Show("Could not reach local AI server. Check configurations.", ToastType.Warning);
                         }
                         
-                        // FIX C: Start health check only after the initial ping completes to prevent false-negative UI alerts
                         Settings.StartAIHealthCheck();
                     });
                 });
@@ -315,11 +314,6 @@ public class MainViewModel : ViewModelBase
             _downloadService.UpdateConcurrencyLimit(limit);
         _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
-        // NOTE: These global handlers fire for every DownloadAsync call, including the
-        // ones DownloadPlaylistAsync makes internally per-track. isInteractive is false
-        // for those, so we gate the per-track toast on it — otherwise a 200-track
-        // playlist would spam 200 "Track download completed" toasts on top of the
-        // batch progress toast below.
         _downloadService.DownloadCompleted += (_, _, isInteractive) =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -340,7 +334,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Bulk playlist download progress → single live activity toast.
         _downloadService.PlaylistBatchStarted += totalTracks =>
         {
             _currentPlaylistActivity = ToastService.Instance.StartLiveActivity(
@@ -374,11 +367,15 @@ public class MainViewModel : ViewModelBase
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
         Input.TrackMetadataUpdated += Library.Refresh;
-        Library.TrackDetailRequested += Detail.OpenFor;
+        Library.TrackDetailRequested += track =>
+        {
+            Queue.IsOpen = false;
+            Nav?.SetQueueActive(false);
+            Detail.OpenFor(track);
+        };
         Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += Library.Refresh;
 
-        // Fallback to reading the last entry since TrackInputViewModel event signature hasn't been updated yet
         Input.TrackAdded += () =>
         {
             var track = _library.GetAll().LastOrDefault();
@@ -413,7 +410,6 @@ public class MainViewModel : ViewModelBase
             _ = RunMoodPlaylistAsync(forceRefresh: false);
         };
 
-        // FIX B: Throttle or Gate the Automatic AI Backfill
         _ = Task.Run(async () =>
         {
             await Task.Delay(3000);
@@ -424,7 +420,6 @@ public class MainViewModel : ViewModelBase
             else
             {
                 Log.Information("[MainViewModel] Skipping automatic AI backfill to preserve battery life.");
-                // Ensure the user still gets their smart mood mix on launch when mobile!
                 _initialMoodPlaylistRun = true;
                 _ = RunMoodPlaylistAsync(forceRefresh: false);
             }
@@ -515,11 +510,6 @@ public class MainViewModel : ViewModelBase
             ToastService.Instance.Show("Disconnected from Last.fm accounts.", ToastType.Info);
         };
 
-        // =========================================================================
-        // CORE SYSTEM MAINTENANCE OPERATIONS (REFACTORED FOR LIVE ACTIVITIES)
-        // =========================================================================
-
-        // FIX A: Introduce an Operational Gate (Prevents Re-entrancy)
         Settings.ClearThumbnailsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -719,7 +709,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        // FIX: Restored 'return null;' to satisfy the Func<Task<string?>> delegate signature
         Settings.ImportAiTagsRequested += async () =>
         {
             try
@@ -837,20 +826,38 @@ public class MainViewModel : ViewModelBase
         NavigatePlaylistsCommand = new RelayCommand(() =>
         {
             CurrentPage = "Playlists";
+            Nav.SetPlaylistActive(null); // Clear pin highlight when navigating generically
             LogNav("Playlists");
         });
 
         NavigateQueueCommand = new RelayCommand(() =>
         {
-            CurrentPage = "Queue";
+            Detail.IsOpen = false;
+            Queue.IsOpen = !Queue.IsOpen;
+            Nav.SetQueueActive(Queue.IsOpen);
             LogNav("Queue");
         });
 
         NavigateStatsCommand = new RelayCommand(() =>
         {
-            CurrentPage = "Stats";
+            OpenProfileWindow();
             LogNav("Stats");
         });
+
+        // Nav construction moved here so _playlists is available
+        Nav = new NavigationViewModel(
+            _prefsService, _playlists,
+            NavigateLibraryCommand, NavigatePlaylistsCommand, NavigateQueueCommand, NavigateStatsCommand,
+            navigateToPlaylist: playlistId =>
+            {
+                CurrentPage = "Playlists";
+                Playlist.SelectById(playlistId);
+                Nav.SetPlaylistActive(playlistId);
+                LogNav($"PinnedPlaylist:{playlistId}");
+            });
+        Nav.SetActivePage(CurrentPage);
+        
+        ToggleCustomizeSidebarCommand = new RelayCommand(() => IsCustomizingSidebar = !IsCustomizingSidebar);
 
         _ = RunStartupDiagnosticsAsync();
     }
