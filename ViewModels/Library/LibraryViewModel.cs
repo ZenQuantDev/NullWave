@@ -341,11 +341,12 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddToQueue()
+    private void AddToQueue(Track? t)
     {
-        if (SelectedTrack == null) return;
-        _library.AddToQueue(SelectedTrack.Id);
-        NullActionLogger.User("AddToQueue", SelectedTrack.Id.ToString(), "LibraryViewModel");
+        var target = t ?? SelectedTrack;
+        if (target == null) return;
+        _library.AddToQueue(target.Id);
+        NullActionLogger.User("AddToQueue", target.Id.ToString(), "LibraryViewModel");
     }
 
     [RelayCommand] private void SortByTitle() => SetSort(SortField.Title);
