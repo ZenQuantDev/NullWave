@@ -34,6 +34,7 @@ public class LibraryService : IDisposable
     private readonly List<Track> _history = new();
 
     public event EventHandler? LibraryChanged;
+    public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
     public LibraryService(DatabaseService db, MetadataService? metadata = null)
@@ -367,23 +368,48 @@ public class LibraryService : IDisposable
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track != null && !_queue.Contains(track))
+        {
             _queue.Add(track);
+            QueueChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public void RemoveFromQueue(Guid id)
     {
         var track = _queue.FirstOrDefault(t => t.Id == id);
-        if (track != null) _queue.Remove(track);
+        if (track != null)
+        {
+            _queue.Remove(track);
+            QueueChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
-    public void ClearQueue() => _queue.Clear();
+    public void ClearQueue()
+    {
+        if (_queue.Count == 0) return;
+        _queue.Clear();
+        QueueChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public Track? DequeueNext()
     {
         if (_queue.Count == 0) return null;
         var next = _queue[0];
         _queue.RemoveAt(0);
+        QueueChanged?.Invoke(this, EventArgs.Empty);
         return next;
+    }
+
+    public bool MoveQueueItem(int fromIndex, int toIndex)
+    {
+        if (fromIndex < 0 || toIndex < 0) return false;
+        if (fromIndex >= _queue.Count || toIndex >= _queue.Count) return false;
+
+        var track = _queue[fromIndex];
+        _queue.RemoveAt(fromIndex);
+        _queue.Insert(toIndex, track);
+        QueueChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public int ClearAllArt()

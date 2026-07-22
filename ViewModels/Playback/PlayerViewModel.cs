@@ -127,7 +127,6 @@ public class PlayerViewModel : ViewModelBase
 
         _download.DownloadFailed += (trackId, error, isInteractive) =>
         {
-            // FIX: Ignore background playlist download failures in the main Player UI
             if (!isInteractive) return;
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -247,7 +246,9 @@ public class PlayerViewModel : ViewModelBase
         {
             _hasTriggeredCrossfade = true;
 
-            var next = _navigator.GetNextTrack(_currentTrack);
+            // Queue takes priority for crossfade target too
+            var queue = _library.GetQueue();
+            var next = queue.Count > 0 ? queue[0] : _navigator.GetNextTrack(_currentTrack);
             
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && System.IO.File.Exists(next.FilePath))
             {
@@ -632,6 +633,15 @@ public class PlayerViewModel : ViewModelBase
 
         _download.CancelCurrentDownload();
         IsDownloading = false;
+
+        // Queue takes priority over normal shuffle/repeat/library navigation
+        var queued = _library.DequeueNext();
+        if (queued != null)
+        {
+            PlayTrack(queued);
+            return;
+        }
+
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null) PlayTrack(next);
         else StatusText = "End of library";

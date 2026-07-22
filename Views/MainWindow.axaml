@@ -55,21 +55,21 @@
                         IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
                     <controls:PlaylistsView
                         IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
-                    <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Queue}">
-                        <controls:PlaceholderView DataContext="{Binding QueuePage}"/>
-                    </Border>
-                    <Border IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Stats}">
-                        <controls:PlaceholderView DataContext="{Binding StatsPage}"/>
-                    </Border>
                 </Grid>
                 <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
                               Background="Transparent" ShowsPreview="True"
                               IsVisible="{Binding Detail.IsOpen}"/>
                 <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
+                
+                <!-- Mutually exclusive Queue panel -->
+                <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
+                              Background="Transparent" ShowsPreview="True"
+                              IsVisible="{Binding Queue.IsOpen}"/>
+                <controls:QueueView Grid.Column="4" IsVisible="{Binding Queue.IsOpen}"/>
             </Grid>
         </DockPanel>
         
-        <!-- THE TOAST OVERLAY LAYER - FIXED POSITIONING FIXED TO BIND TO ActiveToasts -->
+        <!-- THE TOAST OVERLAY LAYER -->
         <ItemsControl ItemsSource="{Binding ActiveToasts}"
                       VerticalAlignment="Bottom"
                       HorizontalAlignment="Right"
@@ -91,7 +91,6 @@
                             BoxShadow="0 4 20 0 #55000000"
                             ClipToBounds="True">
                         <Border.Styles>
-                            <!-- Animated entry transition for new notifications -->
                             <Style Selector="Border">
                                 <Style.Animations>
                                     <Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
@@ -108,15 +107,12 @@
                             </Style>
                         </Border.Styles>
                         <Grid ColumnDefinitions="Auto, *">
-                            <!-- Left Edge Colored Structural Status Accent Line -->
                             <Border Width="5"
                                     VerticalAlignment="Stretch"
                                     Background="{Binding NotificationColor}"/>
                             
                             <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                <!-- Header Layer: Dynamic Icon + Informative Title Context + Close Control -->
                                 <Grid ColumnDefinitions="Auto, *, Auto">
-                                    <!-- Dynamic Vector Icon based on status type -->
                                     <Path Grid.Column="0"
                                           Width="15" Height="15"
                                           Margin="0,0,8,0"
@@ -125,7 +121,6 @@
                                           Stretch="Uniform"
                                           VerticalAlignment="Center"/>
                                     
-                                    <!-- Context-Aware Custom or Type Title -->
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Title}"
                                                FontWeight="SemiBold"
@@ -134,7 +129,6 @@
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
                                     
-                                    <!-- Dismiss Trigger Cross Button -->
                                     <Button Grid.Column="2"
                                             Command="{Binding CloseCommand}"
                                             Background="Transparent" BorderThickness="0"
@@ -151,14 +145,12 @@
                                     </Button>
                                 </Grid>
 
-                                <!-- Core Message Description Body -->
                                 <TextBlock Text="{Binding Message}"
                                            FontSize="12"
                                            Foreground="{StaticResource BrushTextSecondary}"
                                            TextWrapping="Wrap"
                                            Margin="23,0,0,2"/>
 
-                                <!-- Live Background Sync Progress Infrastructure -->
                                 <ProgressBar IsVisible="{Binding ShowProgressBar}"
                                              Value="{Binding ProgressValue}"
                                              IsIndeterminate="{Binding IsIndeterminate}"
@@ -168,7 +160,6 @@
                                              Background="{StaticResource BrushBorder}"
                                              Foreground="{Binding NotificationColor}"/>
 
-                                <!-- Secondary Action Command Attachment Anchors -->
                                 <Button IsVisible="{Binding ShowActionButton}"
                                         Command="{Binding ActionCommand}"
                                         Content="{Binding ActionButtonText}"
@@ -179,18 +170,15 @@
                                         Foreground="{StaticResource BrushTextPrimary}"
                                         CornerRadius="6"/>
 
-                                <!-- Native Double-State Detailed Information Expander Drawer -->
                                 <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
                                     <Button Command="{Binding ToggleExpandCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="0"
                                             HorizontalAlignment="Left" Cursor="Hand">
                                         <Panel>
-                                            <!-- Dynamic Closed Label Toggle State -->
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
                                                 <materialIcons:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <!-- Dynamic Opened Label Toggle State -->
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
                                                 <materialIcons:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
@@ -198,7 +186,6 @@
                                         </Panel>
                                     </Button>
                                     
-                                    <!-- Collapsible Container Drawer Layer -->
                                     <Border IsVisible="{Binding IsExpanded}"
                                             Margin="0,6,0,0" Padding="8"
                                             Background="{StaticResource BrushBase}"

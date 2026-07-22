@@ -1,0 +1,120 @@
+<Border xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels"
+        xmlns:models="using:NullWave.Models"
+        xmlns:helpers="using:NullWave.Helpers"
+        xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:material="using:Material.Icons.Avalonia"
+        x:Class="NullWave.Views.Controls.QueueView"
+        x:DataType="vm:MainViewModel"
+        Background="{StaticResource BrushSurface}"
+        BorderBrush="{StaticResource BrushBorder}"
+        BorderThickness="1,0,0,0"
+        Width="{Binding Queue.PanelWidth}"
+        Opacity="{Binding Queue.PanelOpacity}"
+        ClipToBounds="True">
+    <Border.Resources>
+        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
+    </Border.Resources>
+    <Border.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Width" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+        </Transitions>
+    </Border.Transitions>
+
+    <Grid RowDefinitions="Auto,*">
+        <StackPanel Grid.Row="0" Spacing="0" Margin="16,16,16,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Queue.Tracks.Count, StringFormat='Queue ({0})'}"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           FontSize="{StaticResource FontSizeLg}"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Classes="ghost"
+                        Content="Clear"
+                        Command="{Binding Queue.ClearQueueCommand}"
+                        Padding="10,4"
+                        Margin="0,0,8,0"
+                        IsVisible="{Binding Queue.Tracks.Count}"/>
+                <Button Grid.Column="2"
+                        Classes="icon-btn"
+                        Command="{Binding Queue.CloseCommand}">
+                    <material:MaterialIcon Kind="Close" Width="18" Height="18"/>
+                </Button>
+            </Grid>
+            <Separator Background="{StaticResource BrushBorder}" Margin="0,12,0,0"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <TextBlock Text="Queue is empty"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{StaticResource FontSizeBody}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding !Queue.Tracks.Count}"/>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding Queue.Tracks.Count}">
+                <ItemsControl ItemsSource="{Binding Queue.Tracks}" Margin="8,8,8,16">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Track">
+                            <Grid ColumnDefinitions="40,8,*,Auto,Auto,Auto" Margin="4,4" MinHeight="44" DoubleTapped="OnTrackDoubleTapped">
+                                <Border Grid.Column="0"
+                                        Width="40" Height="40"
+                                        CornerRadius="{StaticResource RadiusArt}"
+                                        Background="{StaticResource BrushSurface2}"
+                                        ClipToBounds="True">
+                                    <Panel>
+                                        <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                               Stretch="UniformToFill"
+                                               IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                        <material:MaterialIcon Kind="MusicNote"
+                                                   IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                   Width="16" Height="16"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Panel>
+                                </Border>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding Title}"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{StaticResource FontSizeSm}"
+                                               FontWeight="Medium"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Artist}"
+                                               Foreground="{StaticResource BrushTextSecondary}"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <Button Grid.Column="3" Classes="icon-btn sm"
+                                        Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Queue.MoveUpCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="Move up">
+                                    <material:MaterialIcon Kind="MenuUp" Width="14" Height="14"/>
+                                </Button>
+                                <Button Grid.Column="4" Classes="icon-btn sm"
+                                        Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Queue.MoveDownCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="Move down">
+                                    <material:MaterialIcon Kind="MenuDown" Width="14" Height="14"/>
+                                </Button>
+                                <Button Grid.Column="5" Classes="icon-btn sm"
+                                        Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Queue.RemoveFromQueueCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="Remove from queue">
+                                    <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Border>
