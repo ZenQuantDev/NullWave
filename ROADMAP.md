@@ -420,3 +420,131 @@ component names below so future planning stays unambiguous.
 - 💡 `SidebarView` padding/spacing pass
 - 💡 Unique/creative differentiator features - ideas welcome, not yet scoped
 
+---
+
+## Phase 10 - Customizable Navigation & Playlist System 🔜
+
+**Branch:** `feature/nav-redesign-and-more`
+**Goal:** Replace the hardcoded sidebar with a data-driven, user-customizable nav
+system; consolidate Stats into the Profile Window; move Queue to a slide-in panel
+(matching Track Detail's mechanism); redesign the Playlists tab to match the
+Library tab's search/sort UX; lay groundwork for pinned playlists and saved
+searches.
+
+### 10.1 Nav data model + Sidebar rewrite (foundation)
+
+- 📋 New `NavItem` model: type (`Core`/`PinnedPlaylist`/`SavedSearch`), display
+  order, label, icon, target (page name / playlist ID / search query)
+- 📋 `SidebarView` rewritten as data-driven `ItemsControl` bound to
+  `ObservableCollection<NavItem>`, replacing the current hardcoded named-button
+  + manual `Classes.Add("active")` pattern in `SidebarView.axaml.cs`
+- 📋 Core items (Library, Playlists) are reorderable but not hideable/removable
+- 📋 Order persisted via `PreferencesService` (existing infra, no new
+  persistence layer)
+- 📋 Reference implementation to preserve: the Library tab's Sources
+  filter pattern (`FilterYouTube`/`FilterLastFm`/etc. + active-state styling)
+  is explicitly called out as "already working well" - do not regress this
+  UX when rewriting Sidebar
+- 📋 v1 reorder UI: up/down controls in a "Customize Sidebar" panel (true
+  drag-and-drop reordering is a v2 stretch goal - Avalonia has no built-in
+  reorderable-list control, so this needs custom drag-handling logic)
+
+### 10.2 Pinned playlists / saved searches
+
+- 📋 Depends on 10.1. A pinned nav item references either a `Playlist.Id` or
+  a saved smart-search query (reusing `LibraryViewModel.ApplySmartSearch`
+  syntax from Phase 9.1c - e.g. `is:favorite`, `artist:x`)
+- 📋 First pinned slot defaults to an auto-suggested playlist (e.g. most-played)
+  until the user manually pins/unpins or disables the default via Settings
+  (Settings toggle is a 💡 future item, not required for v1)
+- 📋 Additional slots are user-pinned only, via a "Pin to sidebar" action on
+  each playlist row / saved search
+- 📋 Unpin control lives in the same customize-sidebar surface as reordering
+
+### 10.3 Queue → slide-in panel
+
+- 📋 New `QueueViewModel`, wired to existing `LibraryService.GetQueue()`/
+  `AddToQueue`/`RemoveFromQueue`/`ClearQueue` (all already implemented)
+- 📋 New `LibraryService.MoveTrackInQueue(fromIndex, toIndex)` - does not
+  exist yet, needed for in-queue reordering
+- 📋 Panel mechanics mirror `TrackDetailViewModel` exactly (`IsOpen`,
+  `PanelWidth`, `PanelOpacity`, same `DoubleTransition` pattern in XAML)
+- 📋 Decision needed before implementation: can Queue and Track Detail panels
+  be open simultaneously, or are they mutually exclusive (one right-panel
+  slot)? Recommend mutually exclusive for v1 - simpler state management,
+  revisit if it feels cramped in practice
+- 📋 Remove `QueuePage`/`PlaceholderPageViewModel` wiring for Queue once the
+  panel replaces it; `NavigateQueueCommand` becomes "open queue panel"
+  instead of a page navigation
+
+### 10.4 Stats → Profile Window consolidation
+
+- ✅ Most of this already exists: `ProfileWindow.axaml` / `UserProfileViewModel`
+  already show Total Tracks/Favorites/Plays/Skips, Top Track, Top Artist, and
+  a Library Breakdown (YouTube/SoundCloud/Local percentage bars) - this was
+  built in earlier work, confirmed present as of this phase's kickoff
+- 📋 Remove the separate `StatsPage`/`PlaceholderPageViewModel` wiring from
+  `MainViewModel` and the `NavigateStatsCommand` page-navigation behavior
+  entirely - "Stats" as a standalone page goes away
+- 📋 Audit Profile's existing stats section for gaps once Duration exists
+  (10.6) - e.g. total listening time, most-played by minutes rather than
+  play count
+- 💡 Consider whether Local source is the only "storage-based" bucket worth
+  breaking out, or whether Spotify/LastFm sources should get their own
+  breakdown slice too (currently only YouTube/SoundCloud/Local are shown)
+
+### 10.5 Playlists tab redesign (Library-style)
+
+- 📋 Bring `TrackListView`'s toolbar polish (search box + clear button, sort
+  + direction toggle, clickable sortable headers, result count) to the
+  track list inside a selected playlist in `PlaylistsView.axaml`
+- 📋 Evaluate whether the playlist *list itself* (left panel) needs its own
+  search box - likely only worth it once a user has many playlists; not
+  blocking for v1
+- 📋 Reuse `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase
+  9.1c rather than duplicating
+
+### 10.6 Track duration (cross-cutting, opportunistic)
+
+- 📋 Add `Duration` (TimeSpan or int seconds) to `Track`/`TrackRecord`,
+  populated via `TagLib` on local file read and wherever else metadata is
+  fetched (YouTube/SoundCloud fetchers)
+- 📋 No dedicated milestone for this - add as touched incidentally while
+  working through 10.1-10.5, particularly useful for 10.4 (listening time
+  stats) and 10.3 (showing track length in the queue panel)
+
+### 10.7 Naming & branding (low-effort, parallel-track)
+
+- 📋 Expand `9.3 Component naming reference` into a living glossary as new
+  components are built in this phase (e.g. `NavItem`, `QueueViewModel`) -
+  keep names canonical from day one instead of a future audit
+- 💡 Adopt flower codenames for major releases alongside semver (e.g.
+  `0.5.0 "Blue Orchid"`), similar in spirit to Android's dessert-name
+  convention - cosmetic, no functional dependency on anything else in this
+  phase, can start whenever
+
+## Phase 11 - Queue/Shuffle Integration & Polish 🔜
+
+**Goal:** Unify the manual Queue with the shuffle/repeat navigation system,
+and fix known interaction bugs from Phase 10.
+
+### 11.1 Bug fixes (carried over from Phase 10 testing)
+- 📋 `LibraryViewModel.AddToQueue` reads SelectedTrack instead of the
+  CommandParameter passed from context menu / "⋮" flyout - "Add to Queue"
+  silently does nothing unless a track happens to already be selected.
+  Fix: accept Track? parameter, fall back to SelectedTrack if null.
+- 📋 Window resizing behavior reported as "terrible" - needs a repro
+  (screen recording or specific window sizes) before scoping a fix.
+
+### 11.2 Auto-queue / shuffle integration
+- 📋 Pre-fill the queue with ~10 upcoming tracks based on the active
+  navigation mode (Normal Shuffle, Smart Shuffle AI, Repeat, or plain
+  library order), refilling as tracks are consumed - closes the gap
+  where PlaybackNavigator and the manual Queue are currently fully
+  independent systems
+- 📋 Decide: does Smart Shuffle's AI ranking (LocalAIService) drive the
+  auto-fill order, or is a separate lighter heuristic more appropriate for
+  "what's coming up" previews vs. one-shot mood-playlist generation?
+- 📋 UI: distinguish auto-filled queue entries from user-added ones (e.g.
+  a subtle "Up Next" section header vs. manually queued tracks) so
+  removing/reordering feels predictable

@@ -195,13 +195,14 @@ public class TrackInputViewModel : ViewModelBase
             }
             if (System.IO.File.Exists(url) && _urlParser.IsSupportedAudioFile(url))
             {
-                var (t, a) = _metadata.FetchFromLocalFile(url);
+                var (t, a, duration) = _metadata.FetchFromLocalFile(url);
                 var track = new Track
                 {
                     Title = string.IsNullOrWhiteSpace(providedTitle) ? t : providedTitle,
                     Artist = InputArtist.Trim().Length > 0 ? InputArtist.Trim() : a,
                     FilePath = url,
-                    Source = TrackSource.Local
+                    Source = TrackSource.Local,
+                    Duration = duration
                 };
                 _library.Add(track);
                 NullActionLogger.TrackAdded(track.Id.ToString(), url, nameof(TrackInputViewModel));
@@ -347,13 +348,14 @@ public class TrackInputViewModel : ViewModelBase
         var filePath = files[0].Path.LocalPath;
         if (!_urlParser.IsSupportedAudioFile(filePath)) return;
 
-        var (title, artist) = _metadata.FetchFromLocalFile(filePath);
+        var (title, artist, duration) = _metadata.FetchFromLocalFile(filePath);
         var track = new Track
         {
             Title = title,
             Artist = artist,
             FilePath = filePath,
-            Source = TrackSource.Local
+            Source = TrackSource.Local,
+            Duration = duration
         };
 
         _library.Add(track);
@@ -369,13 +371,14 @@ public class TrackInputViewModel : ViewModelBase
 
         foreach (var file in files)
         {
-            var (t, a) = _metadata.FetchFromLocalFile(file);
+            var (t, a, duration) = _metadata.FetchFromLocalFile(file);
             var track = new Track
             {
                 Title = t,
                 Artist = a,
                 FilePath = file,
-                Source = TrackSource.Local
+                Source = TrackSource.Local,
+                Duration = duration
             };
             _library.Add(track);
             NullActionLogger.TrackAdded(track.Id.ToString(), file, nameof(TrackInputViewModel));

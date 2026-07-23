@@ -7,7 +7,7 @@ namespace NullWave.Services.Metadata;
 
 public class LocalMetadataFetcher
 {
-    public (string Title, string Artist) Fetch(string filePath)
+    public (string Title, string Artist, TimeSpan Duration) Fetch(string filePath)
     {
         try
         {
@@ -17,6 +17,7 @@ public class LocalMetadataFetcher
                          ?? (file.Tag.Performers.Length > 0
                              ? string.Join(", ", file.Tag.Performers)
                              : null);
+            var duration = file.Properties.Duration;
 
             if (string.IsNullOrWhiteSpace(title))
                 title = Path.GetFileNameWithoutExtension(filePath);
@@ -24,12 +25,12 @@ public class LocalMetadataFetcher
                 artist = "Unknown";
 
             Log.Information("Local file tags read: {Title} by {Artist}", title, artist);
-            return (title, artist);
+            return (title, artist, duration);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "TagLib failed for {Path}, falling back to filename", filePath);
-            return (Path.GetFileNameWithoutExtension(filePath), "Unknown");
+            return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
         }
     }
 }

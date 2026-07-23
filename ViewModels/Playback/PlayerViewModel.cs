@@ -102,7 +102,7 @@ public class PlayerViewModel : ViewModelBase
                             || track.Artist == "Unknown"
                             || string.IsNullOrWhiteSpace(track.Artist))
                         {
-                            var (tagTitle, tagArtist) = _metadata.FetchFromLocalFile(filePath);
+                            var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
                             if (!string.IsNullOrWhiteSpace(tagTitle)
                                 && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
                             {
@@ -113,6 +113,7 @@ public class PlayerViewModel : ViewModelBase
                                 if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
                                     track.Artist = tagArtist;
                             }
+                            track.Duration = duration;
                         }
 
                         _library.Update(track);

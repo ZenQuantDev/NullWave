@@ -627,7 +627,7 @@ public class LibraryService : IDisposable
 
         foreach (var track in withFile)
         {
-            (string Title, string Artist) embedded;
+            (string Title, string Artist, TimeSpan Duration) embedded;
             try
             {
                 embedded = _metadata.FetchFromLocalFile(track.FilePath!);

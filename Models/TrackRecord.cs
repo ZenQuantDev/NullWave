@@ -31,6 +31,9 @@ public class TrackRecord
     public int SkipCount     { get; set; }
     public DateTime? LastSkipped { get; set; }
     public string? TagsRaw   { get; set; }
+    
+    // Stored as milliseconds (long) for SQLite compatibility
+    public long DurationMs   { get; set; } = 0;
 
     public bool TitleForceCleaned { get; set; } = false;
 
@@ -51,6 +54,7 @@ public class TrackRecord
         SkipCount         = t.SkipCount,
         LastSkipped       = t.LastSkipped,
         TagsRaw           = t.Tags.Count > 0 ? string.Join("|", t.Tags) : null,
+        DurationMs        = (long)t.Duration.TotalMilliseconds,
         TitleForceCleaned = t.TitleForceCleaned
     };
 
@@ -73,6 +77,7 @@ public class TrackRecord
         Tags              = string.IsNullOrEmpty(TagsRaw)
             ? new()
             : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries)),
+        Duration          = TimeSpan.FromMilliseconds(DurationMs),
         TitleForceCleaned = TitleForceCleaned
     };
 }
