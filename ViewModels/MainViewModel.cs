@@ -122,7 +122,7 @@ public class MainViewModel : ViewModelBase
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
-        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI);
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
 
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, albumArtService);

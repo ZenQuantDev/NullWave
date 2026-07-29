@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,10 +15,11 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Services.Plugins;
 using NullWave.Services.SmartSorting;
+using NullWave.ViewModels.Settings;
 using Serilog;
 using Serilog.Events;
-using System.Collections.ObjectModel;
 
 namespace NullWave.ViewModels;
 
@@ -31,12 +35,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly DependencyUpdateService _deps;
     private readonly ExternalAITagService _externalAI = new();
     private readonly LocalAIService _localAI;
+    private readonly PluginManager _plugins;
     
     private System.Threading.Timer? _aiHealthTimer;
     private CancellationTokenSource? _debounceCts;
     private const int DebounceMs = 500;
 
     public System.Collections.ObjectModel.ObservableCollection<NullWave.Models.LiveNotification> ActiveToasts => NullWave.Services.ToastService.Instance.ActiveToasts;
+
+    public ObservableCollection<PluginRowViewModel> PluginRows { get; }
 
     private void ScheduleSave()
     {
@@ -380,12 +387,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ForceCleanTitlesRequested;
     public event Action<bool>? RemoveDuplicatesRequested; // bool = dryRun
 
-    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI)
+    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
     {
         _keyStore = keyStore;
         _secureDelete = secureDelete;
         _prefsService = prefsService;
         _localAI = localAI;
+        _plugins = plugins;
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
 
@@ -407,6 +415,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         DetectHardware();
         _ = ProbeOllamaOnStartupAsync();
         StartAIHealthCheck();
+
+        // =========================================================================
+        // Phase 13: Build Plugin Rows for Settings UI
+        // =========================================================================
+        PluginRows = new ObservableCollection<PluginRowViewModel>();
+        foreach (var plugin in _plugins.Plugins)
+        {
+            PluginRows.Add(new PluginRowViewModel(plugin, enabled =>
+            {
+                switch (plugin.Name)
+                {
+                    case "yt-dlp Downloader":
+                        _prefsService.Update(p => p.EnableYtDlp = enabled);
+                        break;
+                    case "Last.fm":
+                        _prefsService.Update(p => p.EnableLastFm = enabled);
+                        break;
+                    case "OpenWeather":
+                        _prefsService.Update(p => p.EnableOpenWeather = enabled);
+                        break;
+                    case "Ollama Local AI":
+                        _prefsService.Update(p => p.EnableOllama = enabled);
+                        break;
+                }
+            }));
+        }
     }
 
     [RelayCommand] private void RefreshWeather() => RefreshWeatherRequested?.Invoke();
@@ -508,7 +542,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         ClearThumbnailsRequested?.Invoke();
     }
 
-    // ADD THIS BLOCK:
     [RelayCommand]
     private void ClearYtDlpCache()
     {
@@ -905,7 +938,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var trackList = tracks.ToList();
         if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
         var format = ExportFormat ?? "txt";
-        var timestamp = DateTime.Now.ToString("DDMMYYYY_HHmm");
+        var timestamp = DateTime.Now.ToString("ddMMyyyy_HHmm");
         var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
         var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
         var sp = new FilePickerSaveOptions

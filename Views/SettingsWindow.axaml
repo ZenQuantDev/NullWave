@@ -84,7 +84,7 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,16"/>
 
-                    <!-- Left Structural Nav Deck (Restored to Classic Titles) -->
+                    <!-- Left Structural Nav Deck -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
                         <StackPanel Margin="8,4,8,0" Spacing="3">
 
@@ -109,6 +109,14 @@
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
                                     <TextBlock Text="API Keys"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Plugins"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Puzzle" Width="16" Height="16"/>
+                                    <TextBlock Text="Plugins"/>
                                 </StackPanel>
                             </Button>
 
@@ -162,6 +170,7 @@
                 <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
                 <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
                 <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
+                <settings:PluginsTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}"/>
                 <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
                 <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
                 <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
@@ -185,7 +194,6 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="models:LiveNotification">
-                    <!-- Unified Fixed Box Size & Premium Rounded Edge Profiles -->
                     <Border Width="360"
                             Margin="0,2"
                             Background="{StaticResource BrushSurface}"
@@ -195,16 +203,12 @@
                             BoxShadow="0 4 20 0 #55000000"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="Auto, *">
-                            <!-- Left Edge Colored Structural Status Accent Line -->
                             <Border Width="5"
                                     VerticalAlignment="Stretch"
                                     Background="{Binding NotificationColor}"/>
                             
-                            <!-- FIX: Swapped invalid Padding property for Margin on StackPanel -->
                             <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                <!-- Header Layer: Dynamic Icon + Informative Title Context + Close Control -->
                                 <Grid ColumnDefinitions="Auto, *, Auto">
-                                    <!-- Dynamic Vector Icon based on status type -->
                                     <Path Grid.Column="0"
                                           Width="15" Height="15"
                                           Margin="0,0,8,0"
@@ -213,7 +217,6 @@
                                           Stretch="Uniform"
                                           VerticalAlignment="Center"/>
                                     
-                                    <!-- Context-Aware Custom or Type Title -->
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Title}"
                                                FontWeight="SemiBold"
@@ -222,7 +225,6 @@
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
                                     
-                                    <!-- Dismiss Trigger Cross Button -->
                                     <Button Grid.Column="2"
                                             Command="{Binding CloseCommand}"
                                             Background="Transparent" BorderThickness="0"
@@ -239,14 +241,12 @@
                                     </Button>
                                 </Grid>
 
-                                <!-- Core Message Description Body -->
                                 <TextBlock Text="{Binding Message}"
                                            FontSize="12"
                                            Foreground="{StaticResource BrushTextSecondary}"
                                            TextWrapping="Wrap"
                                            Margin="23,0,0,2"/>
 
-                                <!-- Live Background Sync Progress Infrastructure -->
                                 <ProgressBar IsVisible="{Binding ShowProgressBar}"
                                              Value="{Binding ProgressValue}"
                                              IsIndeterminate="{Binding IsIndeterminate}"
@@ -256,7 +256,6 @@
                                              Background="{StaticResource BrushBorder}"
                                              Foreground="{Binding NotificationColor}"/>
 
-                                <!-- Secondary Action Command Attachment Anchors -->
                                 <Button IsVisible="{Binding ShowActionButton}"
                                         Command="{Binding ActionCommand}"
                                         Content="{Binding ActionButtonText}"
@@ -267,18 +266,15 @@
                                         Foreground="{StaticResource BrushTextPrimary}"
                                         CornerRadius="6"/>
 
-                                <!-- Native Double-State Detailed Information Expander Drawer -->
                                 <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
                                     <Button Command="{Binding ToggleExpandCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="0"
                                             HorizontalAlignment="Left" Cursor="Hand">
                                         <Panel>
-                                            <!-- Dynamic Closed Label Toggle State -->
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
                                                 <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <!-- Dynamic Opened Label Toggle State -->
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
                                                 <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
@@ -286,7 +282,6 @@
                                         </Panel>
                                     </Button>
                                     
-                                    <!-- Collapsible Container Drawer Layer -->
                                     <Border IsVisible="{Binding IsExpanded}"
                                             Margin="0,6,0,0" Padding="8"
                                             Background="{StaticResource BrushBase}"

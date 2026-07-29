@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:pvm="using:NullWave.ViewModels.Settings"
+             x:Class="NullWave.Views.Settings.PluginsTab"
+             x:DataType="vm:SettingsViewModel">
+
+  <ScrollViewer>
+    <StackPanel Margin="24">
+
+      <TextBlock Classes="section-label" Text="PLUGINS &amp; INTEGRATIONS" Margin="4,0,0,12"/>
+      <TextBlock Text="Enable or disable optional external services. Disabling a plugin hides its features but keeps your existing data intact."
+                 Foreground="{StaticResource BrushTextSecondary}"
+                 FontSize="{StaticResource FontSizeBody}"
+                 TextWrapping="Wrap"
+                 Margin="0,0,0,16"/>
+
+      <ItemsControl ItemsSource="{Binding PluginRows}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="pvm:PluginRowViewModel">
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+
+                <Ellipse Grid.Column="0" Width="10" Height="10"
+                         Fill="{Binding StatusDotColor}" Margin="0,0,14,0"/>
+
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Name}"
+                             FontSize="{StaticResource FontSizeSubtitle}"
+                             FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Description}"
+                             Foreground="{StaticResource BrushTextSecondary}"
+                             FontSize="{StaticResource FontSizeSm}"
+                             TextWrapping="Wrap"
+                             Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}"/>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Border Classes="BottomSpacer"/>
+    </StackPanel>
+  </ScrollViewer>
+
+</UserControl>
