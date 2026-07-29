@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Material.Icons;
 using NullWave.Helpers;
@@ -284,6 +286,7 @@ public class PlayerViewModel : ViewModelBase
             _currentTrack = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CurrentTrackDisplay));
+            OnPropertyChanged(nameof(CurrentArtistDisplay));
             OnPropertyChanged(nameof(HasAlbumArt));
             OnPropertyChanged(nameof(AlbumArtPath));
             OnPropertyChanged(nameof(IsCurrentFavorite));
@@ -292,7 +295,9 @@ public class PlayerViewModel : ViewModelBase
 
     public string CurrentTrackDisplay => _currentTrack == null
         ? "No track playing"
-        : $"{_currentTrack.Artist} - {_currentTrack.Title}";
+        : _currentTrack.Title;
+
+    public string CurrentArtistDisplay => _currentTrack?.Artist ?? string.Empty;
 
     private string? _albumArtPath;
     public string? AlbumArtPath

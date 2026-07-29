@@ -1,4 +1,6 @@
+// ViewModels/Playback/QueueViewModel.cs
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
 using NullWave.Helpers;
@@ -57,6 +59,14 @@ public class QueueViewModel : ViewModelBase
         {
             if (t != null) PlayTrackRequested?.Invoke(t);
         });
+    }
+
+    public void MoveTrackTo(Track track, int newIndex)
+    {
+        var current = _library.GetQueue().ToList();
+        var oldIndex = current.FindIndex(t => t.Id == track.Id);
+        if (oldIndex < 0 || newIndex < 0 || newIndex >= current.Count || oldIndex == newIndex) return;
+        _library.MoveQueueItem(oldIndex, newIndex);
     }
 
     private void Refresh()

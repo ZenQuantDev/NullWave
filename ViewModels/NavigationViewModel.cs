@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using Material.Icons;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels.Base;
 
 namespace NullWave.ViewModels;
+
+public enum SidebarPill { Playlists, Artists }
 
 public class NavigationViewModel : ViewModelBase
 {
@@ -17,19 +20,26 @@ public class NavigationViewModel : ViewModelBase
     private readonly Action<Guid> _navigateToPlaylist;
     private readonly List<NavItem> _coreItems;
 
+    private SidebarPill _currentPill = SidebarPill.Playlists;
+    public SidebarPill CurrentPill
+    {
+        get => _currentPill;
+        set { _currentPill = value; OnPropertyChanged(); }
+    }
+
     public ObservableCollection<NavItem> Items { get; } = new();
+    public ObservableCollection<Playlist> UnpinnedPlaylists { get; } = new();
 
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand UnpinCommand { get; }
+    public ICommand SelectPillCommand { get; }
 
     public NavigationViewModel(
         PreferencesService prefs,
         PlaylistService playlists,
         ICommand navigateLibrary,
         ICommand navigatePlaylists,
-        ICommand navigateQueue,
-        ICommand navigateStats,
         Action<Guid> navigateToPlaylist)
     {
         _prefs = prefs;
@@ -38,25 +48,25 @@ public class NavigationViewModel : ViewModelBase
 
         _coreItems = new List<NavItem>
         {
-            new("Library",   "Library",   "Bookshelf",    NavItemType.Core) { Command = navigateLibrary },
-            new("Playlists", "Playlists", "PlaylistMusic", NavItemType.Core) { Command = navigatePlaylists },
-            new("Queue",     "Queue",     "PlaylistPlay",  NavItemType.Core) { Command = navigateQueue },
-            new("Stats",     "Stats",     "ChartBar",      NavItemType.Core) { Command = navigateStats },
+            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core) { Command = navigateLibrary },
         };
 
         MoveUpCommand = new RelayCommand<NavItem>(MoveUp);
         MoveDownCommand = new RelayCommand<NavItem>(MoveDown);
         UnpinCommand = new RelayCommand<NavItem>(Unpin);
+        SelectPillCommand = new RelayCommand<SidebarPill>(p => CurrentPill = p);
 
         Rebuild();
     }
 
-    /// <summary>
-    /// Rebuilds the full Items list from core items + persisted pins (+ the
-    /// auto-suggested pin, if no real pins exist yet), then applies the
-    /// saved display order. Call after any pin/unpin so the auto-suggestion
-    /// correctly appears/disappears.
-    /// </summary>
+    public void MoveItem(NavItem item, int newIndex)
+    {
+        var oldIndex = Items.IndexOf(item);
+        if (oldIndex < 0 || newIndex < 0 || newIndex >= Items.Count || oldIndex == newIndex) return;
+        Items.Move(oldIndex, newIndex);
+        PersistOrder();
+    }
+
     public void Rebuild()
     {
         var pinnedData = _prefs.Current.PinnedItems;
@@ -69,7 +79,6 @@ public class NavigationViewModel : ViewModelBase
         }
 
         var all = _coreItems.Concat(pinnedItems).ToList();
-
         var savedOrder = _prefs.Current.NavOrder;
         var ordered = savedOrder.Count > 0
             ? savedOrder
@@ -81,6 +90,8 @@ public class NavigationViewModel : ViewModelBase
 
         Items.Clear();
         foreach (var item in ordered) Items.Add(item);
+        
+        RefreshPlaylistLists();
     }
 
     private NavItem? ToNavItem(PinnedItemData data)
@@ -88,23 +99,21 @@ public class NavigationViewModel : ViewModelBase
         if (data.Type == NavItemType.PinnedPlaylist && data.TargetPlaylistId.HasValue)
         {
             var id = data.TargetPlaylistId.Value;
-            var item = new NavItem(data.Key, data.Label, "PlaylistMusic", NavItemType.PinnedPlaylist, id);
+            var item = new NavItem(data.Key, data.Label, MaterialIconKind.PlaylistMusic, NavItemType.PinnedPlaylist, id);
             item.Command = new RelayCommand(() => _navigateToPlaylist(id));
             return item;
         }
-        // SavedSearch pins: not wired in this pass — data model supports it,
-        // command wiring deferred until the search-bar "pin" affordance exists.
         return null;
     }
 
     private NavItem? BuildAutoSuggestion()
     {
         var top = _playlists.GetAll()
-            .OrderByDescending(p => p.Tracks.Count) // proxy for "most substantial"
+            .OrderByDescending(p => p.Tracks.Count)
             .FirstOrDefault();
         if (top == null) return null;
 
-        var item = new NavItem($"pin:{top.Id}", top.Name, "PlaylistMusic", NavItemType.PinnedPlaylist, top.Id)
+        var item = new NavItem($"pin:{top.Id}", top.Name, MaterialIconKind.PlaylistMusic, NavItemType.PinnedPlaylist, top.Id)
         {
             IsAutoSuggested = true
         };
@@ -150,17 +159,22 @@ public class NavigationViewModel : ViewModelBase
             item.IsActive = item.Type == NavItemType.Core && item.Key == page;
     }
 
-    public void SetQueueActive(bool active)
-    {
-        var item = Items.FirstOrDefault(i => i.Key == "Queue");
-        if (item != null) item.IsActive = active;
-    }
-
     public void SetPlaylistActive(Guid? playlistId)
     {
         foreach (var item in Items)
-            item.IsActive = item.Type == NavItemType.PinnedPlaylist
-                && item.TargetPlaylistId == playlistId;
+            item.IsActive = item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId == playlistId;
+    }
+
+    public void RefreshPlaylistLists()
+    {
+        UnpinnedPlaylists.Clear();
+        var pinnedIds = _prefs.Current.PinnedItems
+            .Where(p => p.TargetPlaylistId.HasValue)
+            .Select(p => p.TargetPlaylistId!.Value)
+            .ToHashSet();
+
+        foreach (var playlist in _playlists.GetAll().Where(p => !pinnedIds.Contains(p.Id)))
+            UnpinnedPlaylists.Add(playlist);
     }
 
     private void MoveUp(NavItem? item)

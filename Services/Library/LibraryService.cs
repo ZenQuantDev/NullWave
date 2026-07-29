@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
@@ -24,6 +25,8 @@ public record LinkMismatch(
 
 public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
 
+public record ArtistMergeGroup(string CanonicalName, List<string> Variants, int TotalTracks);
+
 public class LibraryService : IDisposable
 {
     private readonly DatabaseService _db;
@@ -32,6 +35,10 @@ public class LibraryService : IDisposable
     private readonly object _tracksLock = new();
     private readonly List<Track> _queue = new();
     private readonly List<Track> _history = new();
+
+    private static readonly Regex ArtistSeparatorRegex =
+        new(@"\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public event EventHandler? LibraryChanged;
     public event EventHandler? QueueChanged;
@@ -594,7 +601,7 @@ public class LibraryService : IDisposable
     }
 
     private static HashSet<string> Tokenize(string s) =>
-        System.Text.RegularExpressions.Regex
+        Regex
             .Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
             .Select(m => m.Value)
             .Where(w => w.Length > 2)
@@ -702,6 +709,100 @@ public class LibraryService : IDisposable
         {
             return true; // couldn't read tags — don't penalize, fall back to existence-only trust
         }
+    }
+
+    /// <summary>
+    /// Finds artist name variants that normalize to the same underlying identity —
+    /// whitespace differences, invisible zero-width characters, or Unicode
+    /// compatibility-character variants that render identically but aren't the
+    /// same string. Grouping here is intentionally more aggressive than the
+    /// display-level grouping in LibraryViewModel.RefreshArtistGroups, which only
+    /// folds casing.
+    /// </summary>
+    public List<ArtistMergeGroup> FindSimilarArtistGroups()
+    {
+        var groups = _tracks
+            .Where(t => !string.IsNullOrWhiteSpace(t.Artist))
+            .GroupBy(t => NormalizeArtistKey(t.Artist))
+            .Where(g => g.Select(t => t.Artist).Distinct(StringComparer.Ordinal).Count() > 1)
+            .Select(g =>
+            {
+                var variantCounts = g.GroupBy(t => t.Artist, StringComparer.Ordinal)
+                    .Select(vg => (Name: vg.Key, Count: vg.Count()))
+                    .OrderByDescending(v => v.Count)
+                    .ThenBy(v => v.Name, StringComparer.Ordinal)
+                    .ToList();
+
+                return new ArtistMergeGroup(
+                    CanonicalName: variantCounts[0].Name,
+                    Variants: variantCounts.Select(v => v.Name).ToList(),
+                    TotalTracks: g.Count());
+            })
+            .OrderByDescending(g => g.TotalTracks)
+            .ToList();
+
+        Log.Information("[LibraryService] FindSimilarArtistGroups: {Count} group(s) with variant spellings found", groups.Count);
+        return groups;
+    }
+
+    /// <summary>
+    /// Rewrites every track whose Artist matches any variant in the group to the
+    /// group's CanonicalName. Returns the number of tracks updated.
+    /// </summary>
+    public int MergeArtistGroup(ArtistMergeGroup group)
+    {
+        var variantSet = group.Variants.ToHashSet(StringComparer.Ordinal);
+        var toUpdate = _tracks.Where(t => variantSet.Contains(t.Artist)).ToList();
+
+        foreach (var track in toUpdate)
+        {
+            track.Artist = group.CanonicalName;
+            _db.Update(track);
+        }
+
+        if (toUpdate.Count > 0) StateVersion++;
+        Log.Information("[LibraryService] MergeArtistGroup: {Count} track(s) updated to canonical name '{Name}'",
+            toUpdate.Count, group.CanonicalName);
+        return toUpdate.Count;
+    }
+
+    internal static string NormalizeArtistKey(string artist)
+    {
+        var stripped = new string(artist.Where(c =>
+            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                != System.Globalization.UnicodeCategory.Format).ToArray());
+
+        var normalized = stripped.Normalize(System.Text.NormalizationForm.FormKC);
+        var collapsed = Regex.Replace(normalized.Trim(), @"\s+", " ");
+
+        // Fold common multi-artist joiners to a canonical separator so "A & B",
+        // "A and B", "A, B" are recognized as the same collaboration credit.
+        var joinerNormalized = ArtistSeparatorRegex.Replace(collapsed, " & ");
+
+        return joinerNormalized.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Splits a raw Artist credit string into individual contributor names — e.g.
+    /// "Kanye West & Malik Yusef" or "Kanye West, Mos Def, Lupe Fiasco" both split
+    /// into their component names. Used only for browsing/grouping (Artists sidebar
+    /// pill) — Track.Artist itself is never rewritten here, so a bad split has no
+    /// lasting effect beyond an odd-looking sidebar entry.
+    ///
+    /// Known limitation: heuristic-based, so a genuine single-artist name containing
+    /// a separator character/word (e.g. a band called "Earth, Wind & Fire") will
+    /// mis-split into fake entries. No reliable fix without a curated artist
+    /// database — treat as an accepted tradeoff, same as ForceCleanTitles's
+    /// multi-dash-title caveat.
+    /// </summary>
+    public static List<string> SplitArtistCredits(string artist)
+    {
+        if (string.IsNullOrWhiteSpace(artist)) return new List<string>();
+
+        return ArtistSeparatorRegex.Split(artist)
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .ToList();
     }
 
     /// <summary>

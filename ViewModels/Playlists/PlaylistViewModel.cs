@@ -72,6 +72,7 @@ public class PlaylistViewModel : ViewModelBase
 
     public event Action<Playlist>? PinRequested;
     public event Action<Playlist>? UnpinRequested;
+    public event Action? PlaylistsChanged;
 
     public Playlist? SelectedPlaylist
     {
@@ -171,6 +172,7 @@ public class PlaylistViewModel : ViewModelBase
         SelectedPlaylist = playlist;
         Log.Information("[Playlist] Created: {Name}", name);
         ToastService.Instance.Show($"Playlist '{playlist.Name}' created.", ToastType.Success);
+        PlaylistsChanged?.Invoke();
     }
 
     private void RemovePlaylist()
@@ -197,6 +199,7 @@ public class PlaylistViewModel : ViewModelBase
 
         ToastService.Instance.Show($"Playlist '{target.Name}' deleted.", ToastType.Info);
         Log.Information("[Playlist] Removed: {Name}", target.Name);
+        PlaylistsChanged?.Invoke();
     }
 
     private void StartRename()
@@ -225,6 +228,7 @@ public class PlaylistViewModel : ViewModelBase
 
         ToastService.Instance.Show($"Renamed '{oldName}' to '{trimmed}'.", ToastType.Success);
         IsRenaming = false;
+        PlaylistsChanged?.Invoke();
     }
 
     private void AddToPlaylist(Track? track)

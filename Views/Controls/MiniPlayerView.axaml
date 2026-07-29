@@ -52,8 +52,16 @@
             </Border>
 
             <StackPanel VerticalAlignment="Center" Spacing="3" MaxWidth="200">
-                <TextBlock Text="{Binding Player.CurrentTrackDisplay}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{Binding Player.StatusText}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
+                <Border x:Name="TitleClip" ClipToBounds="True" Width="200" Height="20">
+                    <TextBlock x:Name="TitleTextBlock"
+                               Text="{Binding Player.CurrentTrackDisplay}"
+                               Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{StaticResource FontSizeBody}"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="{Binding Player.CurrentArtistDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
 
             <Button Classes="player-btn" Command="{Binding Player.ToggleCurrentFavoriteCommand}" ToolTip.Tip="Toggle Favorite" VerticalAlignment="Center">
@@ -64,15 +72,6 @@
         <!--  CENTER: Controls + seek (fixed 440px)  -->
         <StackPanel Grid.Column="1" Width="440" VerticalAlignment="Center" Spacing="8">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                <!--
-                    Single shuffle control: cycles Off → Normal → Smart (AI-gated) → Off.
-                    Icon swaps to AutoFixHigh and color turns amber in Smart mode via
-                    Player.ShuffleIconKind / Player.ShuffleForeground — this already covers
-                    the full Smart Shuffle toggle, so no separate control is needed here.
-                    (A duplicate ToggleButton bound to Player.SmartShuffleEnabled used to sit
-                    here — removed: it tracked a second, unsynced piece of state and had no
-                    :checked style, so it never showed feedback when clicked.)
-                -->
                 <Button Classes="player-btn" Command="{Binding Player.CycleShuffleCommand}" Foreground="{Binding Player.ShuffleForeground}" ToolTip.Tip="{Binding Player.ShuffleTooltip}">
                     <material:MaterialIcon Kind="{Binding Player.ShuffleIconKind}" Width="20" Height="20"/>
                 </Button>
@@ -110,12 +109,16 @@
             </Grid>
         </StackPanel>
 
-        <!--  RIGHT: Volume  -->
+        <!--  RIGHT: Queue + Volume  -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Player.IsDownloading}" VerticalAlignment="Center">
                 <TextBlock Text="Downloading" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center"/>
                 <ProgressBar Value="{Binding Player.DownloadProgress}" Maximum="1" Width="60" Height="2" VerticalAlignment="Center"/>
             </StackPanel>
+
+            <Button Classes="player-btn" Classes.active="{Binding Queue.IsOpen}" Command="{Binding ToggleQueueCommand}" VerticalAlignment="Center" ToolTip.Tip="Queue">
+                <material:MaterialIcon Kind="PlaylistPlay" Width="20" Height="20"/>
+            </Button>
 
             <Button Classes="player-btn" Command="{Binding Player.ToggleMuteCommand}" VerticalAlignment="Center" ToolTip.Tip="Mute / Unmute (M)">
                 <material:MaterialIcon Kind="{Binding Player.VolumeIconKind}" Width="20" Height="20"/>

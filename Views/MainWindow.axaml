@@ -15,6 +15,8 @@
         KeyDown="OnKeyDown">
     <Window.Resources>
         <converters:StringEqualsConverter x:Key="StringEqualsConverter"/>
+        <converters:BoolToGridLengthConverter x:Key="BoolToGridLength"/>
+        <converters:BoolToDoubleConverter x:Key="BoolToDouble"/>
     </Window.Resources>
     
     <Window.Styles>
@@ -46,16 +48,41 @@
         <DockPanel>
             <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
             <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
-            <Grid ColumnDefinitions="Auto,4,*,4,Auto">
-                <controls:SidebarView Grid.Column="0" MinWidth="180" MaxWidth="350"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding IsSidebarCollapsed, Converter={StaticResource BoolToGridLength}, ConverterParameter='0,220'}"
+                                      MinWidth="{Binding IsSidebarCollapsed, Converter={StaticResource BoolToDouble}, ConverterParameter='180,0'}"
+                                      MaxWidth="350"/>
+                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition Width="*" MinWidth="480"/>
+                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <controls:SidebarView Grid.Column="0" IsVisible="{Binding !IsSidebarCollapsed}"/>
+
                 <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
-                              Background="Transparent" ShowsPreview="True"/>
+                              Background="Transparent" ShowsPreview="True"
+                              IsVisible="{Binding !IsSidebarCollapsed}"/>
+                              
                 <Grid Grid.Column="2">
                     <controls:TrackListView
                         IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
                     <controls:PlaylistsView
                         IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
+
+                    <Button Classes="icon-btn"
+                            Command="{Binding ToggleSidebarCollapsedCommand}"
+                            IsVisible="{Binding IsSidebarCollapsed}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Margin="8"
+                            Background="{StaticResource BrushSurface2}"
+                            ToolTip.Tip="Show sidebar">
+                        <materialIcons:MaterialIcon Kind="{Binding SidebarCollapseIconKind}" Width="18" Height="18"/>
+                    </Button>
                 </Grid>
+                
                 <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
                               Background="Transparent" ShowsPreview="True"
                               IsVisible="{Binding Detail.IsOpen}"/>

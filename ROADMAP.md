@@ -548,3 +548,48 @@ and fix known interaction bugs from Phase 10.
 - 📋 UI: distinguish auto-filled queue entries from user-added ones (e.g.
   a subtle "Up Next" section header vs. manually queued tracks) so
   removing/reordering feels predictable
+
+## Phase 13 - Plugin Architecture & Service Isolation 💡
+
+**Goal:** Make all external dependencies (yt-dlp, Ollama, OpenWeather, SoundCloud, etc.) 
+optional, disconnectable, and independently replaceable. Enable community plugins.
+
+### 13.1 Core Plugin System
+- Define `IMusicSourcePlugin`, `IDownloadProvider`, `IMetadataProvider`, `IAIProvider` interfaces
+- 📋 Implement `PluginManager` with dependency injection registration
+- Add plugin configuration to `PreferencesService` (`~/.nullwave/plugins.json`)
+- Create `PluginState` enum (Available/Unavailable/Disabled/Error)
+- 📋 Health check system with periodic pings
+
+### 13.2 Extract Existing Services
+- 📋 Wrap `DownloadService` → `YtDlpDownloadProvider` (optional, graceful degradation)
+- 📋 Wrap `LastFmService` → `LastFmMetadataProvider`
+- Wrap `LocalAIService` → `OllamaAIProvider`
+- 📋 Wrap `WeatherService` → `OpenWeatherProvider`
+- Each provider implements interface + fallback behavior when disabled
+
+### 13.3 Process Isolation
+- Create `PluginHost` separate process for CPU/memory-heavy operations
+- 📋 Implement named pipe/gRPC communication protocol
+- 📋 Add circuit breaker pattern for failing plugins
+- Auto-restart crashed plugins with backoff
+- Resource monitoring per-plugin (CPU, memory limits)
+
+### 13.4 UI & Management
+- 📋 Plugins management tab in Settings
+- 📋 Enable/disable toggles with live status indicators
+- Plugin installation workflow (future: community plugins)
+- 📋 Dependency graph visualization (which features need which plugins)
+
+### 13.5 Documentation
+- 📋 Plugin development guide for community contributors
+- API reference for plugin interfaces
+- 📋 Migration guide from monolithic to plugin-based services
+
+**Success Criteria:**
+- NullWave runs with zero external dependencies (local files only mode)
+- Disabling yt-dlp doesn't break the app, just hides download features
+- AI features degrade gracefully when Ollama is unavailable
+- Plugin load time < 200ms per plugin
+- No feature regression from current functionality
+

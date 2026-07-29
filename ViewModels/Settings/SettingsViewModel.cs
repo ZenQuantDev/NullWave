@@ -378,6 +378,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? VacuumDatabaseRequested;
     public event Action? VerifyLinksRequested;
     public event Action? ForceCleanTitlesRequested;
+    public event Action? MergeSimilarArtistsRequested;
     public event Action<bool>? RemoveDuplicatesRequested; // bool = dryRun
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI)
@@ -508,7 +509,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         ClearThumbnailsRequested?.Invoke();
     }
 
-    // ADD THIS BLOCK:
     [RelayCommand]
     private void ClearYtDlpCache()
     {
@@ -580,6 +580,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void MergeSimilarArtists()
+    {
+        MergeSimilarArtistsRequested?.Invoke();
+    }
+
+    [RelayCommand]
     private void PreviewDuplicates()
     {
         IsRepairing = true;
@@ -641,6 +647,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ? "No titles needed cleaning."
             : $"✓ Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
         ToastService.Instance.Show(ForceCleanStatus, ToastType.Success);
+    }
+
+    public void ReportArtistMergeComplete(int groupsFound, int tracksUpdated)
+    {
+        var message = groupsFound == 0
+            ? "No duplicate artist names found."
+            : $"Merged {groupsFound} artist group(s), updated {tracksUpdated} track(s).";
+
+        ToastService.Instance.Show(message, ToastType.Info);
+        Log.Information("[Settings] Artist merge complete: {Groups} groups, {Tracks} tracks updated",
+            groupsFound, tracksUpdated);
     }
 
     [RelayCommand]
@@ -905,7 +922,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var trackList = tracks.ToList();
         if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
         var format = ExportFormat ?? "txt";
-        var timestamp = DateTime.Now.ToString("DDMMYYYY_HHmm");
+        var timestamp = DateTime.Now.ToString("ddMMyyyy_HHmm");
         var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
         var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
         var sp = new FilePickerSaveOptions

@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Material.Icons;
 
 namespace NullWave.Models;
 
@@ -22,15 +23,17 @@ public partial class NavItem : ObservableObject
     public string? TargetQuery { get; }
 
     [ObservableProperty] private string _label = string.Empty;
-    [ObservableProperty] private string _iconKind = string.Empty;
+    [ObservableProperty] private MaterialIconKind _iconKind;
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isAutoSuggested;
+    [ObservableProperty] private bool _isDragging;
+    [ObservableProperty] private bool _isDropTarget;
 
     public bool CanUnpin => Type != NavItemType.Core;
 
     public ICommand? Command { get; set; }
 
-    public NavItem(string key, string label, string iconKind,
+    public NavItem(string key, string label, MaterialIconKind iconKind,
         NavItemType type = NavItemType.Core, Guid? targetPlaylistId = null, string? targetQuery = null)
     {
         Key = key;

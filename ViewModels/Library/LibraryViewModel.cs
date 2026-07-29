@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _library;
     private CancellationTokenSource? _stateCts;
+    private string? _selectedArtistFilter; // Direct artist filter, bypasses search
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSearchQuery))]
@@ -85,7 +87,7 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsLocalFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Local;
     public bool IsSpotifyFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Spotify;
     
-    public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery);
+    public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery) || !string.IsNullOrEmpty(_selectedArtistFilter);
     
     public bool IsSortedByTitle => CurrentSort == SortField.Title;
     public bool IsSortedByArtist => CurrentSort == SortField.Artist;
@@ -95,6 +97,9 @@ public partial class LibraryViewModel : ObservableObject
     
     public string ResultCountLabel => Tracks.Count == 1 ? "1 track" : $"{Tracks.Count} tracks";
 
+    public ObservableCollection<ArtistGroup> ArtistGroups { get; } = new();
+    public event Action? NavigateToLibraryRequested;
+
     public event Action<Track>? TrackDetailRequested;
     public event Action<Track>? PlayTrackRequested;
 
@@ -102,9 +107,60 @@ public partial class LibraryViewModel : ObservableObject
     {
         _library = library;
         TriggerRefresh(debounce: false);
+        RefreshArtistGroups();
     }
 
-    partial void OnSearchQueryChanged(string value) => TriggerRefresh(debounce: true);
+    public void RefreshArtistGroups()
+    {
+        // Buckets keyed by normalized identity so "Kanye West & Malik Yusef" and
+        // "Kanye West" both contribute to Kanye West's total track count, while
+        // each distinct real artist still gets its own bucket. HashSet<Guid> dedupes
+        // a track that credits the same artist twice within one string.
+        var buckets = new Dictionary<string, (string DisplayName, HashSet<Guid> TrackIds)>();
+
+        foreach (var track in _library.GetAll())
+        {
+            if (string.IsNullOrWhiteSpace(track.Artist) || track.Artist == "Unknown") continue;
+
+            foreach (var name in LibraryService.SplitArtistCredits(track.Artist))
+            {
+                var key = LibraryService.NormalizeArtistKey(name);
+                if (!buckets.TryGetValue(key, out var bucket))
+                {
+                    bucket = (name, new HashSet<Guid>());
+                    buckets[key] = bucket;
+                }
+                bucket.TrackIds.Add(track.Id);
+            }
+        }
+
+        var groups = buckets.Values
+            .Select(b => new ArtistGroup(b.DisplayName, b.TrackIds.Count))
+            .OrderBy(g => g.Name)
+            .ToList();
+
+        ArtistGroups.Clear();
+        foreach (var g in groups) ArtistGroups.Add(g);
+    }
+
+    [RelayCommand]
+    private void SelectArtist(ArtistGroup? group)
+    {
+        if (group == null) return;
+        
+        // Use direct artist filter instead of search syntax to avoid whitespace/Unicode issues
+        _selectedArtistFilter = group.Name;
+        SearchQuery = string.Empty; // Clear regular search
+        NavigateToLibraryRequested?.Invoke();
+        TriggerRefresh(debounce: false);
+    }
+
+    partial void OnSearchQueryChanged(string value) 
+    {
+        _selectedArtistFilter = null; // Clear artist filter when regular search is used
+        TriggerRefresh(debounce: true);
+    }
+    
     partial void OnCurrentSortChanged(SortField value) => TriggerRefresh(debounce: false);
     partial void OnSortAscendingChanged(bool value) => TriggerRefresh(debounce: false);
     partial void OnCurrentViewChanged(LibraryView value) => TriggerRefresh(debounce: false);
@@ -120,6 +176,7 @@ public partial class LibraryViewModel : ObservableObject
         var token = _stateCts.Token;
 
         string query = SearchQuery;
+        string? artistFilter = _selectedArtistFilter;
         SortField sort = CurrentSort;
         bool ascending = SortAscending;
         LibraryView view = CurrentView;
@@ -134,7 +191,7 @@ public partial class LibraryViewModel : ObservableObject
                     await Task.Delay(300, token);
                 }
 
-                var (results, wasSearch) = FetchLibraryDataInternal(query, sort, ascending, view, filter);
+                var (results, wasSearch) = FetchLibraryDataInternal(query, artistFilter, sort, ascending, view, filter);
 
                 if (token.IsCancellationRequested) return;
 
@@ -154,7 +211,7 @@ public partial class LibraryViewModel : ObservableObject
 
                     if (wasSearch)
                     {
-                        NullActionLogger.SearchPerformed(query, Tracks.Count, "LibraryViewModel");
+                        NullActionLogger.SearchPerformed(query ?? artistFilter ?? string.Empty, Tracks.Count, "LibraryViewModel");
                     }
                 });
             }
@@ -252,7 +309,7 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     private (IEnumerable<Track> Results, bool WasSearchExecuted) FetchLibraryDataInternal(
-        string query, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
+        string? query, string? artistFilter, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
     {
         // Step 1: pick the base candidate set for the active view/filter.
         IEnumerable<Track> baseSet = view switch
@@ -263,12 +320,26 @@ public partial class LibraryViewModel : ObservableObject
             _                     => _library.GetAll()
         };
 
+        // Step 1b: Apply direct artist filter if set (bypasses search syntax).
+        // Matches against each individual credited artist, not the whole raw string,
+        // so clicking "Kanye West" also surfaces tracks crediting "Kanye West & Malik Yusef".
+        if (!string.IsNullOrEmpty(artistFilter))
+        {
+            var normalizedFilter = LibraryService.NormalizeArtistKey(artistFilter);
+            baseSet = baseSet.Where(t => LibraryService.SplitArtistCredits(t.Artist)
+                .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedFilter));
+        }
+
         // Step 2: Apply Smart Search (handles both global text and key:value filters)
         bool wasSearch = false;
         if (!string.IsNullOrWhiteSpace(query))
         {
             baseSet = ApplySmartSearch(baseSet, query);
             wasSearch = true;
+        }
+        else if (!string.IsNullOrEmpty(artistFilter))
+        {
+            wasSearch = true; // Artist filter counts as a search
         }
 
         // Step 3: sort always applies too, with secondary tie-breakers to stabilize groups
@@ -363,6 +434,7 @@ public partial class LibraryViewModel : ObservableObject
     private void ClearSearch()
     {
         SearchQuery = string.Empty;
+        _selectedArtistFilter = null;
         CurrentView = LibraryView.All;
         ActiveSourceFilter = null;
     }
