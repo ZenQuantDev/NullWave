@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace NullWave.Models;
 
@@ -54,4 +55,39 @@ public class Preferences
     /// When enabled, sets system log levels to Verbose/Debug. When disabled, filters down to Information.
     /// </summary>
     public bool VerboseLogging { get; set; } = false;
+
+    // ------------------------------------------------------------------------
+    // Phase 13 — Plugin Architecture toggles
+    // ------------------------------------------------------------------------
+
+    /// <summary>
+    /// When false, all download features are hidden and NullWave operates
+    /// strictly as a local file manager.
+    /// </summary>
+    public bool EnableYtDlp { get; set; } = true;
+
+    /// <summary>
+    /// When false, local AI features (Smart Shuffle, Mood Playlists) are disabled.
+    /// </summary>
+    public bool EnableOllama { get; set; } = true;
+
+    /// <summary>
+    /// When false, weather-based mood playlists fall back to generic defaults.
+    /// </summary>
+    public bool EnableOpenWeather { get; set; } = true;
+
+    /// <summary>
+    /// When false, Last.fm scrobbling and metadata enrichment are disabled.
+    /// </summary>
+    public bool EnableLastFm { get; set; } = true;
+
+    /// <summary>
+    /// When false, SoundCloud metadata fetching and playlist import are disabled.
+    /// </summary>
+    public bool EnableSoundCloud { get; set; } = true;
+
+    /// <summary>
+    /// Per-plugin advanced configuration (endpoint URLs, model names, etc.).
+    /// </summary>
+    public List<PluginConfig> PluginConfigs { get; set; } = new();
 }

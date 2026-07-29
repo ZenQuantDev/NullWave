@@ -11,6 +11,7 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using NullWave.Services.Integration;
+using NullWave.Services.Plugins;
 using NullWave.Services.SmartSorting;
 using NullWave.ViewModels.Base;
 using NullWave.Models;
@@ -38,13 +39,11 @@ public class MainViewModel : ViewModelBase
     private readonly LocalAIService _localAI;
     private readonly MoodPlaylistService _moodPlaylist;
     private readonly PowerStateService _powerState;
+    private readonly PluginManager _plugins = new();
 
     private string? _pendingLastFmToken;
     private LastFmAuthService? _pendingLastFmAuth;
 
-    // Holds the single active "Downloading Playlist" live toast, so batch progress
-    // events (which fire off the UI thread from DownloadService) know which
-    // notification to update. Only one bulk playlist download runs at a time today.
     private LiveNotification? _currentPlaylistActivity;
 
     private readonly PlaceholderPageViewModel _queuePage = new(
@@ -97,7 +96,6 @@ public class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
-        // FIX: Instantiate _prefsService early to prevent NullReferenceException in DownloadService
         _prefsService = new PreferencesService();
 
         _secureDelete = new SecureDeleteService(_keyStore);
@@ -116,6 +114,14 @@ public class MainViewModel : ViewModelBase
         _weatherService = new WeatherService(_keyStore);
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
+        // =========================================================================
+        // PHASE 13: Register all plugin providers
+        // =========================================================================
+        _plugins.Register(new YtDlpDownloadProvider(_downloadService, _prefsService));
+        _plugins.Register(new LastFmMetadataProvider(_lastFm, _prefsService));
+        _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
+        _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
+
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
 
@@ -130,10 +136,6 @@ public class MainViewModel : ViewModelBase
 
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
-        // Surfaces silent AI-ranking fallbacks (Ollama unreachable, timed out, bad
-        // response) as a toast. Previously the only trace was the raw exception in
-        // the log file — the mood playlist would still "succeed" from the user's
-        // point of view with zero indication the AI step was actually skipped.
         _localAI.FallbackNotice += message =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -183,9 +185,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Verify Links: cross-checks stored track metadata against each linked file's
-        // embedded tags. Catches "correctly-existing but wrong" links that RepairPaths
-        // and ReimportAssets can't detect, since both only check file existence.
         Settings.VerifyLinksRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -220,9 +219,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Force Clean Titles: retroactively re-parses every track's title for an
-        // embedded "Artist - Title" pattern, overriding a wrong channel-name-as-artist
-        // value (e.g. a Minecraft OST playlist uploaded by "SMORT" instead of C418).
         Settings.ForceCleanTitlesRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -241,7 +237,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // AI State Switch Interceptor with Visual Alerts
         Settings.AIFeaturesEnabledChanged += enabled =>
         {
             if (!enabled)
@@ -275,7 +270,6 @@ public class MainViewModel : ViewModelBase
                             ToastService.Instance.Show("Could not reach local AI server. Check configurations.", ToastType.Warning);
                         }
                         
-                        // FIX C: Start health check only after the initial ping completes to prevent false-negative UI alerts
                         Settings.StartAIHealthCheck();
                     });
                 });
@@ -315,11 +309,6 @@ public class MainViewModel : ViewModelBase
             _downloadService.UpdateConcurrencyLimit(limit);
         _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
-        // NOTE: These global handlers fire for every DownloadAsync call, including the
-        // ones DownloadPlaylistAsync makes internally per-track. isInteractive is false
-        // for those, so we gate the per-track toast on it — otherwise a 200-track
-        // playlist would spam 200 "Track download completed" toasts on top of the
-        // batch progress toast below.
         _downloadService.DownloadCompleted += (_, _, isInteractive) =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -340,7 +329,6 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        // Bulk playlist download progress → single live activity toast.
         _downloadService.PlaylistBatchStarted += totalTracks =>
         {
             _currentPlaylistActivity = ToastService.Instance.StartLiveActivity(
@@ -378,7 +366,6 @@ public class MainViewModel : ViewModelBase
         Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += Library.Refresh;
 
-        // Fallback to reading the last entry since TrackInputViewModel event signature hasn't been updated yet
         Input.TrackAdded += () =>
         {
             var track = _library.GetAll().LastOrDefault();
@@ -389,6 +376,15 @@ public class MainViewModel : ViewModelBase
 
             if (playlistUrl.Contains("list="))
             {
+                if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+                {
+                    Log.Information("[MainViewModel] Playlist download skipped — yt-dlp plugin unavailable/disabled");
+                    ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings to import playlists.", ToastType.Warning);
+                    _library.Remove(track.Id);
+                    Library.Refresh();
+                    return;
+                }
+
                 Log.Information("[MainViewModel] Intercepted playlist URL, removing dummy track and starting bulk download");
                 _library.Remove(track.Id);
                 Library.Refresh();
@@ -396,13 +392,18 @@ public class MainViewModel : ViewModelBase
                     playlistUrl: playlistUrl,
                     onTrackReady: (downloadedTrack) =>
                     {
-                        _enrichment.EnrichAsync(downloadedTrack);
+                        if (_plugins.Get<LastFmMetadataProvider>() is { })
+                            _enrichment.EnrichAsync(downloadedTrack);
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
                     });
                 return;
             }
 
-            _enrichment.EnrichAsync(track);
+            // Gated enrichment: only run if Last.fm plugin is available
+            if (_plugins.Get<LastFmMetadataProvider>() is { })
+            {
+                _enrichment.EnrichAsync(track);
+            }
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
         };
 
@@ -413,7 +414,6 @@ public class MainViewModel : ViewModelBase
             _ = RunMoodPlaylistAsync(forceRefresh: false);
         };
 
-        // FIX B: Throttle or Gate the Automatic AI Backfill
         _ = Task.Run(async () =>
         {
             await Task.Delay(3000);
@@ -424,7 +424,6 @@ public class MainViewModel : ViewModelBase
             else
             {
                 Log.Information("[MainViewModel] Skipping automatic AI backfill to preserve battery life.");
-                // Ensure the user still gets their smart mood mix on launch when mobile!
                 _initialMoodPlaylistRun = true;
                 _ = RunMoodPlaylistAsync(forceRefresh: false);
             }
@@ -441,12 +440,15 @@ public class MainViewModel : ViewModelBase
         Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
         {
             if (!Settings.ScrobbleToLastFm) return;
-            if (!_lastFm.CanScrobble)
+            
+            // Gated scrobbling: check plugin availability and configuration
+            if (_plugins.Get<LastFmMetadataProvider>() is not { } lastFmProvider || !lastFmProvider.IsConfiguredForScrobbling)
             {
-                Log.Debug("[MainViewModel] Scrobble requested but Last.fm not connected");
+                Log.Debug("[MainViewModel] Scrobble requested but Last.fm plugin not configured/available");
                 return;
             }
-            var success = await _lastFm.ScrobbleAsync(title, artist, playedAt);
+
+            var success = await lastFmProvider.ScrobbleAsync(title, artist, playedAt);
             if (!success)
             {
                 Log.Warning("[MainViewModel] Scrobble failed for '{Title}' by '{Artist}'", title, artist);
@@ -515,11 +517,6 @@ public class MainViewModel : ViewModelBase
             ToastService.Instance.Show("Disconnected from Last.fm accounts.", ToastType.Info);
         };
 
-        // =========================================================================
-        // CORE SYSTEM MAINTENANCE OPERATIONS (REFACTORED FOR LIVE ACTIVITIES)
-        // =========================================================================
-
-        // FIX A: Introduce an Operational Gate (Prevents Re-entrancy)
         Settings.ClearThumbnailsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
@@ -719,7 +716,6 @@ public class MainViewModel : ViewModelBase
             }
         };
 
-        // FIX: Restored 'return null;' to satisfy the Func<Task<string?>> delegate signature
         Settings.ImportAiTagsRequested += async () =>
         {
             try
@@ -793,6 +789,7 @@ public class MainViewModel : ViewModelBase
         ExitCommand = new RelayCommand(() =>
         {
             NullActionLogger.User("AppExit", "shutdown", nameof(MainViewModel));
+            _ = _plugins.ShutdownAllAsync();
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                 desktop.Shutdown();
         });
@@ -863,6 +860,8 @@ public class MainViewModel : ViewModelBase
         {
             var diag = new StartupDiagnosticsService(_keyStore, _library);
             await diag.RunAsync();
+
+            await _plugins.InitializeAllAsync();
         }
         catch (Exception ex)
         {
@@ -932,9 +931,9 @@ public class MainViewModel : ViewModelBase
     {
         try
         {
-            if (!_weatherService.IsConfigured)
+            if (_plugins.Get<IWeatherProvider>() is not { } weatherProvider)
             {
-                Log.Information("[MainViewModel] OpenWeather API key not set - skipping mood playlist");
+                Log.Information("[MainViewModel] OpenWeather plugin unavailable/disabled - skipping mood playlist");
                 return;
             }
 
