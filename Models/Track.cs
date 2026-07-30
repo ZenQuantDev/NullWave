@@ -86,6 +86,8 @@ public class Track : INotifyPropertyChanged
         set { if (_albumArtPath != value) { _albumArtPath = value; OnPropertyChanged(); } }
     }
 
+    public TimeSpan Duration { get; set; } = TimeSpan.Zero;
+
     public bool TitleForceCleaned { get; set; } = false;
 }
 

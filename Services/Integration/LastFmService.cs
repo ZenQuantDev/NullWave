@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NullWave.Services.Integration;
 using Serilog;
@@ -13,10 +14,10 @@ namespace NullWave.Services;
 
 public class LastFmSessionResult
 {
-    public bool   Success    { get; init; }
+    public bool Success { get; init; }
     public string SessionKey { get; init; } = string.Empty;
-    public string Username   { get; init; } = string.Empty;
-    public string? Error     { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public string? Error { get; init; }
 }
 
 public class LastFmAuthService
@@ -29,7 +30,7 @@ public class LastFmAuthService
 
     public LastFmAuthService(string apiKey, string apiSecret)
     {
-        _apiKey    = apiKey;
+        _apiKey = apiKey;
         _apiSecret = apiSecret;
     }
 
@@ -47,7 +48,7 @@ public class LastFmAuthService
         {
             var parameters = new SortedDictionary<string, string>
             {
-                ["method"]  = "auth.getToken",
+                ["method"] = "auth.getToken",
                 ["api_key"] = _apiKey
             };
 
@@ -88,9 +89,9 @@ public class LastFmAuthService
         {
             var parameters = new SortedDictionary<string, string>
             {
-                ["method"]  = "auth.getSession",
+                ["method"] = "auth.getSession",
                 ["api_key"] = _apiKey,
-                ["token"]   = token
+                ["token"] = token
             };
 
             var sig = Sign(parameters);
@@ -103,7 +104,8 @@ public class LastFmAuthService
             {
                 using var errDoc = JsonDocument.Parse(json);
                 var msg = errDoc.RootElement.TryGetProperty("message", out var m)
-                    ? m.GetString() : "Authorization not yet granted";
+                    ? m.GetString()
+                    : "Authorization not yet granted";
                 Log.Warning("[LastFmAuth] Session request failed: {Msg}", msg);
                 return new LastFmSessionResult { Success = false, Error = msg };
             }
@@ -111,16 +113,11 @@ public class LastFmAuthService
             using var doc = JsonDocument.Parse(json);
             var session = doc.RootElement.GetProperty("session");
             var sessionKey = session.GetProperty("key").GetString() ?? string.Empty;
-            var username   = session.GetProperty("name").GetString() ?? string.Empty;
+            var username = session.GetProperty("name").GetString() ?? string.Empty;
 
             Log.Information("[LastFmAuth] Session established for {Username}", username);
 
-            return new LastFmSessionResult
-            {
-                Success    = true,
-                SessionKey = sessionKey,
-                Username   = username
-            };
+            return new LastFmSessionResult { Success = true, SessionKey = sessionKey, Username = username };
         }
         catch (Exception ex)
         {
@@ -154,9 +151,9 @@ public class LastFmService
 
     public LastFmService(ConfigService config)
     {
-        _apiKey     = config.GetLastFmApiKey();
+        _apiKey = config.GetLastFmApiKey();
         _sessionKey = config.GetLastFmSessionKey();
-        _auth       = new LastFmAuthService(_apiKey, config.GetLastFmApiSecret());
+        _auth = new LastFmAuthService(_apiKey, config.GetLastFmApiSecret());
     }
 
     public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
@@ -170,11 +167,7 @@ public class LastFmService
 
         try
         {
-            var url = $"{BaseUrl}?method=track.search" +
-                      $"&track={Uri.EscapeDataString(title)}" +
-                      $"&artist={Uri.EscapeDataString(artist)}" +
-                      $"&api_key={_apiKey}&format=json&limit=1";
-
+            var url = $"{BaseUrl}?method=track.search&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json&limit=1";
             var response = await _http.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
@@ -182,14 +175,10 @@ public class LastFmService
             using var doc = JsonDocument.Parse(json);
 
             var matches = doc.RootElement.GetProperty("results").GetProperty("trackmatches").GetProperty("track");
-
             if (matches.ValueKind == JsonValueKind.Array && matches.GetArrayLength() > 0)
             {
                 var first = matches[0];
-                var foundTitle = first.GetProperty("name").GetString() ?? title;
-                var foundArtist = first.GetProperty("artist").GetString() ?? artist;
-                Log.Debug("Last.fm search: {Title} by {Artist}", foundTitle, foundArtist);
-                return (foundTitle, foundArtist);
+                return (first.GetProperty("name").GetString() ?? title, first.GetProperty("artist").GetString() ?? artist);
             }
         }
         catch (Exception ex)
@@ -206,19 +195,14 @@ public class LastFmService
 
         try
         {
-            var url = $"{BaseUrl}?method=track.getInfo" +
-                      $"&track={Uri.EscapeDataString(title)}" +
-                      $"&artist={Uri.EscapeDataString(artist)}" +
-                      $"&api_key={_apiKey}&format=json";
-
+            var url = $"{BaseUrl}?method=track.getInfo&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json";
             var response = await _http.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            if (!doc.RootElement.TryGetProperty("track", out var track))
-                return null;
+            if (!doc.RootElement.TryGetProperty("track", out var track)) return null;
 
             var info = new LastFmTrackInfo
             {
@@ -231,31 +215,25 @@ public class LastFmService
             {
                 info.Tags = responseObj.Track.TopTags.TagList
                     .Select(t => t.Name)
-                    .Where(n => !string.IsNullOrEmpty(n) && !global::NullWave.Services.Integration.TagDenylist.IsBlocked(n))
+                    .Where(n => !string.IsNullOrEmpty(n) && !TagDenylist.IsBlocked(n))
                     .Take(5)
                     .ToList();
             }
-            else
+            else if (track.TryGetProperty("toptags", out var toptags) && toptags.TryGetProperty("tag", out var tags))
             {
-                if (track.TryGetProperty("toptags", out var toptags) && toptags.TryGetProperty("tag", out var tags))
+                foreach (var tag in tags.EnumerateArray())
                 {
-                    foreach (var tag in tags.EnumerateArray())
+                    var tagName = tag.GetProperty("name").GetString();
+                    if (!string.IsNullOrEmpty(tagName) && !TagDenylist.IsBlocked(tagName))
                     {
-                        var tagName = tag.GetProperty("name").GetString();
-                        if (!string.IsNullOrEmpty(tagName) && !global::NullWave.Services.Integration.TagDenylist.IsBlocked(tagName))
-                        {
-                            info.Tags.Add(tagName);
-                        }
+                        info.Tags.Add(tagName);
                         if (info.Tags.Count >= 5) break;
                     }
                 }
             }
 
-            if (track.TryGetProperty("listeners", out var listeners))
-                info.Listeners = listeners.GetString() ?? "0";
-
-            if (track.TryGetProperty("playcount", out var playcount))
-                info.GlobalPlayCount = playcount.GetString() ?? "0";
+            if (track.TryGetProperty("listeners", out var listeners)) info.Listeners = listeners.GetString() ?? "0";
+            if (track.TryGetProperty("playcount", out var playcount)) info.GlobalPlayCount = playcount.GetString() ?? "0";
 
             if (track.TryGetProperty("album", out var album) && album.TryGetProperty("image", out var images))
             {
@@ -264,11 +242,7 @@ public class LastFmService
                     if (img.TryGetProperty("size", out var size) && (size.GetString() == "extralarge" || size.GetString() == "large"))
                     {
                         var artUrl = img.GetProperty("#text").GetString();
-                        if (!string.IsNullOrEmpty(artUrl))
-                        {
-                            info.AlbumArtUrl = artUrl;
-                            break;
-                        }
+                        if (!string.IsNullOrEmpty(artUrl)) { info.AlbumArtUrl = artUrl; break; }
                     }
                 }
             }
@@ -280,7 +254,6 @@ public class LastFmService
                 info.WikiSummary = cutoff > 0 ? raw[..cutoff].Trim() : raw.Trim();
             }
 
-            Log.Debug("Last.fm track info fetched: {Title} by {Artist}", info.Title, info.Artist);
             return info;
         }
         catch (Exception ex)
@@ -296,28 +269,22 @@ public class LastFmService
 
         try
         {
-            var url = $"{BaseUrl}?method=artist.getInfo" +
-                      $"&artist={Uri.EscapeDataString(artist)}" +
-                      $"&api_key={_apiKey}&format=json";
-
+            var url = $"{BaseUrl}?method=artist.getInfo&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json";
             var response = await _http.GetAsync(url);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            if (!doc.RootElement.TryGetProperty("artist", out var artistEl))
-                return null;
+            if (!doc.RootElement.TryGetProperty("artist", out var artistEl)) return null;
 
             var info = new LastFmArtistInfo
             {
-                Name = artistEl.TryGetProperty("name", out var n) ? n.GetString() ?? artist : artist
+                Name = artistEl.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? artist : artist
             };
 
             if (artistEl.TryGetProperty("stats", out var stats) && stats.TryGetProperty("listeners", out var listeners))
-            {
                 info.Listeners = listeners.GetString() ?? "0";
-            }
 
             if (artistEl.TryGetProperty("bio", out var bio) && bio.TryGetProperty("summary", out var summary))
             {
@@ -326,12 +293,11 @@ public class LastFmService
                 info.Bio = cutoff > 0 ? raw[..cutoff].Trim() : raw.Trim();
             }
 
-            Log.Debug("Last.fm artist info fetched: {Artist}", info.Name);
             return info;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Last.fm artist getInfo failed for {Artist}", artist);
+            Log.Error(ex, "Last.fm artist.getInfo failed for {Artist}", artist);
             return null;
         }
     }
@@ -351,36 +317,33 @@ public class LastFmService
         try
         {
             var timestamp = ((DateTimeOffset)playedAt.ToUniversalTime()).ToUnixTimeSeconds().ToString();
-
             var parameters = new SortedDictionary<string, string>
             {
-                ["method"]    = "track.scrobble",
-                ["api_key"]   = _apiKey,
-                ["sk"]        = _sessionKey,
-                ["artist"]    = artist,
-                ["track"]     = title,
+                ["method"] = "track.scrobble",
+                ["api_key"] = _apiKey,
+                ["sk"] = _sessionKey,
+                ["artist"] = artist,
+                ["track"] = title,
                 ["timestamp"] = timestamp
             };
 
             var sig = _auth.Sign(parameters);
-
             var formContent = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("method",     "track.scrobble"),
-                new KeyValuePair<string, string>("api_key",   _apiKey),
-                new KeyValuePair<string, string>("sk",        _sessionKey),
-                new KeyValuePair<string, string>("artist",    artist),
-                new KeyValuePair<string, string>("track",     title),
+                new KeyValuePair<string, string>("method", "track.scrobble"),
+                new KeyValuePair<string, string>("api_key", _apiKey),
+                new KeyValuePair<string, string>("sk", _sessionKey),
+                new KeyValuePair<string, string>("artist", artist),
+                new KeyValuePair<string, string>("track", title),
                 new KeyValuePair<string, string>("timestamp", timestamp),
-                new KeyValuePair<string, string>("api_sig",   sig),
-                new KeyValuePair<string, string>("format",    "json")
+                new KeyValuePair<string, string>("api_sig", sig),
+                new KeyValuePair<string, string>("format", "json")
             });
 
             var response = await _http.PostAsync(BaseUrl, formContent);
-            var responseJson = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
             {
+                var responseJson = await response.Content.ReadAsStringAsync();
                 Log.Warning("[LastFm] Scrobble failed for '{Title}' by '{Artist}': {Response}", title, artist, responseJson);
                 return false;
             }
@@ -402,7 +365,7 @@ public class LastFmTrackInfo
     public string Artist { get; set; } = string.Empty;
     public string Listeners { get; set; } = "0";
     public string GlobalPlayCount { get; set; } = "0";
-    public System.Collections.Generic.List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = new();
     public string? WikiSummary { get; set; }
     public string? AlbumArtUrl { get; set; }
 }
@@ -416,36 +379,36 @@ public class LastFmArtistInfo
 
 public class LastFmTrackResponse
 {
-    [System.Text.Json.Serialization.JsonPropertyName("track")]
+    [JsonPropertyName("track")]
     public LastFmTrackDetails? Track { get; set; }
 }
 
 public class LastFmTrackDetails
 {
-    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
-    [System.Text.Json.Serialization.JsonPropertyName("artist")]
+    [JsonPropertyName("artist")]
     public LastFmArtistDetails? Artist { get; set; }
 
-    [System.Text.Json.Serialization.JsonPropertyName("toptags")]
+    [JsonPropertyName("toptags")]
     public LastFmTopTags? TopTags { get; set; }
 }
 
 public class LastFmArtistDetails
 {
-    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 }
 
 public class LastFmTopTags
 {
-    [System.Text.Json.Serialization.JsonPropertyName("tag")]
-    public System.Collections.Generic.List<LastFmTag>? TagList { get; set; } = new();
+    [JsonPropertyName("tag")]
+    public List<LastFmTag>? TagList { get; set; } = new();
 }
 
 public class LastFmTag
 {
-    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 }

@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using NullWave.Models;
 using NullWave.ViewModels;
 using System.ComponentModel;
 
@@ -6,6 +8,9 @@ namespace NullWave.Views.Controls;
 
 public partial class SidebarView : Border
 {
+    private static readonly DataFormat<NavItem> NavItemFormat =
+        DataFormat.CreateInProcessFormat<NavItem>("nullwave-navitem");
+
     public SidebarView()
     {
         InitializeComponent();
@@ -49,11 +54,6 @@ public partial class SidebarView : Border
 
     private void UpdateButtonClasses(MainViewModel vm)
     {
-        SetActive(LibBtn, vm.CurrentPage == "Library");
-        SetActive(PlBtn, vm.CurrentPage == "Playlists");
-        SetActive(QueueBtn, vm.CurrentPage == "Queue");
-        SetActive(StatsBtn, vm.CurrentPage == "Stats");
-
         var isOnLibrary = vm.CurrentPage == "Library";
         SetActive(FavBtn, isOnLibrary && vm.Library.IsFavoritesView);
         SetActive(RecentBtn, isOnLibrary && vm.Library.IsRecentView);
@@ -76,5 +76,54 @@ public partial class SidebarView : Border
         {
             btn.Classes.Remove("active");
         }
+    }
+
+    private async void OnNavItemPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.IsCustomizingSidebar) return;
+        if (sender is not Border handle || handle.Tag is not NavItem item) return;
+        if (!e.GetCurrentPoint(handle).Properties.IsLeftButtonPressed) return;
+
+        var dataItem = new DataTransferItem();
+        dataItem.Set(NavItemFormat, item);
+
+        var data = new DataTransfer();
+        data.Add(dataItem);
+
+        item.IsDragging = true;
+        try
+        {
+            await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
+        }
+        finally
+        {
+            item.IsDragging = false;
+            foreach (var navItem in vm.Nav.Items) navItem.IsDropTarget = false;
+        }
+    }
+
+    private void OnNavItemDragEnter(object? sender, DragEventArgs e)
+    {
+        if (sender is Border targetBorder && targetBorder.Tag is NavItem targetItem)
+            targetItem.IsDropTarget = true;
+    }
+
+    private void OnNavItemDragLeave(object? sender, DragEventArgs e)
+    {
+        if (sender is Border targetBorder && targetBorder.Tag is NavItem targetItem)
+            targetItem.IsDropTarget = false;
+    }
+
+    private void OnNavItemDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        if (sender is not Border targetBorder || targetBorder.Tag is not NavItem targetItem) return;
+
+        targetItem.IsDropTarget = false;
+        var draggedItem = e.DataTransfer.TryGetValue(NavItemFormat);
+        if (draggedItem is null || draggedItem == targetItem) return;
+
+        var newIndex = vm.Nav.Items.IndexOf(targetItem);
+        vm.Nav.MoveItem(draggedItem, newIndex);
     }
 }

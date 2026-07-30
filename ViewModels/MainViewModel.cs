@@ -46,11 +46,6 @@ public class MainViewModel : ViewModelBase
 
     private LiveNotification? _currentPlaylistActivity;
 
-    private readonly PlaceholderPageViewModel _queuePage = new(
-        "🎵", "Queue", "The playback queue is coming soon.\nTracks you add to the queue will appear here.");
-    private readonly PlaceholderPageViewModel _statsPage = new(
-        "", "Stats", "Listening stats are coming soon.\nYour play history and trends will appear here.");
-
     private bool _isMenuBarVisible;
     public bool IsMenuBarVisible
     {
@@ -59,11 +54,39 @@ public class MainViewModel : ViewModelBase
     }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
+    private bool _isCustomizingSidebar;
+    public bool IsCustomizingSidebar
+    {
+        get => _isCustomizingSidebar;
+        set { _isCustomizingSidebar = value; OnPropertyChanged(); }
+    }
+    public ICommand ToggleCustomizeSidebarCommand { get; }
+
+    private bool _isSidebarCollapsed;
+    public bool IsSidebarCollapsed
+    {
+        get => _isSidebarCollapsed;
+        set
+        {
+            _isSidebarCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SidebarCollapseIconKind));
+        }
+    }
+    public Material.Icons.MaterialIconKind SidebarCollapseIconKind =>
+        IsSidebarCollapsed ? Material.Icons.MaterialIconKind.ChevronRight : Material.Icons.MaterialIconKind.ChevronLeft;
+    public ICommand ToggleSidebarCollapsedCommand { get; }
+
     private string _currentPage = "Library";
     public string CurrentPage
     {
         get => _currentPage;
-        set { _currentPage = value; OnPropertyChanged(); }
+        set
+        {
+            _currentPage = value;
+            OnPropertyChanged();
+            Nav?.SetActivePage(value);
+        }
     }
 
     private bool _initialMoodPlaylistRun;
@@ -78,8 +101,6 @@ public class MainViewModel : ViewModelBase
     public ImportViewModel Import { get; }
     public PlayerViewModel Player { get; }
     public UserProfileViewModel Profile { get; }
-    public PlaceholderPageViewModel QueuePage => _queuePage;
-    public PlaceholderPageViewModel StatsPage => _statsPage;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
 
@@ -91,8 +112,11 @@ public class MainViewModel : ViewModelBase
     public ICommand OpenLogsCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
     public ICommand NavigatePlaylistsCommand { get; }
-    public ICommand NavigateQueueCommand { get; }
-    public ICommand NavigateStatsCommand { get; }
+    public ICommand NavigateToPlaylistCommand { get; }
+    public ICommand ToggleQueueCommand { get; }
+
+    public NavigationViewModel Nav { get; private set; } = null!;
+    public QueueViewModel Queue { get; private set; } = null!;
 
     public MainViewModel()
     {
@@ -133,6 +157,16 @@ public class MainViewModel : ViewModelBase
         Import = new ImportViewModel(_library, _metadata);
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
+        Queue = new QueueViewModel(_library);
+        Queue.PlayTrackRequested += Player.PlayTrack;
+
+        // Wire pin/unpin events
+        Playlist.PinRequested += p => Nav.PinPlaylist(p.Id, p.Name);
+        Playlist.UnpinRequested += p => Nav.UnpinPlaylist(p.Id);
+
+        // Wire new events
+        Library.NavigateToLibraryRequested += () => CurrentPage = "Library";
+        Playlist.PlaylistsChanged += () => Nav.RefreshPlaylistLists();
 
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
@@ -214,6 +248,7 @@ public class MainViewModel : ViewModelBase
                 {
                     Settings.ReportDedupeComplete(scanned, groups, removed, dryRun);
                     Library.Refresh();
+                    Library.RefreshArtistGroups();
                     _isMaintenanceRunning = false;
                 });
             });
@@ -232,6 +267,29 @@ public class MainViewModel : ViewModelBase
                 {
                     Settings.ReportForceCleanComplete(cleaned);
                     Library.Refresh();
+                    Library.RefreshArtistGroups();
+                    _isMaintenanceRunning = false;
+                });
+            });
+        };
+
+        Settings.MergeSimilarArtistsRequested += () =>
+        {
+            if (_isMaintenanceRunning) return;
+            _isMaintenanceRunning = true;
+
+            _ = Task.Run(() =>
+            {
+                var groups = _library.FindSimilarArtistGroups();
+                int merged = 0;
+                foreach (var group in groups)
+                    merged += _library.MergeArtistGroup(group);
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    Settings.ReportArtistMergeComplete(groups.Count, merged);
+                    Library.Refresh();
+                    Library.RefreshArtistGroups();
                     _isMaintenanceRunning = false;
                 });
             });
@@ -314,6 +372,7 @@ public class MainViewModel : ViewModelBase
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 Library.Refresh();
+                Library.RefreshArtistGroups();
                 if (isInteractive)
                     ToastService.Instance.Show("Track download completed successfully.", ToastType.Success);
             });
@@ -362,9 +421,13 @@ public class MainViewModel : ViewModelBase
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
         Input.TrackMetadataUpdated += Library.Refresh;
-        Library.TrackDetailRequested += Detail.OpenFor;
+        Library.TrackDetailRequested += track =>
+        {
+            Queue.IsOpen = false;
+            Detail.OpenFor(track);
+        };
         Library.PlayTrackRequested += Player.PlayTrack;
-        Import.ImportCompleted += Library.Refresh;
+        Import.ImportCompleted += () => { Library.Refresh(); Library.RefreshArtistGroups(); };
 
         Input.TrackAdded += () =>
         {
@@ -834,20 +897,42 @@ public class MainViewModel : ViewModelBase
         NavigatePlaylistsCommand = new RelayCommand(() =>
         {
             CurrentPage = "Playlists";
+            Nav.SetPlaylistActive(null); // Clear pin highlight when navigating generically
             LogNav("Playlists");
         });
 
-        NavigateQueueCommand = new RelayCommand(() =>
+        NavigateToPlaylistCommand = new RelayCommand<Playlist>(p =>
         {
-            CurrentPage = "Queue";
+            if (p == null) return;
+            CurrentPage = "Playlists";
+            Playlist.SelectById(p.Id);
+            Nav.SetPlaylistActive(p.Id);
+            LogNav("Playlists");
+        });
+
+        ToggleQueueCommand = new RelayCommand(() =>
+        {
+            Detail.IsOpen = false;
+            Queue.IsOpen = !Queue.IsOpen;
             LogNav("Queue");
         });
 
-        NavigateStatsCommand = new RelayCommand(() =>
-        {
-            CurrentPage = "Stats";
-            LogNav("Stats");
-        });
+        // Nav construction moved here so _playlists is available
+        Nav = new NavigationViewModel(
+            _prefsService, _playlists,
+            NavigateLibraryCommand, NavigatePlaylistsCommand,
+            navigateToPlaylist: playlistId =>
+            {
+                CurrentPage = "Playlists";
+                Playlist.SelectById(playlistId);
+                Nav.SetPlaylistActive(playlistId);
+                LogNav($"PinnedPlaylist:{playlistId}");
+            });
+        Nav.SetActivePage(CurrentPage);
+
+        Library.RefreshArtistGroups();
+        ToggleCustomizeSidebarCommand = new RelayCommand(() => IsCustomizingSidebar = !IsCustomizingSidebar);
+        ToggleSidebarCollapsedCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
 
         _ = RunStartupDiagnosticsAsync();
     }

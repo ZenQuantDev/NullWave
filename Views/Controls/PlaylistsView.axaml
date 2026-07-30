@@ -14,6 +14,8 @@
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
+        <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
+        <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
     </Grid.Resources>
 
     <!--  LEFT: Playlist list  -->
@@ -48,6 +50,23 @@
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"/>
                         </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Classes="icon-btn sm"
+                                ToolTip.Tip="Unpin from sidebar"
+                                Command="{Binding $parent[ListBox].DataContext.Playlist.UnpinCommand}"
+                                CommandParameter="{Binding}"
+                                IsVisible="{Binding IsPinned}">
+                            <material:MaterialIcon Kind="Pin" Width="16" Height="16"/>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Classes="icon-btn sm"
+                                ToolTip.Tip="Pin to sidebar"
+                                Command="{Binding $parent[ListBox].DataContext.Playlist.PinCommand}"
+                                CommandParameter="{Binding}"
+                                IsVisible="{Binding !IsPinned}">
+                            <material:MaterialIcon Kind="PinOutline" Width="16" Height="16"/>
+                        </Button>
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
@@ -128,8 +147,61 @@
             </Grid>
         </Border>
 
+        <!-- Search + Sort toolbar -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+            <Grid ColumnDefinitions="*,8,Auto,8,Auto" VerticalAlignment="Center">
+                <TextBox Grid.Column="0"
+                         Text="{Binding Playlist.SearchQuery, Mode=TwoWay}"
+                         PlaceholderText="Search this playlist..."
+                         VerticalAlignment="Center">
+                    <TextBox.InnerLeftContent>
+                        <material:MaterialIcon Kind="Magnify" Width="16" Height="16" Margin="8,0,0,0"
+                                               Foreground="{StaticResource BrushTextMuted}"/>
+                    </TextBox.InnerLeftContent>
+                    <TextBox.InnerRightContent>
+                        <Button Classes="icon-btn sm"
+                                Command="{Binding Playlist.ClearSearchTextCommand}"
+                                IsVisible="{Binding Playlist.HasSearchQuery}"
+                                ToolTip.Tip="Clear search">
+                            <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+                        </Button>
+                    </TextBox.InnerRightContent>
+                </TextBox>
+                <ComboBox Grid.Column="2"
+                          ItemsSource="{Binding Playlist.SortOptions}"
+                          SelectedItem="{Binding Playlist.CurrentSort}"
+                          MinWidth="130"
+                          VerticalAlignment="Center">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource SortFieldDisplay}}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="4"
+                        Classes="icon-btn"
+                        Command="{Binding Playlist.ToggleSortDirectionCommand}"
+                        ToolTip.Tip="Toggle sort direction"
+                        VerticalAlignment="Center">
+                    <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                            Width="18" Height="18"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Result count -->
+        <TextBlock DockPanel.Dock="Top"
+                   Text="{Binding Playlist.ResultCountLabel}"
+                   Classes="section-label"
+                   FontSize="{StaticResource FontSizeXs}"
+                   Margin="16,8,16,0"/>
+
         <!-- Track list for selected playlist -->
-        <ListBox ItemsSource="{Binding Playlist.SelectedPlaylist.Tracks}"
+        <ListBox ItemsSource="{Binding Playlist.FilteredTracks}"
                  Background="Transparent"
                  Margin="8,4,8,8">
             <ListBox.ItemTemplate>
@@ -217,6 +289,14 @@
                    VerticalAlignment="Center"
                    Margin="16"
                    IsVisible="{Binding !Playlist.SelectedPlaylist.Tracks.Count}"/>
+                   
+        <TextBlock Text="No tracks match your search"
+                   Foreground="{StaticResource BrushTextMuted}"
+                   FontSize="{StaticResource FontSizeSm}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Margin="16"
+                   IsVisible="{Binding !Playlist.FilteredTracks.Count}"/>
     </DockPanel>
 
     <!--  No selection state  -->

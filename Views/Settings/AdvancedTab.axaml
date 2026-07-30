@@ -323,6 +323,28 @@
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Merge similar artist names"
+                                           Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontWeight="SemiBold"/>
+                                <Button Classes="help-btn"
+                                        ToolTip.Tip="Auto-merge artist names that differ only by whitespace, invisible characters, or Unicode variants">
+                                    <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Normalize artist naming variations across the library"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger"
+                                Content="Merge Similar Artist Names"
+                                Command="{Binding MergeSimilarArtistsCommand}"
+                                IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Remove duplicate tracks"
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="{StaticResource FontSizeBodyLarge}"

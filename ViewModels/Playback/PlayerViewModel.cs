@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Material.Icons;
 using NullWave.Helpers;
@@ -102,7 +104,7 @@ public class PlayerViewModel : ViewModelBase
                             || track.Artist == "Unknown"
                             || string.IsNullOrWhiteSpace(track.Artist))
                         {
-                            var (tagTitle, tagArtist) = _metadata.FetchFromLocalFile(filePath);
+                            var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
                             if (!string.IsNullOrWhiteSpace(tagTitle)
                                 && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
                             {
@@ -113,6 +115,7 @@ public class PlayerViewModel : ViewModelBase
                                 if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
                                     track.Artist = tagArtist;
                             }
+                            track.Duration = duration;
                         }
 
                         _library.Update(track);
@@ -127,7 +130,6 @@ public class PlayerViewModel : ViewModelBase
 
         _download.DownloadFailed += (trackId, error, isInteractive) =>
         {
-            // FIX: Ignore background playlist download failures in the main Player UI
             if (!isInteractive) return;
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -247,7 +249,9 @@ public class PlayerViewModel : ViewModelBase
         {
             _hasTriggeredCrossfade = true;
 
-            var next = _navigator.GetNextTrack(_currentTrack);
+            // Queue takes priority for crossfade target too
+            var queue = _library.GetQueue();
+            var next = queue.Count > 0 ? queue[0] : _navigator.GetNextTrack(_currentTrack);
             
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && System.IO.File.Exists(next.FilePath))
             {
@@ -282,6 +286,7 @@ public class PlayerViewModel : ViewModelBase
             _currentTrack = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CurrentTrackDisplay));
+            OnPropertyChanged(nameof(CurrentArtistDisplay));
             OnPropertyChanged(nameof(HasAlbumArt));
             OnPropertyChanged(nameof(AlbumArtPath));
             OnPropertyChanged(nameof(IsCurrentFavorite));
@@ -290,7 +295,9 @@ public class PlayerViewModel : ViewModelBase
 
     public string CurrentTrackDisplay => _currentTrack == null
         ? "No track playing"
-        : $"{_currentTrack.Artist} - {_currentTrack.Title}";
+        : _currentTrack.Title;
+
+    public string CurrentArtistDisplay => _currentTrack?.Artist ?? string.Empty;
 
     private string? _albumArtPath;
     public string? AlbumArtPath
@@ -632,6 +639,15 @@ public class PlayerViewModel : ViewModelBase
 
         _download.CancelCurrentDownload();
         IsDownloading = false;
+
+        // Queue takes priority over normal shuffle/repeat/library navigation
+        var queued = _library.DequeueNext();
+        if (queued != null)
+        {
+            PlayTrack(queued);
+            return;
+        }
+
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null) PlayTrack(next);
         else StatusText = "End of library";

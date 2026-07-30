@@ -117,8 +117,8 @@
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
-     PLAYER BUTTON  - Spotify-style: no border, no background box
-     ═══════════════════════════════════════════════════════════════════════ -->
+       PLAYER BUTTON  - Spotify-style: no border, no background box
+       ═══════════════════════════════════════════════════════════════════════ -->
   <Style Selector="Button.player-btn">
     <Setter Property="Background"              Value="Transparent"/>
     <Setter Property="Foreground"              Value="{StaticResource BrushTextSecondary}"/>
@@ -238,6 +238,60 @@
   </Style>
   <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       DRAG-AND-DROP LIST ROW  - shared across Sidebar nav items and Queue tracks
+       Usage: add Classes="draggable-row" to the row container (Border or Grid).
+       Toggle "dragging"/"drop-target" classes (via binding or code-behind) to
+       trigger the fade/highlight below.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="Border.draggable-row">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+        <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.draggable-row.dragging">
+    <Setter Property="Opacity" Value="0.4"/>
+  </Style>
+  <Style Selector="Border.draggable-row.drop-target">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+  </Style>
+
+  <Style Selector="Grid.draggable-row">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Grid.draggable-row.drop-target">
+    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SLIDE-IN PANEL HEADER  - shared across Track Detail, Queue, and any
+       future right-side panel. Usage: StackPanel Classes="panel-header" wraps
+       the title Grid; TextBlock Classes="panel-title" for the heading;
+       Separator Classes="panel-header-sep" as the divider beneath.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <Style Selector="StackPanel.panel-header">
+    <Setter Property="Spacing" Value="0"/>
+    <Setter Property="Margin" Value="16,16,16,0"/>
+  </Style>
+  <Style Selector="TextBlock.panel-title">
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="FontSize" Value="{StaticResource FontSizeLg}"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Separator.panel-header-sep">
+    <Setter Property="Background" Value="{StaticResource BrushBorder}"/>
+    <Setter Property="Margin" Value="0,12,0,0"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════════════

@@ -11,8 +11,8 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
-using NullWave.Services.Plugins;
 using NullWave.Services.Integration;
+using NullWave.Services.Plugins;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -24,54 +24,54 @@ public class TrackDetailViewModel : ViewModelBase
     private readonly PluginManager _plugins;
     private Track? _currentTrack;
     private bool _isOpen;
-    private string _editTitle  = string.Empty;
+    private string _editTitle = string.Empty;
     private string _editArtist = string.Empty;
-    private string _editNotes  = string.Empty;
-    private string _newTag     = string.Empty;
+    private string _editNotes = string.Empty;
+    private string _newTag = string.Empty;
     private string _copyStatus = "Copy";
     private bool _isCopying;
 
     private string? _artistBio;
-    public string? ArtistBio 
-    { 
-        get => _artistBio; 
-        set { _artistBio = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasArtistBio)); } 
+    public string? ArtistBio
+    {
+        get => _artistBio;
+        set { _artistBio = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasArtistBio)); }
     }
 
     private string? _artistListeners;
-    public string? ArtistListeners 
-    { 
-        get => _artistListeners; 
-        set { _artistListeners = value; OnPropertyChanged(); } 
+    public string? ArtistListeners
+    {
+        get => _artistListeners;
+        set { _artistListeners = value; OnPropertyChanged(); }
     }
 
     private bool _isLoadingArtistInfo;
-    public bool IsLoadingArtistInfo 
-    { 
-        get => _isLoadingArtistInfo; 
-        set { _isLoadingArtistInfo = value; OnPropertyChanged(); } 
+    public bool IsLoadingArtistInfo
+    {
+        get => _isLoadingArtistInfo;
+        set { _isLoadingArtistInfo = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowLibraryFallback)); }
     }
 
     private int _libraryArtistTrackCount;
-    public int LibraryArtistTrackCount 
-    { 
-        get => _libraryArtistTrackCount; 
-        set { _libraryArtistTrackCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowLibraryFallback)); } 
+    public int LibraryArtistTrackCount
+    {
+        get => _libraryArtistTrackCount;
+        set { _libraryArtistTrackCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowLibraryFallback)); }
     }
 
     public bool HasArtistBio => !string.IsNullOrWhiteSpace(ArtistBio);
-    public bool ShowLibraryFallback => !HasArtistBio && LibraryArtistTrackCount > 0;
+    public bool ShowLibraryFallback => !IsLoadingArtistInfo && !HasArtistBio && LibraryArtistTrackCount > 0;
 
     public bool IsOpen
     {
         get => _isOpen;
-        set 
-        { 
-            _isOpen = value; 
-            OnPropertyChanged(); 
-            OnPropertyChanged(nameof(PanelWidth)); 
-            OnPropertyChanged(nameof(PanelOpacity)); 
-            
+        set
+        {
+            _isOpen = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PanelWidth));
+            OnPropertyChanged(nameof(PanelOpacity));
+
             if (!_isOpen && _currentTrack != null)
             {
                 _currentTrack.PropertyChanged -= OnTrackPropertyChanged;
@@ -116,32 +116,32 @@ public class TrackDetailViewModel : ViewModelBase
     public ObservableCollection<string> Tags { get; } = new();
 
     public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
-    public string DisplayUrl        => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
-    public string DisplaySource     => _currentTrack?.Source.ToString() ?? "-";
-    public string DisplayDateAdded  => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
+    public string DisplayUrl => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
+    public string DisplaySource => _currentTrack?.Source.ToString() ?? "-";
+    public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
     public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
-    public string DisplayPlayCount  => _currentTrack?.PlayCount.ToString() ?? "0";
-    public bool   IsFavorite        => _currentTrack?.IsFavorite ?? false;
+    public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
+    public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
 
-    public ICommand SaveCommand            { get; }
-    public ICommand CloseCommand           { get; }
-    public ICommand AddTagCommand          { get; }
-    public ICommand RemoveTagCommand       { get; }
-    public ICommand ToggleFavoriteCommand  { get; }
-    public ICommand CopyUrlCommand         { get; }
-    public ICommand RelinkFileCommand      { get; }
+    public ICommand SaveCommand { get; }
+    public ICommand CloseCommand { get; }
+    public ICommand AddTagCommand { get; }
+    public ICommand RemoveTagCommand { get; }
+    public ICommand ToggleFavoriteCommand { get; }
+    public ICommand CopyUrlCommand { get; }
+    public ICommand RelinkFileCommand { get; }
 
     public TrackDetailViewModel(LibraryService library, PluginManager plugins)
     {
         _library = library;
         _plugins = plugins;
-        SaveCommand           = new RelayCommand(Save);
-        CloseCommand          = new RelayCommand(() => IsOpen = false);
-        AddTagCommand         = new RelayCommand(AddTag);
-        RemoveTagCommand      = new RelayCommand<string>(RemoveTag);
+        SaveCommand = new RelayCommand(Save);
+        CloseCommand = new RelayCommand(() => IsOpen = false);
+        AddTagCommand = new RelayCommand(AddTag);
+        RemoveTagCommand = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
-        CopyUrlCommand        = new RelayCommand(async () => await CopyUrlAsync());
-        RelinkFileCommand     = new RelayCommand(async () => await RelinkFileAsync());
+        CopyUrlCommand = new RelayCommand(async () => await CopyUrlAsync());
+        RelinkFileCommand = new RelayCommand(async () => await RelinkFileAsync());
     }
 
     public void OpenFor(Track track)
@@ -152,9 +152,9 @@ public class TrackDetailViewModel : ViewModelBase
         _currentTrack = track;
         track.PropertyChanged += OnTrackPropertyChanged;
 
-        EditTitle  = track.Title;
+        EditTitle = track.Title;
         EditArtist = track.Artist;
-        EditNotes  = track.Notes ?? string.Empty;
+        EditNotes = track.Notes ?? string.Empty;
 
         Tags.Clear();
         foreach (var tag in track.Tags) Tags.Add(tag);
@@ -162,42 +162,10 @@ public class TrackDetailViewModel : ViewModelBase
         RefreshDisplayProperties();
         IsOpen = true;
 
-        _ = LoadArtistInfoAsync(track);
-    }
-
-    private async Task LoadArtistInfoAsync(Track track)
-    {
-        var trackId = track.Id;
-        IsLoadingArtistInfo = true;
         ArtistBio = null;
         ArtistListeners = null;
         LibraryArtistTrackCount = 0;
-
-        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist;
-
-        LastFmArtistInfo? info = null;
-        if (_plugins.Get<LastFmMetadataProvider>() is { } lastFm)
-        {
-            try { info = await lastFm.GetArtistInfoAsync(primaryArtist); }
-            catch { /* swallow — fallback below handles it */ }
-        }
-
-        if (_currentTrack == null || _currentTrack.Id != trackId) return; // stale guard
-
-        if (info != null && !string.IsNullOrWhiteSpace(info.Bio))
-        {
-            ArtistBio = info.Bio;
-            ArtistListeners = info.Listeners;
-        }
-        else
-        {
-            var normalizedTarget = LibraryService.NormalizeArtistKey(primaryArtist);
-            LibraryArtistTrackCount = _library.GetAll()
-                .Count(t => LibraryService.SplitArtistCredits(t.Artist)
-                    .Any(a => LibraryService.NormalizeArtistKey(a) == normalizedTarget));
-        }
-
-        IsLoadingArtistInfo = false;
+        _ = LoadArtistInfoAsync(track);
     }
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -219,17 +187,15 @@ public class TrackDetailViewModel : ViewModelBase
     private void Save()
     {
         if (_currentTrack == null) return;
-        
-        _currentTrack.Title  = EditTitle.Trim();
+
+        _currentTrack.Title = EditTitle.Trim();
         _currentTrack.Artist = EditArtist.Trim();
-        _currentTrack.Notes  = EditNotes;
-        
-        // Manual edit = authoritative, never auto-reprocess via ForceCleanTitles
-        _currentTrack.TitleForceCleaned = true; 
-        
+        _currentTrack.Notes = EditNotes;
+        _currentTrack.TitleForceCleaned = true;
+
         _currentTrack.Tags.Clear();
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
-        
+
         _library.Update(_currentTrack);
 
         string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
@@ -242,7 +208,7 @@ public class TrackDetailViewModel : ViewModelBase
     {
         var tag = NewTag.Trim();
         if (string.IsNullOrWhiteSpace(tag) || Tags.Contains(tag)) return;
-        
+
         Tags.Add(tag);
         NewTag = string.Empty;
     }
@@ -256,10 +222,10 @@ public class TrackDetailViewModel : ViewModelBase
     private void ToggleFavorite()
     {
         if (_currentTrack == null) return;
-        
+
         bool expectedNewState = !_currentTrack.IsFavorite;
         _library.ToggleFavorite(_currentTrack.Id);
-        
+
         NullActionLogger.FavoriteToggled(_currentTrack.Id.ToString(), expectedNewState, "TrackDetailViewModel");
         OnPropertyChanged(nameof(IsFavorite));
     }
@@ -325,13 +291,44 @@ public class TrackDetailViewModel : ViewModelBase
 
         var newPath = files[0].Path.LocalPath;
         _currentTrack.FilePath = newPath;
-        _library.RefreshAlbumArt(_currentTrack); // extracts art from the new file and persists it immediately
+        _library.RefreshAlbumArt(_currentTrack);
 
-        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(),
-            $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
+        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
         Log.Information("Track relinked: {Title} → {Path}", _currentTrack.Title, newPath);
         ToastService.Instance.Show($"'{_currentTrack.Title}' relinked to new file.", ToastType.Success);
 
-        RefreshDisplayProperties(); // updates DisplayUrl and CurrentTrackArtPath bindings
+        RefreshDisplayProperties();
+    }
+
+    private async Task LoadArtistInfoAsync(Track track)
+    {
+        var trackId = track.Id;
+        IsLoadingArtistInfo = true;
+
+        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist;
+
+        LastFmArtistInfo? info = null;
+        if (_plugins.Get<LastFmMetadataProvider>() is { } provider)
+        {
+            try { info = await provider.GetArtistInfoAsync(primaryArtist); }
+            catch (Exception ex) { Log.Warning(ex, "[TrackDetailViewModel] Artist info fetch failed for {Artist}", primaryArtist); }
+        }
+
+        if (_currentTrack == null || _currentTrack.Id != trackId) return;
+
+        if (info != null && !string.IsNullOrWhiteSpace(info.Bio))
+        {
+            ArtistBio = info.Bio;
+            ArtistListeners = info.Listeners;
+        }
+        else
+        {
+            var normalizedTarget = LibraryService.NormalizeArtistKey(primaryArtist);
+            LibraryArtistTrackCount = _library.GetAll()
+                .Count(t => LibraryService.SplitArtistCredits(t.Artist)
+                    .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedTarget));
+        }
+
+        IsLoadingArtistInfo = false;
     }
 }

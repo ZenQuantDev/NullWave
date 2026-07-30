@@ -1,6 +1,7 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
+        xmlns:models="using:NullWave.Models"
         xmlns:helpers="using:NullWave.Helpers"
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.Controls.SidebarView"
@@ -10,7 +11,6 @@
         BorderThickness="0,0,1,0">
 
     <DockPanel>
-
         <!-- App logo -->
         <Border DockPanel.Dock="Top" Padding="16,20,16,12">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -48,7 +48,6 @@
                 BorderThickness="0,1,0,0"
                 Padding="12,10">
             <Grid ColumnDefinitions="*,Auto">
-
                 <!-- Profile Button -->
                 <Button Grid.Column="0"
                         Command="{Binding OpenProfileCommand}"
@@ -74,8 +73,8 @@
                                 ClipToBounds="True">
                             <Panel>
                                 <Image Source="{Binding Profile.Avatar}"
-                                    IsVisible="{Binding Profile.HasAvatar}"
-                                    Stretch="UniformToFill"/>
+                                       IsVisible="{Binding Profile.HasAvatar}"
+                                       Stretch="UniformToFill"/>
                                 <material:MaterialIcon Kind="MusicNote"
                                         IsVisible="{Binding !Profile.HasAvatar}"
                                         Foreground="{StaticResource BrushAccent}"
@@ -90,14 +89,14 @@
                                     VerticalAlignment="Center"
                                     Spacing="2">
                             <TextBlock Text="{Binding Profile.Username}"
-                                    Foreground="{StaticResource BrushTextPrimary}"
-                                    FontSize="{StaticResource FontSizeMd}"
-                                    FontWeight="SemiBold"
-                                    TextTrimming="CharacterEllipsis"/>
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{StaticResource FontSizeMd}"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"/>
                             <TextBlock Text="{Binding Profile.Bio}"
-                                    Foreground="{StaticResource BrushTextMuted}"
-                                    FontSize="{StaticResource FontSizeXs}"
-                                    TextTrimming="CharacterEllipsis"/>
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
 
                         <!-- Chevron indicator -->
@@ -133,21 +132,148 @@
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="8,4">
             <StackPanel Spacing="0">
-                <TextBlock Classes="section-label" Text="LIBRARY"/>
-                <Button x:Name="LibBtn"   Classes="nav" Content="Library"       Command="{Binding NavigateLibraryCommand}"/>
-                <Button x:Name="PlBtn"    Classes="nav" Content="Playlists"     Command="{Binding NavigatePlaylistsCommand}"/>
-                <Button x:Name="QueueBtn" Classes="nav" Content="Queue"         Command="{Binding NavigateQueueCommand}"/>
-                <Button x:Name="StatsBtn" Classes="nav" Content="Stats"         Command="{Binding NavigateStatsCommand}"/>
+                <!-- DATA-DRIVEN LIBRARY SECTION -->
+                <Grid ColumnDefinitions="*,Auto" Margin="4,0,0,12">
+                    <TextBlock Grid.Column="0" Classes="section-label" Text="LIBRARY" Margin="0"/>
+                    <Button Grid.Column="1" Classes="icon-btn sm"
+                            Command="{Binding ToggleCustomizeSidebarCommand}"
+                            ToolTip.Tip="Reorder nav items"
+                            VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="Pencil" Width="14" Height="14"/>
+                    </Button>
+                </Grid>
 
-                <TextBlock Classes="section-label" Text="FILTERS"/>
-                <Button x:Name="FavBtn"    Classes="nav" Content="Favorites"      Command="{Binding Library.ShowFavoritesCommand}"/>
-                <Button x:Name="RecentBtn" Classes="nav" Content="Recently Added" Command="{Binding Library.ShowRecentCommand}"/>
+                <!-- Pill row -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0,0,8">
+                    <Button Classes="ghost" Content="Playlists"
+                            Command="{Binding Nav.SelectPillCommand}"
+                            CommandParameter="{x:Static vm:SidebarPill.Playlists}"
+                            Classes.active="{Binding Nav.CurrentPill, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SidebarPill.Playlists}}"/>
+                    <Button Classes="ghost" Content="Artists"
+                            Command="{Binding Nav.SelectPillCommand}"
+                            CommandParameter="{x:Static vm:SidebarPill.Artists}"
+                            Classes.active="{Binding Nav.CurrentPill, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SidebarPill.Artists}}"/>
+                </StackPanel>
 
-                <TextBlock Classes="section-label" Text="SOURCES"/>
-                <Button x:Name="YTBtn"    Classes="nav" Content="YouTube"     Command="{Binding Library.FilterYouTubeCommand}"/>
-                <Button x:Name="LFMBtn"   Classes="nav" Content="Last.fm"     Command="{Binding Library.FilterLastFmCommand}"/>
-                <Button x:Name="SCBtn"    Classes="nav" Content="SoundCloud"  Command="{Binding Library.FilterSoundCloudCommand}"/>
-                <Button x:Name="LocalBtn" Classes="nav" Content="Local Files" Command="{Binding Library.FilterLocalCommand}"/>
+                <!-- Playlists pill content -->
+                <StackPanel IsVisible="{Binding Nav.CurrentPill, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SidebarPill.Playlists}}">
+                    <!-- Pinned (draggable) -->
+                    <ItemsControl ItemsSource="{Binding Nav.Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:NavItem">
+                                <Border Classes="draggable-row"
+                                        Background="Transparent"
+                                        Tag="{Binding}"
+                                        Classes.dragging="{Binding IsDragging}"
+                                        Classes.drop-target="{Binding IsDropTarget}"
+                                        DragDrop.AllowDrop="True"
+                                        DragDrop.DragEnter="OnNavItemDragEnter"
+                                        DragDrop.DragLeave="OnNavItemDragLeave"
+                                        DragDrop.Drop="OnNavItemDrop">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Border Grid.Column="0"
+                                                Width="32"
+                                                Background="Transparent"
+                                                Cursor="SizeAll"
+                                                Tag="{Binding}"
+                                                PointerPressed="OnNavItemPointerPressed"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                IsVisible="{Binding $parent[ItemsControl].DataContext.IsCustomizingSidebar}">
+                                            <material:MaterialIcon Kind="DragVertical" Width="20" Height="20"
+                                                    Foreground="{StaticResource BrushTextMuted}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Button Grid.Column="1"
+                                                Classes="nav"
+                                                Classes.active="{Binding IsActive}"
+                                                Command="{Binding Command}">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18"/>
+                                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    
+                    <!-- Unpinned (plain, click to navigate) -->
+                    <ItemsControl ItemsSource="{Binding Nav.UnpinnedPlaylists}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Playlist">
+                                <Button Classes="nav"
+                                        Command="{Binding $parent[ItemsControl].DataContext.NavigateToPlaylistCommand}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <material:MaterialIcon Kind="PlaylistMusic" Width="18" Height="18"/>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Artists pill content -->
+                <ItemsControl ItemsSource="{Binding Library.ArtistGroups}"
+                              IsVisible="{Binding Nav.CurrentPill, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SidebarPill.Artists}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:ArtistGroup">
+                            <Button Classes="nav"
+                                    Command="{Binding $parent[ItemsControl].DataContext.Library.SelectArtistCommand}"
+                                    CommandParameter="{Binding}">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding TrackCount}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}"/>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- UNTOUCHED FILTERS & SOURCES SECTIONS -->
+                <TextBlock Classes="section-label" Text="FILTERS" Margin="4,12,0,0"/>
+                <Button x:Name="FavBtn" Classes="nav" Command="{Binding Library.ShowFavoritesCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Star" Width="18" Height="18"/>
+                        <TextBlock Text="Favorites"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="RecentBtn" Classes="nav" Command="{Binding Library.ShowRecentCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="History" Width="18" Height="18"/>
+                        <TextBlock Text="Recently Added"/>
+                    </StackPanel>
+                </Button>
+
+                <TextBlock Classes="section-label" Text="SOURCES" Margin="4,12,0,0"/>
+                <Button x:Name="YTBtn" Classes="nav" Command="{Binding Library.FilterYouTubeCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Youtube" Width="18" Height="18"/>
+                        <TextBlock Text="YouTube"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="LFMBtn" Classes="nav" Command="{Binding Library.FilterLastFmCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Radio" Width="18" Height="18"/>
+                        <TextBlock Text="Last.fm"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="SCBtn" Classes="nav" Command="{Binding Library.FilterSoundCloudCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Cloud" Width="18" Height="18"/>
+                        <TextBlock Text="SoundCloud"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="LocalBtn" Classes="nav" Command="{Binding Library.FilterLocalCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Folder" Width="18" Height="18"/>
+                        <TextBlock Text="Local Files"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

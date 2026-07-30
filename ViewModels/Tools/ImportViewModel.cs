@@ -78,7 +78,7 @@ public class ImportViewModel : ViewModelBase
             for (int i = 0; i < files.Count; i++)
             {
                 var filePath = files[i];
-                var (rawTitle, rawArtist) = _metadata.FetchFromLocalFile(filePath);
+                var (rawTitle, rawArtist, duration) = _metadata.FetchFromLocalFile(filePath);
                 var (sanitizedArtist, sanitizedTitle) =
                     NullWave.Services.Metadata.TitleSanitizer.Sanitize(rawTitle);
 
@@ -95,7 +95,8 @@ public class ImportViewModel : ViewModelBase
                     Title = title,
                     Artist = artist,
                     FilePath = filePath,
-                    Source = TrackSource.Local
+                    Source = TrackSource.Local,
+                    Duration = duration
                 };
 
                 if (!_library.IsDuplicate(track))

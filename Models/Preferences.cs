@@ -90,4 +90,26 @@ public class Preferences
     /// Per-plugin advanced configuration (endpoint URLs, model names, etc.).
     /// </summary>
     public List<PluginConfig> PluginConfigs { get; set; } = new();
+
+    /// <summary>
+    /// Persisted display order for the sidebar's reorderable core nav items
+    /// (Library, Playlists, Queue, Stats), stored as their stable NavItem.Key
+    /// values. Empty/missing falls back to NavigationViewModel's built-in default
+    /// order. Any key present in the default set but missing here (e.g. after an
+    /// app update adds a new nav item) is appended at the end automatically.
+    /// </summary>
+    public List<string> NavOrder { get; set; } = new();
+
+    /// <summary>
+    /// User-pinned sidebar shortcuts (playlists or saved searches). Empty until
+    /// the user pins their first item.
+    /// </summary>
+    public List<PinnedItemData> PinnedItems { get; set; } = new();
+
+    /// <summary>
+    /// When true and PinnedItems is empty, NavigationViewModel shows an
+    /// auto-suggested pin (currently: most substantial playlist) in the first pin
+    /// slot. Sourced from Settings → future "disable auto-suggestion" toggle.
+    /// </summary>
+    public bool AutoSuggestPinEnabled { get; set; } = true;
 }

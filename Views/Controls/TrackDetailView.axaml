@@ -58,11 +58,12 @@
         <StackPanel Grid.Row="1" Spacing="0" Margin="16,16,16,0">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0"
-                           Text="Track Details"
+                           Text="{Binding Detail.EditTitle}"
                            Foreground="{StaticResource BrushTextPrimary}"
                            FontSize="{StaticResource FontSizeLg}"
                            FontWeight="Bold"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
                 <Button Grid.Column="1"
                         Classes="icon-btn"
                         Command="{Binding Detail.CloseCommand}">
@@ -87,31 +88,6 @@
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="ARTIST" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <!-- Artist Info -->
-                <StackPanel Spacing="6">
-                    <TextBlock Classes="section-label" Text="ARTIST INFO" Margin="0"/>
-                    
-                    <TextBlock Text="Loading artist info..."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"
-                               IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
-
-                    <StackPanel IsVisible="{Binding Detail.HasArtistBio}" Spacing="4">
-                        <TextBlock Text="{Binding Detail.ArtistBio}"
-                                   Foreground="{StaticResource BrushTextSecondary}"
-                                   FontSize="{StaticResource FontSizeSm}"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='{}{0} Last.fm listeners'}"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"/>
-                    </StackPanel>
-
-                    <TextBlock Text="{Binding Detail.LibraryArtistTrackCount, StringFormat='{}{0} track(s) by this artist in your library'}"
-                               Foreground="{StaticResource BrushTextSecondary}"
-                               FontSize="{StaticResource FontSizeSm}"
-                               IsVisible="{Binding Detail.ShowLibraryFallback}"/>
                 </StackPanel>
                 
                 <!-- Source + Favorite -->
@@ -187,6 +163,40 @@
                                 ToolTip.Tip="Point this track at a different audio file on disk — use when Verify Links flags a mis-linked file."
                                 Padding="12,5"/>
                     </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-label" Text="ARTIST INFO" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,10">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding Detail.ArtistBio}"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding Detail.HasArtistBio}"/>
+                            <TextBlock Text="No artist biography available yet."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding Detail.ShowLibraryFallback}"/>
+                            <TextBlock Text="Loading artist info..."
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeSm}"
+                                       IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
+                            <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='Listeners: {0}'}"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       IsVisible="{Binding Detail.HasArtistBio}"/>
+                            <TextBlock Text="{Binding Detail.LibraryArtistTrackCount, StringFormat='Library matches: {0}'}"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{StaticResource FontSizeXs}"
+                                       IsVisible="{Binding Detail.ShowLibraryFallback}"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 
                 <Separator Background="{StaticResource BrushBorder}"/>
