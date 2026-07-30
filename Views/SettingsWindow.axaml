@@ -136,6 +136,15 @@
                                 </StackPanel>
                             </Button>
 
+                            <!-- NEW: Maintenance Tab -->
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Maintenance"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <material:MaterialIcon Kind="Tools" Width="16" Height="16"/>
+                                    <TextBlock Text="Maintenance"/>
+                                </StackPanel>
+                            </Button>
+
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Updates"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -173,6 +182,10 @@
                 <settings:PluginsTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}"/>
                 <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
                 <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
+                
+                <!-- NEW: Maintenance Tab Content -->
+                <settings:MaintenanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}"/>
+                
                 <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
                 <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
                 <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
