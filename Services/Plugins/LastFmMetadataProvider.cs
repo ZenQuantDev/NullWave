@@ -82,6 +82,10 @@ public class LastFmMetadataProvider : IMetadataProvider
         };
     }
 
+    // Proxy for artist info to support TrackDetailViewModel's Artist Info panel
+    public Task<LastFmArtistInfo?> GetArtistInfoAsync(string artist)
+        => _inner.GetArtistInfoAsync(artist);
+
     // Proxy for scrobbling to unblock MainViewModel
     public Task<bool> ScrobbleAsync(string title, string artist, DateTime playedAt)
         => _inner.ScrobbleAsync(title, artist, playedAt);

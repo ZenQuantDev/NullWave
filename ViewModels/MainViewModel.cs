@@ -129,7 +129,7 @@ public class MainViewModel : ViewModelBase
         Library = new LibraryViewModel(_library);
         Playlist = new PlaylistViewModel(_playlists);
         Export = new ExportViewModel(_library, _export);
-        Detail = new TrackDetailViewModel(_library);
+        Detail = new TrackDetailViewModel(_library, _plugins);
         Import = new ImportViewModel(_library, _metadata);
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);

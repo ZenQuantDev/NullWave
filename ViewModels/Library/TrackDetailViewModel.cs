@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -9,6 +11,8 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Services.Plugins;
+using NullWave.Services.Integration;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -17,6 +21,7 @@ namespace NullWave.ViewModels;
 public class TrackDetailViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
+    private readonly PluginManager _plugins;
     private Track? _currentTrack;
     private bool _isOpen;
     private string _editTitle  = string.Empty;
@@ -25,6 +30,37 @@ public class TrackDetailViewModel : ViewModelBase
     private string _newTag     = string.Empty;
     private string _copyStatus = "Copy";
     private bool _isCopying;
+
+    private string? _artistBio;
+    public string? ArtistBio 
+    { 
+        get => _artistBio; 
+        set { _artistBio = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasArtistBio)); } 
+    }
+
+    private string? _artistListeners;
+    public string? ArtistListeners 
+    { 
+        get => _artistListeners; 
+        set { _artistListeners = value; OnPropertyChanged(); } 
+    }
+
+    private bool _isLoadingArtistInfo;
+    public bool IsLoadingArtistInfo 
+    { 
+        get => _isLoadingArtistInfo; 
+        set { _isLoadingArtistInfo = value; OnPropertyChanged(); } 
+    }
+
+    private int _libraryArtistTrackCount;
+    public int LibraryArtistTrackCount 
+    { 
+        get => _libraryArtistTrackCount; 
+        set { _libraryArtistTrackCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowLibraryFallback)); } 
+    }
+
+    public bool HasArtistBio => !string.IsNullOrWhiteSpace(ArtistBio);
+    public bool ShowLibraryFallback => !HasArtistBio && LibraryArtistTrackCount > 0;
 
     public bool IsOpen
     {
@@ -95,9 +131,10 @@ public class TrackDetailViewModel : ViewModelBase
     public ICommand CopyUrlCommand         { get; }
     public ICommand RelinkFileCommand      { get; }
 
-    public TrackDetailViewModel(LibraryService library)
+    public TrackDetailViewModel(LibraryService library, PluginManager plugins)
     {
         _library = library;
+        _plugins = plugins;
         SaveCommand           = new RelayCommand(Save);
         CloseCommand          = new RelayCommand(() => IsOpen = false);
         AddTagCommand         = new RelayCommand(AddTag);
@@ -124,6 +161,43 @@ public class TrackDetailViewModel : ViewModelBase
 
         RefreshDisplayProperties();
         IsOpen = true;
+
+        _ = LoadArtistInfoAsync(track);
+    }
+
+    private async Task LoadArtistInfoAsync(Track track)
+    {
+        var trackId = track.Id;
+        IsLoadingArtistInfo = true;
+        ArtistBio = null;
+        ArtistListeners = null;
+        LibraryArtistTrackCount = 0;
+
+        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist;
+
+        LastFmArtistInfo? info = null;
+        if (_plugins.Get<LastFmMetadataProvider>() is { } lastFm)
+        {
+            try { info = await lastFm.GetArtistInfoAsync(primaryArtist); }
+            catch { /* swallow — fallback below handles it */ }
+        }
+
+        if (_currentTrack == null || _currentTrack.Id != trackId) return; // stale guard
+
+        if (info != null && !string.IsNullOrWhiteSpace(info.Bio))
+        {
+            ArtistBio = info.Bio;
+            ArtistListeners = info.Listeners;
+        }
+        else
+        {
+            var normalizedTarget = LibraryService.NormalizeArtistKey(primaryArtist);
+            LibraryArtistTrackCount = _library.GetAll()
+                .Count(t => LibraryService.SplitArtistCredits(t.Artist)
+                    .Any(a => LibraryService.NormalizeArtistKey(a) == normalizedTarget));
+        }
+
+        IsLoadingArtistInfo = false;
     }
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

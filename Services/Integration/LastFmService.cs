@@ -2,13 +2,147 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using NullWave.Models;
 using NullWave.Services.Integration;
 using Serilog;
 
 namespace NullWave.Services;
+
+public class LastFmSessionResult
+{
+    public bool   Success    { get; init; }
+    public string SessionKey { get; init; } = string.Empty;
+    public string Username   { get; init; } = string.Empty;
+    public string? Error     { get; init; }
+}
+
+public class LastFmAuthService
+{
+    private const string BaseUrl = "https://ws.audioscrobbler.com/2.0/";
+    private const string AuthUrl = "https://www.last.fm/api/auth/";
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private readonly string _apiKey;
+    private readonly string _apiSecret;
+
+    public LastFmAuthService(string apiKey, string apiSecret)
+    {
+        _apiKey    = apiKey;
+        _apiSecret = apiSecret;
+    }
+
+    public bool IsConfigured => !string.IsNullOrEmpty(_apiKey) && !string.IsNullOrEmpty(_apiSecret);
+
+    public async Task<string?> GetRequestTokenAsync()
+    {
+        if (!IsConfigured)
+        {
+            Log.Warning("[LastFmAuth] API key/secret not configured");
+            return null;
+        }
+
+        try
+        {
+            var parameters = new SortedDictionary<string, string>
+            {
+                ["method"]  = "auth.getToken",
+                ["api_key"] = _apiKey
+            };
+
+            var sig = Sign(parameters);
+            var url = $"{BaseUrl}?method=auth.getToken&api_key={_apiKey}&api_sig={sig}&format=json";
+
+            var response = await _http.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            if (doc.RootElement.TryGetProperty("token", out var tokenProp))
+            {
+                var token = tokenProp.GetString();
+                Log.Information("[LastFmAuth] Request token obtained");
+                return token;
+            }
+
+            Log.Warning("[LastFmAuth] No token in response: {Json}", json);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[LastFmAuth] Failed to get request token");
+            return null;
+        }
+    }
+
+    public string GetAuthUrl(string token) => $"{AuthUrl}?api_key={_apiKey}&token={token}";
+
+    public async Task<LastFmSessionResult> GetSessionKeyAsync(string token)
+    {
+        if (!IsConfigured)
+            return new LastFmSessionResult { Success = false, Error = "Not configured" };
+
+        try
+        {
+            var parameters = new SortedDictionary<string, string>
+            {
+                ["method"]  = "auth.getSession",
+                ["api_key"] = _apiKey,
+                ["token"]   = token
+            };
+
+            var sig = Sign(parameters);
+            var url = $"{BaseUrl}?method=auth.getSession&api_key={_apiKey}&token={token}&api_sig={sig}&format=json";
+
+            var response = await _http.GetAsync(url);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                using var errDoc = JsonDocument.Parse(json);
+                var msg = errDoc.RootElement.TryGetProperty("message", out var m)
+                    ? m.GetString() : "Authorization not yet granted";
+                Log.Warning("[LastFmAuth] Session request failed: {Msg}", msg);
+                return new LastFmSessionResult { Success = false, Error = msg };
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var session = doc.RootElement.GetProperty("session");
+            var sessionKey = session.GetProperty("key").GetString() ?? string.Empty;
+            var username   = session.GetProperty("name").GetString() ?? string.Empty;
+
+            Log.Information("[LastFmAuth] Session established for {Username}", username);
+
+            return new LastFmSessionResult
+            {
+                Success    = true,
+                SessionKey = sessionKey,
+                Username   = username
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[LastFmAuth] Failed to get session key");
+            return new LastFmSessionResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public string Sign(SortedDictionary<string, string> parameters)
+    {
+        var sb = new StringBuilder();
+        foreach (var kvp in parameters)
+        {
+            if (kvp.Key is "format" or "callback") continue;
+            sb.Append(kvp.Key).Append(kvp.Value);
+        }
+        sb.Append(_apiSecret);
+
+        var hash = MD5.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+}
 
 public class LastFmService
 {
@@ -25,22 +159,14 @@ public class LastFmService
         _auth       = new LastFmAuthService(_apiKey, config.GetLastFmApiSecret());
     }
 
-    // Legacy properties for backwards compatibility with MainViewModel
     public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
     public bool CanScrobble => IsConfigured && !string.IsNullOrEmpty(_sessionKey);
-
-    // Decoupled properties for granular validation (Settings UI vs Enrichment vs Scrobbling)
     public bool IsConfiguredForRead => !string.IsNullOrWhiteSpace(_apiKey);
     public bool IsConfiguredForScrobbling => !string.IsNullOrWhiteSpace(_apiKey) && !string.IsNullOrEmpty(_sessionKey) && _auth.IsConfigured;
 
-    public async Task<(string Title, string Artist)> SearchTrackAsync(
-        string title, string artist)
+    public async Task<(string Title, string Artist)> SearchTrackAsync(string title, string artist)
     {
-        if (!IsConfiguredForRead)
-        {
-            Log.Warning("Last.fm API key not configured");
-            return (title, artist);
-        }
+        if (!IsConfiguredForRead) return (title, artist);
 
         try
         {
@@ -55,13 +181,9 @@ public class LastFmService
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            var matches = doc.RootElement
-                .GetProperty("results")
-                .GetProperty("trackmatches")
-                .GetProperty("track");
+            var matches = doc.RootElement.GetProperty("results").GetProperty("trackmatches").GetProperty("track");
 
-            if (matches.ValueKind == JsonValueKind.Array &&
-                matches.GetArrayLength() > 0)
+            if (matches.ValueKind == JsonValueKind.Array && matches.GetArrayLength() > 0)
             {
                 var first = matches[0];
                 var foundTitle = first.GetProperty("name").GetString() ?? title;
@@ -101,31 +223,29 @@ public class LastFmService
             var info = new LastFmTrackInfo
             {
                 Title = track.GetProperty("name").GetString() ?? title,
-                Artist = track.GetProperty("artist")
-                    .GetProperty("name").GetString() ?? artist,
+                Artist = track.GetProperty("artist").GetProperty("name").GetString() ?? artist,
             };
 
-            // Use DTO for accurate tag extraction from nested JSON structure
             var responseObj = JsonSerializer.Deserialize<LastFmTrackResponse>(json);
             if (responseObj?.Track?.TopTags?.TagList != null)
             {
                 info.Tags = responseObj.Track.TopTags.TagList
                     .Select(t => t.Name)
-                    .Where(n => !string.IsNullOrEmpty(n) && !TagDenylist.IsBlocked(n))
+                    .Where(n => !string.IsNullOrEmpty(n) && !global::NullWave.Services.Integration.TagDenylist.IsBlocked(n))
                     .Take(5)
                     .ToList();
             }
             else
             {
-                // Fallback to JsonDocument if DTO deserialization fails
-                if (track.TryGetProperty("toptags", out var toptags) &&
-                    toptags.TryGetProperty("tag", out var tags))
+                if (track.TryGetProperty("toptags", out var toptags) && toptags.TryGetProperty("tag", out var tags))
                 {
                     foreach (var tag in tags.EnumerateArray())
                     {
                         var tagName = tag.GetProperty("name").GetString();
-                        if (!string.IsNullOrEmpty(tagName) && !TagDenylist.IsBlocked(tagName))
+                        if (!string.IsNullOrEmpty(tagName) && !global::NullWave.Services.Integration.TagDenylist.IsBlocked(tagName))
+                        {
                             info.Tags.Add(tagName);
+                        }
                         if (info.Tags.Count >= 5) break;
                     }
                 }
@@ -137,13 +257,11 @@ public class LastFmService
             if (track.TryGetProperty("playcount", out var playcount))
                 info.GlobalPlayCount = playcount.GetString() ?? "0";
 
-            if (track.TryGetProperty("album", out var album) &&
-                album.TryGetProperty("image", out var images))
+            if (track.TryGetProperty("album", out var album) && album.TryGetProperty("image", out var images))
             {
                 foreach (var img in images.EnumerateArray())
                 {
-                    if (img.TryGetProperty("size", out var size) &&
-                        (size.GetString() == "extralarge" || size.GetString() == "large"))
+                    if (img.TryGetProperty("size", out var size) && (size.GetString() == "extralarge" || size.GetString() == "large"))
                     {
                         var artUrl = img.GetProperty("#text").GetString();
                         if (!string.IsNullOrEmpty(artUrl))
@@ -155,14 +273,11 @@ public class LastFmService
                 }
             }
 
-            if (track.TryGetProperty("wiki", out var wiki) &&
-                wiki.TryGetProperty("summary", out var summary))
+            if (track.TryGetProperty("wiki", out var wiki) && wiki.TryGetProperty("summary", out var summary))
             {
                 var raw = summary.GetString() ?? string.Empty;
                 var cutoff = raw.IndexOf("<a href", StringComparison.OrdinalIgnoreCase);
-                info.WikiSummary = cutoff > 0
-                    ? raw[..cutoff].Trim()
-                    : raw.Trim();
+                info.WikiSummary = cutoff > 0 ? raw[..cutoff].Trim() : raw.Trim();
             }
 
             Log.Debug("Last.fm track info fetched: {Title} by {Artist}", info.Title, info.Artist);
@@ -175,13 +290,55 @@ public class LastFmService
         }
     }
 
+    public async Task<LastFmArtistInfo?> GetArtistInfoAsync(string artist)
+    {
+        if (!IsConfiguredForRead || string.IsNullOrWhiteSpace(artist)) return null;
+
+        try
+        {
+            var url = $"{BaseUrl}?method=artist.getInfo" +
+                      $"&artist={Uri.EscapeDataString(artist)}" +
+                      $"&api_key={_apiKey}&format=json";
+
+            var response = await _http.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            if (!doc.RootElement.TryGetProperty("artist", out var artistEl))
+                return null;
+
+            var info = new LastFmArtistInfo
+            {
+                Name = artistEl.TryGetProperty("name", out var n) ? n.GetString() ?? artist : artist
+            };
+
+            if (artistEl.TryGetProperty("stats", out var stats) && stats.TryGetProperty("listeners", out var listeners))
+            {
+                info.Listeners = listeners.GetString() ?? "0";
+            }
+
+            if (artistEl.TryGetProperty("bio", out var bio) && bio.TryGetProperty("summary", out var summary))
+            {
+                var raw = summary.GetString() ?? string.Empty;
+                var cutoff = raw.IndexOf("<a href", StringComparison.OrdinalIgnoreCase);
+                info.Bio = cutoff > 0 ? raw[..cutoff].Trim() : raw.Trim();
+            }
+
+            Log.Debug("Last.fm artist info fetched: {Artist}", info.Name);
+            return info;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Last.fm artist getInfo failed for {Artist}", artist);
+            return null;
+        }
+    }
+
     public async Task<bool> ScrobbleAsync(string title, string artist, DateTime playedAt)
     {
-        if (!IsConfiguredForScrobbling)
-        {
-            Log.Debug("[LastFm] Scrobble skipped — not fully configured for write operations");
-            return false;
-        }
+        if (!IsConfiguredForScrobbling) return false;
 
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(artist) ||
             artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
@@ -224,13 +381,11 @@ public class LastFmService
 
             if (!response.IsSuccessStatusCode)
             {
-                Log.Warning("[LastFm] Scrobble failed for '{Title}' by '{Artist}': {Response}",
-                    title, artist, responseJson);
+                Log.Warning("[LastFm] Scrobble failed for '{Title}' by '{Artist}': {Response}", title, artist, responseJson);
                 return false;
             }
 
-            Log.Information("[LastFm] Scrobbled: {Title} by {Artist} at {Time}",
-                title, artist, playedAt);
+            Log.Information("[LastFm] Scrobbled: {Title} by {Artist} at {Time}", title, artist, playedAt);
             return true;
         }
         catch (Exception ex)
@@ -252,7 +407,13 @@ public class LastFmTrackInfo
     public string? AlbumArtUrl { get; set; }
 }
 
-// DTOs for accurate Last.fm API JSON mapping
+public class LastFmArtistInfo
+{
+    public string Name { get; set; } = string.Empty;
+    public string Listeners { get; set; } = "0";
+    public string? Bio { get; set; }
+}
+
 public class LastFmTrackResponse
 {
     [System.Text.Json.Serialization.JsonPropertyName("track")]

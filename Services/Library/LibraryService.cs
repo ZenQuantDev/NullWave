@@ -862,6 +862,48 @@ public class LibraryService : IDisposable
         return (before, after);
     }
 
+    /// <summary>
+    /// Splits a multi-artist credit string (e.g. "Artist1 feat. Artist2") into individual artist names.
+    /// Returns a list with at least one element (the original string if no separators found).
+    /// </summary>
+    public static List<string> SplitArtistCredits(string artistField)
+    {
+        if (string.IsNullOrWhiteSpace(artistField))
+            return new List<string> { "Unknown" };
+
+        // Split on common collaboration separators
+        var separators = new[] { " feat. ", " ft. ", " featuring ", " & ", ", ", " x " };
+        var parts = new List<string> { artistField };
+
+        foreach (var sep in separators)
+        {
+            var newParts = new List<string>();
+            foreach (var part in parts)
+            {
+                newParts.AddRange(part.Split(new[] { sep }, StringSplitOptions.RemoveEmptyEntries));
+            }
+            parts = newParts;
+        }
+
+        return parts.Select(p => p.Trim()).Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+    }
+
+    /// <summary>
+    /// Normalizes an artist name for comparison (lowercase, trim, remove diacritics).
+    /// </summary>
+    public static string NormalizeArtistKey(string artist)
+    {
+        if (string.IsNullOrWhiteSpace(artist))
+            return string.Empty;
+
+        var decomposed = artist.Normalize(System.Text.NormalizationForm.FormD);
+        var stripped = new string(decomposed
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                        != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray());
+        return new string(stripped.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    }
+
     public void Dispose()
     {
         _db.Dispose();
