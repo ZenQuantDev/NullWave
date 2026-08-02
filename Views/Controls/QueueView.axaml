@@ -1,30 +1,30 @@
-<Border xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:NullWave.ViewModels"
-        xmlns:models="using:NullWave.Models"
-        xmlns:helpers="using:NullWave.Helpers"
-        xmlns:converters="using:NullWave.Helpers.Converters"
-        xmlns:material="using:Material.Icons.Avalonia"
-        x:Class="NullWave.Views.Controls.QueueView"
-        x:DataType="vm:MainViewModel"
-        Background="{StaticResource BrushSurface}"
-        BorderBrush="{StaticResource BrushBorder}"
-        BorderThickness="1,0,0,0"
-        Width="{Binding Queue.PanelWidth}"
-        Opacity="{Binding Queue.PanelOpacity}"
-        ClipToBounds="True">
-    <Border.Resources>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:models="using:NullWave.Models"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:material="using:Material.Icons.Avalonia"
+             x:Class="NullWave.Views.Controls.QueueView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource BrushSurface}"
+             BorderBrush="{StaticResource BrushBorder}"
+             BorderThickness="1,0,0,0"
+             Width="{Binding Queue.PanelWidth}"
+             Opacity="{Binding Queue.PanelOpacity}">
+
+    <UserControl.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
-    </Border.Resources>
-    <Border.Transitions>
+    </UserControl.Resources>
+
+    <UserControl.Transitions>
         <Transitions>
             <DoubleTransition Property="Width" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
         </Transitions>
-    </Border.Transitions>
+    </UserControl.Transitions>
 
     <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
         <StackPanel Grid.Row="0" Classes="panel-header">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0"
@@ -46,7 +46,9 @@
             <Separator Classes="panel-header-sep"/>
         </StackPanel>
 
+        <!-- Content -->
         <Grid Grid.Row="1">
+            <!-- Empty State -->
             <TextBlock Text="Queue is empty"
                        Foreground="{StaticResource BrushTextMuted}"
                        FontSize="{StaticResource FontSizeBody}"
@@ -54,12 +56,13 @@
                        VerticalAlignment="Center"
                        IsVisible="{Binding !Queue.Tracks.Count}"/>
 
+            <!-- Track List -->
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           IsVisible="{Binding Queue.Tracks.Count}">
                 <ItemsControl ItemsSource="{Binding Queue.Tracks}" Margin="8,8,8,16">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="models:Track">
+                        <DataTemplate x:DataType="models:QueueEntry">
                             <Grid Classes="draggable-row" ColumnDefinitions="24,8,40,8,*,Auto" Margin="4,4" MinHeight="44"
                                   Tag="{Binding}"
                                   DoubleTapped="OnTrackDoubleTapped"
@@ -67,6 +70,8 @@
                                   DragDrop.DragEnter="OnQueueItemDragEnter"
                                   DragDrop.DragLeave="OnQueueItemDragLeave"
                                   DragDrop.Drop="OnQueueItemDrop">
+                                
+                                <!-- Drag Handle -->
                                 <Border Grid.Column="0"
                                         Background="Transparent"
                                         Cursor="SizeAll"
@@ -80,17 +85,18 @@
                                             VerticalAlignment="Center"/>
                                 </Border>
 
+                                <!-- Album Art -->
                                 <Border Grid.Column="2"
                                         Width="40" Height="40"
                                         CornerRadius="{StaticResource RadiusArt}"
                                         Background="{StaticResource BrushSurface2}"
                                         ClipToBounds="True">
                                     <Panel>
-                                        <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                        <Image Source="{Binding Track.AlbumArtPath, Converter={StaticResource PathToBitmap}}"
                                                Stretch="UniformToFill"
-                                               IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                               IsVisible="{Binding Track.AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                         <material:MaterialIcon Kind="MusicNote"
-                                                   IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                                   IsVisible="{Binding Track.AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
                                                    Foreground="{StaticResource BrushTextMuted}"
                                                    Width="16" Height="16"
                                                    HorizontalAlignment="Center"
@@ -98,21 +104,23 @@
                                     </Panel>
                                 </Border>
 
+                                <!-- Track Info -->
                                 <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
+                                    <TextBlock Text="{Binding Track.Title}"
                                                Foreground="{StaticResource BrushTextPrimary}"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Medium"
                                                TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding Artist}"
+                                    <TextBlock Text="{Binding Track.Artist}"
                                                Foreground="{StaticResource BrushTextSecondary}"
                                                FontSize="{StaticResource FontSizeXs}"
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
 
+                                <!-- Remove Button -->
                                 <Button Grid.Column="5" Classes="icon-btn sm"
                                         Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Queue.RemoveFromQueueCommand}"
-                                        CommandParameter="{Binding}"
+                                        CommandParameter="{Binding Track}"
                                         ToolTip.Tip="Remove from queue">
                                     <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
                                 </Button>
@@ -123,4 +131,4 @@
             </ScrollViewer>
         </Grid>
     </Grid>
-</Border>
+</UserControl>

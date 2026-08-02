@@ -14,13 +14,6 @@ public class PlaybackService : IDisposable
     private bool _disposed;
     private CancellationTokenSource? _fadeCts;
 
-    // Explicit fade-state flag, separate from _fadeCts's lifetime. The previous code
-    // gated the OnPlaying volume-nudge on "_fadeCts == null || _fadeCts.IsCancellationRequested",
-    // but _fadeCts is never nulled or cancelled after a fade completes normally — so after
-    // the *first* crossfade or fade-pause/resume in a session, that check went permanently
-    // false and the nudge silently stopped firing for every track start afterward. This was
-    // the root cause of "plays with zero audio until I touch play or the volume slider":
-    // touching volume forces a real native set_volume call, bypassing the broken nudge.
     private bool _isFading;
 
     public event Action<float>? PositionChanged;
@@ -67,16 +60,11 @@ public class PlaybackService : IDisposable
 
     private void OnPositionChanged(object? sender, MediaPlayerPositionChangedEventArgs e) 
     {
-        // Marshal to UI thread to prevent cross-thread exceptions in ViewModels
         Avalonia.Threading.Dispatcher.UIThread.Post(() => PositionChanged?.Invoke(e.Position));
     }
     
     private void OnPlaying(object? sender, EventArgs e)
     {
-        // Native volume fix must happen immediately on the native thread. Only skipped
-        // while a fade/crossfade is actively ramping volume on this player — _isFading
-        // is explicitly cleared in a finally block by every fade method, so this check
-        // can't go stale the way the old _fadeCts-based check did.
         if (!_isFading)
         {
             _player.Volume = _player.Volume; 
@@ -220,11 +208,6 @@ public class PlaybackService : IDisposable
         var oldPlayer = _player;
         var oldMedia = _currentMedia;
 
-        // Attach events and swap the active player reference BEFORE starting playback.
-        // The old code called nextPlayer.Play() first and only attached events / swapped
-        // _player afterward — risking a missed Playing event entirely (no handler attached
-        // yet), or the eventual handler firing against a stale _player reference. Doing the
-        // swap first means OnPlaying's volume-nudge always targets the right instance.
         DetachEvents(oldPlayer);
         _player = nextPlayer;
         _currentMedia = nextMedia;
@@ -244,7 +227,31 @@ public class PlaybackService : IDisposable
 
             await Task.WhenAll(fadeOutTask, fadeInTask);
 
+            // CRITICAL FIX: Stop the old player and give the native audio backend (PipeWire) 
+            // a wider safety margin to release its resources before disposing the MediaPlayer.
+            // Disposing a MediaPlayer while it's still actively tearing down its audio stream 
+            // is a known cause of segfaults in libvlc/libpipewire on Linux.
             oldPlayer.Stop();
+            
+            // Increased delay to 400ms to account for concurrent system load (AI/downloads)
+            await Task.Delay(400); 
+            
+            oldPlayer.Dispose();
+            oldMedia?.Dispose();
+        }
+        catch (OperationCanceledException)
+        {
+            // If cancelled, we still need to clean up the old player safely
+            oldPlayer.Stop();
+            await Task.Delay(400);
+            oldPlayer.Dispose();
+            oldMedia?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PlaybackService] Error during crossfade");
+            oldPlayer.Stop();
+            await Task.Delay(400);
             oldPlayer.Dispose();
             oldMedia?.Dispose();
         }
@@ -285,6 +292,10 @@ public class PlaybackService : IDisposable
         _fadeCts?.Cancel();
         _fadeCts?.Dispose();
         _player.Stop();
+        
+        // Same widened safety delay for final disposal to prevent native segfaults
+        Task.Delay(400).Wait(); 
+        
         _currentMedia?.Dispose();
         _player.Dispose();
         _libVlc.Dispose();

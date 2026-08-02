@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Windows.Input;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
@@ -41,9 +43,9 @@ public class MainViewModel : ViewModelBase
     private readonly PowerStateService _powerState;
     private readonly PluginManager _plugins = new();
 
+    private PlaylistFolder? _aiPlaylistsFolder;
     private string? _pendingLastFmToken;
     private LastFmAuthService? _pendingLastFmAuth;
-
     private LiveNotification? _currentPlaylistActivity;
 
     private bool _isMenuBarVisible;
@@ -129,7 +131,7 @@ public class MainViewModel : ViewModelBase
         _spotifyBridge = new SpotifyBridgeService(_config);
 
         var dbService = new DatabaseService();
-        _library = new LibraryService(dbService, _metadata);
+        _library = new LibraryService(dbService, _metadata, _prefsService);
         _playlists = new PlaylistService(dbService, _library);
         var albumArtService = new AlbumArtService(_lastFm);
         _downloadService = new DownloadService(_library, _prefsService, albumArtService);
@@ -138,9 +140,6 @@ public class MainViewModel : ViewModelBase
         _weatherService = new WeatherService(_keyStore);
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
-        // =========================================================================
-        // PHASE 13: Register all plugin providers
-        // =========================================================================
         _plugins.Register(new YtDlpDownloadProvider(_downloadService, _prefsService));
         _plugins.Register(new LastFmMetadataProvider(_lastFm, _prefsService));
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
@@ -150,21 +149,47 @@ public class MainViewModel : ViewModelBase
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
 
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, albumArtService);
-        Library = new LibraryViewModel(_library);
+        Library = new LibraryViewModel(_library, _localAI);
+        
+        _aiPlaylistsFolder = _playlists.GetAllFolders().FirstOrDefault(f => f.Name == "AI Playlists");
+        if (_aiPlaylistsFolder == null)
+        {
+            _aiPlaylistsFolder = _playlists.CreateFolder("AI Playlists");
+        }
+
+        Library.AiPlaylistRequested += OnAiPlaylistRequested;
+
         Playlist = new PlaylistViewModel(_playlists);
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library, _plugins);
         Import = new ImportViewModel(_library, _metadata);
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
+
         Queue = new QueueViewModel(_library);
         Queue.PlayTrackRequested += Player.PlayTrack;
 
-        // Wire pin/unpin events
+        Detail.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Detail.IsOpen) && Detail.IsOpen)
+                Queue.IsOpen = false;
+        };
+        Queue.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Queue.IsOpen) && Queue.IsOpen)
+                Detail.IsOpen = false;
+        };
+
         Playlist.PinRequested += p => Nav.PinPlaylist(p.Id, p.Name);
         Playlist.UnpinRequested += p => Nav.UnpinPlaylist(p.Id);
+        Playlist.PlayAllRequested += playlist =>
+        {
+            if (playlist.Tracks.Count == 0) return;
+            Player.PlayTrack(playlist.Tracks[0]);
+            foreach (var track in playlist.Tracks.Skip(1))
+                _library.AddToQueue(track.Id);
+        };
 
-        // Wire new events
         Library.NavigateToLibraryRequested += () => CurrentPage = "Library";
         Playlist.PlaylistsChanged += () => Nav.RefreshPlaylistLists();
 
@@ -172,126 +197,223 @@ public class MainViewModel : ViewModelBase
 
         _localAI.FallbackNotice += message =>
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Dispatcher.UIThread.Post(() =>
                 ToastService.Instance.Show(message, ToastType.Warning));
         };
 
+        // 1. Sweep Orphaned Files
         Settings.SweepOrphanedFilesRequested += dryRun =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var dir = _prefsService.Current.DownloadDirectory;
-                if (string.IsNullOrWhiteSpace(dir))
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity(
+                        dryRun ? "Previewing Orphaned Files" : "Sweeping Orphaned Files",
+                        dryRun ? "Scanning for orphaned files..." : "Deleting orphaned files...",
+                        isIndeterminate: true));
+                try
                 {
-                    dir = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                        ".nullwave",
-                        "downloads"
-                    );
+                    var dir = _prefsService.Current.DownloadDirectory;
+                    if (string.IsNullOrWhiteSpace(dir))
+                    {
+                        dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "downloads");
+                    }
+                    var (scanned, orphaned, deleted, failed) = await Task.Run(() => _library.SweepOrphanedFiles(dir, dryRun));
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportSweepComplete(scanned, orphaned, deleted, failed, dryRun);
+                        ToastService.Instance.CompleteLiveActivity(activity, dryRun
+                            ? $"Found {orphaned} orphaned file(s)."
+                            : $"Sweep complete: {deleted} deleted, {failed} failed.");
+                        _isMaintenanceRunning = false;
+                    });
                 }
-
-                var (scanned, orphaned, deleted, failed) = _library.SweepOrphanedFiles(dir, dryRun);
-
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                catch (Exception ex)
                 {
-                    Settings.ReportSweepComplete(scanned, orphaned, deleted, failed, dryRun);
-                    _isMaintenanceRunning = false;
-                });
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "SweepOrphanedFiles failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Sweep failed — check logs.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
+        // 2. Vacuum Database
         Settings.VacuumDatabaseRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var (before, after) = _library.VacuumDatabase();
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Optimizing Database", "Running VACUUM...", isIndeterminate: true));
+                try
                 {
-                    Settings.ReportVacuumComplete(before, after);
-                    _isMaintenanceRunning = false;
-                });
+                    var (before, after) = await Task.Run(() => _library.VacuumDatabase());
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportVacuumComplete(before, after);
+                        ToastService.Instance.CompleteLiveActivity(activity, "Database optimization complete.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "VacuumDatabase failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Database optimization failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
+        // 3. Verify Links
         Settings.VerifyLinksRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var (checkedCount, mismatches) = _library.VerifyLinks();
-
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Verifying Links", "Checking file links against embedded metadata...", isIndeterminate: true));
+                try
                 {
-                    Settings.ReportVerifyLinksComplete(checkedCount, mismatches.Count);
-                    _isMaintenanceRunning = false;
-                });
+                    var (checkedCount, mismatches) = await Task.Run(() => _library.VerifyLinks());
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportVerifyLinksComplete(checkedCount, mismatches.Count);
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Checked {checkedCount} tracks — {mismatches.Count} possible mis-link(s) found.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "VerifyLinks failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Link verification failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
+        // 4. Remove Duplicates
         Settings.RemoveDuplicatesRequested += dryRun =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var (scanned, groups, removed) = _library.RemoveDuplicates(dryRun);
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity(
+                        dryRun ? "Previewing Duplicates" : "Removing Duplicates",
+                        dryRun ? "Scanning for duplicate tracks..." : "Removing duplicate tracks...",
+                        isIndeterminate: true));
+                try
                 {
-                    Settings.ReportDedupeComplete(scanned, groups, removed, dryRun);
-                    Library.Refresh();
-                    Library.RefreshArtistGroups();
-                    _isMaintenanceRunning = false;
-                });
+                    var (scanned, groups, removed) = await Task.Run(() => _library.RemoveDuplicates(dryRun));
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportDedupeComplete(scanned, groups, removed, dryRun);
+                        Library.Refresh();
+                        Library.RefreshArtistGroups();
+                        ToastService.Instance.CompleteLiveActivity(activity, dryRun
+                            ? $"Found {groups} duplicate group(s)."
+                            : $"Removed {removed} duplicate track(s).");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "RemoveDuplicates failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Deduplication failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
+        // 5. Force Clean Titles
         Settings.ForceCleanTitlesRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var cleaned = _library.ForceCleanTitles();
-
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Cleaning Titles", "Re-parsing track titles for embedded artist names...", isIndeterminate: true));
+                try
                 {
-                    Settings.ReportForceCleanComplete(cleaned);
-                    Library.Refresh();
-                    Library.RefreshArtistGroups();
-                    _isMaintenanceRunning = false;
-                });
+                    var cleaned = await Task.Run(() => _library.ForceCleanTitles());
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportForceCleanComplete(cleaned);
+                        Library.Refresh();
+                        Library.RefreshArtistGroups();
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Cleaned {cleaned} track title(s)/artist(s).");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "ForceCleanTitles failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Title cleaning failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
+        // 6. Merge Similar Artists
         Settings.MergeSimilarArtistsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
-                var groups = _library.FindSimilarArtistGroups();
-                int merged = 0;
-                foreach (var group in groups)
-                    merged += _library.MergeArtistGroup(group);
-
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Merging Artists", "Finding and merging similar artist names...", isIndeterminate: true));
+                try
                 {
-                    Settings.ReportArtistMergeComplete(groups.Count, merged);
-                    Library.Refresh();
-                    Library.RefreshArtistGroups();
-                    _isMaintenanceRunning = false;
-                });
+                    var groups = await Task.Run(() => _library.FindSimilarArtistGroups());
+                    int merged = 0;
+                    foreach (var group in groups)
+                        merged += _library.MergeArtistGroup(group);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportArtistMergeComplete(groups.Count, merged);
+                        Library.Refresh();
+                        Library.RefreshArtistGroups();
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Merged {groups.Count} artist group(s), updated {merged} track(s).");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "MergeSimilarArtists failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "Artist merge failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
             });
         };
 
@@ -314,7 +436,7 @@ public class MainViewModel : ViewModelBase
                 _ = Task.Run(async () =>
                 {
                     bool running = await _localAI.PingAsync();
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    Dispatcher.UIThread.Post(() =>
                     {
                         ToastService.Instance.Dismiss(activity);
                         if (running)
@@ -340,7 +462,7 @@ public class MainViewModel : ViewModelBase
         _powerState.PowerStateChanged += state =>
         {
             _localAI.OnPowerStateChanged(state);
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Dispatcher.UIThread.Post(() =>
                 Settings.PowerStateLabel = state switch
                 {
                     PowerState.AC      => "Plugged in (AC)",
@@ -369,7 +491,7 @@ public class MainViewModel : ViewModelBase
 
         _downloadService.DownloadCompleted += (_, _, isInteractive) =>
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 Library.Refresh();
                 Library.RefreshArtistGroups();
@@ -380,7 +502,7 @@ public class MainViewModel : ViewModelBase
 
         _downloadService.DownloadFailed += (_, _, isInteractive) =>
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 Library.Refresh();
                 if (isInteractive)
@@ -415,17 +537,13 @@ public class MainViewModel : ViewModelBase
             var summary = $"Bulk download complete: {completed} downloaded, {failed} unavailable, {skipped} duplicates skipped.";
             ToastService.Instance.CompleteLiveActivity(_currentPlaylistActivity, summary);
             _currentPlaylistActivity = null;
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+            Dispatcher.UIThread.Post(() => Library.Refresh());
             Log.Information("[MainViewModel] {Summary}", summary);
         };
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
         Input.TrackMetadataUpdated += Library.Refresh;
-        Library.TrackDetailRequested += track =>
-        {
-            Queue.IsOpen = false;
-            Detail.OpenFor(track);
-        };
+        Library.TrackDetailRequested += track => Detail.OpenFor(track);
         Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += () => { Library.Refresh(); Library.RefreshArtistGroups(); };
 
@@ -457,17 +575,16 @@ public class MainViewModel : ViewModelBase
                     {
                         if (_plugins.Get<LastFmMetadataProvider>() is { })
                             _enrichment.EnrichAsync(downloadedTrack);
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+                        Dispatcher.UIThread.Post(() => Library.Refresh());
                     });
                 return;
             }
 
-            // Gated enrichment: only run if Last.fm plugin is available
             if (_plugins.Get<LastFmMetadataProvider>() is { })
             {
                 _enrichment.EnrichAsync(track);
             }
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+            Dispatcher.UIThread.Post(() => Library.Refresh());
         };
 
         _enrichment.BackfillCompleted += () =>
@@ -504,7 +621,6 @@ public class MainViewModel : ViewModelBase
         {
             if (!Settings.ScrobbleToLastFm) return;
             
-            // Gated scrobbling: check plugin availability and configuration
             if (_plugins.Get<LastFmMetadataProvider>() is not { } lastFmProvider || !lastFmProvider.IsConfiguredForScrobbling)
             {
                 Log.Debug("[MainViewModel] Scrobble requested but Last.fm plugin not configured/available");
@@ -580,19 +696,16 @@ public class MainViewModel : ViewModelBase
             ToastService.Instance.Show("Disconnected from Last.fm accounts.", ToastType.Info);
         };
 
+        // 7. Clear Thumbnails
         Settings.ClearThumbnailsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
-                var activity = ToastService.Instance.StartLiveActivity(
-                    "Clearing Artwork",
-                    "Purging cached thumbnails and resetting index registers...",
-                    isIndeterminate: true
-                );
-
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Clearing Artwork", "Purging cached thumbnails and resetting index registers...", isIndeterminate: true));
                 try
                 {
                     int cleared = await Task.Run(() =>
@@ -601,164 +714,138 @@ public class MainViewModel : ViewModelBase
                         _library.ClearAllArt();
                         return count;
                     });
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         Settings.ReportThumbnailsCleared(cleared);
                         _library.RebackfillThumbnails();
-                        activity.Title = "Re-indexing Artwork";
-                        activity.Message = $"Regenerating asset nodes for {cleared} tracks...";
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Cleared {cleared} thumbnails. Re-fetching in background...");
                     });
-
                     await Task.Delay(500);
                     _enrichment.BackfillAsync();
                     await Task.Delay(1500);
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
                         Library.Refresh();
                         _isMaintenanceRunning = false;
                     });
                 }
                 catch (Exception ex)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "ClearThumbnails failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
-                        ToastService.Instance.Show($"Artwork collection reset failed: {ex.Message}", ToastType.Error);
+                        ToastService.Instance.CompleteLiveActivity(activity, "Artwork collection reset failed.");
                         _isMaintenanceRunning = false;
                     });
                 }
             });
         };
 
+        // 8. Repair Paths
         Settings.RepairPathsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
-                var activity = ToastService.Instance.StartLiveActivity(
-                    "Repairing Paths",
-                    "Scanning local track library indices for broken file links...",
-                    isIndeterminate: true
-                );
-
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Repairing Paths", "Scanning local track library indices for broken file links...", isIndeterminate: true));
                 try
                 {
                     var (total, missing, removed) = await Task.Run(() => _library.RepairPaths(removeDeadEntries: true));
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
                         Library.Refresh();
                         Settings.ReportRepairPathsComplete(total, missing, removed);
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Checked {total} tracks — {missing} missing, {removed} cleared.");
                         _isMaintenanceRunning = false;
                     });
                 }
                 catch (Exception ex)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "RepairPaths failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
-                        Settings.ReportRepairFailed("Repair Paths", ex.Message);
-                        NullActionLogger.Error(nameof(MainViewModel), ex, "RepairPaths failed");
+                        ToastService.Instance.CompleteLiveActivity(activity, "Path repair failed.");
                         _isMaintenanceRunning = false;
                     });
                 }
             });
         };
 
+        // 9. Reimport Assets
         Settings.ReimportAssetsRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
-                var activity = ToastService.Instance.StartLiveActivity(
-                    "Validating Assets",
-                    "Scanning repository directories to map unlinked tracks...",
-                    isIndeterminate: true
-                );
-
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Validating Assets", "Scanning repository directories to map unlinked tracks...", isIndeterminate: true));
                 try
                 {
                     var dir = _prefsService.Current.DownloadDirectory;
                     if (string.IsNullOrWhiteSpace(dir))
                     {
-                        dir = System.IO.Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                            ".nullwave",
-                            "downloads"
-                        );
+                        dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "downloads");
                     }
-
                     var relinked = await Task.Run(() => _library.ReimportAssets(dir));
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
                         Library.Refresh();
                         Settings.ReportReimportComplete(relinked);
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Re-linked {relinked} track(s).");
                         _isMaintenanceRunning = false;
                     });
                 }
                 catch (Exception ex)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "ReimportAssets failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
-                        Settings.ReportRepairFailed("Reimport Assets", ex.Message);
-                        NullActionLogger.Error(nameof(MainViewModel), ex, "ReimportAssets failed");
+                        ToastService.Instance.CompleteLiveActivity(activity, "Asset reimport failed.");
                         _isMaintenanceRunning = false;
                     });
                 }
             });
         };
 
+        // 10. Force Meta Resync
         Settings.ForceMetaResyncRequested += () =>
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
-                var activity = ToastService.Instance.StartLiveActivity(
-                    "Syncing Metadata",
-                    "Flushing local tag database cache registers...",
-                    isIndeterminate: true
-                );
-
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Syncing Metadata", "Flushing local tag database cache registers...", isIndeterminate: true));
                 try
                 {
                     int cleared = await Task.Run(() => _library.ClearTagsForReSync());
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         Settings.ReportMetaResyncComplete(cleared);
                         Library.Refresh();
+                        ToastService.Instance.CompleteLiveActivity(activity, $"Cleared tags for {cleared} track(s). Re-syncing in background...");
                     });
-
                     await Task.Delay(800);
                     _enrichment.BackfillAsync();
                     await Task.Delay(1200);
-
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
                         _isMaintenanceRunning = false;
                     });
                 }
                 catch (Exception ex)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "ForceMetaResync failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ToastService.Instance.Dismiss(activity);
+                        if (activity != null) ToastService.Instance.CompleteLiveActivity(activity, "Force Meta Re-sync failed.");
                         Settings.ReportRepairFailed("Force Meta Re-sync", ex.Message);
-                        NullActionLogger.Error(nameof(MainViewModel), ex, "ForceMetaResync failed");
                         _isMaintenanceRunning = false;
                     });
                 }
@@ -794,10 +881,8 @@ public class MainViewModel : ViewModelBase
                         AllowMultiple  = false,
                         FileTypeFilter = new[]
                         {
-                            new Avalonia.Platform.Storage.FilePickerFileType("JSON / Text")
-                            { Patterns = new[] { "*.json", "*.txt", "*.md" } },
-                            new Avalonia.Platform.Storage.FilePickerFileType("All files")
-                            { Patterns = new[] { "*" } },
+                            new Avalonia.Platform.Storage.FilePickerFileType("JSON / Text") { Patterns = new[] { "*.json", "*.txt", "*.md" } },
+                            new Avalonia.Platform.Storage.FilePickerFileType("All files") { Patterns = new[] { "*" } },
                         }
                     });
 
@@ -826,7 +911,7 @@ public class MainViewModel : ViewModelBase
                 {
                     var track = _library.GetAll().FirstOrDefault(t => t.Id == result.Id);
                     if (track == null || result.Tags.Count == 0) continue;
-                    track.Tags ??= new System.Collections.Generic.List<string>();
+                    track.Tags ??= new List<string>();
                     foreach (var tag in result.Tags)
                     {
                         if (!track.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
@@ -897,7 +982,7 @@ public class MainViewModel : ViewModelBase
         NavigatePlaylistsCommand = new RelayCommand(() =>
         {
             CurrentPage = "Playlists";
-            Nav.SetPlaylistActive(null); // Clear pin highlight when navigating generically
+            Nav.SetPlaylistActive(null);
             LogNav("Playlists");
         });
 
@@ -912,12 +997,10 @@ public class MainViewModel : ViewModelBase
 
         ToggleQueueCommand = new RelayCommand(() =>
         {
-            Detail.IsOpen = false;
             Queue.IsOpen = !Queue.IsOpen;
             LogNav("Queue");
         });
 
-        // Nav construction moved here so _playlists is available
         Nav = new NavigationViewModel(
             _prefsService, _playlists,
             NavigateLibraryCommand, NavigatePlaylistsCommand,
@@ -939,13 +1022,12 @@ public class MainViewModel : ViewModelBase
 
     public void DisposePowerState() => _powerState.Dispose();
 
-    private async System.Threading.Tasks.Task RunStartupDiagnosticsAsync()
+    private async Task RunStartupDiagnosticsAsync()
     {
         try
         {
             var diag = new StartupDiagnosticsService(_keyStore, _library);
             await diag.RunAsync();
-
             await _plugins.InitializeAllAsync();
         }
         catch (Exception ex)
@@ -1014,10 +1096,17 @@ public class MainViewModel : ViewModelBase
 
     private async Task RunMoodPlaylistAsync(bool forceRefresh)
     {
+        var activity = ToastService.Instance.StartLiveActivity(
+            "Mood Playlist",
+            "Fetching weather data...",
+            isIndeterminate: true
+        );
+
         try
         {
             if (_plugins.Get<IWeatherProvider>() is not { } weatherProvider)
             {
+                ToastService.Instance.CompleteLiveActivity(activity, "Weather plugin unavailable.");
                 Log.Information("[MainViewModel] OpenWeather plugin unavailable/disabled - skipping mood playlist");
                 return;
             }
@@ -1026,6 +1115,7 @@ public class MainViewModel : ViewModelBase
             var lon = Settings.Longitude;
             if (lat == 0 && lon == 0)
             {
+                ToastService.Instance.CompleteLiveActivity(activity, "No location set.");
                 Settings.ReportMoodPlaylistFailed("No location set - add coordinates in Settings → Smart Sorting");
                 return;
             }
@@ -1033,14 +1123,18 @@ public class MainViewModel : ViewModelBase
             _localAI.CurrentModel = Settings.SelectedModel;
             bool useAi = Settings.AIFeaturesEnabled && Settings.UseLocalAI;
 
+            ToastService.Instance.UpdateLiveActivity(activity, message: "Matching mood tags...");
             var result = await _moodPlaylist.GenerateAsync(lat, lon, useAi, forceRefresh);
+            
             if (!result.Success)
             {
+                ToastService.Instance.CompleteLiveActivity(activity, $"Failed: {result.FailureReason}");
                 Settings.ReportMoodPlaylistFailed(result.FailureReason ?? "Unknown error");
                 ToastService.Instance.Show($"Could not build mood mix: {result.FailureReason}", ToastType.Error);
                 return;
             }
 
+            ToastService.Instance.UpdateLiveActivity(activity, message: "Creating playlist...");
             var oldMoodPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("Mood:")).ToList();
             foreach (var old in oldMoodPlaylists)
             {
@@ -1056,15 +1150,39 @@ public class MainViewModel : ViewModelBase
 
             Playlist.Refresh();
             Settings.ReportMoodPlaylistGenerated(result.Tracks.Count, result.Mood);
+            ToastService.Instance.CompleteLiveActivity(activity, $"Generated 'Mood: {result.Mood}' ({result.Tracks.Count} tracks).");
             ToastService.Instance.Show($"Generated context playlist 'Mood: {result.Mood}' ({result.Tracks.Count} tracks).", ToastType.Success);
             Log.Information("[MainViewModel] Mood playlist generated: {Name} ({Count} tracks, AI={UsedAI})",
                 playlistName, result.Tracks.Count, result.UsedAI);
         }
         catch (Exception ex)
         {
+            ToastService.Instance.CompleteLiveActivity(activity, "Mood playlist generation failed.");
             Settings.ReportMoodPlaylistFailed(ex.Message);
             NullActionLogger.Error(nameof(MainViewModel), ex, "Mood playlist generation failed");
         }
+    }
+
+    private void OnAiPlaylistRequested(string query, List<Track> tracks)
+    {
+        if (tracks.Count == 0) return;
+
+        var playlistName = $"AI: {query}";
+        if (_playlists.NameExists(playlistName))
+        {
+            playlistName = $"AI: {query} ({DateTime.Now:HH:mm})";
+        }
+
+        var playlist = _playlists.Create(playlistName, $"Generated by AI prompt: {query}", _aiPlaylistsFolder?.Id);
+        foreach (var track in tracks)
+        {
+            _playlists.AddTrack(playlist.Id, track);
+        }
+
+        Playlist.Refresh();
+        Playlist.SelectById(playlist.Id);
+        CurrentPage = "Playlists";
+        Log.Information("[MainViewModel] AI playlist created: {Name} ({Count} tracks)", playlistName, tracks.Count);
     }
 
     private static void LogNav(string destination)

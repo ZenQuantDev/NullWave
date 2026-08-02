@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NullWave.Models;
+using NullWave.Services;
 using Serilog;
 
 namespace NullWave.Services;
@@ -15,8 +16,14 @@ public partial class PlaybackNavigator : ObservableObject
     private readonly Random _rng = new();
     private List<Guid> _shuffleDeck = new();
     private int _shuffleIndex = -1;
-    private readonly Stack<Guid> _history = new();
-    // O(1) Lookup Cache
+    
+    private readonly List<Guid> _history = new();
+    private const int MaxHistoryDepth = 50;
+    
+    // FIX: Prevent the eligible pool from collapsing into a 2-track loop
+    // when too many tracks accumulate skip penalties.
+    private const int MinEligiblePoolSize = 20;
+
     private int _cachedLibraryVersion = -1;
     private IReadOnlyList<Track> _cachedQueue = new List<Track>();
     private Dictionary<Guid, int> _trackIndexMap = new();
@@ -33,14 +40,23 @@ public partial class PlaybackNavigator : ObservableObject
     [ObservableProperty]
     private Track? _currentTrack;
 
-    /// <summary>
-    /// Tracks with SkipCount >= this value are excluded from Smart Shuffle.
-    /// </summary>
     public int SkipPenaltyCap { get; set; } = 3;
 
     public PlaybackNavigator(LibraryService library)
     {
         _library = library;
+    }
+
+    public void RecordPlay(Track track)
+    {
+        if (track != null)
+        {
+            _history.Insert(0, track.Id);
+            if (_history.Count > MaxHistoryDepth)
+            {
+                _history.RemoveAt(_history.Count - 1);
+            }
+        }
     }
 
     private void EnsureIndexMap(IReadOnlyList<Track> queue)
@@ -71,8 +87,11 @@ public partial class PlaybackNavigator : ObservableObject
     private void BuildShuffleDeck()
     {
         var allTracks = _library.GetAll();
-        _shuffleDeck = (IsSmartShuffle && SkipPenaltyCap > 0
-            ? allTracks.Where(t => t.SkipCount < SkipPenaltyCap)
+        var filtered = allTracks.Where(t => t.SkipCount < SkipPenaltyCap).ToList();
+        
+        // Fall back to the full library if the filtered pool got too small
+        _shuffleDeck = (IsSmartShuffle && SkipPenaltyCap > 0 && filtered.Count >= MinEligiblePoolSize
+            ? filtered
             : allTracks)
             .Select(t => t.Id)
             .ToList();
@@ -83,24 +102,28 @@ public partial class PlaybackNavigator : ObservableObject
             (_shuffleDeck[i], _shuffleDeck[j]) = (_shuffleDeck[j], _shuffleDeck[i]);
         }
         _shuffleIndex = -1;
-        Log.Debug("[PlaybackNavigator] Shuffle deck built: {Count} tracks (cap={Cap}, smart={Smart})",
-            _shuffleDeck.Count, SkipPenaltyCap, IsSmartShuffle);
+        Log.Debug("[PlaybackNavigator] Shuffle deck built: {Count} tracks (cap={Cap}, smart={Smart}, filtered={Filtered})",
+            _shuffleDeck.Count, SkipPenaltyCap, IsSmartShuffle, filtered.Count);
     }
 
-    /// <summary>
-    /// Advances the shuffle deck by `count` slots and returns those tracks, without
-    /// touching CurrentTrack or history — used to pre-fill the Queue when shuffle is
-    /// turned on. This genuinely advances _shuffleIndex, so once the queue drains,
-    /// subsequent normal GetNextTrack() calls continue seamlessly from where this
-    /// left off — no duplicate or skipped tracks.
-    /// </summary>
     public List<Track> GenerateUpcoming(int count)
     {
         var queue = _library.GetAll();
         if (queue.Count == 0) return new List<Track>();
         EnsureIndexMap(queue);
 
-        var result = new List<Track>();
+        if (!IsShuffle)
+        {
+            var startIdx = CurrentTrack != null && _trackIndexMap.TryGetValue(CurrentTrack.Id, out var idx)
+                ? idx + 1
+                : 0;
+            var result = new List<Track>();
+            for (int i = 0; i < count && startIdx + i < queue.Count; i++)
+                result.Add(queue[startIdx + i]);
+            return result;
+        }
+
+        var shuffleResult = new List<Track>();
         for (int i = 0; i < count; i++)
         {
             if (_shuffleDeck.Count == 0 || _shuffleIndex >= _shuffleDeck.Count - 1)
@@ -109,13 +132,13 @@ public partial class PlaybackNavigator : ObservableObject
             _shuffleIndex++;
             var nextId = _shuffleDeck[_shuffleIndex];
 
-            Track? track = _trackIndexMap.TryGetValue(nextId, out var idx)
-                ? queue[idx]
+            Track? track = _trackIndexMap.TryGetValue(nextId, out var qIdx)
+                ? queue[qIdx]
                 : queue.FirstOrDefault(t => t.Id == nextId);
 
-            if (track != null) result.Add(track);
+            if (track != null) shuffleResult.Add(track);
         }
-        return result;
+        return shuffleResult;
     }
 
     public Track? GetNextTrack(Track? currentTrack)
@@ -123,8 +146,6 @@ public partial class PlaybackNavigator : ObservableObject
         var queue = _library.GetAll();
         if (queue.Count == 0) return null;
         EnsureIndexMap(queue);
-
-        if (currentTrack != null) _history.Push(currentTrack.Id);
 
         if (IsShuffle)
         {
@@ -215,17 +236,30 @@ public partial class PlaybackNavigator : ObservableObject
         if (queue.Count == 0) return null;
         EnsureIndexMap(queue);
 
-        if (IsShuffle && _history.Count > 0)
+        if (_history.Count > 0 && currentTrack != null)
         {
-            var prevId = _history.Pop();
-            Track? prevTrack = null;
-            if (_trackIndexMap.TryGetValue(prevId, out var pIdx))
-                prevTrack = queue[pIdx];
+            var lastHistoryId = _history[0];
+            
+            if (_trackIndexMap.TryGetValue(currentTrack.Id, out var currentIdx))
+            {
+                var sequentialPrevIdx = currentIdx > 0 ? currentIdx - 1 : -1;
+                var sequentialPrevId = sequentialPrevIdx >= 0 ? queue[sequentialPrevIdx].Id : (Guid?)null;
+                
+                if (sequentialPrevId != lastHistoryId)
+                {
+                    _history.RemoveAt(0);
+                    Track? prevTrack = queue.FirstOrDefault(t => t.Id == lastHistoryId);
+                    CurrentTrack = prevTrack;
+                    return prevTrack;
+                }
+            }
             else
-                prevTrack = queue.FirstOrDefault(t => t.Id == prevId);
-
-            CurrentTrack = prevTrack;
-            return prevTrack;
+            {
+                _history.RemoveAt(0);
+                Track? prevTrack = queue.FirstOrDefault(t => t.Id == lastHistoryId);
+                CurrentTrack = prevTrack;
+                return prevTrack;
+            }
         }
 
         if (currentTrack == null) return null;

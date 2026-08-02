@@ -27,7 +27,7 @@
         <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
             <TextBox Grid.Column="0"
                      Text="{Binding Library.SearchQuery, Mode=TwoWay}"
-                     PlaceholderText="Search (e.g., 'artist:tame impala' or 'is:favorite')..."
+                     PlaceholderText="Search (e.g., 'artist:tame impala', 'is:favorite', or 'ai:chill hip-hop')..."
                      VerticalAlignment="Center">
                 <TextBox.InnerLeftContent>
                     <material:MaterialIcon Kind="Magnify"
@@ -49,6 +49,10 @@
                                         <TextBlock Text="tag:chill or genre:chill — filter by tag" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
                                         <TextBlock Text="is:favorite — favorites only" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
                                         <TextBlock Text="-word or -artist:name — exclude matches" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                                        <TextBlock FontWeight="SemiBold" Text="AI Playlist (requires Ollama)"/>
+                                        <TextBlock Text="ai:{prompt} — generate playlist from description" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
+                                        <TextBlock Text="Example: ai:energetic workout hip-hop" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}" FontStyle="Italic"/>
                                     </StackPanel>
                                 </Flyout>
                             </Button.Flyout>
@@ -117,7 +121,7 @@
 
     <!--  COLUMN HEADERS  -->
     <Grid DockPanel.Dock="Top"
-          ColumnDefinitions="48,*,150,80,110,36,36"
+          ColumnDefinitions="48,*,150,80,80,110,36,36"
           Margin="16,8,16,2">
         <TextBlock Grid.Column="0" Classes="section-label"
                    Text="{Binding Library.ResultCountLabel}"
@@ -154,6 +158,10 @@
             </StackPanel>
         </Button>
         <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" HorizontalContentAlignment="Center">
+            <TextBlock Classes="section-label" Text="OFFLINE" Margin="0"/>
+        </Button>
+        <Button Grid.Column="5" Background="Transparent" BorderThickness="0" Padding="0"
                 Cursor="Hand" Command="{Binding Library.SortByDateCommand}"
                 HorizontalContentAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -201,7 +209,7 @@
         </ListBox.ItemContainerTheme>
         <ListBox.ItemTemplate>
             <DataTemplate x:DataType="models:Track">
-                <Grid ColumnDefinitions="48,*,150,80,110,36,36"
+                <Grid ColumnDefinitions="48,*,150,80,80,110,36,36"
                       Margin="8,5" MinHeight="44">
 
                     <!-- Now-playing accent bar -->
@@ -281,15 +289,31 @@
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
 
+                    <!-- Offline indicator -->
+                    <StackPanel Grid.Column="4"
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center">
+                        <material:MaterialIcon Kind="CheckCircle"
+                                               Width="16" Height="16"
+                                               Foreground="{StaticResource BrushGreen}"
+                                               IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        <material:MaterialIcon Kind="CloudOff"
+                                               Width="16" Height="16"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
+                    </StackPanel>
+
                     <!-- Date added -->
-                    <TextBlock Grid.Column="4"
+                    <TextBlock Grid.Column="5"
                                Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
                                Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{StaticResource FontSizeSm}"
                                VerticalAlignment="Center"/>
 
                     <!-- Favorite star -->
-                    <Button Grid.Column="5"
+                    <Button Grid.Column="6"
                             Classes="icon-btn"
                             Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
@@ -301,7 +325,7 @@
                     </Button>
 
                     <!-- More options -->
-                    <Button Grid.Column="6"
+                    <Button Grid.Column="7"
                             Classes="icon-btn"
                             VerticalAlignment="Center"
                             ToolTip.Tip="More options">

@@ -1,5 +1,4 @@
-// Views/Controls/QueueView.axaml.cs
-using System.Linq;
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using NullWave.Models;
@@ -7,10 +6,10 @@ using NullWave.ViewModels;
 
 namespace NullWave.Views.Controls;
 
-public partial class QueueView : Border
+public partial class QueueView : UserControl
 {
-    private static readonly DataFormat<Track> QueueTrackFormat =
-        DataFormat.CreateInProcessFormat<Track>("nullwave-queue-track");
+    private static readonly DataFormat<QueueEntry> QueueEntryFormat =
+        DataFormat.CreateInProcessFormat<QueueEntry>("QueueEntry");
 
     public QueueView()
     {
@@ -19,51 +18,44 @@ public partial class QueueView : Border
 
     private void OnTrackDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is MainViewModel vm && sender is Grid grid && grid.DataContext is Track track)
+        if (sender is Control control && control.Tag is QueueEntry entry)
         {
-            vm.Queue.PlayNowCommand.Execute(track);
+            if (DataContext is MainViewModel vm)
+                vm.Queue.PlayNowCommand.Execute(entry.Track);
         }
     }
 
     private async void OnQueueItemPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (DataContext is not MainViewModel) return;
-        if (sender is not Border handle || handle.Tag is not Track track) return;
-        if (!e.GetCurrentPoint(handle).Properties.IsLeftButtonPressed) return;
+        if (sender is Control control && control.Tag is QueueEntry entry)
+        {
+            var dataTransfer = new DataTransfer();
+            dataTransfer.Add(DataTransferItem.Create(QueueEntryFormat, entry));
 
-        var dataItem = new DataTransferItem();
-        dataItem.Set(QueueTrackFormat, track);
-
-        var data = new DataTransfer();
-        data.Add(dataItem);
-
-        await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
+            await DragDrop.DoDragDropAsync(e, dataTransfer, DragDropEffects.Move);
+        }
     }
 
     private void OnQueueItemDragEnter(object? sender, DragEventArgs e)
     {
-        if (sender is Grid targetGrid && !targetGrid.Classes.Contains("drop-target"))
-            targetGrid.Classes.Add("drop-target");
+        e.DragEffects = e.DataTransfer.Contains(QueueEntryFormat)
+            ? DragDropEffects.Move
+            : DragDropEffects.None;
     }
 
     private void OnQueueItemDragLeave(object? sender, DragEventArgs e)
     {
-        if (sender is Grid targetGrid)
-            targetGrid.Classes.Remove("drop-target");
+        e.DragEffects = DragDropEffects.None;
     }
 
     private void OnQueueItemDrop(object? sender, DragEventArgs e)
     {
+        if (e.DataTransfer.TryGetValue(QueueEntryFormat) is not { } entry) return;
+        if (sender is not Control control || control.Tag is not QueueEntry targetEntry) return;
         if (DataContext is not MainViewModel vm) return;
-        if (sender is not Grid targetGrid) return;
 
-        targetGrid.Classes.Remove("drop-target");
-
-        if (targetGrid.Tag is not Track targetTrack) return;
-        var draggedTrack = e.DataTransfer.TryGetValue(QueueTrackFormat);
-        if (draggedTrack is null || draggedTrack.Id == targetTrack.Id) return;
-
-        var newIndex = vm.Queue.Tracks.ToList().FindIndex(t => t.Id == targetTrack.Id);
-        vm.Queue.MoveTrackTo(draggedTrack, newIndex);
+        var current = vm.Queue.Tracks;
+        var newIndex = current.IndexOf(targetEntry);
+        vm.Queue.MoveTrackTo(entry.Track, newIndex);
     }
 }

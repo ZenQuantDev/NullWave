@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,13 +45,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void ScheduleSave()
     {
-        // 1. Cancel the pending save task
         _debounceCts?.Cancel();
-        
-        // 2. FIX: Dispose of the old CTS to prevent memory leaks
         _debounceCts?.Dispose(); 
         
-        // 3. Create a fresh token source for this change instance
         _debounceCts = new CancellationTokenSource();
         var token = _debounceCts.Token;
 
@@ -61,19 +55,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             try
             {
-                // Wait out the user's rapid modifications
                 await Task.Delay(DebounceMs, token);
                 
                 if (!token.IsCancellationRequested)
                 {
-                    // 4. FIX: Call the synchronous Save method instead of SaveAsync
                     _prefsService.Save(); 
                     Log.Information("[Settings] Debounced save successfully written to disk.");
                 }
             }
             catch (OperationCanceledException)
             {
-                // Intentionally swallowed: This fires every time a user types/clicks fast
                 Log.Verbose("[Settings] Previous save execution shifted; token canceled.");
             }
             catch (Exception ex)
@@ -83,96 +74,54 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }, token);
     }
 
-    // API Keys (Explicit properties to sync with KeyStore)
+    // API Keys
     private string _youtubeApiKey = string.Empty;
     public string YouTubeApiKey
     {
         get => _youtubeApiKey;
-        set
-        {
-            if (SetProperty(ref _youtubeApiKey, value))
-            {
-                // Deferred save handled by SaveKeysCommand
-            }
-        }
+        set { if (SetProperty(ref _youtubeApiKey, value)) { } }
     }
 
     private string _spotifyClientId = string.Empty;
     public string SpotifyClientId
     {
         get => _spotifyClientId;
-        set
-        {
-            if (SetProperty(ref _spotifyClientId, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _spotifyClientId, value)) { } }
     }
 
     private string _spotifyClientSecret = string.Empty;
     public string SpotifyClientSecret
     {
         get => _spotifyClientSecret;
-        set
-        {
-            if (SetProperty(ref _spotifyClientSecret, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _spotifyClientSecret, value)) { } }
     }
 
     private string _soundCloudClientId = string.Empty;
     public string SoundCloudClientId
     {
         get => _soundCloudClientId;
-        set
-        {
-            if (SetProperty(ref _soundCloudClientId, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _soundCloudClientId, value)) { } }
     }
 
     private string _lastFmApiKey = string.Empty;
     public string LastFmApiKey
     {
         get => _lastFmApiKey;
-        set
-        {
-            if (SetProperty(ref _lastFmApiKey, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _lastFmApiKey, value)) { } }
     }
 
     private string _lastFmApiSecret = string.Empty;
     public string LastFmApiSecret
     {
         get => _lastFmApiSecret;
-        set
-        {
-            if (SetProperty(ref _lastFmApiSecret, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _lastFmApiSecret, value)) { } }
     }
 
     private string _openWeatherApiKey = string.Empty;
     public string OpenWeatherApiKey
     {
         get => _openWeatherApiKey;
-        set
-        {
-            if (SetProperty(ref _openWeatherApiKey, value))
-            {
-                // Deferred save
-            }
-        }
+        set { if (SetProperty(ref _openWeatherApiKey, value)) { } }
     }
 
     // Preferences pass-through properties
@@ -184,21 +133,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); ScheduleSave(); } }
     
-    // FIX: Added missing properties for AdvancedTab bindings
     public bool AutoCleanMetadata { get => _prefsService.Current.AutoCleanMetadata; set { _prefsService.Update(p => p.AutoCleanMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool PreventDuplicateDownloads { get => _prefsService.Current.PreventDuplicateDownloads; set { _prefsService.Update(p => p.PreventDuplicateDownloads = value); OnPropertyChanged(); ScheduleSave(); } }
 
-    // Download speed & auth (Advanced tab): aria2c multi-connection downloads and
-    // browser-cookie auth, both consumed directly by DownloadService.
     public bool UseAria2c { get => _prefsService.Current.UseAria2c; set { _prefsService.Update(p => p.UseAria2c = value); OnPropertyChanged(); ScheduleSave(); } }
     public string YtDlpBrowserCookies { get => _prefsService.Current.YtDlpBrowserCookies; set { _prefsService.Update(p => p.YtDlpBrowserCookies = value); OnPropertyChanged(); ScheduleSave(); } }
     public string[] BrowserCookieOptions => new[] { "", "firefox", "chrome", "chromium", "brave", "vivaldi", "edge" };
 
-    /// <summary>
-    /// Logging mode toggle: Default (Information+) vs Advanced/Verbose (Debug+).
-    /// Updates NullWaveLogConfig's LoggingLevelSwitch immediately — no restart needed,
-    /// since Serilog's LoggingLevelSwitch is designed to be flipped at runtime.
-    /// </summary>
     public bool VerboseLogging
     {
         get => _prefsService.Current.VerboseLogging;
@@ -283,7 +224,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         set { _prefsService.Update(p => p.AutoPowerModelSwitch = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, PerformanceModel, value); }
     }
 
-    // Local UI State with [ObservableProperty]
+    // Queue Auto-Fill Settings
+    public int QueueAutoFillSize 
+    { 
+        get => _prefsService.Current.QueueAutoFillSize; 
+        set 
+        { 
+            _prefsService.Update(p => p.QueueAutoFillSize = value); 
+            OnPropertyChanged(); 
+            ScheduleSave(); 
+        } 
+    }
+    
+    public bool QueueManualInsertAtBlockEnd 
+    { 
+        get => _prefsService.Current.QueueManualInsertAtBlockEnd; 
+        set 
+        { 
+            _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value); 
+            OnPropertyChanged(); 
+            ScheduleSave(); 
+        } 
+    }
+
     [ObservableProperty] private int _currentSectionIndex = 0;
     [ObservableProperty] private string _currentSettingsPage = "General";
     [ObservableProperty] private string _externalAIStatus = string.Empty;
@@ -320,7 +283,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(AIToggleButtonLabel))]
     private AIServiceState _aiServiceState = AIServiceState.Stopped;
 
-    // Last.fm Connection State
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LastFmStateLabel))]
     [NotifyPropertyChangedFor(nameof(IsLastFmConnected))]
@@ -381,12 +343,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? LastFmConfirmAuthRequested;
     public event Action? LastFmDisconnectRequested;
     public event Action? ClearYtDlpCacheRequested;
-    public event Action<bool>? SweepOrphanedFilesRequested; // bool = dryRun
+    public event Action<bool>? SweepOrphanedFilesRequested;
     public event Action? VacuumDatabaseRequested;
     public event Action? VerifyLinksRequested;
     public event Action? ForceCleanTitlesRequested;
     public event Action? MergeSimilarArtistsRequested;
-    public event Action<bool>? RemoveDuplicatesRequested; // bool = dryRun
+    public event Action<bool>? RemoveDuplicatesRequested;
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
     {
@@ -417,9 +379,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _ = ProbeOllamaOnStartupAsync();
         StartAIHealthCheck();
 
-        // =========================================================================
-        // Phase 13: Build Plugin Rows for Settings UI
-        // =========================================================================
         PluginRows = new ObservableCollection<PluginRowViewModel>();
         foreach (var plugin in _plugins.Plugins)
         {
@@ -704,24 +663,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var info = detector.Detect();
             HardwareInfo = $"CPU: {info.CpuCores} cores | RAM: {info.RamGB}GB\nGPU: {info.GpuType} ({info.GpuVramGB}GB VRAM)\nRecommended: {info.RecommendedModel}\n{info.RecommendationReason}";
 
-            // Grab the current state of preferences *before* touching properties
             var currentPrefs = _prefsService.Current;
 
-            // FIX 1: Only fall back to hardware recommendations if no saved preference exists
             if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel))
             {
                 SelectedModel = info.RecommendedModel;
             }
             else
             {
-                // Refresh UI silently without triggering the setter (which would overwrite disk prefs)
                 OnPropertyChanged(nameof(SelectedModel));
             }
 
             var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
             var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
 
-            // FIX 2: Only apply defaults if the user has never configured them
             if (string.IsNullOrEmpty(currentPrefs.BatteryModel))
             {
                 BatteryModel = suggestedBattery;
@@ -740,7 +695,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(PerformanceModel));
             }
 
-            // FIX 3: Actually trigger system telemetry check
             UpdatePowerState();
         }
         catch (Exception ex) { HardwareInfo = $"Detection failed: {ex.Message}"; }
@@ -751,7 +705,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            // Since you are running on Fedora Linux, we look right at the power_supply sysfs nodes
             if (OperatingSystem.IsLinux())
             {
                 bool onBattery = true;
@@ -761,7 +714,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 {
                     foreach (var dir in System.IO.Directory.GetDirectories(sysfsPath))
                     {
-                        // Target standard AC adapter designator names
                         if (dir.Contains("AC") || dir.Contains("ADP") || dir.Contains("ACAD"))
                         {
                             var onlineFile = System.IO.Path.Combine(dir, "online");
@@ -777,7 +729,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else if (OperatingSystem.IsWindows())
             {
-                // Safe fallback logic for native Windows power telemetry checks
                 PowerStateLabel = "AC Power Connected";
             }
             else
@@ -805,7 +756,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ModelDownloadStatus = $"✓ {SelectedModel} downloaded successfully";
             await ToggleAIServiceAsync();
         }
-        catch (Exception ex) { ModelDownloadStatus = $"✗ Download failed: {ex.Message}"; }
+        catch (Exception ex) { ModelDownloadStatus = $" Download failed: {ex.Message}"; }
         finally { IsDownloadingModel = false; }
     }
 
@@ -870,6 +821,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
             bool running = await _localAI.PingAsync();
             if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
+            
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = running ? PluginState.Available : PluginState.Unavailable;
         }
         catch { }
     }
@@ -887,6 +841,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             bool reachable = await _localAI.PingAsync();
             var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
             if (AiServiceState != newState) AiServiceState = newState;
+
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = reachable ? PluginState.Available : PluginState.Error;
         }
         catch { }
     }

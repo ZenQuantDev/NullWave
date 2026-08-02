@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
+using SQLite;
 
 namespace NullWave.Models;
 
@@ -22,6 +24,7 @@ public class Track : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+    [PrimaryKey]
     public Guid Id { get; set; } = Guid.NewGuid();
     
     public string Title
@@ -89,6 +92,9 @@ public class Track : INotifyPropertyChanged
     public TimeSpan Duration { get; set; } = TimeSpan.Zero;
 
     public bool TitleForceCleaned { get; set; } = false;
+
+    [Ignore]
+    public bool IsOfflineReady => !string.IsNullOrEmpty(FilePath) && File.Exists(FilePath);
 }
 
 public enum TrackSource 

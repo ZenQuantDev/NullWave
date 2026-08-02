@@ -132,6 +132,26 @@
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="8,4">
             <StackPanel Spacing="0">
+                <!-- PLAYLISTS HEADER WITH "+" BUTTON -->
+                <Grid ColumnDefinitions="*,Auto" Margin="4,0,0,12">
+                    <TextBlock Grid.Column="0" Classes="section-label" Text="PLAYLISTS" Margin="0"/>
+                    <Button Grid.Column="1" Classes="icon-btn sm" ToolTip.Tip="Create new" VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="Plus" Width="14" Height="14"/>
+                        <Button.Flyout>
+                            <Flyout Placement="Right">
+                                <StackPanel Spacing="8" Margin="4">
+                                    <Button Content="Playlist" 
+                                            Command="{Binding Playlist.CreatePlaylistCommand}" 
+                                            HorizontalAlignment="Stretch"/>
+                                    <Button Content="Folder" 
+                                            Command="{Binding Playlist.CreateFolderCommand}" 
+                                            HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
+
                 <!-- DATA-DRIVEN LIBRARY SECTION -->
                 <Grid ColumnDefinitions="*,Auto" Margin="4,0,0,12">
                     <TextBlock Grid.Column="0" Classes="section-label" Text="LIBRARY" Margin="0"/>

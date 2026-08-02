@@ -1,4 +1,3 @@
-// ViewModels/Playback/QueueViewModel.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,7 +29,8 @@ public class QueueViewModel : ViewModelBase
     public double PanelWidth => _isOpen ? 320 : 0;
     public double PanelOpacity => _isOpen ? 1.0 : 0.0;
 
-    public BulkObservableCollection<Track> Tracks { get; } = new();
+    // Changed to QueueEntry to match the new LibraryService signature
+    public BulkObservableCollection<QueueEntry> Tracks { get; } = new();
 
     public ICommand CloseCommand { get; }
     public ICommand ClearQueueCommand { get; }
@@ -49,12 +49,16 @@ public class QueueViewModel : ViewModelBase
 
         CloseCommand = new RelayCommand(() => IsOpen = false);
         ClearQueueCommand = new RelayCommand(() => _library.ClearQueue());
+        
+        // CommandParameter in XAML passes the Track object
         RemoveFromQueueCommand = new RelayCommand<Track>(t =>
         {
             if (t != null) _library.RemoveFromQueue(t.Id);
         });
+        
         MoveUpCommand = new RelayCommand<Track>(t => Move(t, -1));
         MoveDownCommand = new RelayCommand<Track>(t => Move(t, 1));
+        
         PlayNowCommand = new RelayCommand<Track>(t =>
         {
             if (t != null) PlayTrackRequested?.Invoke(t);
@@ -64,7 +68,7 @@ public class QueueViewModel : ViewModelBase
     public void MoveTrackTo(Track track, int newIndex)
     {
         var current = _library.GetQueue().ToList();
-        var oldIndex = current.FindIndex(t => t.Id == track.Id);
+        var oldIndex = current.FindIndex(e => e.Track.Id == track.Id);
         if (oldIndex < 0 || newIndex < 0 || newIndex >= current.Count || oldIndex == newIndex) return;
         _library.MoveQueueItem(oldIndex, newIndex);
     }
@@ -78,7 +82,7 @@ public class QueueViewModel : ViewModelBase
     {
         if (track == null) return;
         var current = _library.GetQueue().ToList();
-        var index = current.FindIndex(t => t.Id == track.Id);
+        var index = current.FindIndex(e => e.Track.Id == track.Id);
         if (index < 0) return;
         _library.MoveQueueItem(index, index + delta);
     }

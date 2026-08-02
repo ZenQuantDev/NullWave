@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Future_0.5.0] - 02-Aug-2026
+
+### Added
+- **AI Playlist Generation**: Users can now type `ai: [prompt]` in the search bar to generate playlists using the local AI model. Generated playlists are automatically saved in a dedicated "AI Playlists" folder.
+- **Live Activity Notifications**: Maintenance tasks (Sweep Orphaned Files, Vacuum Database, Verify Links, Repair Paths, Reimport Assets, Force Meta Resync, Clear Thumbnails) now show live progress toasts instead of just logging to the console.
+- **Plugin Toggle Feedback**: Toggling plugins in the Settings tab now triggers immediate success/warning toasts.
+- **Folder Support**: Added `PlaylistFolderRecord` and `CreateFolderDialog` to allow organizing playlists into folders.
+
+### Fixed
+- **Queue Oscillation**: Fixed a critical bug where tracks would bounce back and forth in the queue due to history stack corruption in `PlaybackNavigator`.
+- **Crossfade Segfault**: Added a safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
+- **Queue Management**: Refactored queue logic to use `QueueEntry`, properly distinguishing between manually added tracks and auto-filled tracks.
+
+### Changed
+- **Preferences**: Removed redundant `EnableSoundCloud` property (SoundCloud downloads are now fully governed by `EnableYtDlp`).
+- **UI**: Updated `QueueView`, `SidebarView`, and `TrackListView` to support new features and styling.
+
 ## [0.4.2] - 19-Jul-2026
 
 ### Added

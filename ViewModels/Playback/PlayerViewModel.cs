@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Material.Icons;
 using NullWave.Helpers;
@@ -24,6 +24,7 @@ public class PlayerViewModel : ViewModelBase
     private readonly LibraryService _library;
     private readonly SettingsViewModel _settings;
     private readonly PlaybackNavigator _navigator;
+    private readonly MetadataService _metadata;
 
     private Track? _currentTrack;
     private PlaybackState _state = PlaybackState.Stopped;
@@ -45,7 +46,6 @@ public class PlayerViewModel : ViewModelBase
 
     private DateTime _lastNavigationTime = DateTime.MinValue;
     private static readonly TimeSpan NavigationDebounce = TimeSpan.FromMilliseconds(300);
-    private readonly MetadataService _metadata;
 
     public PlayerViewModel(
         PlaybackService playback,
@@ -171,6 +171,9 @@ public class PlayerViewModel : ViewModelBase
 
             _navigator.IsShuffle      = IsShuffle;
             _navigator.IsSmartShuffle = _shuffleMode == ShuffleMode.Smart && aiEnabled;
+            
+            _library.ClearAutoQueue();
+            RefillAutoQueue();
         });
 
         CycleRepeatCommand = new RelayCommand(() =>
@@ -181,6 +184,9 @@ public class PlayerViewModel : ViewModelBase
             OnPropertyChanged(nameof(RepeatTooltip));
             OnPropertyChanged(nameof(IsRepeat));
             OnPropertyChanged(nameof(RepeatForeground));
+            
+            _library.ClearAutoQueue();
+            RefillAutoQueue();
         });
 
         ToggleMuteCommand = new RelayCommand(() =>
@@ -211,30 +217,15 @@ public class PlayerViewModel : ViewModelBase
         _navigator.SkipPenaltyCap = cap;
     }
 
-    private void RecordSkipIfEarly()
+    private void RefillAutoQueue()
     {
-        if (_currentTrack == null) return;
-        if (_trackStartTime == DateTime.MinValue) return;
-        
-        var elapsed = (DateTime.UtcNow - _trackStartTime).TotalSeconds;
-        var window  = _settings.SkipPenaltyWindowSeconds;
+        var currentAutoCount = _library.GetQueue().Count(e => !e.IsManual);
+        var target = _settings.QueueAutoFillSize;
+        if (currentAutoCount >= target) return;
 
-        if (elapsed < 0.5) return;
-
-        if (elapsed <= window)
-        {
-            _currentTrack.SkipCount++;
-            _currentTrack.LastSkipped = DateTime.UtcNow;
-            _library.Update(_currentTrack);
-
-            Log.Information("[Player] Skip penalty recorded for '{Title}' " +
-                "(skipped after {Elapsed:F1}s, total skips: {Count})",
-                _currentTrack.Title, elapsed, _currentTrack.SkipCount);
-
-            NullActionLogger.User("SkipPenalty",
-                $"track={_currentTrack.Id} elapsed={elapsed:F1}s skips={_currentTrack.SkipCount}",
-                nameof(PlayerViewModel));
-        }
+        var needed = target - currentAutoCount;
+        var upcoming = _navigator.GenerateUpcoming(needed);
+        _library.FillQueue(upcoming);
     }
 
     private void CheckCrossfade(float pos)
@@ -249,9 +240,18 @@ public class PlayerViewModel : ViewModelBase
         {
             _hasTriggeredCrossfade = true;
 
-            // Queue takes priority for crossfade target too
-            var queue = _library.GetQueue();
-            var next = queue.Count > 0 ? queue[0] : _navigator.GetNextTrack(_currentTrack);
+            // FIX: Actually consume the queue entry so the queue stays in sync with playback.
+            var queueEntries = _library.GetQueue();
+            Track? next;
+            if (queueEntries.Count > 0)
+            {
+                next = queueEntries[0].Track;
+                _library.DequeueNext(); 
+            }
+            else
+            {
+                next = _navigator.GetNextTrack(_currentTrack);
+            }
             
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && System.IO.File.Exists(next.FilePath))
             {
@@ -293,10 +293,7 @@ public class PlayerViewModel : ViewModelBase
         }
     }
 
-    public string CurrentTrackDisplay => _currentTrack == null
-        ? "No track playing"
-        : _currentTrack.Title;
-
+    public string CurrentTrackDisplay => _currentTrack == null ? "No track playing" : _currentTrack.Title;
     public string CurrentArtistDisplay => _currentTrack?.Artist ?? string.Empty;
 
     private string? _albumArtPath;
@@ -326,7 +323,6 @@ public class PlayerViewModel : ViewModelBase
     }
 
     public bool IsPlaying => _state == PlaybackState.Playing;
-
     public MaterialIconKind PlayPauseIconKind => IsPlaying ? MaterialIconKind.Pause : MaterialIconKind.Play;
 
     public float Position
@@ -377,38 +373,6 @@ public class PlayerViewModel : ViewModelBase
         private set { _isDownloading = value; OnPropertyChanged(); }
     }
 
-    private bool _smartShuffleEnabled;
-    public bool SmartShuffleEnabled
-    {
-        get => _smartShuffleEnabled;
-        set
-        {
-            if (_smartShuffleEnabled == value) return;
-            _smartShuffleEnabled = value;
-            OnPropertyChanged();
-
-            _navigator.IsSmartShuffle = value;
-            if (value && _shuffleMode == ShuffleMode.Off)
-            {
-                _shuffleMode = ShuffleMode.Smart;
-                _navigator.IsShuffle = true;
-                OnPropertyChanged(nameof(ShuffleMode));
-                OnPropertyChanged(nameof(IsShuffle));
-                OnPropertyChanged(nameof(ShuffleIconKind));
-                OnPropertyChanged(nameof(ShuffleTooltip));
-                OnPropertyChanged(nameof(ShuffleForeground));
-            }
-            else if (!value && _shuffleMode == ShuffleMode.Smart)
-            {
-                _shuffleMode = ShuffleMode.Normal;
-                OnPropertyChanged(nameof(ShuffleMode));
-                OnPropertyChanged(nameof(ShuffleIconKind));
-                OnPropertyChanged(nameof(ShuffleTooltip));
-                OnPropertyChanged(nameof(ShuffleForeground));
-            }
-        }
-    }
-
     public float DownloadProgress
     {
         get => _downloadProgress;
@@ -447,14 +411,12 @@ public class PlayerViewModel : ViewModelBase
     public bool IsRepeat => _navigator.RepeatMode != RepeatMode.None;
 
     public MaterialIconKind ShuffleIconKind => _shuffleMode == ShuffleMode.Smart ? MaterialIconKind.AutoFixHigh : MaterialIconKind.Shuffle;
-
     public MaterialIconKind RepeatIconKind => RepeatMode switch
     {
         RepeatMode.One => MaterialIconKind.RepeatOnce,
         RepeatMode.All => MaterialIconKind.Repeat,
         _ => MaterialIconKind.RepeatOff
     };
-
     public MaterialIconKind VolumeIconKind => _isMuted || _volume == 0 ? MaterialIconKind.VolumeMute : (_volume < 0.5f ? MaterialIconKind.VolumeLow : MaterialIconKind.VolumeHigh);
 
     public string ShuffleTooltip => _shuffleMode switch
@@ -501,10 +463,14 @@ public class PlayerViewModel : ViewModelBase
     {
         if (track == null) return;
 
+        if (_currentTrack != null && _currentTrack.Id != track.Id)
+        {
+            _navigator.RecordPlay(_currentTrack);
+        }
+
         _hasTriggeredCrossfade = false;
 
-        if (_currentTrack != null && track.Id == _currentTrack.Id
-            && _state == PlaybackState.Playing)
+        if (_currentTrack != null && track.Id == _currentTrack.Id && _state == PlaybackState.Playing)
         {
             ShowAlreadyPlayingToast = true;
             _ = Task.Run(async () => {
@@ -533,15 +499,12 @@ public class PlayerViewModel : ViewModelBase
                 IsDownloading = true;
                 StatusText = "Downloading before playback...";
                 NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-                _ = _download.DownloadAsync(
-                    track.Id.ToString(), track.Url,
-                    _settings.AudioFormat, _settings.AudioQuality);
+                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality);
             }
             else
             {
                 StatusText = "Download already in progress...";
-                Log.Debug("[{Source}] Skipped duplicate download for {Url}",
-                    nameof(PlayerViewModel), track.Url);
+                Log.Debug("[{Source}] Skipped duplicate download for {Url}", nameof(PlayerViewModel), track.Url);
             }
             return;
         }
@@ -640,16 +603,41 @@ public class PlayerViewModel : ViewModelBase
         _download.CancelCurrentDownload();
         IsDownloading = false;
 
-        // Queue takes priority over normal shuffle/repeat/library navigation
         var queued = _library.DequeueNext();
         if (queued != null)
         {
             PlayTrack(queued);
+            RefillAutoQueue();
             return;
         }
 
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null) PlayTrack(next);
         else StatusText = "End of library";
+    }
+
+    private void RecordSkipIfEarly()
+    {
+        if (_currentTrack == null) return;
+        if (_trackStartTime == DateTime.MinValue) return;
+        
+        var elapsed = (DateTime.UtcNow - _trackStartTime).TotalSeconds;
+        var window  = _settings.SkipPenaltyWindowSeconds;
+
+        if (elapsed < 0.5) return;
+
+        if (elapsed <= window)
+        {
+            _currentTrack.SkipCount++;
+            _currentTrack.LastSkipped = DateTime.UtcNow;
+            _library.Update(_currentTrack);
+
+            Log.Information("[Player] Skip penalty recorded for '{Title}' (skipped after {Elapsed:F1}s, total skips: {Count})",
+                _currentTrack.Title, elapsed, _currentTrack.SkipCount);
+
+            NullActionLogger.User("SkipPenalty",
+                $"track={_currentTrack.Id} elapsed={elapsed:F1}s skips={_currentTrack.SkipCount}",
+                nameof(PlayerViewModel));
+        }
     }
 }

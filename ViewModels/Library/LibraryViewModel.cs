@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using Serilog;
 using NullWave.Models;
 using NullWave.Services;
+using NullWave.Services.SmartSorting;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 
@@ -20,8 +21,10 @@ namespace NullWave.ViewModels;
 public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _library;
+    private readonly LocalAIService _localAI;
     private CancellationTokenSource? _stateCts;
-    private string? _selectedArtistFilter; // Direct artist filter, bypasses search
+    private CancellationTokenSource? _aiPromptCts;
+    private string? _selectedArtistFilter;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSearchQuery))]
@@ -99,23 +102,20 @@ public partial class LibraryViewModel : ObservableObject
 
     public ObservableCollection<ArtistGroup> ArtistGroups { get; } = new();
     public event Action? NavigateToLibraryRequested;
-
     public event Action<Track>? TrackDetailRequested;
     public event Action<Track>? PlayTrackRequested;
+    public event Action<string, System.Collections.Generic.List<Track>>? AiPlaylistRequested;
 
-    public LibraryViewModel(LibraryService library)
+    public LibraryViewModel(LibraryService library, LocalAIService localAI)
     {
         _library = library;
+        _localAI = localAI;
         TriggerRefresh(debounce: false);
         RefreshArtistGroups();
     }
 
     public void RefreshArtistGroups()
     {
-        // Buckets keyed by normalized identity so "Kanye West & Malik Yusef" and
-        // "Kanye West" both contribute to Kanye West's total track count, while
-        // each distinct real artist still gets its own bucket. HashSet<Guid> dedupes
-        // a track that credits the same artist twice within one string.
         var buckets = new Dictionary<string, (string DisplayName, HashSet<Guid> TrackIds)>();
 
         foreach (var track in _library.GetAll())
@@ -147,18 +147,50 @@ public partial class LibraryViewModel : ObservableObject
     private void SelectArtist(ArtistGroup? group)
     {
         if (group == null) return;
-        
-        // Use direct artist filter instead of search syntax to avoid whitespace/Unicode issues
         _selectedArtistFilter = group.Name;
-        SearchQuery = string.Empty; // Clear regular search
+        SearchQuery = string.Empty;
         NavigateToLibraryRequested?.Invoke();
         TriggerRefresh(debounce: false);
     }
 
     partial void OnSearchQueryChanged(string value) 
     {
-        _selectedArtistFilter = null; // Clear artist filter when regular search is used
-        TriggerRefresh(debounce: true);
+        _selectedArtistFilter = null;
+        
+        // FIX: Wrap Cancel/Dispose in try-catch to handle race condition
+        // where the background AI task disposes the CTS before we can cancel it
+        try
+        {
+            _aiPromptCts?.Cancel();
+            _aiPromptCts?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            Log.Verbose("[LibraryViewModel] CTS already disposed, race condition handled gracefully");
+        }
+
+        if (value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
+        {
+            _aiPromptCts = new CancellationTokenSource();
+            var token = _aiPromptCts.Token;
+            
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(1500, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await HandleAIPromptAsync(value);
+                    }
+                }
+                catch (TaskCanceledException) { }
+            });
+        }
+        else
+        {
+            TriggerRefresh(debounce: true);
+        }
     }
     
     partial void OnCurrentSortChanged(SortField value) => TriggerRefresh(debounce: false);
@@ -170,8 +202,17 @@ public partial class LibraryViewModel : ObservableObject
 
     private void TriggerRefresh(bool debounce = false)
     {
-        _stateCts?.Cancel();
-        _stateCts?.Dispose();
+        // FIX: Apply same guard to _stateCts to prevent same race condition
+        try
+        {
+            _stateCts?.Cancel();
+            _stateCts?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            Log.Verbose("[LibraryViewModel] _stateCts already disposed, race condition handled gracefully");
+        }
+
         _stateCts = new CancellationTokenSource();
         var token = _stateCts.Token;
 
@@ -256,7 +297,7 @@ public partial class LibraryViewModel : ObservableObject
                 "is" => (value == "favorite" || value == "fav")
                     ? (Func<Track, bool>)(t => t.IsFavorite)
                     : t => true,
-                _ => t => true // unknown key, ignore rather than break the whole query
+                _ => t => true
             };
 
             filters.Add(negate ? (t => !filter(t)) : filter);
@@ -269,7 +310,7 @@ public partial class LibraryViewModel : ObservableObject
             var colonIndex = word.IndexOf(':');
             if (colonIndex > 0)
             {
-                FlushPending(); // a new key: starts — close out whatever we were accumulating
+                FlushPending();
                 pendingKey = word[..colonIndex];
                 var firstValuePart = word[(colonIndex + 1)..];
                 if (!string.IsNullOrEmpty(firstValuePart))
@@ -277,11 +318,10 @@ public partial class LibraryViewModel : ObservableObject
             }
             else if (pendingKey != null)
             {
-                pendingValueParts.Add(word); // still part of the previous key's value
+                pendingValueParts.Add(word);
             }
             else if (word.StartsWith('-'))
             {
-                // bare "-word" excludes tracks matching that word in Title/Artist
                 var excluded = word[1..].ToLowerInvariant();
                 filters.Add(t => !t.Title.ToLowerInvariant().Contains(excluded)
                                && !t.Artist.ToLowerInvariant().Contains(excluded));
@@ -311,7 +351,6 @@ public partial class LibraryViewModel : ObservableObject
     private (IEnumerable<Track> Results, bool WasSearchExecuted) FetchLibraryDataInternal(
         string? query, string? artistFilter, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
     {
-        // Step 1: pick the base candidate set for the active view/filter.
         IEnumerable<Track> baseSet = view switch
         {
             LibraryView.Favorites => _library.GetFavorites(),
@@ -320,9 +359,6 @@ public partial class LibraryViewModel : ObservableObject
             _                     => _library.GetAll()
         };
 
-        // Step 1b: Apply direct artist filter if set (bypasses search syntax).
-        // Matches against each individual credited artist, not the whole raw string,
-        // so clicking "Kanye West" also surfaces tracks crediting "Kanye West & Malik Yusef".
         if (!string.IsNullOrEmpty(artistFilter))
         {
             var normalizedFilter = LibraryService.NormalizeArtistKey(artistFilter);
@@ -330,7 +366,6 @@ public partial class LibraryViewModel : ObservableObject
                 .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedFilter));
         }
 
-        // Step 2: Apply Smart Search (handles both global text and key:value filters)
         bool wasSearch = false;
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -339,10 +374,9 @@ public partial class LibraryViewModel : ObservableObject
         }
         else if (!string.IsNullOrEmpty(artistFilter))
         {
-            wasSearch = true; // Artist filter counts as a search
+            wasSearch = true;
         }
 
-        // Step 3: sort always applies too, with secondary tie-breakers to stabilize groups
         IEnumerable<Track> sorted = sort switch
         {
             SortField.Title      => baseSet.OrderBy(t => t.Title).ThenBy(t => t.Artist),
@@ -491,6 +525,98 @@ public partial class LibraryViewModel : ObservableObject
         catch (Exception ex)
         {
             NullActionLogger.Error("LibraryViewModel", ex, "Failed to copy target link asset route destination to local clipboard stack.");
+        }
+    }
+
+    private async Task HandleAIPromptAsync(string prompt)
+    {
+        var query = prompt.Substring(3).Trim();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return;
+        }
+
+        LiveNotification? activity = null;
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            activity = ToastService.Instance.StartLiveActivity(
+                "AI Playlist Generation",
+                "Analyzing your library...",
+                isIndeterminate: true
+            );
+        });
+
+        try
+        {
+            var allTracks = _library.GetAll().ToArray();
+            var keywords = query.ToLowerInvariant()
+                .Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(k => k.Length > 2)
+                .ToArray();
+
+            var candidateTracks = allTracks.Where(t =>
+            {
+                var searchText = $"{t.Title} {t.Artist} {string.Join(" ", t.Tags)}".ToLowerInvariant();
+                return keywords.Any(k => searchText.Contains(k));
+            }).ToArray();
+
+            if (candidateTracks.Length == 0)
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (activity != null) ToastService.Instance.CompleteLiveActivity(activity, "No matching tracks found.");
+                });
+                return;
+            }
+
+            const int MaxCandidatesForAI = 60;
+            Track[] finalCandidates = candidateTracks;
+            
+            if (candidateTracks.Length > MaxCandidatesForAI)
+            {
+                finalCandidates = candidateTracks
+                    .OrderByDescending(t => t.IsFavorite)
+                    .ThenByDescending(t => t.PlayCount)
+                    .Take(MaxCandidatesForAI)
+                    .ToArray();
+                
+                Log.Information("[LibraryViewModel] AI prompt matched {Total} tracks, capped to {Capped} candidates", 
+                    candidateTracks.Length, finalCandidates.Length);
+            }
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (activity != null) ToastService.Instance.UpdateLiveActivity(activity, message: $"Found {finalCandidates.Length} candidates. Asking AI to rank...");
+            });
+
+            var rankedIds = await _localAI.RankTracksForMoodAsync(
+                query, 
+                "custom", 
+                20.0,
+                finalCandidates,
+                maxResults: Math.Min(50, finalCandidates.Length)
+            );
+
+            var rankedTracks = rankedIds
+                .Select(id => allTracks.FirstOrDefault(t => t.Id.ToString() == id))
+                .Where(t => t != null)
+                .Cast<Track>()
+                .ToList();
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                AiPlaylistRequested?.Invoke(query, rankedTracks);
+                if (activity != null) ToastService.Instance.CompleteLiveActivity(activity, $"AI playlist '{query}' created with {rankedTracks.Count} tracks!");
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "AI playlist generation failed");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (activity != null) ToastService.Instance.CompleteLiveActivity(activity, "AI generation failed.");
+                ToastService.Instance.Show("AI playlist generation failed.", ToastType.Error);
+            });
         }
     }
 }

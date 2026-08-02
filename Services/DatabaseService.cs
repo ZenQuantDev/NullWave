@@ -25,6 +25,7 @@ public class DatabaseService : IDisposable
         _db.CreateTable<TrackRecord>();
         _db.CreateTable<PlaylistRecord>();
         _db.CreateTable<PlaylistTrackRecord>();
+        _db.CreateTable<PlaylistFolderRecord>();
 
         Log.Information("[DatabaseService] Opened DB at {Path}", path);
     }
@@ -114,7 +115,8 @@ public class DatabaseService : IDisposable
                 {
                     Id = playlist.Id.ToString(),
                     Name = playlist.Name,
-                    Description = playlist.Description
+                    Description = playlist.Description,
+                    FolderId = playlist.FolderId?.ToString()
                 });
                 syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
 
@@ -150,7 +152,12 @@ public class DatabaseService : IDisposable
                 {
                     Id = Guid.Parse(plRecord.Id),
                     Name = plRecord.Name,
-                    Description = plRecord.Description
+                    Description = plRecord.Description,
+                    FolderId = string.IsNullOrWhiteSpace(plRecord.FolderId)
+                        ? null
+                        : Guid.TryParse(plRecord.FolderId, out var folderId)
+                            ? folderId
+                            : null
                 };
 
                 var dbTracks = syncDb.Table<PlaylistTrackRecord>()
@@ -175,6 +182,58 @@ public class DatabaseService : IDisposable
         }
 
         return playlists;
+    }
+
+    public void SavePlaylistFolder(PlaylistFolder folder)
+    {
+        try
+        {
+            _db.InsertOrReplace(new PlaylistFolderRecord
+            {
+                Id = folder.Id.ToString(),
+                Name = folder.Name,
+                CreatedAt = folder.DateCreated
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to save playlist folder to database.");
+        }
+    }
+
+    public List<PlaylistFolder> LoadPlaylistFolders()
+    {
+        var folders = new List<PlaylistFolder>();
+        try
+        {
+            foreach (var record in _db.Table<PlaylistFolderRecord>().ToList())
+            {
+                folders.Add(new PlaylistFolder
+                {
+                    Id = Guid.TryParse(record.Id, out var id) ? id : Guid.NewGuid(),
+                    Name = record.Name,
+                    DateCreated = record.CreatedAt
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to load playlist folders from database.");
+        }
+
+        return folders;
+    }
+
+    public void DeletePlaylistFolder(Guid id)
+    {
+        try
+        {
+            _db.Delete<PlaylistFolderRecord>(id.ToString());
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to delete playlist folder from database.");
+        }
     }
 
     public void DeletePlaylist(Guid id)
