@@ -1,18 +1,18 @@
 # NullWave - Roadmap
 
-> Last updated: 19-Jul-2026
+> Last updated: 02-Aug-2026
 
 ---
 
 ## Legend
 
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | Done - merged to main |
-| 🔄 | In progress - active branch |
-| 🔜 | Up next - ready to start |
-| 📋 | Planned - scoped, not started |
-| 💡 | Future - idea, not yet scoped |
+| Symbol | Meaning                       |
+| ------ | ----------------------------- |
+| ✅     | Done - merged to main         |
+| 🔄     | In progress - active branch   |
+| 🔜     | Up next - ready to start      |
+| 📋     | Planned - scoped, not started |
+| 💡     | Future - idea, not yet scoped |
 
 ---
 
@@ -62,6 +62,7 @@
 - ✅ Merge `refactor/split-views` → `main`
 
 **Notes:**
+
 - `TrackSource` enum should be moved to `Models/TrackSource.cs`
 - `MetadataService` is a candidate for splitting (see Phase 7)
 
@@ -82,6 +83,7 @@
 - ✅ Separate log files: `NullWave-*.log`, `UserActions-*.log`, `Errors-*.log`
 
 **Remaining (wire into other ViewModels):**
+
 - 📋 `ImportViewModel` - add `NullActionLogger.ImportStarted/Completed/Failed` calls
 - 📋 `LibraryViewModel` - add `TrackAdded`, `TrackRemoved`, `FavoriteToggled`, `SearchPerformed`
 - 📋 `TrackDetailViewModel` - add `TrackEdited` on save
@@ -107,6 +109,7 @@
 - ✅ All hardcoded colors/sizes/radii replaced with theme tokens
 
 **Remaining:**
+
 - 📋 Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
 - 📋 `OpacityTransition` on menu bar show/hide (150ms fade)
 - 📋 Profile edit UI (inline in sidebar or dedicated Settings tab)
@@ -128,6 +131,7 @@
 ### 6.1 Album Art Fetching
 
 ### 6.1 Album Art Fetching
+
 - ✅ YouTube thumbnail fetching via `img.youtube.com` (no API key required)
 - ✅ SoundCloud thumbnail fetching via yt-dlp
 - ✅ Startup backfill for existing tracks missing thumbnails
@@ -139,6 +143,7 @@
 ### 6.2 Blur Background Effect
 
 Evaluate in order:
+
 1. `ExperimentalAcrylicBorder` - hardware blur, Avalonia 12+
 2. `WriteableBitmap` software Gaussian blur at 1/4 resolution
 3. Avalonia `BlurEffect` on a `Canvas`
@@ -213,16 +218,53 @@ Evaluate in order:
 
 ---
 
+## Phase 12 - Navigation Redesign & Detail Polish ✅
+
+**Branch:** `feature/nav-redesign-and-more`
+**Goal:** Replace hardcoded sidebar with data-driven nav, consolidate stats, and polish track details.
+
+- ✅ `NavItem` model and data-driven `SidebarView`
+- ✅ Pill-based navigation (Playlists/Artists) with drag-and-drop reordering
+- ✅ `NavigationViewModel` with pinned playlist support
+- ✅ `TrackDetailViewModel` redesign with Last.fm Artist Info integration
+- ✅ Artist grouping in library view
+
+## Phase 13 - Plugin Architecture & Service Isolation 🔄
+
+**Goal:** Make all external dependencies optional, disconnectable, and independently replaceable.
+
+- ✅ 13.1 Core Plugin System (`IPlugin`, `PluginManager`, `PluginState`)
+- ✅ 13.2 Extract Existing Services (`YtDlpDownloadProvider`, `LastFmMetadataProvider`, `OllamaAIProvider`, `OpenWeatherProvider`)
+- 📋 13.3 Process Isolation (Deprioritized - lightweight interface approach achieves goals without IPC complexity)
+- ✅ 13.4 UI & Management (Plugins tab in Settings with live toggles and toast feedback)
+
+## Phase 14 - Stability, Persistence & UI Polish ✅
+
+**Goal:** Fix critical playback bugs, persist AI playlists, and improve user feedback.
+
+- ✅ Queue auto-fill hybrid system (`QueueEntry` model with manual/auto distinction)
+- ✅ History-based "Previous" button to prevent track oscillation
+- ✅ Fixed crossfade queue desync bug
+- ✅ Fixed crossfade PipeWire segfault on Linux (delayed native disposal)
+- ✅ Smart Shuffle candidate pool floor (prevents 2-track loop under skip pressure)
+- ✅ AI prompt playlists (`ai:`) now always persist as real `Playlist` entities in "AI Playlists" folder
+- ✅ Offline-ready indicator added to track list
+- ✅ Playlist folders support (`CreateFolderDialog`, `PlaylistFolderRecord`)
+- ✅ Plugin toggle now shows connect/fail toast feedback
+- 📋 Window resizing behavior audit (carried over from Phase 11.1)
+
+---
+
 ## Architecture Guidelines
 
 ### File size limits
 
-| File type | Soft limit | Hard limit |
-|-----------|-----------|-----------|
-| ViewModel | 300 lines | 400 lines |
-| Service | 300 lines | 500 lines |
-| View (.axaml) | 200 lines | 300 lines |
-| View code-behind | 50 lines | 100 lines |
+| File type        | Soft limit | Hard limit |
+| ---------------- | ---------- | ---------- |
+| ViewModel        | 300 lines  | 400 lines  |
+| Service          | 300 lines  | 500 lines  |
+| View (.axaml)    | 200 lines  | 300 lines  |
+| View code-behind | 50 lines   | 100 lines  |
 
 ### Naming conventions
 
@@ -232,7 +274,6 @@ Evaluate in order:
 - Models: `{Name}.cs` in `Models/`
 - Converters: `{Name}Converter.cs` in `Helpers/Converters/`
 - Theme files: `{Category}.axaml` in `Themes/`
-
 
 ### Branch strategy
 
@@ -247,18 +288,19 @@ main                  ← always stable, builds clean
 
 ## Dependency Versions
 
-| Package | Version | Notes |
-|---------|---------|-------|
-| .NET | 8.0 | LTS |
-| Avalonia | 12.0.4 | |
-| LibVLCSharp | 3.9.7.1 | Fedora: symlinks to /usr/lib required |
-| TagLib# | 2.3.0 | |
-| Serilog | latest stable | + Serilog.Filters.Expressions |
-| sqlite-net-pcl | 1.9.172 | Packages installed, implementation next |
-| SQLitePCLRaw.bundle_green | 2.1.11 | Native SQLite provider for Linux |
-| CommunityToolkit.Mvvm | latest stable | RelayCommand, ObservableProperty |
+| Package                   | Version       | Notes                                   |
+| ------------------------- | ------------- | --------------------------------------- |
+| .NET                      | 8.0           | LTS                                     |
+| Avalonia                  | 12.0.4        |                                         |
+| LibVLCSharp               | 3.9.7.1       | Fedora: symlinks to /usr/lib required   |
+| TagLib#                   | 2.3.0         |                                         |
+| Serilog                   | latest stable | + Serilog.Filters.Expressions           |
+| sqlite-net-pcl            | 1.9.172       | Packages installed, implementation next |
+| SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux        |
+| CommunityToolkit.Mvvm     | latest stable | RelayCommand, ObservableProperty        |
 
 ---
+
 ---
 
 ## Phase 9 - Stability, Feedback & Naming Audit 🔄
@@ -278,10 +320,10 @@ component names below so future planning stays unambiguous.
   via `SettingsViewModel.VerboseLogging`, no restart needed
 - ✅ `PlaybackService.CrossfadeToAsync` / `OnPlaying` - fixed the "silent playback"
   bug: the native volume-reapply nudge was gated on `_fadeCts` state that never
-  reset after a fade completed, so after the *first* crossfade or fade-pause in a
+  reset after a fade completed, so after the _first_ crossfade or fade-pause in a
   session, the nudge silently stopped firing for all future track starts. Also
   fixed event-handler attach order in crossfade (was attaching to the new
-  `MediaPlayer` *after* calling `Play()`).
+  `MediaPlayer` _after_ calling `Play()`).
 - 📋 SoundCloud import - a track was found with its `Title` field containing a raw
   pasted SoundCloud URL instead of a resolved title. Ruled out
   `SoundCloudMetadataFetcher` (its failure path falls back to literal
@@ -294,8 +336,8 @@ component names below so future planning stays unambiguous.
   doing largely the same job (strip bracket junk, strip ft./feat., split
   "Artist - Title"). Candidate for consolidation under Phase 7.3 Code Splitting.
 
-
 ### 9.1b Confirmed bugs (17-Jul-2026 session)
+
 - ✅ `LibraryService.ForceCleanTitles` - fixed non-idempotency: a track whose
   title still contained a residual separator after a partial clean (e.g.
   "Door - Minecraft Volume Alpha") could get re-split on a later run, since
@@ -332,7 +374,7 @@ component names below so future planning stays unambiguous.
   strengthen the keeper check to also require `VerifyLinks`-style tag
   agreement, not just file existence.
 
-  ### 9.1c Search, sort & add-track overhaul (19-Jul-2026 session)
+    ### 9.1c Search, sort & add-track overhaul (19-Jul-2026 session)
 
 - ✅ `LibraryViewModel.FetchLibraryDataInternal` - fixed the core search bug: the
   `LibraryView.Source` branch (active when a sidebar source filter like "YouTube"
@@ -356,22 +398,22 @@ component names below so future planning stays unambiguous.
   `MainWindow.axaml`) - dead markup left over from before the toast-based live
   activity system replaced inline progress bars.
 - ✅ `Views/Controls/TrackListView.axaml` - toolbar redesigned:
-  - Search box gets a magnifying-glass icon, an inline "×" clear button
-    (`Library.ClearSearchTextCommand`, `Library.HasSearchQuery`), and a "?" help
-    flyout documenting the smart search syntax.
-  - New sort-direction toggle button (`Library.ToggleSortDirectionCommand`) next
-    to the sort `ComboBox` - previously `SortAscending` existed on the ViewModel
-    with no UI control to change it.
-  - Sort `ComboBox` now shows human-readable labels ("Date Added" not
-    "DateAdded") via `SortFieldDisplayConverter`.
-  - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
-    triggers with a direction-arrow indicator; clicking the active column's
-    header flips direction instead of no-op.
-  - New track-count label ("415 tracks") in the header row.
-  - "+ Add Track" `SplitButton`'s dropdown replaced with a self-contained flyout
-    form (URL input + Add button + local file/folder options), replacing the
-    separate always-in-layout "URL INPUT" row. Add button gated on
-    `TrackInputViewModel.IsInputUrlValid`.
+    - Search box gets a magnifying-glass icon, an inline "×" clear button
+      (`Library.ClearSearchTextCommand`, `Library.HasSearchQuery`), and a "?" help
+      flyout documenting the smart search syntax.
+    - New sort-direction toggle button (`Library.ToggleSortDirectionCommand`) next
+      to the sort `ComboBox` - previously `SortAscending` existed on the ViewModel
+      with no UI control to change it.
+    - Sort `ComboBox` now shows human-readable labels ("Date Added" not
+      "DateAdded") via `SortFieldDisplayConverter`.
+    - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
+      triggers with a direction-arrow indicator; clicking the active column's
+      header flips direction instead of no-op.
+    - New track-count label ("415 tracks") in the header row.
+    - "+ Add Track" `SplitButton`'s dropdown replaced with a self-contained flyout
+      form (URL input + Add button + local file/folder options), replacing the
+      separate always-in-layout "URL INPUT" row. Add button gated on
+      `TrackInputViewModel.IsInputUrlValid`.
 - ✅ `LibraryService`/`LibraryViewModel` sort now applies a secondary `.ThenBy`
   tie-breaker per `SortField` (mostly by Title) so equal-value groups (e.g. many
   tracks with `PlayCount == 0`) render in a stable, predictable order instead of
@@ -401,15 +443,15 @@ component names below so future planning stays unambiguous.
 
 ### 9.3 Component naming reference (use these in future roadmap entries, not descriptions)
 
-| Informal description | Actual component |
-|---|---|
-| "left side bar" | `Views/Controls/SidebarView.axaml` |
-| "the profile thing" | `UserProfileViewModel.cs` + `Views/ProfileWindow.axaml` |
-| "top bar" / "add button" | The toolbar inside `Views/Controls/TrackListView.axaml` (search box + sort `ComboBox` + `+ Add` `SplitButton`) - **not** `MenuBarView.axaml`, the separate Alt-key-toggled File/Library/Settings/Help bar |
-| "search tab" | ❓ Unclear - `LibraryViewModel.SearchQuery`/`Search()` is already wired into `TrackListView`'s search box. Is this about that search box, or a separate dedicated Search page that was never built? |
-| "appearance tab is a placeholder" | `AppearanceTab.axaml` is built and saves via `PreferencesService` (Phase 5 ✅) - but "wire appearance settings to actual UI (live accent color, row height, font scale)" is still 📋. The tab works but doesn't re-skin the app live yet, which likely reads as "placeholder" |
-| "updates tab is useless" | `UpdatesTab.axaml` + `UpdateService`/`DependencyUpdateService` are real and wired (`CheckForUpdateAsync`, `UpdateYtDlpAsync`, `CheckDependenciesAsync`) - worth re-checking before assuming nothing works |
-| "sorting doesn't work as intended" | ❓ Needs repro steps - `LibraryViewModel.SortByTitle/Artist/Date/PlayCount` and `LibraryService.GetSorted()` appear wired |
+| Informal description               | Actual component                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "left side bar"                    | `Views/Controls/SidebarView.axaml`                                                                                                                                                                                                                                            |
+| "the profile thing"                | `UserProfileViewModel.cs` + `Views/ProfileWindow.axaml`                                                                                                                                                                                                                       |
+| "top bar" / "add button"           | The toolbar inside `Views/Controls/TrackListView.axaml` (search box + sort `ComboBox` + `+ Add` `SplitButton`) - **not** `MenuBarView.axaml`, the separate Alt-key-toggled File/Library/Settings/Help bar                                                                     |
+| "search tab"                       | ❓ Unclear - `LibraryViewModel.SearchQuery`/`Search()` is already wired into `TrackListView`'s search box. Is this about that search box, or a separate dedicated Search page that was never built?                                                                           |
+| "appearance tab is a placeholder"  | `AppearanceTab.axaml` is built and saves via `PreferencesService` (Phase 5 ✅) - but "wire appearance settings to actual UI (live accent color, row height, font scale)" is still 📋. The tab works but doesn't re-skin the app live yet, which likely reads as "placeholder" |
+| "updates tab is useless"           | `UpdatesTab.axaml` + `UpdateService`/`DependencyUpdateService` are real and wired (`CheckForUpdateAsync`, `UpdateYtDlpAsync`, `CheckDependenciesAsync`) - worth re-checking before assuming nothing works                                                                     |
+| "sorting doesn't work as intended" | ❓ Needs repro steps - `LibraryViewModel.SortByTitle/Artist/Date/PlayCount` and `LibraryService.GetSorted()` appear wired                                                                                                                                                     |
 
 ### 9.4 Deferred (explicitly, not forgotten)
 
@@ -437,7 +479,7 @@ searches.
   order, label, icon, target (page name / playlist ID / search query)
 - 📋 `SidebarView` rewritten as data-driven `ItemsControl` bound to
   `ObservableCollection<NavItem>`, replacing the current hardcoded named-button
-  + manual `Classes.Add("active")` pattern in `SidebarView.axaml.cs`
+    - manual `Classes.Add("active")` pattern in `SidebarView.axaml.cs`
 - 📋 Core items (Library, Playlists) are reorderable but not hideable/removable
 - 📋 Order persisted via `PreferencesService` (existing infra, no new
   persistence layer)
@@ -496,9 +538,9 @@ searches.
 ### 10.5 Playlists tab redesign (Library-style)
 
 - 📋 Bring `TrackListView`'s toolbar polish (search box + clear button, sort
-  + direction toggle, clickable sortable headers, result count) to the
-  track list inside a selected playlist in `PlaylistsView.axaml`
-- 📋 Evaluate whether the playlist *list itself* (left panel) needs its own
+    - direction toggle, clickable sortable headers, result count) to the
+      track list inside a selected playlist in `PlaylistsView.axaml`
+- 📋 Evaluate whether the playlist _list itself_ (left panel) needs its own
   search box - likely only worth it once a user has many playlists; not
   blocking for v1
 - 📋 Reuse `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase
@@ -529,6 +571,7 @@ searches.
 and fix known interaction bugs from Phase 10.
 
 ### 11.1 Bug fixes (carried over from Phase 10 testing)
+
 - 📋 `LibraryViewModel.AddToQueue` reads SelectedTrack instead of the
   CommandParameter passed from context menu / "⋮" flyout - "Add to Queue"
   silently does nothing unless a track happens to already be selected.
@@ -537,6 +580,7 @@ and fix known interaction bugs from Phase 10.
   (screen recording or specific window sizes) before scoping a fix.
 
 ### 11.2 Auto-queue / shuffle integration
+
 - 📋 Pre-fill the queue with ~10 upcoming tracks based on the active
   navigation mode (Normal Shuffle, Smart Shuffle AI, Repeat, or plain
   library order), refilling as tracks are consumed - closes the gap
@@ -551,10 +595,11 @@ and fix known interaction bugs from Phase 10.
 
 ## Phase 13 - Plugin Architecture & Service Isolation 💡
 
-**Goal:** Make all external dependencies (yt-dlp, Ollama, OpenWeather, SoundCloud, etc.) 
+**Goal:** Make all external dependencies (yt-dlp, Ollama, OpenWeather, SoundCloud, etc.)
 optional, disconnectable, and independently replaceable. Enable community plugins.
 
 ### 13.1 Core Plugin System
+
 - Define `IMusicSourcePlugin`, `IDownloadProvider`, `IMetadataProvider`, `IAIProvider` interfaces
 - 📋 Implement `PluginManager` with dependency injection registration
 - Add plugin configuration to `PreferencesService` (`~/.nullwave/plugins.json`)
@@ -562,6 +607,7 @@ optional, disconnectable, and independently replaceable. Enable community plugin
 - 📋 Health check system with periodic pings
 
 ### 13.2 Extract Existing Services
+
 - 📋 Wrap `DownloadService` → `YtDlpDownloadProvider` (optional, graceful degradation)
 - 📋 Wrap `LastFmService` → `LastFmMetadataProvider`
 - Wrap `LocalAIService` → `OllamaAIProvider`
@@ -569,6 +615,7 @@ optional, disconnectable, and independently replaceable. Enable community plugin
 - Each provider implements interface + fallback behavior when disabled
 
 ### 13.3 Process Isolation
+
 - Create `PluginHost` separate process for CPU/memory-heavy operations
 - 📋 Implement named pipe/gRPC communication protocol
 - 📋 Add circuit breaker pattern for failing plugins
@@ -576,20 +623,22 @@ optional, disconnectable, and independently replaceable. Enable community plugin
 - Resource monitoring per-plugin (CPU, memory limits)
 
 ### 13.4 UI & Management
+
 - 📋 Plugins management tab in Settings
 - 📋 Enable/disable toggles with live status indicators
 - Plugin installation workflow (future: community plugins)
 - 📋 Dependency graph visualization (which features need which plugins)
 
 ### 13.5 Documentation
+
 - 📋 Plugin development guide for community contributors
 - API reference for plugin interfaces
 - 📋 Migration guide from monolithic to plugin-based services
 
 **Success Criteria:**
+
 - NullWave runs with zero external dependencies (local files only mode)
 - Disabling yt-dlp doesn't break the app, just hides download features
 - AI features degrade gracefully when Ollama is unavailable
 - Plugin load time < 200ms per plugin
 - No feature regression from current functionality
-

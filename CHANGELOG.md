@@ -5,22 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Future_0.5.0] - 02-Aug-2026
-
+## [0.5.0] - 02-Aug-2026
 ### Added
-- **AI Playlist Generation**: Users can now type `ai: [prompt]` in the search bar to generate playlists using the local AI model. Generated playlists are automatically saved in a dedicated "AI Playlists" folder.
-- **Live Activity Notifications**: Maintenance tasks (Sweep Orphaned Files, Vacuum Database, Verify Links, Repair Paths, Reimport Assets, Force Meta Resync, Clear Thumbnails) now show live progress toasts instead of just logging to the console.
-- **Plugin Toggle Feedback**: Toggling plugins in the Settings tab now triggers immediate success/warning toasts.
-- **Folder Support**: Added `PlaylistFolderRecord` and `CreateFolderDialog` to allow organizing playlists into folders.
+- **AI Playlist Persistence**: `ai:` search prompts now create real, persisted playlists in a dedicated "AI Playlists" folder.
+- **Playlist Folders**: Added `PlaylistFolderRecord` and `CreateFolderDialog` for organizing playlists.
+- **Offline Indicator**: Track list now shows an offline-ready checkmark for locally available tracks.
+- **Plugin Feedback**: Toggling plugins in Settings now triggers immediate success/warning toasts.
 
 ### Fixed
-- **Queue Oscillation**: Fixed a critical bug where tracks would bounce back and forth in the queue due to history stack corruption in `PlaybackNavigator`.
-- **Crossfade Segfault**: Added a safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
-- **Queue Management**: Refactored queue logic to use `QueueEntry`, properly distinguishing between manually added tracks and auto-filled tracks.
+- **Queue Oscillation**: Fixed critical bug where tracks would bounce back and forth due to history stack corruption in `PlaybackNavigator`.
+- **Crossfade Stability**: 
+  - Fixed queue desync causing track oscillation during crossfade.
+  - Added safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
+- **Smart Shuffle Loop**: Added candidate pool floor to prevent 2-track loops under heavy skip pressure.
+- **Add to Queue**: Fixed bug where command ignored the passed track parameter and used `SelectedTrack` instead.
 
 ### Changed
-- **Preferences**: Removed redundant `EnableSoundCloud` property (SoundCloud downloads are now fully governed by `EnableYtDlp`).
-- **UI**: Updated `QueueView`, `SidebarView`, and `TrackListView` to support new features and styling.
+- **Queue System**: Refactored to use `QueueEntry` model, distinguishing between manually added and auto-filled tracks.
+- **Roadmap**: Retroactively added Phase 12 (Navigation Redesign) and Phase 14 (Stability & Polish) to reflect shipped work.
+
 
 ## [0.4.2] - 19-Jul-2026
 
