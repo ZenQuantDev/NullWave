@@ -9,7 +9,6 @@
              Background="{StaticResource BrushSurface}"
              BorderBrush="{StaticResource BrushBorder}"
              BorderThickness="1,0,0,0"
-             Width="{Binding Queue.PanelWidth}"
              Opacity="{Binding Queue.PanelOpacity}">
 
     <UserControl.Resources>
@@ -18,7 +17,6 @@
 
     <UserControl.Transitions>
         <Transitions>
-            <DoubleTransition Property="Width" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
         </Transitions>
     </UserControl.Transitions>

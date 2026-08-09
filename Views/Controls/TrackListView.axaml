@@ -175,11 +175,12 @@
 
     <!--  TRACK LIST  -->
     <ListBox ItemsSource="{Binding Library.Tracks}"
-             SelectedItem="{Binding Library.SelectedTrack}"
-             Background="Transparent"
-             Margin="8,0,8,8"
-             SelectionChanged="OnTrackSelected"
-             DoubleTapped="OnTrackDoubleTapped">
+            SelectedItem="{Binding Library.SelectedTrack}"
+            Background="Transparent"
+            Margin="8,0,8,8"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            SelectionChanged="OnTrackSelected"
+            DoubleTapped="OnTrackDoubleTapped">
         <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem"
                           BasedOn="{StaticResource {x:Type ListBoxItem}}">

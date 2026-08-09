@@ -9,7 +9,7 @@
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
-        MinWidth="1000" MinHeight="620"
+        MinWidth="1150" MinHeight="620"
         Width="1280" Height="780"
         Background="{StaticResource BrushBase}"
         KeyDown="OnKeyDown">
@@ -54,9 +54,9 @@
                                       MinWidth="{Binding IsSidebarCollapsed, Converter={StaticResource BoolToDouble}, ConverterParameter='180,0'}"
                                       MaxWidth="350"/>
                     <ColumnDefinition Width="4"/>
-                    <ColumnDefinition Width="*" MinWidth="480"/>
+                    <ColumnDefinition Width="*" MinWidth="700"/>
                     <ColumnDefinition Width="4"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="{Binding ActiveRightPanelWidth}"/>
                 </Grid.ColumnDefinitions>
 
                 <controls:SidebarView Grid.Column="0" IsVisible="{Binding !IsSidebarCollapsed}"/>
@@ -83,15 +83,7 @@
                     </Button>
                 </Grid>
                 
-                <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
-                              Background="Transparent" ShowsPreview="True"
-                              IsVisible="{Binding Detail.IsOpen}"/>
                 <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
-                
-                <!-- Mutually exclusive Queue panel -->
-                <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch"
-                              Background="Transparent" ShowsPreview="True"
-                              IsVisible="{Binding Queue.IsOpen}"/>
                 <controls:QueueView Grid.Column="4" IsVisible="{Binding Queue.IsOpen}"/>
             </Grid>
         </DockPanel>

@@ -9,7 +9,6 @@
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="1,0,0,0"
-        Width="{Binding Detail.PanelWidth}"
         Opacity="{Binding Detail.PanelOpacity}"
         ClipToBounds="True">
     <Border.Resources>
@@ -20,7 +19,6 @@
     </Border.Resources>
     <Border.Transitions>
         <Transitions>
-            <DoubleTransition Property="Width" Duration="0:0:0.3" Easing="ExponentialEaseOut"/>
             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
         </Transitions>
     </Border.Transitions>

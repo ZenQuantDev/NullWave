@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Input;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using NullWave.Helpers;
@@ -119,6 +120,10 @@ public class MainViewModel : ViewModelBase
 
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
+    public const double RightPanelWidth = 340;
+
+    public GridLength ActiveRightPanelWidth =>
+        Detail.IsOpen || Queue.IsOpen ? new GridLength(RightPanelWidth) : new GridLength(0);
 
     public MainViewModel()
     {
@@ -171,13 +176,21 @@ public class MainViewModel : ViewModelBase
 
         Detail.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(Detail.IsOpen) && Detail.IsOpen)
-                Queue.IsOpen = false;
+            if (e.PropertyName == nameof(Detail.IsOpen))
+            {
+                OnPropertyChanged(nameof(ActiveRightPanelWidth));
+                if (Detail.IsOpen)
+                    Queue.IsOpen = false;
+            }
         };
         Queue.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(Queue.IsOpen) && Queue.IsOpen)
-                Detail.IsOpen = false;
+            if (e.PropertyName == nameof(Queue.IsOpen))
+            {
+                OnPropertyChanged(nameof(ActiveRightPanelWidth));
+                if (Queue.IsOpen)
+                    Detail.IsOpen = false;
+            }
         };
 
         Playlist.PinRequested += p => Nav.PinPlaylist(p.Id, p.Name);
