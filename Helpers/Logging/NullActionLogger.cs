@@ -1,4 +1,3 @@
-// NullActionLogger.cs
 using Serilog;
 using Serilog.Events;
 

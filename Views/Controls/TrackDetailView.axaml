@@ -163,8 +163,33 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Spacing="8">
+                <StackPanel Spacing="12">
                     <TextBlock Classes="section-label" Text="ARTIST INFO" Margin="0"/>
+                    
+                    <!-- Spotify-style Artist Hero -->
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <Border Width="100" Height="100" CornerRadius="50" ClipToBounds="True" Background="{StaticResource BrushSurface2}">
+                            <Panel>
+                                <Image Source="{Binding Detail.ArtistImagePath, Converter={StaticResource PathToBitmap}}" 
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                <material:MaterialIcon Kind="AccountMusic" 
+                                       IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNull}}"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       Width="40" Height="40"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Panel>
+                        </Border>
+                        <TextBlock Text="{Binding Detail.EditArtist}" 
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{StaticResource FontSizeMd}"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="280"/>
+                    </StackPanel>
+
+                    <!-- Bio Card -->
                     <Border Background="{StaticResource BrushSurface2}"
                             BorderBrush="{StaticResource BrushBorder}"
                             BorderThickness="1"
@@ -185,7 +210,7 @@
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeSm}"
                                        IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
-                            <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='Listeners: {0}'}"
+                            <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='Monthly listeners: {0}'}"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{StaticResource FontSizeXs}"
                                        IsVisible="{Binding Detail.HasArtistBio}"/>

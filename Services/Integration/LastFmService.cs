@@ -293,6 +293,22 @@ public class LastFmService
                 info.Bio = cutoff > 0 ? raw[..cutoff].Trim() : raw.Trim();
             }
 
+            if (artistEl.TryGetProperty("image", out var images))
+            {
+                foreach (var img in images.EnumerateArray())
+                {
+                    if (img.TryGetProperty("size", out var size) && (size.GetString() == "extralarge" || size.GetString() == "mega"))
+                    {
+                        var imgUrl = img.GetProperty("#text").GetString();
+                        if (!string.IsNullOrEmpty(imgUrl))
+                        {
+                            info.ImageUrl = imgUrl;
+                            break;
+                        }
+                    }
+                }
+            }
+
             return info;
         }
         catch (Exception ex)
@@ -375,6 +391,7 @@ public class LastFmArtistInfo
     public string Name { get; set; } = string.Empty;
     public string Listeners { get; set; } = "0";
     public string? Bio { get; set; }
+    public string? ImageUrl { get; set; }
 }
 
 public class LastFmTrackResponse

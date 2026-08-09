@@ -653,8 +653,21 @@ public class LibraryService : IDisposable
     {
         var a = NormalizeForCompare(storedTitle);
         var b = NormalizeForCompare(embeddedTitle);
+
         if (a.Length == 0 || b.Length == 0) return true;
-        return a.Contains(b) || b.Contains(a);
+        if (a.Equals(b, StringComparison.Ordinal)) return true;
+
+        var shorter = a.Length <= b.Length ? a : b;
+        var longer = a.Length <= b.Length ? b : a;
+
+        // Only treat containment as a safe match when the shorter normalized
+        // title covers at least ~70% of the longer title. This blocks false
+        // positives such as "habits" inside "badhabits" or "beautiful"
+        // inside "whatmakesyoubeautiful".
+        var overlapFloor = (int)Math.Ceiling(longer.Length * 0.70);
+        if (shorter.Length < overlapFloor) return false;
+
+        return longer.Contains(shorter, StringComparison.Ordinal);
     }
 
     private static string NormalizeForCompare(string s)

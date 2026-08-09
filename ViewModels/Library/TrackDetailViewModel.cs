@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
+using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
@@ -20,6 +23,10 @@ namespace NullWave.ViewModels;
 
 public class TrackDetailViewModel : ViewModelBase
 {
+    // Last.fm no longer serves real artist photos via artist.getInfo — every artist
+    // gets the same grey "white star" placeholder, whose URL contains this hash.
+    private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
+
     private readonly LibraryService _library;
     private readonly PluginManager _plugins;
     private Track? _currentTrack;
@@ -43,6 +50,13 @@ public class TrackDetailViewModel : ViewModelBase
     {
         get => _artistListeners;
         set { _artistListeners = value; OnPropertyChanged(); }
+    }
+
+    private string? _artistImagePath;
+    public string? ArtistImagePath
+    {
+        get => _artistImagePath;
+        set { _artistImagePath = value; OnPropertyChanged(); }
     }
 
     private bool _isLoadingArtistInfo;
@@ -164,6 +178,7 @@ public class TrackDetailViewModel : ViewModelBase
 
         ArtistBio = null;
         ArtistListeners = null;
+        ArtistImagePath = null;   // never show the previous artist's photo
         LibraryArtistTrackCount = 0;
         _ = LoadArtistInfoAsync(track);
     }
@@ -329,6 +344,53 @@ public class TrackDetailViewModel : ViewModelBase
                     .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedTarget));
         }
 
+        ResolveArtistImageAsync(info, primaryArtist, track, trackId);
+
         IsLoadingArtistInfo = false;
+    }
+
+    private void ResolveArtistImageAsync(LastFmArtistInfo? info, string primaryArtist, Track track, Guid trackId)
+    {
+        var url = info?.ImageUrl;
+        Log.Information("[TrackDetailViewModel] Artist image for {Artist}: {Url}", primaryArtist, url ?? "<none>");
+
+        if (!string.IsNullOrEmpty(url) && !url.Contains(LastFmPlaceholderImageHash))
+        {
+            // Real photo (rare nowadays) — download & cache as before.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var cacheDir = NullWavePaths.ArtCacheDir;
+                    Directory.CreateDirectory(cacheDir);
+                    var safeName = string.Join("_", primaryArtist.Split(Path.GetInvalidFileNameChars()));
+                    var fileName = $"artist_{safeName}.jpg";
+                    var localPath = Path.Combine(cacheDir, fileName);
+
+                    if (!File.Exists(localPath) || new FileInfo(localPath).Length == 0)
+                    {
+                        using var http = new HttpClient();
+                        var bytes = await http.GetByteArrayAsync(url);
+                        await File.WriteAllBytesAsync(localPath, bytes);
+                        Log.Information("[TrackDetailViewModel] Downloaded artist image for {Artist} ({Bytes} bytes)", primaryArtist, bytes.Length);
+                    }
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_currentTrack != null && _currentTrack.Id == trackId)
+                            ArtistImagePath = localPath;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[TrackDetailViewModel] Failed to download artist image for {Artist}", primaryArtist);
+                }
+            });
+        }
+        else if (!string.IsNullOrEmpty(track.AlbumArtPath))
+        {
+            // No usable artist photo (placeholder or none) — show album art instead of the star.
+            ArtistImagePath = track.AlbumArtPath;
+        }
     }
 }
