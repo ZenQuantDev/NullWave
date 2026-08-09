@@ -3,8 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services;
@@ -58,15 +60,32 @@ public class DependencyUpdateService
 
     public async Task<string> UpdateYtDlpAsync()
     {
-        // Try standard yt-dlp update first
-        var standardUpdate = await RunCommandAsync("yt-dlp", "-U");
-        if (standardUpdate != null)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // Windows: Prefer winget (handles standalone .exe installations perfectly)
+            Log.Information("[DependencyUpdate] Attempting yt-dlp update via winget...");
+            var wingetUpdate = await RunCommandAsync("winget", "upgrade yt-dlp.yt-dlp --accept-source-agreements --accept-package-agreements");
+            if (wingetUpdate != null)
+            {
+                Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
+                return "Update completed via winget";
+            }
+
+            // Fallback to standard yt-dlp -U (if installed via pip/standalone and in PATH)
+            var standardUpdate = await RunCommandAsync("yt-dlp", "-U");
+            if (standardUpdate != null) return "Update completed via yt-dlp -U";
+
+            return "Update failed: Ensure yt-dlp is installed via winget or pip";
+        }
+
+        // Linux / macOS logic
+        var standardUpdateLinux = await RunCommandAsync("yt-dlp", "-U");
+        if (standardUpdateLinux != null)
         {
             Log.Information("[DependencyUpdate] yt-dlp updated successfully via standard method");
             return "Update completed via yt-dlp -U";
         }
 
-        // Fallback to pip if the standard update fails or gets blocked
         var pipUpdate = await RunCommandAsync("pip", "install --upgrade yt-dlp");
         if (pipUpdate != null)
         {
@@ -132,7 +151,8 @@ public class DependencyUpdateService
     {
         try
         {
-            var psi = new ProcessStartInfo(cmd, args)
+            var exe = PlatformHelper.ResolveExecutable(cmd);
+            var psi = new ProcessStartInfo(exe, args)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

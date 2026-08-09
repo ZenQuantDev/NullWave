@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using LibVLCSharp.Shared;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services;
@@ -34,7 +35,19 @@ public class PlaybackService : IDisposable
 
     public PlaybackService()
     {
-        Core.Initialize();
+        // Windows: Explicitly point to VLC install directory if found
+        var vlcDir = NullWave.Helpers.PlatformHelper.ResolveVlcDirectory();
+        if (vlcDir != null)
+        {
+            Log.Information("[PlaybackService] Initializing LibVLC from: {Path}", vlcDir);
+            Core.Initialize(vlcDir);
+        }
+        else
+        {
+            // Linux/Mac or Windows with VLC in PATH
+            Core.Initialize();
+        }
+
         _libVlc = new LibVLC();
         _player = new MediaPlayer(_libVlc);
         AttachEvents(_player);

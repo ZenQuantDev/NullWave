@@ -88,7 +88,7 @@ public class DownloadService
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "aria2c",
+                    FileName = PlatformHelper.ResolveExecutable("aria2c"),
                     Arguments = "--version",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -246,7 +246,7 @@ public class DownloadService
         {
             var psi = new ProcessStartInfo
             {
-                FileName               = "yt-dlp",
+                FileName               = PlatformHelper.ResolveExecutable("yt-dlp"),
                 Arguments              = string.Join(" ", args.Select(QuoteIfNeeded)),
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
@@ -360,7 +360,7 @@ public class DownloadService
             var metadataArgs = $"--flat-playlist --dump-json --ignore-errors --no-download --js-runtimes node --remote-components ejs:github \"{playlistUrl}\"";
             var metadataPsi = new ProcessStartInfo
             {
-                FileName               = "yt-dlp",
+                FileName               = PlatformHelper.ResolveExecutable("yt-dlp"),
                 Arguments              = metadataArgs,
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,

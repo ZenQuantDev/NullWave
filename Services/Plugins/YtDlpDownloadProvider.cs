@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -100,9 +101,10 @@ public class YtDlpDownloadProvider : IDownloadProvider
     {
         try
         {
+            var exe = PlatformHelper.ResolveExecutable("yt-dlp");
             var psi = new ProcessStartInfo
             {
-                FileName = "yt-dlp",
+                FileName = exe,
                 Arguments = "--version",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

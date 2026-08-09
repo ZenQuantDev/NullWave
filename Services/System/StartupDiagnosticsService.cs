@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
@@ -65,9 +66,7 @@ public class StartupDiagnosticsService
         var allTracks = _library.GetAll();
         sw.Stop();
 
-        var dbPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nullwave", "library.db");
+        var dbPath = NullWavePaths.DatabasePath;
 
         NullActionLogger.StartupLine(
             $"Library: {allTracks.Count} tracks | DB: {dbPath} | Load: {sw.ElapsedMilliseconds}ms");
@@ -128,7 +127,8 @@ public class StartupDiagnosticsService
     {
         try
         {
-            var psi = new ProcessStartInfo(command, versionArg)
+            var exe = PlatformHelper.ResolveExecutable(command);
+            var psi = new ProcessStartInfo(exe, versionArg)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
