@@ -53,13 +53,13 @@
 
             <StackPanel VerticalAlignment="Center" Spacing="3" MaxWidth="200">
                 <Border x:Name="TitleClip" ClipToBounds="True" Width="200" Height="20">
-                    <TextBlock x:Name="TitleTextBlock"
-                               Text="{Binding Player.CurrentTrackDisplay}"
-                               Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Left"
-                               VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleTextBlock"
+                                Text="{Binding Player.CurrentTrackDisplay}"
+                                Foreground="{StaticResource BrushTextPrimary}"
+                                FontSize="{StaticResource FontSizeBody}"
+                                FontWeight="SemiBold"/>
+                    </StackPanel>
                 </Border>
                 <TextBlock Text="{Binding Player.CurrentArtistDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
