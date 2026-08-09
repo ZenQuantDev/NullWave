@@ -37,6 +37,14 @@ public class LibraryService : IDisposable
         new(@"\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly HashSet<string> DecorationTokens = new(StringComparer.Ordinal)
+    {
+        "official", "music", "video", "audio", "lyric", "lyrics", "explicit", "clean",
+        "version", "radio", "edit", "remix", "remastered", "live", "acoustic",
+        "ft", "feat", "featuring", "hd", "hq", "mv", "prod", "produced", "by",
+        "and", "with", "of", "in", "on", "part", "pt", "the", "that", "this"
+    };
+
     public event EventHandler? LibraryChanged;
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
@@ -629,7 +637,7 @@ public class LibraryService : IDisposable
 
             if (string.IsNullOrWhiteSpace(embedded.Title)) continue;
 
-            if (TitlesLooselyMatch(track.Title, embedded.Title)) continue;
+            if (TitlesLooselyMatch(track.Title, embedded.Title, track.Artist, embedded.Artist)) continue;
 
             var mismatch = new LinkMismatch(
                 track.Id, track.Title, track.Artist,
@@ -649,25 +657,35 @@ public class LibraryService : IDisposable
         return (withFile.Count, mismatches);
     }
 
-    private static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle)
+    private static List<string> Tokens(string s) =>
+        Regex.Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
+            .Select(m => m.Value)
+            .Where(w => w.Length > 1)
+            .ToList();
+
+    private static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle,
+        string storedArtist = "", string embeddedArtist = "")
     {
         var a = NormalizeForCompare(storedTitle);
         var b = NormalizeForCompare(embeddedTitle);
-
         if (a.Length == 0 || b.Length == 0) return true;
-        if (a.Equals(b, StringComparison.Ordinal)) return true;
+        if (a == b) return true;
 
-        var shorter = a.Length <= b.Length ? a : b;
-        var longer = a.Length <= b.Length ? b : a;
+        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
+        if (!longer.Contains(shorter, StringComparison.Ordinal)) return false;
 
-        // Only treat containment as a safe match when the shorter normalized
-        // title covers at least ~70% of the longer title. This blocks false
-        // positives such as "habits" inside "badhabits" or "beautiful"
-        // inside "whatmakesyoubeautiful".
-        var overlapFloor = (int)Math.Ceiling(longer.Length * 0.70);
-        if (shorter.Length < overlapFloor) return false;
+        var (shorterRaw, longerRaw) = a.Length <= b.Length
+            ? (storedTitle, embeddedTitle)
+            : (embeddedTitle, storedTitle);
 
-        return longer.Contains(shorter, StringComparison.Ordinal);
+        var known = Tokens(shorterRaw)
+            .Concat(Tokens(storedArtist))
+            .Concat(Tokens(embeddedArtist))
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Extra words must be decoration/artist only — content words mean a wrong file.
+        return !Tokens(longerRaw)
+            .Any(t => !known.Contains(t) && !DecorationTokens.Contains(t));
     }
 
     private static string NormalizeForCompare(string s)
@@ -689,7 +707,7 @@ public class LibraryService : IDisposable
         {
             var embedded = _metadata.FetchFromLocalFile(t.FilePath);
             if (string.IsNullOrWhiteSpace(embedded.Title)) return true;
-            return TitlesLooselyMatch(t.Title, embedded.Title);
+            return TitlesLooselyMatch(t.Title, embedded.Title, t.Artist, embedded.Artist);
         }
         catch
         {

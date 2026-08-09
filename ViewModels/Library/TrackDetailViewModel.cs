@@ -52,6 +52,15 @@ public class TrackDetailViewModel : ViewModelBase
         set { _artistListeners = value; OnPropertyChanged(); }
     }
 
+    public ObservableCollection<string> SimilarArtists { get; } = new();
+
+    private bool _hasSimilarArtists;
+    public bool HasSimilarArtists
+    {
+        get => _hasSimilarArtists;
+        set { _hasSimilarArtists = value; OnPropertyChanged(); }
+    }
+
     private string? _artistImagePath;
     public string? ArtistImagePath
     {
@@ -178,7 +187,9 @@ public class TrackDetailViewModel : ViewModelBase
 
         ArtistBio = null;
         ArtistListeners = null;
-        ArtistImagePath = null;   // never show the previous artist's photo
+        ArtistImagePath = null;
+        SimilarArtists.Clear();
+        HasSimilarArtists = false;
         LibraryArtistTrackCount = 0;
         _ = LoadArtistInfoAsync(track);
     }
@@ -335,6 +346,14 @@ public class TrackDetailViewModel : ViewModelBase
         {
             ArtistBio = info.Bio;
             ArtistListeners = info.Listeners;
+
+            SimilarArtists.Clear();
+            if (info.SimilarArtists.Count > 0)
+            {
+                foreach (var sim in info.SimilarArtists)
+                    SimilarArtists.Add(sim);
+                HasSimilarArtists = true;
+            }
         }
         else
         {

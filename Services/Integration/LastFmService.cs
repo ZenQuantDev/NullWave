@@ -309,6 +309,19 @@ public class LastFmService
                 }
             }
 
+            if (artistEl.TryGetProperty("similar", out var similar) && similar.TryGetProperty("artist", out var similarArtists))
+            {
+                foreach (var sim in similarArtists.EnumerateArray())
+                {
+                    if (sim.TryGetProperty("name", out var name))
+                    {
+                        var n = name.GetString();
+                        if (!string.IsNullOrEmpty(n)) info.SimilarArtists.Add(n);
+                        if (info.SimilarArtists.Count >= 6) break;
+                    }
+                }
+            }
+
             return info;
         }
         catch (Exception ex)
@@ -392,6 +405,7 @@ public class LastFmArtistInfo
     public string Listeners { get; set; } = "0";
     public string? Bio { get; set; }
     public string? ImageUrl { get; set; }
+    public List<string> SimilarArtists { get; set; } = new();
 }
 
 public class LastFmTrackResponse
