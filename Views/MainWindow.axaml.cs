@@ -78,6 +78,12 @@ public partial class MainWindow : Window
                 return;
             }
         }
+        if (e.Key == Key.B && (e.KeyModifiers & KeyModifiers.Control) != 0)
+        {
+            vm.ToggleSidebarCollapsedCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
 
         // Do not intercept hotkeys while typing inside any text input. e.Source is
         // usually the TextBox's internal TextPresenter (not the TextBox itself), so

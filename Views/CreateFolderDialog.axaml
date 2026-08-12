@@ -25,7 +25,7 @@
         <StackPanel Spacing="8" VerticalAlignment="Center">
             <TextBlock Text="Folder name"
                        Foreground="{StaticResource BrushTextPrimary}"
-                       FontSize="{StaticResource FontSizeBody}"/>
+                       FontSize="{DynamicResource FontSizeBody}"/>
             <TextBox Name="NameInput"
                      PlaceholderText="My Folder"
                      KeyDown="OnNameInputKeyDown"/>

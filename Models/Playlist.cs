@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace NullWave.Models;
@@ -9,6 +10,7 @@ public class Playlist : INotifyPropertyChanged
 {
     private bool _isPinned;
     private Guid? _folderId;
+    private string? _customArtPath;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -20,6 +22,16 @@ public class Playlist : INotifyPropertyChanged
     public string? Description { get; set; }
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
     public List<Track> Tracks { get; set; } = new();
+
+    /// <summary>User-chosen cover image path (null = auto from first track).</summary>
+    public string? CustomArtPath
+    {
+        get => _customArtPath;
+        set { if (_customArtPath != value) { _customArtPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(ArtPath)); } }
+    }
+
+    /// <summary>Resolved sidebar art: custom cover first, else first track's album art.</summary>
+    public string? ArtPath => CustomArtPath ?? Tracks.FirstOrDefault()?.AlbumArtPath;
 
     public bool IsPinned
     {
@@ -50,7 +62,7 @@ public class PlaylistFolder : INotifyPropertyChanged
         set { if (_name != value) { _name = value; OnPropertyChanged(); } }
     }
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
-    
+
     public bool IsExpanded
     {
         get => _isExpanded;

@@ -5,84 +5,187 @@
              x:Class="NullWave.Views.Settings.AboutTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Padding="24,20"
+                    VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="0">
 
-            <!--  Branding  -->
-            <Border Classes="settings-card">
-                <StackPanel Spacing="16" HorizontalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
-                        <material:MaterialIcon Kind="Waveform"
-                                               Width="48" Height="48"
-                                               Foreground="{StaticResource BrushAccent}"/>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="NullWave"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="28"
-                                       FontWeight="Black"
-                                       LetterSpacing="1"/>
-                            <TextBlock Text="Personal music organizer"
+            <!-- ══ HERO ══ -->
+            <Border Classes="settings-card" ClipToBounds="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.9">
+                        <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+                        <GradientStop Color="{DynamicResource ColorSurface2}" Offset="0.55"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0" Width="64" Height="64"
+                            CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="{DynamicResource ColorAccent}" Offset="0"/>
+                                <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <material:MaterialIcon Kind="Waveform" Width="34" Height="34"
+                                               Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="NullWave"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{DynamicResource FontSize2xl}" FontWeight="Black"/>
+                        <TextBlock Text="Personal music organizer"
+                                   Foreground="{StaticResource BrushTextSecondary}"
+                                   FontSize="{DynamicResource FontSizeBody}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0">
+                            <Button Classes="ghost" Padding="10,4"
+                                    Command="{Binding TapVersionCommand}"
+                                    ToolTip.Tip="The curious get rewarded">
+                                <TextBlock Text="{Binding VersionLabel}"
+                                           Foreground="{StaticResource BrushAccentHover}"
+                                           FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            </Button>
+                            <TextBlock Text="Open Source · MIT"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Version"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeBody}"/>
-                            <TextBlock Text="{Binding CurrentVersion}"
-                                       Foreground="{StaticResource BrushAccentHover}"
-                                       FontSize="{StaticResource FontSizeBody}"
-                                       FontWeight="SemiBold"/>
-                        </StackPanel>
-                        <Border Width="1" Background="{StaticResource BrushBorder}"/>
-                        <TextBlock Text="Open Source · Fedora Linux"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeBody}"/>
-                    </StackPanel>
-                </StackPanel>
+                </Grid>
             </Border>
 
-            <!--  Stack  -->
-            <TextBlock Classes="section-label" Text="BUILT WITH" Margin="0,0,0,12"/>
-
+            <!-- ══ WHAT'S NEW ══ -->
+            <TextBlock Classes="section-label" Text="WHAT'S NEW IN BLUE ORCHID" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*,*">
-                        <StackPanel Grid.Column="0" Spacing="6">
-                            <TextBlock Text=".NET 8 + C#" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Avalonia UI 12" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="LibVLCSharp" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="SQLite-net-pcl" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="6">
-                            <TextBlock Text="yt-dlp" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="TagLib#" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Serilog" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Material.Icons.Avalonia" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Palette" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Live theme engine — 9 accents, 10 duos, density &amp; font scaling, no restart" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="AccountMusic" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Spotify-style artist panel with bio, listeners &amp; similar artists" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="Update" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Self-updater with staged installs for Windows &amp; Linux" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <material:MaterialIcon Kind="ShieldCheck" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Local-first &amp; encrypted — your library never leaves your machine" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!--  Links  -->
-            <TextBlock Classes="section-label" Text="LINKS" Margin="0,0,0,12"/>
-
+            <!-- ══ BUILT WITH (clickable credits, unified chip style) ══ -->
+            <TextBlock Classes="section-label" Text="BUILT WITH" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="github.com/Alexsandrgardaphadze/NullWave"
-                               Foreground="{StaticResource BrushAccentHover}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               Cursor="Hand"/>
-                    <TextBlock Text="Issues, feature requests, and contributions welcome."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+                <WrapPanel Orientation="Horizontal">
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://dotnet.microsoft.com" ToolTip.Tip="dotnet.microsoft.com">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="LanguageCsharp" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text=".NET 8 + C#"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://avaloniaui.net" ToolTip.Tip="avaloniaui.net">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="Palette" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Avalonia UI 12"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://code.videolan.org/videolan/libvlcsharp" ToolTip.Tip="LibVLCSharp">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="LibVLCSharp"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/yt-dlp/yt-dlp" ToolTip.Tip="yt-dlp">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="Download" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="yt-dlp"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/mono/taglib-sharp" ToolTip.Tip="TagLib#">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="TagOutline" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="TagLib#"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://serilog.net" ToolTip.Tip="serilog.net">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="FileDocumentOutline" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Serilog"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/praeclarum/sqlite-net" ToolTip.Tip="sqlite-net">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="Database" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="SQLite-net-pcl"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tech-chip" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/SKProCH/Material.Icons" ToolTip.Tip="Material.Icons">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <material:MaterialIcon Kind="VectorSquare" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Material.Icons"/>
+                            <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+            </Border>
+
+            <!-- ══ LINKS ══ -->
+            <TextBlock Classes="section-label" Text="LINKS" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="10">
+                    <Button Classes="ghost" HorizontalAlignment="Left"
+                            Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/Alexsandrgardaphadze/NullWave">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="Github" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="github.com/Alexsandrgardaphadze/NullWave" Foreground="{StaticResource BrushAccentHover}"/>
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/Alexsandrgardaphadze/NullWave/issues">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="BugOutline" Width="16" Height="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="Report an issue"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/Alexsandrgardaphadze/NullWave/blob/main/CHANGELOG.md">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="History" Width="16" Height="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="Changelog"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/Alexsandrgardaphadze/NullWave/blob/main/LICENSE">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="ScaleBalance" Width="16" Height="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="License (MIT)"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <Button Classes="ghost" HorizontalAlignment="Left"
+                            Command="{Binding CopyDebugInfoCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="ContentCopy" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="Copy debug info"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Border>
+
+            <TextBlock Text="Made with ♥ by ZenQuant"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{DynamicResource FontSizeXs}"
+                       HorizontalAlignment="Center" Margin="0,8,0,0"/>
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
-
 </UserControl>

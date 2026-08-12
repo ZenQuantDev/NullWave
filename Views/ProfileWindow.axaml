@@ -111,7 +111,7 @@
                                                    HorizontalAlignment="Center"/>
                                         <TextBlock Text="Change"
                                                    Foreground="White"
-                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   FontSize="{DynamicResource FontSizeXs}"
                                                    HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
@@ -124,7 +124,7 @@
                                     Spacing="4">
                             <TextBlock Text="Profile"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                             <TextBlock Text="{Binding Username}"
                                        Foreground="{StaticResource BrushTextPrimary}"
                                        FontSize="32"
@@ -132,13 +132,13 @@
                                        TextTrimming="CharacterEllipsis"/>
                             <TextBlock Text="{Binding Bio}"
                                        Foreground="{StaticResource BrushTextSecondary}"
-                                       FontSize="{StaticResource FontSizeBody}"
+                                       FontSize="{DynamicResource FontSizeBody}"
                                        TextTrimming="CharacterEllipsis"
                                        TextWrapping="Wrap"
                                        MaxLines="2"/>
                             <TextBlock Text="{Binding MemberSince, StringFormat='Member since {0}'}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontSize="{DynamicResource FontSizeXs}"
                                        Margin="0,2,0,0"/>
                         </StackPanel>
                     </Grid>
@@ -177,7 +177,7 @@
                     <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding ToastMessage}"
                                Foreground="White"
-                               FontSize="{StaticResource FontSizeBody}"/>
+                               FontSize="{DynamicResource FontSizeBody}"/>
                 </StackPanel>
             </Border>
 
@@ -207,7 +207,7 @@
                                  MaxLength="160"
                                  TextWrapping="Wrap"/>
                         <TextBlock Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    HorizontalAlignment="Right">
                             <TextBlock.Text>
                                 <MultiBinding StringFormat="{}{0}/160">
@@ -225,29 +225,29 @@
                         <Grid ColumnDefinitions="*,6,*,6,*,6,*">
                             <Border Grid.Column="0" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                                 <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushAccent}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Column="2" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                                 <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushAmber}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Favorites" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushAmber}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Favorites" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Column="4" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                                 <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushBlue}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Plays" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushBlue}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Plays" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Column="6" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
                                 <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalSkips}" Foreground="{StaticResource BrushRedDim}" FontSize="{StaticResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Skips" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalSkips}" Foreground="{StaticResource BrushRedDim}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Skips" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -278,7 +278,7 @@
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding MostPlayedTrack}"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"
+                                           FontSize="{DynamicResource FontSizeBody}"
                                            FontWeight="Medium"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
@@ -305,7 +305,7 @@
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding MostPlayedArtist}"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"
+                                           FontSize="{DynamicResource FontSizeBody}"
                                            FontWeight="Medium"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
@@ -331,13 +331,13 @@
                                                     VerticalAlignment="Center"/>
                                             <TextBlock Text="YouTube"
                                                        Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{StaticResource FontSizeBody}"
+                                                       FontSize="{DynamicResource FontSizeBody}"
                                                        VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding YouTubePercentageText}"
                                                    Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   FontSize="{DynamicResource FontSizeBody}"
                                                    FontWeight="SemiBold"/>
                                     </Grid>
                                     <ProgressBar Value="{Binding YouTubePercentage}"
@@ -356,13 +356,13 @@
                                                     VerticalAlignment="Center"/>
                                             <TextBlock Text="SoundCloud"
                                                        Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{StaticResource FontSizeBody}"
+                                                       FontSize="{DynamicResource FontSizeBody}"
                                                        VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding SoundCloudPercentageText}"
                                                    Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   FontSize="{DynamicResource FontSizeBody}"
                                                    FontWeight="SemiBold"/>
                                     </Grid>
                                     <ProgressBar Value="{Binding SoundCloudPercentage}"
@@ -381,13 +381,13 @@
                                                     VerticalAlignment="Center"/>
                                             <TextBlock Text="Local Storage"
                                                        Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{StaticResource FontSizeBody}"
+                                                       FontSize="{DynamicResource FontSizeBody}"
                                                        VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding LocalPercentageText}"
                                                    Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{StaticResource FontSizeBody}"
+                                                   FontSize="{DynamicResource FontSizeBody}"
                                                    FontWeight="SemiBold"/>
                                     </Grid>
                                     <ProgressBar Value="{Binding LocalPercentage}"
@@ -410,11 +410,11 @@
                                     <TextBlock Grid.Column="0"
                                                Text="Data location"
                                                Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{StaticResource FontSizeBody}"/>
+                                               FontSize="{DynamicResource FontSizeBody}"/>
                                     <TextBlock Grid.Column="1"
                                                Text="~/.nullwave/"
                                                Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{StaticResource FontSizeSm}"/>
+                                               FontSize="{DynamicResource FontSizeSm}"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -506,7 +506,7 @@
                                         Command="{Binding ActionCommand}"
                                         Content="{Binding ActionButtonText}"
                                         HorizontalAlignment="Right"
-                                        FontSize="{StaticResource FontSizeXs}" 
+                                        FontSize="{DynamicResource FontSizeXs}" 
                                         Padding="10,4"
                                         Background="{StaticResource BrushSurface2}"
                                         Foreground="{StaticResource BrushTextPrimary}"

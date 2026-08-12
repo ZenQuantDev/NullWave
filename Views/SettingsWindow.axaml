@@ -9,7 +9,7 @@
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="NullWave Configuration Desk"
-        Width="940" Height="660"
+        Width="950" Height="660"
         MinWidth="800" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushBase}"
@@ -67,11 +67,11 @@
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="NullWave"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="Bold"/>
                                 <TextBlock Text="Settings"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"/>
+                                           FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -80,7 +80,7 @@
                     <TextBlock DockPanel.Dock="Bottom"
                                Text="{Binding CurrentVersion, StringFormat='System Node Build v{0}'}"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"
+                               FontSize="{DynamicResource FontSizeXs}"
                                HorizontalAlignment="Center"
                                Margin="0,0,0,16"/>
 
@@ -273,7 +273,7 @@
                                         Command="{Binding ActionCommand}"
                                         Content="{Binding ActionButtonText}"
                                         HorizontalAlignment="Right"
-                                        FontSize="{StaticResource FontSizeXs}" 
+                                        FontSize="{DynamicResource FontSizeXs}" 
                                         Padding="10,4"
                                         Background="{StaticResource BrushSurface2}"
                                         Foreground="{StaticResource BrushTextPrimary}"

@@ -360,6 +360,8 @@ public class LibraryService : IDisposable
         _history.Add(track);
         if (_history.Count > 200)
             _history.RemoveAt(0);
+
+        OnLibraryChanged();
     }
 
     public bool IsDuplicate(Track newTrack)

@@ -23,8 +23,6 @@ namespace NullWave.ViewModels;
 
 public class TrackDetailViewModel : ViewModelBase
 {
-    // Last.fm no longer serves real artist photos via artist.getInfo — every artist
-    // gets the same grey "white star" placeholder, whose URL contains this hash.
     private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
 
     private readonly LibraryService _library;
@@ -302,26 +300,31 @@ public class TrackDetailViewModel : ViewModelBase
             ? desktop.MainWindow : null;
         if (window == null) return;
 
-        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        var result = await new Views.RelinkDialog(_currentTrack.Url ?? "").ShowDialog<Views.RelinkResult>(window);
+        if (result.Cancelled) return;
+
+        string changes = "";
+
+        if (result.Path != null)
         {
-            Title = "Select the correct audio file",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new Avalonia.Platform.Storage.FilePickerFileType("Audio Files")
-                { Patterns = new[] { "*.mp3", "*.flac", "*.wav", "*.ogg", "*.m4a", "*.aac" } }
-            }
-        });
+            _currentTrack.FilePath = result.Path;
+            _library.RefreshAlbumArt(_currentTrack);
+            changes += $"FilePath relinked to \"{result.Path}\"";
+            Log.Information("Track relinked to local file: {Title} → {Path}", _currentTrack.Title, result.Path);
+        }
 
-        if (files.Count == 0) return;
+        if (result.Url != null)
+        {
+            _currentTrack.Url = result.Url;
+            if (changes.Length > 0) changes += ", ";
+            changes += $"Url relinked to \"{result.Url}\"";
+            Log.Information("Track relinked to URL: {Title} → {Url}", _currentTrack.Title, result.Url);
+        }
 
-        var newPath = files[0].Path.LocalPath;
-        _currentTrack.FilePath = newPath;
-        _library.RefreshAlbumArt(_currentTrack);
+        _library.Update(_currentTrack);
 
-        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), $"FilePath relinked to \"{newPath}\"", "TrackDetailViewModel");
-        Log.Information("Track relinked: {Title} → {Path}", _currentTrack.Title, newPath);
-        ToastService.Instance.Show($"'{_currentTrack.Title}' relinked to new file.", ToastType.Success);
+        NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), changes, "TrackDetailViewModel");
+        ToastService.Instance.Show($"'{_currentTrack.Title}' re-linked.", ToastType.Success);
 
         RefreshDisplayProperties();
     }
@@ -375,7 +378,6 @@ public class TrackDetailViewModel : ViewModelBase
 
         if (!string.IsNullOrEmpty(url) && !url.Contains(LastFmPlaceholderImageHash))
         {
-            // Real photo (rare nowadays) — download & cache as before.
             _ = Task.Run(async () =>
             {
                 try
@@ -408,7 +410,6 @@ public class TrackDetailViewModel : ViewModelBase
         }
         else if (!string.IsNullOrEmpty(track.AlbumArtPath))
         {
-            // No usable artist photo (placeholder or none) — show album art instead of the star.
             ArtistImagePath = track.AlbumArtPath;
         }
     }

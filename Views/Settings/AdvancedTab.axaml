@@ -13,12 +13,12 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Advanced / Verbose logging" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Advanced / Verbose logging" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <Button Classes="help-btn" ToolTip.Tip="Default mode logs summaries only. Advanced mode also logs every individual item. Takes effect immediately.">
                                 <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                             </Button>
                         </StackPanel>
-                        <TextBlock Text="{Binding LoggingModeLabel, StringFormat='Current mode: {0}'}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                        <TextBlock Text="{Binding LoggingModeLabel, StringFormat='Current mode: {0}'}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding VerboseLogging}" VerticalAlignment="Center"/>
                 </Grid>
@@ -30,16 +30,16 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Open data folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave - keys, db, downloads, art, logs" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Open data folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="~/.nullwave - keys, db, downloads, art, logs" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Open folder" Command="{Binding OpenDataFolderCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Open logs folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave/logs - system, user actions, errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Open logs folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="~/.nullwave/logs - system, user actions, errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Open folder" Command="{Binding OpenLogsFolderCommand}"/>
                     </Grid>
@@ -51,8 +51,8 @@
             <Border Classes="settings-card">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="Block Duplicate Downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                        <TextBlock Text="Quickly scan the database to skip incoming tracks that already exist in the library." Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                        <TextBlock Text="Block Duplicate Downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Quickly scan the database to skip incoming tracks that already exist in the library." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding PreventDuplicateDownloads}" VerticalAlignment="Center"/>
                 </Grid>
@@ -65,12 +65,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Use aria2c for downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Use aria2c for downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Delegates the download itself to aria2c, opening 16 concurrent connections per track for much faster transfers.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Multi-connection downloads via aria2c (falls back silently if not installed)" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Multi-connection downloads via aria2c (falls back silently if not installed)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseAria2c}" VerticalAlignment="Center"/>
                     </Grid>
@@ -80,12 +80,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Browser cookies" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Browser cookies" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Passes --cookies-from-browser to yt-dlp so requests look like they come from a logged-in browser session.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Bypasses aggressive rate limiting and shortens inter-track delay" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Bypasses aggressive rate limiting and shortens inter-track delay" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" ItemsSource="{Binding BrowserCookieOptions}" SelectedItem="{Binding YtDlpBrowserCookies, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
                     </Grid>
@@ -98,24 +98,24 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Delete API keys" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Securely wipes all stored API keys from keys.enc" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Delete API keys" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Securely wipes all stored API keys from keys.enc" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="danger" Content="Delete keys" Command="{Binding DeleteApiKeysCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Delete logs" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Securely wipes all log files" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Delete logs" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Securely wipes all log files" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="danger" Content="Delete logs" Command="{Binding DeleteLogsCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Wipe everything" Foreground="{StaticResource BrushRed}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="Bold"/>
-                            <TextBlock Text="Permanently deletes all keys, logs, downloads, and NullWave data. Cannot be undone." Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Wipe everything" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Bold"/>
+                            <TextBlock Text="Permanently deletes all keys, logs, downloads, and NullWave data. Cannot be undone." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="danger" Content="Wipe everything" Command="{Binding DeleteEverythingCommand}" Margin="16,0,0,0"/>
                     </Grid>

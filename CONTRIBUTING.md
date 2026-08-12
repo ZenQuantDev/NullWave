@@ -3,7 +3,7 @@
 Thanks for your interest! Here's how to contribute:
 
 ## Rules
-- Credit the original author: ZenQuant (PackItPro Team)
+- Credit the original author: ZenQuant 
 - No malicious features (see LICENSE)
 - Follow existing code style (.editorconfig)
 - Write clean, readable C#

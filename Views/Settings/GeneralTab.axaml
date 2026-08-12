@@ -19,7 +19,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Auto-fetch metadata"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <Button Classes="help-btn"
                                         ToolTip.Tip="Fetches title and artist from Last.fm when a URL is pasted.">
@@ -28,7 +28,7 @@
                             </StackPanel>
                             <TextBlock Text="Fetch title and artist when a URL is pasted"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1"
                                       IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}"
@@ -41,11 +41,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Auto-play next track"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Automatically play the next track when one finishes"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1"
                                       IsChecked="{Binding AutoPlayNext, Mode=TwoWay}"
@@ -58,11 +58,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Download when added"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Download audio immediately when a URL is added to the library"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1"
                                       IsChecked="{Binding DownloadOnAdd, Mode=TwoWay}"
@@ -76,7 +76,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Scrobble to Last.fm"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <Button Classes="help-btn"
                                         ToolTip.Tip="Submits plays to Last.fm when a track passes the threshold below. Requires a Last.fm API key.">
@@ -85,7 +85,7 @@
                             </StackPanel>
                             <TextBlock Text="Submit plays to Last.fm (requires API key)"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1"
                                       IsChecked="{Binding ScrobbleToLastFm, Mode=TwoWay}"
@@ -104,11 +104,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="{Binding ScrobbleThresholdDisplay}"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Last.fm's own rule is 50% or 4 minutes, whichever comes first"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                     </Grid>
                     <Slider Minimum="0.1" Maximum="0.9"
@@ -117,11 +117,11 @@
                             Value="{Binding ScrobbleThreshold, Mode=TwoWay}"
                             IsEnabled="{Binding ScrobbleToLastFm}"/>
                     <Grid ColumnDefinitions="*,*,*,*,*">
-                        <TextBlock Grid.Column="0" Text="10%" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Left"/>
-                        <TextBlock Grid.Column="1" Text="30%" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="50%" Foreground="{StaticResource BrushAccent}"    FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                        <TextBlock Grid.Column="3" Text="70%" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Center"/>
-                        <TextBlock Grid.Column="4" Text="90%" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="0" Text="10%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Left"/>
+                        <TextBlock Grid.Column="1" Text="30%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="50%" Foreground="{StaticResource BrushAccent}"    FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="3" Text="70%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="90%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Right"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -137,7 +137,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Early-skip window"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <Button Classes="help-btn"
                                         ToolTip.Tip="If you skip a track within this many seconds of it starting, it gets a skip penalty mark.">
@@ -146,7 +146,7 @@
                             </StackPanel>
                             <TextBlock Text="Skipping within this window adds a penalty to the track"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding SkipWindowOptions}"
@@ -161,11 +161,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Penalty cap"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Tracks reaching this many penalties are excluded from Smart Shuffle"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding SkipPenaltyCapOptions}"
@@ -184,7 +184,7 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="Where downloaded audio files are saved"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"/>
+                               FontSize="{DynamicResource FontSizeSm}"/>
                     <Grid ColumnDefinitions="*,8,Auto">
                         <TextBox Grid.Column="0"
                                  Text="{Binding DownloadDirectory, Mode=TwoWay}"

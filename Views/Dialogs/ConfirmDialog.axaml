@@ -24,7 +24,7 @@
         </StackPanel>
         <TextBlock Name="MessageText"
                    Foreground="{StaticResource BrushTextPrimary}"
-                   FontSize="{StaticResource FontSizeBody}"
+                   FontSize="{DynamicResource FontSizeBody}"
                    TextWrapping="Wrap"
                    VerticalAlignment="Center"/>
     </DockPanel>

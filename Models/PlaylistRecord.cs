@@ -11,6 +11,7 @@ public class PlaylistRecord
     public string Name { get; set; } = "";
     public string? Description { get; set; }
     public string? FolderId { get; set; }
+    public string? CustomArtPath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public static PlaylistRecord FromPlaylist(Playlist p) => new()
@@ -19,6 +20,7 @@ public class PlaylistRecord
         Name = p.Name,
         Description = p.Description,
         FolderId = p.FolderId?.ToString(),
+        CustomArtPath = p.CustomArtPath,
         CreatedAt = p.DateCreated
     };
 
@@ -28,6 +30,7 @@ public class PlaylistRecord
         Name = Name,
         Description = Description,
         FolderId = string.IsNullOrWhiteSpace(FolderId) ? null : Guid.TryParse(FolderId, out var folderId) ? folderId : null,
+        CustomArtPath = CustomArtPath,
         DateCreated = CreatedAt
     };
 }

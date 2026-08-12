@@ -36,6 +36,10 @@ public class PlayerViewModel : ViewModelBase
     private DateTime _trackStartTime = DateTime.MinValue;
     private bool _isCrossfading;
     private bool _hasTriggeredCrossfade;
+    private bool _playRecorded;
+    
+    private Playlist? _activePlaylist;
+    private int _activePlaylistIndex = -1;
 
     private float _volumeBeforeMute = 0.8f;
     private bool _isMuted;
@@ -66,7 +70,7 @@ public class PlayerViewModel : ViewModelBase
             Avalonia.Threading.Dispatcher.UIThread.Post(() => 
             {
                 Position = pos;
-                CheckCrossfade(pos);
+                CheckPlayRecorded();
             });
         _playback.StateChanged += state =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => State = state);
@@ -240,7 +244,6 @@ public class PlayerViewModel : ViewModelBase
         {
             _hasTriggeredCrossfade = true;
 
-            // FIX: Actually consume the queue entry so the queue stays in sync with playback.
             var queueEntries = _library.GetQueue();
             Track? next;
             if (queueEntries.Count > 0)
@@ -276,6 +279,27 @@ public class PlayerViewModel : ViewModelBase
                 Log.Debug("[PlayerViewModel] Approaching end of playlist or no valid next track. Crossfade bypassed.");
             }
         }
+    }
+
+    private void CheckPlayRecorded()
+    {
+        if (_currentTrack == null || _playRecorded) return;
+        var duration = _playback.Duration.TotalSeconds;
+        if (duration <= 0) return;
+        var elapsed = Position * duration;
+        if (elapsed >= Math.Min(30, duration * _settings.ScrobbleThreshold))
+        {
+            _playRecorded = true;
+            _library.RecordPlay(_currentTrack.Id);
+        }
+    }
+
+    public void PlayPlaylist(Playlist playlist)
+    {
+        if (playlist.Tracks.Count == 0) return;
+        _activePlaylist = playlist;
+        _activePlaylistIndex = 0;
+        PlayTrack(playlist.Tracks[0]);
     }
 
     public Track? CurrentTrack
@@ -333,6 +357,7 @@ public class PlayerViewModel : ViewModelBase
             _position = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(PositionDisplay));
+            OnPropertyChanged(nameof(DurationDisplay));
         }
     }
 
@@ -463,6 +488,13 @@ public class PlayerViewModel : ViewModelBase
     {
         if (track == null) return;
 
+        if (_activePlaylist != null)
+        {
+            int idx = _activePlaylist.Tracks.FindIndex(t => t.Id == track.Id);
+            if (idx >= 0) _activePlaylistIndex = idx;
+            else _activePlaylist = null;
+        }
+
         if (_currentTrack != null && _currentTrack.Id != track.Id)
         {
             _navigator.RecordPlay(_currentTrack);
@@ -482,6 +514,7 @@ public class PlayerViewModel : ViewModelBase
 
         CurrentTrack = track;
         AlbumArtPath = track.AlbumArtPath;
+        _playRecorded = false;
 
         if (!string.IsNullOrEmpty(track.FilePath) && System.IO.File.Exists(track.FilePath))
         {
@@ -554,7 +587,7 @@ public class PlayerViewModel : ViewModelBase
     {
         if (_currentTrack != null)
         {
-            _library.RecordPlay(_currentTrack.Id);
+            if (!_playRecorded) _library.RecordPlay(_currentTrack.Id);
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
 
             if (_position >= _settings.ScrobbleThreshold)
@@ -590,6 +623,15 @@ public class PlayerViewModel : ViewModelBase
 
         _download.CancelCurrentDownload();
         IsDownloading = false;
+
+        if (_activePlaylist != null && _activePlaylistIndex > 0)
+        {
+            _activePlaylistIndex--;
+            PlayTrack(_activePlaylist.Tracks[_activePlaylistIndex]);
+            return;
+        }
+
+        _activePlaylist = null;
         var prev = _navigator.GetPreviousTrack(_currentTrack);
         if (prev != null) PlayTrack(prev);
     }
@@ -606,11 +648,20 @@ public class PlayerViewModel : ViewModelBase
         var queued = _library.DequeueNext();
         if (queued != null)
         {
+            _activePlaylist = null;
             PlayTrack(queued);
             RefillAutoQueue();
             return;
         }
 
+        if (_activePlaylist != null && _activePlaylistIndex < _activePlaylist.Tracks.Count - 1)
+        {
+            _activePlaylistIndex++;
+            PlayTrack(_activePlaylist.Tracks[_activePlaylistIndex]);
+            return;
+        }
+
+        _activePlaylist = null;
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null) PlayTrack(next);
         else StatusText = "End of library";

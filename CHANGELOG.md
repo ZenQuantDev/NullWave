@@ -5,24 +5,72 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.5.0] - 02-Aug-2026
+## [0.5.0] - 09-Aug-2026 — "Blue Orchid"
+
 ### Added
+- **Active Playlist Context**: Playback now continues through the active playlist even if the queue is cleared.
+- **Slim Scrollbars**: Quiet, minimal scrollbars that reveal on hover.
+- **About tab redesign** - gradient hero, version chip (tap 7x for a surprise), "What's new", clickable tech credits, GitHub/issue/license links.
+- **Staged self-updater** - in-app download + restart-to-install on both OSes.
+- **Live Theme Engine ("Blue Orchid")** - new singleton `ThemeService` applies accent,
+  font scale, row density and sidebar width at runtime with zero restarts.
+  `Themes/Colors.axaml` brushes now reference colors via `DynamicResource`, so the
+  whole app re-skins instantly.
+- **Signature edition + Accent Duos** - Appearance tab redesigned: "Blue Orchid"
+  signature card (azure + orchid), 9 named base colors, and 10 named complementary
+  **Accent Duo** pairs rendered as 50/50 split swatches. Segmented chips replace
+  dropdowns for font scale and sidebar width.
+- **Density system** - new tokens `TrackRowHeight`, `RowArtSize`, `RowTitleSize`,
+  `RowSubSize`, `MiniArtSize`, `RowMargin`, `NavPadding`; Comfortable / Compact /
+  Cozy row-style cards plus a global **Compact mode** that shrinks rows, art, nav
+  padding and the mini-player bar together.
+- **Gradient rollout** - `BrushAccentGradient` (dynamic stops) now drives the seek
+  and volume sliders, progress bars and the now-playing accent bar.
+- **Artist panel upgrade** - Track Detail shows the Last.fm artist photo with
+  placeholder-hash detection (`2a96cbd8…`) and album-art fallback, plus a
+  "Fans Also Like" similar-artists row.
+- **Windows Support** - Conditional `VideoLAN.LibVLC.Windows` package and
+  `&lt;RollForward&gt;Major&lt;/RollForward&gt;` for .NET 10 compatibility; `NullWavePaths`
+  stores data under `%APPDATA%\NullWave`; `DependencyUpdateService` installs/updates
+  yt-dlp and VLC via `winget`; `HardwareDetector` falls back to PowerShell/CIM on
+  Windows; native libVLC discovery for Windows install locations.
+- **Config hygiene** - `cspell.json` and `.markdownlint.json` updated for the new
+  vocabulary (duotone, swatch, orchid, extralarge, …).
 - **AI Playlist Persistence**: `ai:` search prompts now create real, persisted playlists in a dedicated "AI Playlists" folder.
 - **Playlist Folders**: Added `PlaylistFolderRecord` and `CreateFolderDialog` for organizing playlists.
 - **Offline Indicator**: Track list now shows an offline-ready checkmark for locally available tracks.
 - **Plugin Feedback**: Toggling plugins in Settings now triggers immediate success/warning toasts.
 
 ### Fixed
+- **Instant Sidebar Refresh**: Deleted playlists and folders now disappear from the sidebar immediately (no reboot required).
+- **Live Play Counts**: `PlayCount` and `LastPlayed` now update live in the UI via `LibraryChanged` events.
+- **Ghost Pin Purging**: Pinned playlists that are deleted are now automatically removed from preferences during sidebar rebuilds.
+- **Unified Context Menus**: The 3-dot menu and right-click context menus now have feature parity (both include "Add to Playlist").
+- **Dynamic version** display from `.csproj` (About tab, startup log, updater).
+- **Track Detail/Queue right panel locked** to 320px, mutually exclusive, non-resizable.
+- **Mini-player marquee** - long track titles now scroll: the title is measured at
+  full width inside a clipped horizontal `StackPanel`, so overflow detection works.
+- **Seek bar duration label** - `PlayerViewModel.Position` now also notifies
+  `DurationDisplay`, fixing the right-hand label frozen at `00:00`.
 - **Queue Oscillation**: Fixed critical bug where tracks would bounce back and forth due to history stack corruption in `PlaybackNavigator`.
 - **Crossfade Stability**: 
   - Fixed queue desync causing track oscillation during crossfade.
   - Added safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
 - **Smart Shuffle Loop**: Added candidate pool floor to prevent 2-track loops under heavy skip pressure.
 - **Add to Queue**: Fixed bug where command ignored the passed track parameter and used `SelectedTrack` instead.
+- **Right-panel layout collapse** - `MainViewModel.ActiveRightPanelWidth` now returns
+  a `GridLength` (320 open / 0 closed). The previous broken binding silently fell
+  back to `1*`, leaving a huge black void and an oversized Track Detail/Queue panel.
+  Panels stay mutually exclusive and non-resizable by design.
+- **VerifyLinks precision** - matcher normalizes artist prefixes
+  ("Eminem - X" vs "X"); decoration-aware false-positive tuning tracked in ROADMAP 9.1d.
 
 ### Changed
 - **Queue System**: Refactored to use `QueueEntry` model, distinguishing between manually added and auto-filled tracks.
 - **Roadmap**: Retroactively added Phase 12 (Navigation Redesign) and Phase 14 (Stability & Polish) to reflect shipped work.
+- Appearance tab is now a **live** control surface (previously save-only).
+- `Preferences.AccentColor` default is now `Blue Orchid`.
+- Docs: README bumped to v0.5.0 "Blue Orchid"; ROADMAP gained Phase 15.
 
 
 ## [0.4.2] - 19-Jul-2026

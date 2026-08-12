@@ -5,9 +5,9 @@
            xmlns:helpers="using:NullWave.Helpers"
            xmlns:converters="using:NullWave.Helpers.Converters"
            xmlns:material="using:Material.Icons.Avalonia"
+           xmlns:services="using:NullWave.Services"
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:MainViewModel">
-
     <DockPanel.Resources>
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
@@ -18,114 +18,13 @@
         <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
     </DockPanel.Resources>
 
-    <!--  TOOLBAR  -->
-    <Border DockPanel.Dock="Top"
-            Background="{StaticResource BrushSurface}"
-            BorderBrush="{StaticResource BrushBorder}"
-            BorderThickness="0,0,0,1"
-            Padding="12,8">
-        <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
-            <TextBox Grid.Column="0"
-                     Text="{Binding Library.SearchQuery, Mode=TwoWay}"
-                     PlaceholderText="Search (e.g., 'artist:tame impala', 'is:favorite', or 'ai:chill hip-hop')..."
-                     VerticalAlignment="Center">
-                <TextBox.InnerLeftContent>
-                    <material:MaterialIcon Kind="Magnify"
-                                           Width="16" Height="16"
-                                           Margin="8,0,0,0"
-                                           Foreground="{StaticResource BrushTextMuted}"/>
-                </TextBox.InnerLeftContent>
-                <TextBox.InnerRightContent>
-                    <StackPanel Orientation="Horizontal" Spacing="2">
-                        <Button Classes="help-btn" VerticalAlignment="Center" ToolTip.Tip="Search syntax">
-                            <material:MaterialIcon Kind="HelpCircleOutline" Width="16" Height="16"/>
-                            <Button.Flyout>
-                                <Flyout>
-                                    <StackPanel Spacing="6" MaxWidth="260" Margin="4">
-                                        <TextBlock FontWeight="SemiBold" Text="Search syntax"/>
-                                        <TextBlock Text="artist:name or a:name — filter by artist" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="title:name or t:name — filter by title" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="source:youtube or s:youtube — filter by source" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="tag:chill or genre:chill — filter by tag" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="is:favorite — favorites only" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="-word or -artist:name — exclude matches" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                                        <TextBlock FontWeight="SemiBold" Text="AI Playlist (requires Ollama)"/>
-                                        <TextBlock Text="ai:{prompt} — generate playlist from description" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}"/>
-                                        <TextBlock Text="Example: ai:energetic workout hip-hop" TextWrapping="Wrap" FontSize="{StaticResource FontSizeSm}" FontStyle="Italic"/>
-                                    </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-                        <Button Classes="icon-btn sm"
-                                Command="{Binding Library.ClearSearchTextCommand}"
-                                IsVisible="{Binding Library.HasSearchQuery}"
-                                ToolTip.Tip="Clear search">
-                            <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
-                        </Button>
-                    </StackPanel>
-                </TextBox.InnerRightContent>
-            </TextBox>
-            <ComboBox Grid.Column="2"
-                      ItemsSource="{Binding Library.SortOptions}"
-                      SelectedItem="{Binding Library.CurrentSort}"
-                      MinWidth="130"
-                      VerticalAlignment="Center">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Converter={StaticResource SortFieldDisplay}}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <Button Grid.Column="4"
-                    Classes="icon-btn"
-                    Command="{Binding Library.ToggleSortDirectionCommand}"
-                    ToolTip.Tip="Toggle sort direction"
-                    VerticalAlignment="Center">
-                <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                        Width="18" Height="18"/>
-            </Button>
-            <SplitButton Grid.Column="6"
-                         Classes="primary"
-                         ToolTip.Tip="Add a track"
-                         VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <material:MaterialIcon Kind="Plus" Width="16" Height="16"/>
-                    <TextBlock Text="Add Track"/>
-                </StackPanel>
-                <SplitButton.Flyout>
-                    <Flyout Placement="BottomEdgeAlignedRight">
-                        <StackPanel Spacing="10" Width="340" Margin="4">
-                            <TextBlock FontWeight="SemiBold" Text="Add from URL"/>
-                            <TextBox Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                                     PlaceholderText="Paste a YouTube, SoundCloud, or Spotify link..."/>
-                            <Button Classes="primary" Content="Add"
-                                    Command="{Binding Input.AddTrackCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center"/>
-                            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                            <Button Classes="ghost" Content="Choose local file..."
-                                    Command="{Binding Input.AddLocalFileCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Left"/>
-                            <Button Classes="ghost" Content="Import a folder..."
-                                    Command="{Binding Import.ImportFolderCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Left"/>
-                        </StackPanel>
-                    </Flyout>
-                </SplitButton.Flyout>
-            </SplitButton>
-        </Grid>
-    </Border>
-
-    <!--  COLUMN HEADERS  -->
+    <!-- COLUMN HEADERS -->
     <Grid DockPanel.Dock="Top"
           ColumnDefinitions="48,*,150,80,80,110,36,36"
           Margin="16,8,16,2">
         <TextBlock Grid.Column="0" Classes="section-label"
                    Text="{Binding Library.ResultCountLabel}"
-                   FontSize="{StaticResource FontSizeXs}"
+                   FontSize="{DynamicResource FontSizeXs}"
                    Margin="4,0,0,0"/>
         <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="0"
                 Cursor="Hand" Command="{Binding Library.SortByTitleCommand}"
@@ -133,8 +32,8 @@
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Classes="section-label" Text="TITLE / ARTIST" Margin="0"/>
                 <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                        Width="12" Height="12"
-                                        IsVisible="{Binding Library.IsSortedByTitle}"/>
+                                       Width="12" Height="12"
+                                       IsVisible="{Binding Library.IsSortedByTitle}"/>
             </StackPanel>
         </Button>
         <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0"
@@ -143,8 +42,8 @@
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Classes="section-label" Text="SOURCE" Margin="0"/>
                 <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                        Width="12" Height="12"
-                                        IsVisible="{Binding Library.IsSortedBySource}"/>
+                                       Width="12" Height="12"
+                                       IsVisible="{Binding Library.IsSortedBySource}"/>
             </StackPanel>
         </Button>
         <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0"
@@ -153,8 +52,8 @@
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
                 <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                        Width="12" Height="12"
-                                        IsVisible="{Binding Library.IsSortedByPlayCount}"/>
+                                       Width="12" Height="12"
+                                       IsVisible="{Binding Library.IsSortedByPlayCount}"/>
             </StackPanel>
         </Button>
         <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0"
@@ -167,58 +66,60 @@
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Classes="section-label" Text="ADDED" Margin="0"/>
                 <material:MaterialIcon Kind="{Binding Library.SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                        Width="12" Height="12"
-                                        IsVisible="{Binding Library.IsSortedByDate}"/>
+                                       Width="12" Height="12"
+                                       IsVisible="{Binding Library.IsSortedByDate}"/>
             </StackPanel>
         </Button>
     </Grid>
 
-    <!--  TRACK LIST  -->
+    <!-- TRACK LIST -->
     <ListBox ItemsSource="{Binding Library.Tracks}"
-            SelectedItem="{Binding Library.SelectedTrack}"
-            Background="Transparent"
-            Margin="8,0,8,8"
-            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-            SelectionChanged="OnTrackSelected"
-            DoubleTapped="OnTrackDoubleTapped">
+             SelectedItem="{Binding Library.SelectedTrack}"
+             Background="Transparent"
+             Margin="8,0,8,8"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+             SelectionChanged="OnTrackSelected"
+             DoubleTapped="OnTrackDoubleTapped">
         <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem"
                           BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                    <Setter Property="ContextMenu">
-                        <Setter.Value>
-                            <ContextMenu>
-                                <MenuItem Header="Play"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.PlayTrackCommand}"
-                                        CommandParameter="{Binding}"/>
-                                <MenuItem Header="View Details"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.OpenDetailCommand}"/>
-                                <MenuItem Header="Toggle Favorite"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"/>
-                                <MenuItem Header="Add to Queue"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.AddToQueueCommand}"
-                                        CommandParameter="{Binding}"/>
-                                <MenuItem Header="Copy URL"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
-                                <Separator/>
-                                <MenuItem Header="Remove"
-                                        Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
-                                        CommandParameter="{Binding}"/>
-                            </ContextMenu>
-                        </Setter.Value>
-                    </Setter>
+                <Setter Property="ContextMenu">
+                    <Setter.Value>
+                        <ContextMenu>
+                            <MenuItem Header="Play"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.PlayTrackCommand}"
+                                      CommandParameter="{Binding}"/>
+                            <MenuItem Header="View Details"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.OpenDetailCommand}"/>
+                            <MenuItem Header="Toggle Favorite"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"/>
+                            <MenuItem Header="Add to Queue"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.AddToQueueCommand}"
+                                      CommandParameter="{Binding}"/>
+                            <MenuItem Header="Add to Playlist..."
+                                      Command="{Binding $parent[ListBox].DataContext.AddTrackToPlaylistCommand}"
+                                      CommandParameter="{Binding}"/>
+                            <MenuItem Header="Copy URL"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="Remove"
+                                      Command="{Binding $parent[ListBox].DataContext.Library.RemoveTrackCommand}"
+                                      CommandParameter="{Binding}"/>
+                        </ContextMenu>
+                    </Setter.Value>
+                </Setter>
             </ControlTheme>
         </ListBox.ItemContainerTheme>
         <ListBox.ItemTemplate>
             <DataTemplate x:DataType="models:Track">
                 <Grid ColumnDefinitions="48,*,150,80,80,110,36,36"
-                      Margin="8,5" MinHeight="44">
-
-                    <!-- Now-playing accent bar -->
+                      Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}">
+                    <!-- Now-playing accent bar (DynamicResource so it follows accent changes live) -->
                     <Border Grid.Column="0"
                             Width="3"
                             HorizontalAlignment="Left"
                             Margin="-8,-5,0,-5"
-                            Background="{StaticResource BrushAccent}"
+                            Background="{DynamicResource BrushAccent}"
                             CornerRadius="0,2,2,0">
                         <Border.IsVisible>
                             <MultiBinding Converter="{StaticResource TrackIdEquals}">
@@ -227,30 +128,27 @@
                             </MultiBinding>
                         </Border.IsVisible>
                     </Border>
-
+                    
                     <!-- Album art -->
                     <Border Grid.Column="0"
-                            Width="40" Height="40"
+                            Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
                             CornerRadius="{StaticResource RadiusArt}"
                             Background="{StaticResource BrushSurface2}"
                             ClipToBounds="True"
                             VerticalAlignment="Center">
                         <Panel>
-                            <Image Source="{Binding AlbumArtPath,
-                                       Converter={StaticResource PathToBitmap}}"
+                            <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
                                    Stretch="UniformToFill"
-                                   IsVisible="{Binding AlbumArtPath,
-                                       Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                   IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                             <material:MaterialIcon Kind="MusicNote"
-                                       IsVisible="{Binding AlbumArtPath,
-                                           Converter={x:Static ObjectConverters.IsNull}}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       Width="18" Height="18"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                                                   IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                   Width="18" Height="18"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
                         </Panel>
                     </Border>
-
+                    
                     <!-- Title + artist -->
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center"
@@ -258,15 +156,15 @@
                                 Margin="10,0,8,0">
                         <TextBlock Text="{Binding Title}"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontSize="{DynamicResource RowTitleSize}"
                                    FontWeight="Medium"
                                    TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{Binding Artist}"
                                    Foreground="{StaticResource BrushTextSecondary}"
-                                   FontSize="{StaticResource FontSizeSm}"
+                                   FontSize="{DynamicResource RowSubSize}"
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
-
+                    
                     <!-- Source badge -->
                     <Border Grid.Column="2"
                             VerticalAlignment="Center"
@@ -274,22 +172,21 @@
                             Padding="10,4"
                             HorizontalAlignment="Left">
                         <Border.Background>
-                            <SolidColorBrush Color="{Binding Source,
-                                Converter={StaticResource SourceToBg}}"/>
+                            <SolidColorBrush Color="{Binding Source, Converter={StaticResource SourceToBg}}"/>
                         </Border.Background>
                         <TextBlock Text="{Binding Source}"
                                    Foreground="White"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    FontWeight="SemiBold"/>
                     </Border>
-
+                    
                     <!-- Play count -->
                     <TextBlock Grid.Column="3"
                                Text="{Binding PlayCount}"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"
+                               FontSize="{DynamicResource FontSizeSm}"
                                VerticalAlignment="Center"/>
-
+                    
                     <!-- Offline indicator -->
                     <StackPanel Grid.Column="4"
                                 Orientation="Horizontal"
@@ -305,26 +202,26 @@
                                                Foreground="{StaticResource BrushTextMuted}"
                                                IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
                     </StackPanel>
-
+                    
                     <!-- Date added -->
                     <TextBlock Grid.Column="5"
                                Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
                                Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeSm}"
+                               FontSize="{DynamicResource FontSizeSm}"
                                VerticalAlignment="Center"/>
-
+                    
                     <!-- Favorite star -->
                     <Button Grid.Column="6"
                             Classes="icon-btn"
                             Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                             ToolTip.Tip="Toggle Favorite"
                             VerticalAlignment="Center">
-                        <material:MaterialIcon Kind="{Binding IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" 
-                                               Width="18" Height="18" 
-                                               Foreground="{StaticResource BrushAmber}" 
+                        <material:MaterialIcon Kind="{Binding IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}"
+                                               Width="18" Height="18"
+                                               Foreground="{StaticResource BrushAmber}"
                                                Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
                     </Button>
-
+                    
                     <!-- More options -->
                     <Button Grid.Column="7"
                             Classes="icon-btn"
@@ -343,6 +240,9 @@
                                 <MenuItem Header="Add to Queue"
                                           Command="{Binding $parent[ListBox].DataContext.Library.AddToQueueCommand}"
                                           CommandParameter="{Binding}"/>
+                                <MenuItem Header="Add to Playlist..."
+                                          Command="{Binding $parent[ListBox].DataContext.AddTrackToPlaylistCommand}"
+                                          CommandParameter="{Binding}"/>
                                 <MenuItem Header="Copy URL"
                                           Command="{Binding $parent[ListBox].DataContext.Library.CopyUrlCommand}"/>
                                 <Separator/>
@@ -352,10 +252,8 @@
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
-
                 </Grid>
             </DataTemplate>
         </ListBox.ItemTemplate>
     </ListBox>
-
 </DockPanel>

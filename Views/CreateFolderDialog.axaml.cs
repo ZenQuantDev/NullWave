@@ -27,4 +27,10 @@ public partial class CreateFolderDialog : Window
         var name = NameInput.Text?.Trim();
         Close(string.IsNullOrWhiteSpace(name) ? null : name);
     }
+
+    public CreateFolderDialog(string initialName) : this()
+    {
+        NameInput.Text = initialName;
+        NameInput.SelectAll();
+    }
 }

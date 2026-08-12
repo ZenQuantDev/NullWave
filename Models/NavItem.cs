@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Material.Icons;
@@ -7,14 +8,6 @@ namespace NullWave.Models;
 
 public enum NavItemType { Core, PinnedPlaylist, SavedSearch }
 
-/// <summary>
-/// A single entry in the sidebar's reorderable nav list. Key is a stable
-/// identifier used for persisting order and active-state matching — never
-/// shown to the user, unlike Label. Core items use their page name as Key
-/// (matches MainViewModel.CurrentPage). Pinned items use "pin:{playlistId}"
-/// or "search:{query}" so they stay stable across app restarts even though
-/// they're dynamically created/removed by the user.
-/// </summary>
 public partial class NavItem : ObservableObject
 {
     public string Key { get; }
@@ -28,7 +21,11 @@ public partial class NavItem : ObservableObject
     [ObservableProperty] private bool _isAutoSuggested;
     [ObservableProperty] private bool _isDragging;
     [ObservableProperty] private bool _isDropTarget;
+    [ObservableProperty] private string? _artPath;
+    [ObservableProperty] private string? _subtitle;
+    [ObservableProperty] private Playlist? _playlist;
 
+    public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
     public bool CanUnpin => Type != NavItemType.Core;
 
     public ICommand? Command { get; set; }
@@ -42,5 +39,20 @@ public partial class NavItem : ObservableObject
         Type = type;
         TargetPlaylistId = targetPlaylistId;
         TargetQuery = targetQuery;
+    }
+}
+
+/// <summary>Expandable folder node for the sidebar tree.</summary>
+public partial class SidebarFolderNode : ObservableObject
+{
+    public PlaylistFolder Folder { get; }
+    public ObservableCollection<Playlist> Playlists { get; } = new();
+
+    [ObservableProperty] private bool _isExpanded = true;
+
+    public SidebarFolderNode(PlaylistFolder folder)
+    {
+        Folder = folder;
+        _isExpanded = folder.IsExpanded;
     }
 }

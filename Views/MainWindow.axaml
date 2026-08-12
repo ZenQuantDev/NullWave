@@ -17,10 +17,10 @@
         <converters:StringEqualsConverter x:Key="StringEqualsConverter"/>
         <converters:BoolToGridLengthConverter x:Key="BoolToGridLength"/>
         <converters:BoolToDoubleConverter x:Key="BoolToDouble"/>
+        <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
+        <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
     </Window.Resources>
-    
     <Window.Styles>
-        <!-- Base layout styles for all toasts -->
         <Style Selector="Border.success, Border.error, Border.warning, Border.info">
             <Setter Property="Transitions">
                 <Transitions>
@@ -28,8 +28,6 @@
                 </Transitions>
             </Setter>
         </Style>
-
-        <!-- Theme-mapped colors using your shared resources -->
         <Style Selector="Border.success">
             <Setter Property="Background" Value="{DynamicResource BrushGreenDim}"/>
         </Style>
@@ -43,48 +41,100 @@
             <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
         </Style>
     </Window.Styles>
-
     <Panel>
         <DockPanel>
             <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
             <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{Binding IsSidebarCollapsed, Converter={StaticResource BoolToGridLength}, ConverterParameter='0,220'}"
-                                      MinWidth="{Binding IsSidebarCollapsed, Converter={StaticResource BoolToDouble}, ConverterParameter='180,0'}"
-                                      MaxWidth="350"/>
-                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition Width="{Binding SidebarWidth}" MaxWidth="350"/>
                     <ColumnDefinition Width="*" MinWidth="700"/>
-                    <ColumnDefinition Width="4"/>
                     <ColumnDefinition Width="{Binding ActiveRightPanelWidth}"/>
                 </Grid.ColumnDefinitions>
-
-                <controls:SidebarView Grid.Column="0" IsVisible="{Binding !IsSidebarCollapsed}"/>
-
-                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
-                              Background="Transparent" ShowsPreview="True"
-                              IsVisible="{Binding !IsSidebarCollapsed}"/>
+                
+                <controls:SidebarView Grid.Column="0"/>
                               
-                <Grid Grid.Column="2">
-                    <controls:TrackListView
-                        IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
-                    <controls:PlaylistsView
-                        IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
+                <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Background="{StaticResource BrushSurface}"
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
+                            <TextBox Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
+                                     PlaceholderText="Search (e.g., 'artist:tame impala', 'is:favorite', or 'ai:chill hip-hop')..."
+                                     VerticalAlignment="Center">
+                                <TextBox.InnerLeftContent>
+                                    <materialIcons:MaterialIcon Kind="Magnify" Width="16" Height="16" Margin="8,0,0,0"
+                                                                Foreground="{StaticResource BrushTextMuted}"/>
+                                </TextBox.InnerLeftContent>
+                                <TextBox.InnerRightContent>
+                                    <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,4,0">
+                                        <Button Classes="icon-btn sm" ToolTip.Tip="Search syntax help">
+                                            <materialIcons:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                            <Button.Flyout>
+                                                <Flyout Placement="BottomEdgeAlignedRight">
+                                                    <StackPanel Spacing="4" MaxWidth="340">
+                                                        <TextBlock FontWeight="SemiBold" Text="Smart search"/>
+                                                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                                                   Text="artist:/a: · title:/t: · source:/s: · tag:/genre: · is:favorite · prefix with - to exclude"/>
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                        <Button Classes="icon-btn sm" Command="{Binding ClearGlobalSearchCommand}"
+                                                IsVisible="{Binding HasGlobalSearchQuery}" ToolTip.Tip="Clear search">
+                                            <materialIcons:MaterialIcon Kind="Close" Width="14" Height="14"/>
+                                        </Button>
+                                    </StackPanel>
+                                </TextBox.InnerRightContent>
+                            </TextBox>
 
-                    <Button Classes="icon-btn"
-                            Command="{Binding ToggleSidebarCollapsedCommand}"
-                            IsVisible="{Binding IsSidebarCollapsed}"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Top"
-                            Margin="8"
-                            Background="{StaticResource BrushSurface2}"
-                            ToolTip.Tip="Show sidebar">
-                        <materialIcons:MaterialIcon Kind="{Binding SidebarCollapseIconKind}" Width="18" Height="18"/>
-                    </Button>
+                            <ComboBox Grid.Column="2" ItemsSource="{Binding ToolbarSortOptions}"
+                                      SelectedItem="{Binding ToolbarCurrentSort}" MinWidth="130"
+                                      VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource SortFieldDisplay}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Grid.Column="4" Classes="icon-btn" Command="{Binding ToolbarToggleSortDirectionCommand}"
+                                    ToolTip.Tip="Toggle sort direction" VerticalAlignment="Center">
+                                <materialIcons:MaterialIcon Kind="{Binding ToolbarSortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                                            Width="18" Height="18"/>
+                            </Button>
+                            <SplitButton Grid.Column="6" Classes="primary" ToolTip.Tip="Add a track"
+                                         VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <materialIcons:MaterialIcon Kind="Plus" Width="16" Height="16"/>
+                                    <TextBlock Text="Add Track"/>
+                                </StackPanel>
+                                <SplitButton.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="10" Width="340" Margin="4">
+                                            <TextBlock FontWeight="SemiBold" Text="Add from URL"/>
+                                            <TextBox Text="{Binding Input.InputUrl, Mode=TwoWay}"
+                                                     PlaceholderText="Paste a YouTube, SoundCloud, or Spotify link..."/>
+                                            <Button Classes="primary" Content="Add" Command="{Binding Input.AddTrackCommand}"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                                            <Button Classes="ghost" Content="Choose local file..." Command="{Binding Input.AddLocalFileCommand}"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+                                            <Button Classes="ghost" Content="Import a folder..." Command="{Binding Import.ImportFolderCommand}"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </SplitButton.Flyout>
+                            </SplitButton>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                        <controls:TrackListView IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
+                        <controls:PlaylistsView IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
+                    </Grid>
                 </Grid>
                 
-                <controls:TrackDetailView Grid.Column="4" IsVisible="{Binding Detail.IsOpen}"/>
-                <controls:QueueView Grid.Column="4" IsVisible="{Binding Queue.IsOpen}"/>
+                <controls:TrackDetailView Grid.Column="2" IsVisible="{Binding Detail.IsOpen}"/>
+                <controls:QueueView Grid.Column="2" IsVisible="{Binding Queue.IsOpen}"/>
             </Grid>
         </DockPanel>
         
@@ -129,7 +179,6 @@
                             <Border Width="5"
                                     VerticalAlignment="Stretch"
                                     Background="{Binding NotificationColor}"/>
-                            
                             <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
                                 <Grid ColumnDefinitions="Auto, *, Auto">
                                     <Path Grid.Column="0"
@@ -139,7 +188,6 @@
                                           Data="{Binding IconData}"
                                           Stretch="Uniform"
                                           VerticalAlignment="Center"/>
-                                    
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Title}"
                                                FontWeight="SemiBold"
@@ -147,7 +195,6 @@
                                                Foreground="{StaticResource BrushTextPrimary}"
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
-                                    
                                     <Button Grid.Column="2"
                                             Command="{Binding CloseCommand}"
                                             Background="Transparent" BorderThickness="0"
@@ -163,13 +210,11 @@
                                                                     Foreground="{StaticResource BrushTextMuted}"/>
                                     </Button>
                                 </Grid>
-
                                 <TextBlock Text="{Binding Message}"
                                            FontSize="12"
                                            Foreground="{StaticResource BrushTextSecondary}"
                                            TextWrapping="Wrap"
                                            Margin="23,0,0,2"/>
-
                                 <ProgressBar IsVisible="{Binding ShowProgressBar}"
                                              Value="{Binding ProgressValue}"
                                              IsIndeterminate="{Binding IsIndeterminate}"
@@ -178,17 +223,15 @@
                                              CornerRadius="2"
                                              Background="{StaticResource BrushBorder}"
                                              Foreground="{Binding NotificationColor}"/>
-
                                 <Button IsVisible="{Binding ShowActionButton}"
                                         Command="{Binding ActionCommand}"
                                         Content="{Binding ActionButtonText}"
                                         HorizontalAlignment="Right"
-                                        FontSize="{StaticResource FontSizeXs}" 
+                                        FontSize="{DynamicResource FontSizeXs}"
                                         Padding="10,4"
                                         Background="{StaticResource BrushSurface2}"
                                         Foreground="{StaticResource BrushTextPrimary}"
                                         CornerRadius="6"/>
-
                                 <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
                                     <Button Command="{Binding ToggleExpandCommand}"
                                             Background="Transparent" BorderThickness="0" Padding="0"
@@ -204,7 +247,6 @@
                                             </StackPanel>
                                         </Panel>
                                     </Button>
-                                    
                                     <Border IsVisible="{Binding IsExpanded}"
                                             Margin="0,6,0,0" Padding="8"
                                             Background="{StaticResource BrushBase}"

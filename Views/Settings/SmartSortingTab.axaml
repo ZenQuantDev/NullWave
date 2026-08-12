@@ -21,13 +21,13 @@
                                                    VerticalAlignment="Center"/>
                             <TextBlock Text="AI Features"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="Bold"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="Master switch for all Ollama-powered features: Smart Shuffle, mood playlists, and local AI tagging. Disabling stops all model activity and frees VRAM."
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeSm}"
+                                   FontSize="{DynamicResource FontSizeSm}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1"
@@ -55,20 +55,20 @@
                                         Background="{Binding AIStatusDotColor}"/>
                                 <TextBlock Text="{Binding AIStatusLabel}"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock Text="{Binding AIStatusDescription}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"/>
                             
                             <StackPanel Spacing="6" IsVisible="{Binding IsDownloadingModel}" Margin="0,4,0,0">
                                 <ProgressBar Value="{Binding ModelDownloadProgress}" Maximum="100" Height="4"/>
                                 <TextBlock Text="{Binding ModelDownloadStatus}"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"/>
+                                           FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
@@ -94,7 +94,7 @@
                     <StackPanel Spacing="12">
                         <TextBlock Text="{Binding HardwareInfo}"
                                    Foreground="{StaticResource BrushTextSecondary}"
-                                   FontSize="{StaticResource FontSizeSm}"
+                                   FontSize="{DynamicResource FontSizeSm}"
                                    TextWrapping="Wrap"
                                    FontFamily="monospace"/>
                         <StackPanel Orientation="Horizontal" Spacing="12">
@@ -112,7 +112,7 @@
                                                            Foreground="{StaticResource BrushAmber}"/>
                                     <TextBlock Text="{Binding PowerStateLabel}"
                                                Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{StaticResource FontSizeXs}"
+                                               FontSize="{DynamicResource FontSizeXs}"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -128,11 +128,11 @@
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock Text="Active LLM Context"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="Used for mood target analysis, local tagging, and smart sequencing arrays."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -148,11 +148,11 @@
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock Text="Use Local Inference"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="Fallback to string matching/tag metrics if disabled (zero execution latency)."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
@@ -167,23 +167,23 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="Local Deployment Profile Guidelines"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBody}"
+                                   FontSize="{DynamicResource FontSizeBody}"
                                    FontWeight="SemiBold"/>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Tiny (≤1B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~2GB Shared RAM · Fast execution, simple classification tasks" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="Tiny (≤1B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="~2GB Shared RAM · Fast execution, simple classification tasks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Small (3-4B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~4GB VRAM/RAM · Balanced context comprehension, excellent for mobile systems" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="Small (3-4B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="~4GB VRAM/RAM · Balanced context comprehension, excellent for mobile systems" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Medium (7-9B)" Foreground="{StaticResource BrushAccentHover}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~8GB VRAM · Best categorical accuracy · Recommended execution configuration" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="Medium (7-9B)" Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="~8GB VRAM · Best categorical accuracy · Recommended execution configuration" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Large (12-14B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~16GB Memory allocation · Complex semantic parsing matrices" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="Large (12-14B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="~16GB Memory allocation · Complex semantic parsing matrices" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -197,7 +197,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="Dynamic Model Topology Switching"
                                                Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontSize="{DynamicResource FontSizeBodyLarge}"
                                                FontWeight="SemiBold"/>
                                     <Button Classes="help-btn"
                                             ToolTip.Tip="Swaps loaded model definitions automatically on hardware power changes to maximize battery endurance.">
@@ -206,7 +206,7 @@
                                 </StackPanel>
                                 <TextBlock Text="Loads power conservation profile on DC battery, full context engine on AC power lines."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
@@ -222,12 +222,12 @@
                                     <material:MaterialIcon Kind="BatteryMedium" Width="16" Height="16" Foreground="{StaticResource BrushAmber}"/>
                                     <TextBlock Text="Battery Profile Context"
                                                Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontSize="{DynamicResource FontSizeBodyLarge}"
                                                FontWeight="SemiBold"/>
                                 </StackPanel>
                                 <TextBlock Text="Target model configuration for low power extraction states."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -246,12 +246,12 @@
                                     <material:MaterialIcon Kind="Flash" Width="16" Height="16" Foreground="{StaticResource BrushGreen}"/>
                                     <TextBlock Text="Performance Station Profile"
                                                Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{StaticResource FontSizeBodyLarge}"
+                                               FontSize="{DynamicResource FontSizeBodyLarge}"
                                                FontWeight="SemiBold"/>
                                 </StackPanel>
                                 <TextBlock Text="Target model for maximum fidelity processing when tied to unmetered hardware power."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -271,11 +271,11 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="Asynchronous Client Processing (Zero Local Compute)"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Export cold untagged audio metadata sheets to cloud chatbots (ChatGPT, Claude), and map structured response tags directly back inside your database arrays."
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
 
@@ -283,10 +283,10 @@
                             <StackPanel Grid.Column="0" Spacing="3" Margin="0,0,16,0">
                                 <TextBlock Text="Payload Serialization Export Format"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
+                                           FontSize="{DynamicResource FontSizeBody}"/>
                                 <TextBlock Text="TXT Structure (Universal Paste)  ·  MD Sheets  ·  JSON Schema Objects"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontSize="{DynamicResource FontSizeXs}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -319,7 +319,7 @@
 
                         <TextBlock Text="{Binding ExternalAIStatus}"
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    TextWrapping="Wrap"
                                    IsVisible="{Binding ExternalAIStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>
@@ -332,11 +332,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <TextBlock Text="Smart Shuffle Confidence Threshold"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="The minimal filter bounds required for local models to forcefully restructure track order."
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
@@ -353,11 +353,11 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Configure active weather coordination arrays via API settings tab."
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    TextWrapping="Wrap"/>
                         <TextBlock Text="NullWave communicates against standard asynchronous OpenWeather schemas."
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
@@ -366,11 +366,11 @@
                     <StackPanel Spacing="0">
                         <Grid ColumnDefinitions="*,16,*">
                             <StackPanel Grid.Column="0" Spacing="6">
-                                <TextBlock Text="Station Latitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Text="Station Latitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
                                 <TextBox Text="{Binding Latitude, Mode=TwoWay}" PlaceholderText="e.g. 41.7151"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="Station Longitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBody}"/>
+                                <TextBlock Text="Station Longitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
                                 <TextBox Text="{Binding Longitude, Mode=TwoWay}" PlaceholderText="e.g. 44.8271"/>
                             </StackPanel>
                         </Grid>
@@ -381,11 +381,11 @@
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock Text="Automated Startup Generation Sequence"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="Forces active local weather evaluation and updates mood targets on terminal load."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
@@ -399,11 +399,11 @@
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock Text="Evaluation Refresh Frequency"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="Frequency bounds before polling external meteorology indices for ambient track realignment."
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeSm}"
+                                           FontSize="{DynamicResource FontSizeSm}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -422,13 +422,17 @@
                             Command="{Binding GenerateMoodPlaylistCommand}"/>
 
                     <Button Classes="secondary"
+                            Content="Generate from Tags (no AI)"
+                            Command="{Binding GenerateTagMoodPlaylistCommand}"/>
+
+                    <Button Classes="secondary"
                             Content="Refresh Station Weather Data"
                             Command="{Binding RefreshWeatherCommand}"/>
                 </StackPanel>
 
                 <TextBlock Text="{Binding MoodPlaylistStatus}"
                            Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
+                           FontSize="{DynamicResource FontSizeXs}"
                            Margin="4,12,0,0"
                            TextWrapping="Wrap"
                            IsVisible="{Binding MoodPlaylistStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>

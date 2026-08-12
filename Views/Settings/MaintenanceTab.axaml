@@ -13,8 +13,8 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="AI Metadata Cleaning" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Automatically remove clutter like 'ft.', '(Official)', or '- Topic' from track data." Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="AI Metadata Cleaning" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Automatically remove clutter like 'ft.', '(Official)', or '- Topic' from track data." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCleanMetadata}" VerticalAlignment="Center"/>
                     </Grid>
@@ -24,12 +24,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Force clean titles" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Force clean titles" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Re-parses every track's title for an embedded 'Artist - Title' pattern and overwrites both fields when found.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Retroactively fix wrong artist names caused by compilation/repost channels" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Retroactively fix wrong artist names caused by compilation/repost channels" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Force Clean" Command="{Binding ForceCleanTitlesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -37,7 +37,7 @@
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="12,8" IsVisible="{Binding ForceCleanStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding ForceCleanStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding ForceCleanStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -50,12 +50,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Repair file paths" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Repair file paths" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Scans all tracks with a saved file path and checks if the file still exists on disk.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Scan library for tracks whose audio file no longer exists on disk" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Scan library for tracks whose audio file no longer exists on disk" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Repair Paths" Command="{Binding RepairPathsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -64,12 +64,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Reimport assets" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Reimport assets" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Scans your download folder for audio files and re-links them to matching library tracks.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Scan download folder and re-link audio files to existing tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Scan download folder and re-link audio files to existing tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Reimport Assets" Command="{Binding ReimportAssetsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -78,12 +78,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Force metadata re-sync" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Force metadata re-sync" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Clears all cached tags from every track and re-runs the Last.fm enrichment pipeline.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Clear cached tags and re-fetch from Last.fm for all tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Clear cached tags and re-fetch from Last.fm for all tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Re-sync Metadata" Command="{Binding ForceMetaResyncCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -92,12 +92,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Sweep orphaned files" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Sweep orphaned files" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Deletes audio files in your downloads folder that no library track points to.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Delete .mp3/.m4a files with no matching library entry" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Delete .mp3/.m4a files with no matching library entry" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <Button Classes="secondary" Content="Preview" Command="{Binding PreviewOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
@@ -109,12 +109,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Verify links" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Verify links" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Reads the embedded title tag from every linked audio file and compares it against the track's stored title.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Cross-check linked files' embedded tags against stored track titles" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Cross-check linked files' embedded tags against stored track titles" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Verify Links" Command="{Binding VerifyLinksCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -123,12 +123,12 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Merge similar artist names" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Merge similar artist names" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Auto-merge artist names that differ only by whitespace, invisible characters, or Unicode variants">
                                     <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Normalize artist naming variations across the library" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Normalize artist naming variations across the library" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="danger" Content="Merge Similar Artist Names" Command="{Binding MergeSimilarArtistsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
@@ -136,8 +136,8 @@
 
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Remove duplicate tracks" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Find tracks with matching title and artist, keep the best copy" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Remove duplicate tracks" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Find tracks with matching title and artist, keep the best copy" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <Button Classes="secondary" Content="Preview" Command="{Binding PreviewDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
@@ -148,28 +148,28 @@
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="12,8" IsVisible="{Binding DedupeStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding DedupeStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding DedupeStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="12,8" IsVisible="{Binding RepairStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding RepairStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding RepairStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="12,8" IsVisible="{Binding SweepStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding SweepStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SweepStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="12,8" IsVisible="{Binding VerifyLinksStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding VerifyLinksStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding VerifyLinksStatus}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -181,19 +181,19 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Clear cached thumbnails" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Deletes all cached album art and re-fetches it automatically" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Clear cached thumbnails" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Deletes all cached album art and re-fetches it automatically" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Clear thumbnails" Command="{Binding ClearThumbnailsCommand}"/>
                     </Grid>
-                    <TextBlock Text="{Binding ThumbnailStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" IsVisible="{Binding ThumbnailStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding ThumbnailStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" IsVisible="{Binding ThumbnailStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Clear yt-dlp cache" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Purges yt-dlp download caches to fix stale streams and extractor errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Clear yt-dlp cache" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Purges yt-dlp download caches to fix stale streams and extractor errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Clear cache" Command="{Binding ClearYtDlpCacheCommand}"/>
                     </Grid>
@@ -203,16 +203,16 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Optimize database" Foreground="{StaticResource BrushTextPrimary}" FontSize="{StaticResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Optimize database" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="Runs SQLite's VACUUM command to shrink the database file and speed up queries after many inserts and deletes.">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Shrinks the database file and speeds up queries" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Shrinks the database file and speeds up queries" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="Optimize" Command="{Binding VacuumDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
-                    <TextBlock Text="{Binding VacuumStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" IsVisible="{Binding VacuumStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding VacuumStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" IsVisible="{Binding VacuumStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
             </Border>
             <Border Classes="BottomSpacer"/>

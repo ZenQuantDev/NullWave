@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Material.Icons;
 using NullWave.Helpers;
 using NullWave.Models;
@@ -19,8 +22,8 @@ public class NavigationViewModel : ViewModelBase
     private readonly PlaylistService _playlists;
     private readonly Action<Guid> _navigateToPlaylist;
     private readonly List<NavItem> _coreItems;
-
     private SidebarPill _currentPill = SidebarPill.Playlists;
+
     public SidebarPill CurrentPill
     {
         get => _currentPill;
@@ -29,11 +32,16 @@ public class NavigationViewModel : ViewModelBase
 
     public ObservableCollection<NavItem> Items { get; } = new();
     public ObservableCollection<Playlist> UnpinnedPlaylists { get; } = new();
+    public ObservableCollection<SidebarFolderNode> FolderNodes { get; } = new();
 
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand UnpinCommand { get; }
     public ICommand SelectPillCommand { get; }
+    public ICommand ToggleFolderCommand { get; }
+    public ICommand PinPlaylistCommand { get; }
+    public ICommand RenameFolderCommand { get; }
+    public ICommand DeleteFolderCommand { get; }
 
     public NavigationViewModel(
         PreferencesService prefs,
@@ -55,6 +63,18 @@ public class NavigationViewModel : ViewModelBase
         MoveDownCommand = new RelayCommand<NavItem>(MoveDown);
         UnpinCommand = new RelayCommand<NavItem>(Unpin);
         SelectPillCommand = new RelayCommand<SidebarPill>(p => CurrentPill = p);
+        ToggleFolderCommand = new RelayCommand<SidebarFolderNode>(node =>
+        {
+            if (node == null) return;
+            node.IsExpanded = !node.IsExpanded;
+            node.Folder.IsExpanded = node.IsExpanded;
+        });
+        PinPlaylistCommand = new RelayCommand<Playlist>(p =>
+        {
+            if (p != null) PinPlaylist(p.Id, p.Name);
+        });
+        RenameFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = RenameFolderAsync(n));
+        DeleteFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = DeleteFolderAsync(n));
 
         Rebuild();
     }
@@ -90,8 +110,14 @@ public class NavigationViewModel : ViewModelBase
 
         Items.Clear();
         foreach (var item in ordered) Items.Add(item);
-        
         RefreshPlaylistLists();
+    }
+
+    private void Decorate(NavItem item, Playlist? playlist)
+    {
+        item.Playlist = playlist;
+        item.ArtPath = playlist?.ArtPath;
+        item.Subtitle = playlist == null ? null : $"Playlist • {playlist.Tracks.Count} tracks";
     }
 
     private NavItem? ToNavItem(PinnedItemData data)
@@ -99,8 +125,12 @@ public class NavigationViewModel : ViewModelBase
         if (data.Type == NavItemType.PinnedPlaylist && data.TargetPlaylistId.HasValue)
         {
             var id = data.TargetPlaylistId.Value;
+            var playlist = _playlists.GetById(id);
+            if (playlist == null) return null;   // playlist was deleted -> drop the ghost pin
+
             var item = new NavItem(data.Key, data.Label, MaterialIconKind.PlaylistMusic, NavItemType.PinnedPlaylist, id);
             item.Command = new RelayCommand(() => _navigateToPlaylist(id));
+            Decorate(item, playlist);
             return item;
         }
         return null;
@@ -118,6 +148,7 @@ public class NavigationViewModel : ViewModelBase
             IsAutoSuggested = true
         };
         item.Command = new RelayCommand(() => _navigateToPlaylist(top.Id));
+        Decorate(item, top);
         return item;
     }
 
@@ -167,14 +198,40 @@ public class NavigationViewModel : ViewModelBase
 
     public void RefreshPlaylistLists()
     {
-        UnpinnedPlaylists.Clear();
+        // 1. Collect all pinned IDs from preferences
         var pinnedIds = _prefs.Current.PinnedItems
             .Where(p => p.TargetPlaylistId.HasValue)
             .Select(p => p.TargetPlaylistId!.Value)
             .ToHashSet();
 
-        foreach (var playlist in _playlists.GetAll().Where(p => !pinnedIds.Contains(p.Id)))
+        // 2. Add IDs from the current Items list (catches non-persisted auto-suggested pins)
+        foreach (var item in Items)
+        {
+            if (item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue)
+                pinnedIds.Add(item.TargetPlaylistId.Value);
+        }
+
+        // 3. Build unpinned playlists list (excludes anything in the pinned rail)
+        UnpinnedPlaylists.Clear();
+        foreach (var playlist in _playlists.GetAll().Where(p => p.FolderId == null && !pinnedIds.Contains(p.Id)))
             UnpinnedPlaylists.Add(playlist);
+
+        // 4. Build folder nodes (excludes anything in the pinned rail)
+        FolderNodes.Clear();
+        foreach (var folder in _playlists.GetAllFolders())
+        {
+            var node = new SidebarFolderNode(folder);
+            foreach (var pl in _playlists.GetAll().Where(p => p.FolderId == folder.Id && !pinnedIds.Contains(p.Id)))
+                node.Playlists.Add(pl);
+            FolderNodes.Add(node);
+        }
+
+        // 5. Keep pinned rows' art/subtitle fresh
+        foreach (var item in Items)
+        {
+            if (item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue)
+                Decorate(item, _playlists.GetById(item.TargetPlaylistId!.Value));
+        }
     }
 
     private void MoveUp(NavItem? item)
@@ -199,5 +256,35 @@ public class NavigationViewModel : ViewModelBase
     {
         var order = Items.Select(i => i.Key).ToList();
         _prefs.Update(p => p.NavOrder = order);
+    }
+
+    public void MovePlaylistToFolder(Guid playlistId, Guid? folderId)
+    {
+        // Dragging into a folder unpins (Spotify semantics): one home at a time
+        if (folderId.HasValue && IsPlaylistPinned(playlistId))
+            UnpinPlaylist(playlistId);
+        _playlists.MovePlaylistToFolder(playlistId, folderId);
+        RefreshPlaylistLists();
+    }
+
+    private async Task RenameFolderAsync(SidebarFolderNode? node)
+    {
+        if (node == null) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
+        var name = await new Views.CreateFolderDialog(node.Folder.Name).ShowDialog<string?>(d.MainWindow);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        _playlists.RenameFolder(node.Folder.Id, name);
+        RefreshPlaylistLists();
+    }
+
+    private async Task DeleteFolderAsync(SidebarFolderNode? node)
+    {
+        if (node == null) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
+        var ok = await new Views.ConfirmDialog("Delete Folder?",
+            $"Delete '{node.Folder.Name}'? Playlists inside move to the top level.").ShowDialog<bool>(d.MainWindow);
+        if (!ok) return;
+        _playlists.RemoveFolder(node.Folder.Id);
+        RefreshPlaylistLists();
     }
 }

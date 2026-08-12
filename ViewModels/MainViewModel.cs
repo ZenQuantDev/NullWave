@@ -43,13 +43,12 @@ public class MainViewModel : ViewModelBase
     private readonly MoodPlaylistService _moodPlaylist;
     private readonly PowerStateService _powerState;
     private readonly PluginManager _plugins = new();
-
     private PlaylistFolder? _aiPlaylistsFolder;
     private string? _pendingLastFmToken;
     private LastFmAuthService? _pendingLastFmAuth;
     private LiveNotification? _currentPlaylistActivity;
-
     private bool _isMenuBarVisible;
+
     public bool IsMenuBarVisible
     {
         get => _isMenuBarVisible;
@@ -73,12 +72,53 @@ public class MainViewModel : ViewModelBase
         {
             _isSidebarCollapsed = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSidebarExpanded));
             OnPropertyChanged(nameof(SidebarCollapseIconKind));
+            OnPropertyChanged(nameof(SidebarWidth));
         }
     }
+
+    public bool IsSidebarExpanded => !IsSidebarCollapsed;
+
     public Material.Icons.MaterialIconKind SidebarCollapseIconKind =>
         IsSidebarCollapsed ? Material.Icons.MaterialIconKind.ChevronRight : Material.Icons.MaterialIconKind.ChevronLeft;
+
     public ICommand ToggleSidebarCollapsedCommand { get; }
+
+    public GridLength SidebarWidth =>
+        new GridLength(IsSidebarCollapsed ? 72 : ThemeService.Instance.SidebarWidthPx);
+
+    private string _globalSearchQuery = string.Empty;
+    public string GlobalSearchQuery
+    {
+        get => _globalSearchQuery;
+        set
+        {
+            _globalSearchQuery = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasGlobalSearchQuery));
+            Library.SearchQuery = value;
+            Playlist.SearchQuery = value;
+        }
+    }
+
+    public bool IsOnLibraryPage => CurrentPage == "Library";
+    public bool HasGlobalSearchQuery => !string.IsNullOrEmpty(GlobalSearchQuery);
+
+    public Array ToolbarSortOptions => IsOnLibraryPage ? Library.SortOptions : Playlist.SortOptions;
+
+    public SortField ToolbarCurrentSort
+    {
+        get => IsOnLibraryPage ? Library.CurrentSort : Playlist.CurrentSort;
+        set { if (IsOnLibraryPage) Library.CurrentSort = value; else Playlist.CurrentSort = value; }
+    }
+
+    public bool ToolbarSortAscending => IsOnLibraryPage ? Library.SortAscending : Playlist.SortAscending;
+
+    public ICommand ToolbarToggleSortDirectionCommand =>
+        IsOnLibraryPage ? Library.ToggleSortDirectionCommand : Playlist.ToggleSortDirectionCommand;
+
+    public ICommand ClearGlobalSearchCommand { get; }
 
     private string _currentPage = "Library";
     public string CurrentPage
@@ -88,6 +128,12 @@ public class MainViewModel : ViewModelBase
         {
             _currentPage = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsOnLibraryPage));
+            OnPropertyChanged(nameof(ToolbarSortOptions));
+            OnPropertyChanged(nameof(ToolbarCurrentSort));
+            OnPropertyChanged(nameof(ToolbarSortAscending));
+            OnPropertyChanged(nameof(ToolbarToggleSortDirectionCommand));
+            _prefsService.Update(p => p.LastPage = value);
             Nav?.SetActivePage(value);
         }
     }
@@ -104,9 +150,12 @@ public class MainViewModel : ViewModelBase
     public ImportViewModel Import { get; }
     public PlayerViewModel Player { get; }
     public UserProfileViewModel Profile { get; }
-
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
 
+    public ICommand PlayPlaylistCommand { get; }
+    public ICommand ChangePlaylistCoverCommand { get; }
+    public ICommand ClearPlaylistCoverCommand { get; }
+    public ICommand ToggleDetailCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand OpenSettingsCommand { get; }
     public ICommand OpenProfileCommand { get; }
@@ -117,27 +166,37 @@ public class MainViewModel : ViewModelBase
     public ICommand NavigatePlaylistsCommand { get; }
     public ICommand NavigateToPlaylistCommand { get; }
     public ICommand ToggleQueueCommand { get; }
+    public ICommand AddTrackToPlaylistCommand { get; }
+    public ICommand MovePlaylistToFolderCommand { get; }
 
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
-    public const double RightPanelWidth = 340;
 
+    public const double RightPanelWidth = 320;
     public GridLength ActiveRightPanelWidth =>
-        Detail.IsOpen || Queue.IsOpen ? new GridLength(RightPanelWidth) : new GridLength(0);
+        Detail.IsOpen || Queue.IsOpen ? new GridLength(320) : new GridLength(0);
 
     public MainViewModel()
     {
         _prefsService = new PreferencesService();
+        _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
+        ThemeService.Instance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ThemeService.Instance.SidebarWidthPx))
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SidebarWidth)));
+        };
 
         _secureDelete = new SecureDeleteService(_keyStore);
         _config = new ConfigService(_keyStore);
         _lastFm = new LastFmService(_config);
         _metadata = new MetadataService(_config, _lastFm);
         _spotifyBridge = new SpotifyBridgeService(_config);
-
         var dbService = new DatabaseService();
         _library = new LibraryService(dbService, _metadata, _prefsService);
         _playlists = new PlaylistService(dbService, _library);
+        
+        _library.LibraryChanged += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => Library.Refresh());
+        
         var albumArtService = new AlbumArtService(_lastFm);
         _downloadService = new DownloadService(_library, _prefsService, albumArtService);
         _localAI = new LocalAIService();
@@ -155,13 +214,12 @@ public class MainViewModel : ViewModelBase
 
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, albumArtService);
         Library = new LibraryViewModel(_library, _localAI);
-        
+
         _aiPlaylistsFolder = _playlists.GetAllFolders().FirstOrDefault(f => f.Name == "AI Playlists");
         if (_aiPlaylistsFolder == null)
         {
             _aiPlaylistsFolder = _playlists.CreateFolder("AI Playlists");
         }
-
         Library.AiPlaylistRequested += OnAiPlaylistRequested;
 
         Playlist = new PlaylistViewModel(_playlists);
@@ -170,17 +228,18 @@ public class MainViewModel : ViewModelBase
         Import = new ImportViewModel(_library, _metadata);
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
         Profile = new UserProfileViewModel(_library);
-
         Queue = new QueueViewModel(_library);
         Queue.PlayTrackRequested += Player.PlayTrack;
+
+        AddTrackToPlaylistCommand = new RelayCommand<Track>(t => _ = AddTrackToPlaylistAsync(t));
+        MovePlaylistToFolderCommand = new RelayCommand<Playlist>(p => _ = MovePlaylistToFolderAsync(p));
 
         Detail.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Detail.IsOpen))
             {
                 OnPropertyChanged(nameof(ActiveRightPanelWidth));
-                if (Detail.IsOpen)
-                    Queue.IsOpen = false;
+                if (Detail.IsOpen) Queue.IsOpen = false;
             }
         };
         Queue.PropertyChanged += (_, e) =>
@@ -188,8 +247,7 @@ public class MainViewModel : ViewModelBase
             if (e.PropertyName == nameof(Queue.IsOpen))
             {
                 OnPropertyChanged(nameof(ActiveRightPanelWidth));
-                if (Queue.IsOpen)
-                    Detail.IsOpen = false;
+                if (Queue.IsOpen) Detail.IsOpen = false;
             }
         };
 
@@ -197,15 +255,12 @@ public class MainViewModel : ViewModelBase
         Playlist.UnpinRequested += p => Nav.UnpinPlaylist(p.Id);
         Playlist.PlayAllRequested += playlist =>
         {
-            if (playlist.Tracks.Count == 0) return;
-            Player.PlayTrack(playlist.Tracks[0]);
-            foreach (var track in playlist.Tracks.Skip(1))
-                _library.AddToQueue(track.Id);
+            if (playlist == null || playlist.Tracks.Count == 0) return;
+            Player.PlayPlaylist(playlist);
         };
 
         Library.NavigateToLibraryRequested += () => CurrentPage = "Library";
-        Playlist.PlaylistsChanged += () => Nav.RefreshPlaylistLists();
-
+        Playlist.PlaylistsChanged += () => Nav.Rebuild();
         Settings.RefreshWeatherRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
 
         _localAI.FallbackNotice += message =>
@@ -445,7 +500,6 @@ public class MainViewModel : ViewModelBase
                     "Pinging background inference node server...",
                     isIndeterminate: true
                 );
-
                 _ = Task.Run(async () =>
                 {
                     bool running = await _localAI.PingAsync();
@@ -462,11 +516,9 @@ public class MainViewModel : ViewModelBase
                             Settings.SetAIServiceState(NullWave.ViewModels.AIServiceState.Stopped);
                             ToastService.Instance.Show("Could not reach local AI server. Check configurations.", ToastType.Warning);
                         }
-                        
                         Settings.StartAIHealthCheck();
                     });
                 });
-                
                 Log.Information("[MainViewModel] AI features re-enabled - health check restarted");
             }
         };
@@ -478,18 +530,17 @@ public class MainViewModel : ViewModelBase
             Dispatcher.UIThread.Post(() =>
                 Settings.PowerStateLabel = state switch
                 {
-                    PowerState.AC      => "Plugged in (AC)",
+                    PowerState.AC => "Plugged in (AC)",
                     PowerState.Battery => "On battery",
-                    _                  => "Unknown"
+                    _ => "Unknown"
                 });
         };
         Settings.PowerStateLabel = PowerStateService.ReadPowerState() switch
         {
-            PowerState.AC      => "Plugged in (AC)",
+            PowerState.AC => "Plugged in (AC)",
             PowerState.Battery => "On battery",
-            _                  => "Unknown"
+            _ => "Unknown"
         };
-
         Settings.PowerModelsChanged += (batteryModel, perfModel, autoSwitch) =>
             _localAI.ConfigurePowerModels(batteryModel, perfModel, autoSwitch);
         _localAI.ConfigurePowerModels(
@@ -512,7 +563,6 @@ public class MainViewModel : ViewModelBase
                     ToastService.Instance.Show("Track download completed successfully.", ToastType.Success);
             });
         };
-
         _downloadService.DownloadFailed += (_, _, isInteractive) =>
         {
             Dispatcher.UIThread.Post(() =>
@@ -522,7 +572,6 @@ public class MainViewModel : ViewModelBase
                     ToastService.Instance.Show("A track download failed. Check your connection or logs.", ToastType.Error);
             });
         };
-
         _downloadService.PlaylistBatchStarted += totalTracks =>
         {
             _currentPlaylistActivity = ToastService.Instance.StartLiveActivity(
@@ -533,7 +582,6 @@ public class MainViewModel : ViewModelBase
                 isIndeterminate: totalTracks == 0
             );
         };
-
         _downloadService.PlaylistBatchProgress += (completed, total, skipped) =>
         {
             var doneSoFar = completed + skipped;
@@ -544,7 +592,6 @@ public class MainViewModel : ViewModelBase
                 isIndeterminate: false
             );
         };
-
         _downloadService.PlaylistBatchCompleted += (completed, failed, skipped) =>
         {
             var summary = $"Bulk download complete: {completed} downloaded, {failed} unavailable, {skipped} duplicates skipped.";
@@ -564,7 +611,6 @@ public class MainViewModel : ViewModelBase
         {
             var track = _library.GetAll().LastOrDefault();
             if (track == null) return;
-
             var playlistUrl = track.Url;
             if (string.IsNullOrEmpty(playlistUrl)) return;
 
@@ -578,7 +624,6 @@ public class MainViewModel : ViewModelBase
                     Library.Refresh();
                     return;
                 }
-
                 Log.Information("[MainViewModel] Intercepted playlist URL, removing dummy track and starting bulk download");
                 _library.Remove(track.Id);
                 Library.Refresh();
@@ -604,12 +649,16 @@ public class MainViewModel : ViewModelBase
         {
             if (_initialMoodPlaylistRun) return;
             _initialMoodPlaylistRun = true;
-            _ = RunMoodPlaylistAsync(forceRefresh: false);
+            if (_prefsService.Current.AutoGenerateMoodPlaylist)
+                _ = RunMoodPlaylistAsync(forceRefresh: false);
+            else
+                Log.Information("[MainViewModel] Auto Mood Mix disabled - skipping startup generation.");
         };
 
         _ = Task.Run(async () =>
         {
             await Task.Delay(3000);
+            if (!_prefsService.Current.AutoGenerateMoodPlaylist) return;
             if (PowerStateService.ReadPowerState() != PowerState.Battery)
             {
                 _enrichment.BackfillAsync();
@@ -633,13 +682,11 @@ public class MainViewModel : ViewModelBase
         Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
         {
             if (!Settings.ScrobbleToLastFm) return;
-            
             if (_plugins.Get<LastFmMetadataProvider>() is not { } lastFmProvider || !lastFmProvider.IsConfiguredForScrobbling)
             {
                 Log.Debug("[MainViewModel] Scrobble requested but Last.fm plugin not configured/available");
                 return;
             }
-
             var success = await lastFmProvider.ScrobbleAsync(title, artist, playedAt);
             if (!success)
             {
@@ -668,7 +715,7 @@ public class MainViewModel : ViewModelBase
                 Process.Start(new ProcessStartInfo { FileName = authUrl, UseShellExecute = true });
                 Settings.ReportLastFmAwaitingAuth();
                 _pendingLastFmToken = token;
-                _pendingLastFmAuth  = auth;
+                _pendingLastFmAuth = auth;
             }
             catch (Exception ex)
             {
@@ -694,7 +741,7 @@ public class MainViewModel : ViewModelBase
             _keyStore.SaveKey("LastFm:SessionKey", result.SessionKey);
             _keyStore.SaveKey("LastFm:Username", result.Username);
             _pendingLastFmToken = null;
-            _pendingLastFmAuth  = null;
+            _pendingLastFmAuth = null;
             _lastFm = new LastFmService(_config);
             Settings.ReportLastFmConnected(result.Username);
             ToastService.Instance.Show($"Successfully connected to Last.fm as {result.Username}!", ToastType.Success);
@@ -866,6 +913,7 @@ public class MainViewModel : ViewModelBase
         };
 
         Settings.GenerateMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
+        Settings.GenerateTagMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true, forceTags: true);
 
         Settings.ExportUntaggedTracksRequested += async () =>
         {
@@ -890,8 +938,8 @@ public class MainViewModel : ViewModelBase
                 var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(
                     new Avalonia.Platform.Storage.FilePickerOpenOptions
                     {
-                        Title          = "Import AI Tag JSON",
-                        AllowMultiple  = false,
+                        Title = "Import AI Tag JSON",
+                        AllowMultiple = false,
                         FileTypeFilter = new[]
                         {
                             new Avalonia.Platform.Storage.FilePickerFileType("JSON / Text") { Patterns = new[] { "*.json", "*.txt", "*.md" } },
@@ -912,6 +960,7 @@ public class MainViewModel : ViewModelBase
 
                 var externalAI = new NullWave.Services.SmartSorting.ExternalAITagService();
                 var results = externalAI.ParseImportedJson(jsonContent);
+
                 if (results.Count == 0)
                 {
                     Settings.ReportImportFailed("No valid tag entries found in the file.");
@@ -924,6 +973,7 @@ public class MainViewModel : ViewModelBase
                 {
                     var track = _library.GetAll().FirstOrDefault(t => t.Id == result.Id);
                     if (track == null || result.Tags.Count == 0) continue;
+
                     track.Tags ??= new List<string>();
                     foreach (var tag in result.Tags)
                     {
@@ -1025,10 +1075,24 @@ public class MainViewModel : ViewModelBase
                 LogNav($"PinnedPlaylist:{playlistId}");
             });
         Nav.SetActivePage(CurrentPage);
-
         Library.RefreshArtistGroups();
+
         ToggleCustomizeSidebarCommand = new RelayCommand(() => IsCustomizingSidebar = !IsCustomizingSidebar);
-        ToggleSidebarCollapsedCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
+        ToggleSidebarCollapsedCommand = new RelayCommand(() =>
+        {
+            IsSidebarCollapsed = !IsSidebarCollapsed;
+            _prefsService.Update(p => p.SidebarCollapsed = IsSidebarCollapsed);
+        });
+        ClearGlobalSearchCommand = new RelayCommand(() => GlobalSearchQuery = string.Empty);
+        PlayPlaylistCommand = new RelayCommand<Playlist>(PlayPlaylist);
+        ChangePlaylistCoverCommand = new RelayCommand<Playlist>(p => _ = ChangePlaylistCoverAsync(p));
+        ClearPlaylistCoverCommand = new RelayCommand<Playlist>(ClearPlaylistCover);
+        ToggleDetailCommand = new RelayCommand(ToggleDetail);
+        Playlist.AttachNavigation(Nav);
+
+        var lastPage = _prefsService.Current.LastPage;
+        if (lastPage == "Playlists" || lastPage == "Library")
+            CurrentPage = lastPage;
 
         _ = RunStartupDiagnosticsAsync();
     }
@@ -1060,14 +1124,12 @@ public class MainViewModel : ViewModelBase
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
-
             using var process = Process.Start(processInfo);
             if (process != null)
             {
                 process.WaitForExit();
                 var output = process.StandardOutput.ReadToEnd();
                 var error = process.StandardError.ReadToEnd();
-
                 if (process.ExitCode == 0)
                 {
                     ToastService.Instance.Show("yt-dlp cache cleared successfully!", ToastType.Success, 5000);
@@ -1107,14 +1169,13 @@ public class MainViewModel : ViewModelBase
             win.Show();
     }
 
-    private async Task RunMoodPlaylistAsync(bool forceRefresh)
+    private async Task RunMoodPlaylistAsync(bool forceRefresh, bool forceTags = false)
     {
         var activity = ToastService.Instance.StartLiveActivity(
             "Mood Playlist",
             "Fetching weather data...",
             isIndeterminate: true
         );
-
         try
         {
             if (_plugins.Get<IWeatherProvider>() is not { } weatherProvider)
@@ -1134,39 +1195,43 @@ public class MainViewModel : ViewModelBase
             }
 
             _localAI.CurrentModel = Settings.SelectedModel;
-            bool useAi = Settings.AIFeaturesEnabled && Settings.UseLocalAI;
-
+            bool useAi = !forceTags && Settings.AIFeaturesEnabled && Settings.UseLocalAI;
             ToastService.Instance.UpdateLiveActivity(activity, message: "Matching mood tags...");
+
             var result = await _moodPlaylist.GenerateAsync(lat, lon, useAi, forceRefresh);
-            
             if (!result.Success)
             {
-                ToastService.Instance.CompleteLiveActivity(activity, $"Failed: {result.FailureReason}");
+                ToastService.Instance.CompleteLiveActivity(activity, $"Failed: {result.FailureReason}", finalType: ToastType.Error);
                 Settings.ReportMoodPlaylistFailed(result.FailureReason ?? "Unknown error");
-                ToastService.Instance.Show($"Could not build mood mix: {result.FailureReason}", ToastType.Error);
                 return;
             }
 
             ToastService.Instance.UpdateLiveActivity(activity, message: "Creating playlist...");
-            var oldMoodPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("Mood:")).ToList();
-            foreach (var old in oldMoodPlaylists)
-            {
-                _playlists.Remove(old.Id);
-            }
 
-            var playlistName = $"Mood: {result.Mood} ({result.WeatherCondition}, {result.TemperatureC:F0}°C)";
-            var playlist = _playlists.Create(playlistName,
-                $"Auto-generated {(result.UsedAI ? "by local AI" : "from tags")} on {DateTime.Now:dd MMM, HH:mm}");
+            var oldMoodPlaylists = _playlists.GetAll()
+                .Where(p => p.Name.StartsWith("Mood:") || p.Name == "Mood Mix")
+                .ToList();
+
+            bool wasPinned = oldMoodPlaylists.Any(p => Nav.IsPlaylistPinned(p.Id));
+            foreach (var old in oldMoodPlaylists)
+                _playlists.Remove(old.Id);
+
+            var playlist = _playlists.Create("Mood Mix",
+                $"{result.Mood} · {result.WeatherCondition}, {result.TemperatureC:F0}°C · " +
+                $"auto-generated {(result.UsedAI ? "by local AI" : "from tags")} on {DateTime.Now:dd MMM, HH:mm}");
 
             foreach (var track in result.Tracks)
                 _playlists.AddTrack(playlist.Id, track);
 
+            if (wasPinned)
+                Nav.PinPlaylist(playlist.Id, playlist.Name);
+
             Playlist.Refresh();
+            Nav.RefreshPlaylistLists();
             Settings.ReportMoodPlaylistGenerated(result.Tracks.Count, result.Mood);
-            ToastService.Instance.CompleteLiveActivity(activity, $"Generated 'Mood: {result.Mood}' ({result.Tracks.Count} tracks).");
-            ToastService.Instance.Show($"Generated context playlist 'Mood: {result.Mood}' ({result.Tracks.Count} tracks).", ToastType.Success);
-            Log.Information("[MainViewModel] Mood playlist generated: {Name} ({Count} tracks, AI={UsedAI})",
-                playlistName, result.Tracks.Count, result.UsedAI);
+            ToastService.Instance.CompleteLiveActivity(activity, $"Generated 'Mood Mix' ({result.Tracks.Count} tracks).");
+            Log.Information("[MainViewModel] Mood playlist generated: Mood Mix ({Count} tracks, AI={UsedAI})",
+                result.Tracks.Count, result.UsedAI);
         }
         catch (Exception ex)
         {
@@ -1179,23 +1244,96 @@ public class MainViewModel : ViewModelBase
     private void OnAiPlaylistRequested(string query, List<Track> tracks)
     {
         if (tracks.Count == 0) return;
-
         var playlistName = $"AI: {query}";
         if (_playlists.NameExists(playlistName))
         {
             playlistName = $"AI: {query} ({DateTime.Now:HH:mm})";
         }
-
         var playlist = _playlists.Create(playlistName, $"Generated by AI prompt: {query}", _aiPlaylistsFolder?.Id);
         foreach (var track in tracks)
         {
             _playlists.AddTrack(playlist.Id, track);
         }
-
         Playlist.Refresh();
         Playlist.SelectById(playlist.Id);
         CurrentPage = "Playlists";
         Log.Information("[MainViewModel] AI playlist created: {Name} ({Count} tracks)", playlistName, tracks.Count);
+    }
+
+    private void PlayPlaylist(Playlist? playlist)
+    {
+        if (playlist == null || playlist.Tracks.Count == 0) return;
+        Player.PlayPlaylist(playlist);
+    }
+
+    private async Task ChangePlaylistCoverAsync(Playlist? playlist)
+    {
+        if (playlist == null) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
+
+        var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Choose playlist cover",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp" } }
+            }
+        });
+
+        if (files.Count == 0) return;
+
+        playlist.CustomArtPath = files[0].Path.LocalPath;
+        _playlists.UpdatePlaylist(playlist);
+        Playlist.Refresh();
+        Nav.RefreshPlaylistLists();
+        ToastService.Instance.Show($"Cover updated for '{playlist.Name}'.", ToastType.Success);
+    }
+
+    private void ClearPlaylistCover(Playlist? playlist)
+    {
+        if (playlist == null) return;
+        playlist.CustomArtPath = null;
+        _playlists.UpdatePlaylist(playlist);
+        Playlist.Refresh();
+        Nav.RefreshPlaylistLists();
+    }
+
+    private void ToggleDetail()
+    {
+        if (Detail.IsOpen) Detail.IsOpen = false;
+        else if (Player.CurrentTrack != null) Detail.OpenFor(Player.CurrentTrack);
+    }
+
+    private async Task AddTrackToPlaylistAsync(Track? track)
+    {
+        if (track == null) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
+
+        var playlist = await new Views.AddToPlaylistDialog(_playlists).ShowDialog<Playlist?>(desktop.MainWindow);
+        if (playlist == null) return;
+
+        if (_playlists.AddTrack(playlist.Id, track))
+        {
+            ToastService.Instance.Show($"Added '{track.Title}' to '{playlist.Name}'.", ToastType.Success);
+            Playlist.Refresh();
+            Nav.RefreshPlaylistLists();
+        }
+        else ToastService.Instance.Show($"'{track.Title}' is already in '{playlist.Name}'.", ToastType.Info);
+    }
+
+    private async Task MovePlaylistToFolderAsync(Playlist? playlist)
+    {
+        if (playlist == null) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
+
+        var choice = await new Views.MoveToFolderDialog(_playlists, playlist.FolderId).ShowDialog<Views.FolderOption?>(desktop.MainWindow);
+        if (choice == null) return;
+
+        Nav.MovePlaylistToFolder(playlist.Id, choice.FolderId);
+        ToastService.Instance.Show(choice.FolderId == null
+            ? $"'{playlist.Name}' moved to top level."
+            : $"'{playlist.Name}' moved to '{choice.Name}'.", ToastType.Success);
     }
 
     private static void LogNav(string destination)

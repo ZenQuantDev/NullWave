@@ -19,11 +19,11 @@
                             <StackPanel Spacing="3">
                                 <TextBlock Text="YouTube Data API v3"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="console.cloud.google.com → APIs → YouTube Data API v3 → Credentials"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontSize="{DynamicResource FontSizeXs}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}"
@@ -46,11 +46,11 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="Last.fm (API Key &amp; Secret)"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontSize="{DynamicResource FontSizeBodyLarge}"
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="last.fm/api/account/create - required for scrobbling"
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    TextWrapping="Wrap"/>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
                             <TextBox Grid.Column="0"
@@ -90,11 +90,11 @@
                             <StackPanel Spacing="3">
                                 <TextBlock Text="OpenWeather"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="openweathermap.org/api - free tier, 60 calls/minute"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontSize="{DynamicResource FontSizeXs}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <TextBox Text="{Binding OpenWeatherApiKey, Mode=TwoWay}"
@@ -119,11 +119,11 @@
                             <StackPanel Spacing="3">
                                 <TextBlock Text="SoundCloud"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock Text="soundcloud.com/you/apps - new registrations limited by region"
                                            Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontSize="{DynamicResource FontSizeXs}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}"
@@ -146,11 +146,11 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="Spotify (metadata only)"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontSize="{DynamicResource FontSizeBodyLarge}"
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="developer.spotify.com/dashboard - metadata lookup only, not streaming"
                                    Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontSize="{DynamicResource FontSizeXs}"
                                    TextWrapping="Wrap"/>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
                             <TextBox Grid.Column="0"
@@ -192,7 +192,7 @@
                         <TextBlock Text="🎵" FontSize="20" VerticalAlignment="Center"/>
                         <TextBlock Text="Last.fm Account"
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeBodyLarge}"
+                                   FontSize="{DynamicResource FontSizeBodyLarge}"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
@@ -201,7 +201,7 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Border Width="10" Height="10" CornerRadius="5" Background="#4CAF50" IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
                             <Border Width="10" Height="10" CornerRadius="5" Background="#A8B4CC" IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding LastFmStateLabel}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeBody}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LastFmStateLabel}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Button Grid.Column="1" Classes="primary" Content="Connect to Last.fm" Command="{Binding LastFmConnectCommand}" IsVisible="{Binding !IsLastFmConnected}"/>
@@ -210,20 +210,20 @@
 
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" IsVisible="{Binding IsLastFmAwaitingAuth}">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account." Foreground="{StaticResource BrushTextSecondary}" FontSize="{StaticResource FontSizeSm}" TextWrapping="Wrap"/>
+                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account." Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             <Button Classes="secondary" Content="I've Authorized It — Finish Connecting" Command="{Binding LastFmConfirmAuthCommand}" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="{Binding LastFmStatusMessage}" Foreground="{StaticResource BrushRed}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding LastFmStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding LastFmStatusMessage}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding LastFmStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create." Foreground="{StaticResource BrushTextMuted}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
             <!-- Security Encryption Notice -->
             <Border Background="{StaticResource BrushAccentDim}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" Margin="0,16,0,0">
-                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control." Foreground="{StaticResource BrushAccentHover}" FontSize="{StaticResource FontSizeXs}" TextWrapping="Wrap"/>
+                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control." Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
             </Border>
 
             <Button Classes="primary" Content="Save API Keys" Command="{Binding SaveKeysCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12" Margin="0,16,0,0"/>

@@ -1,193 +1,290 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:material="using:Material.Icons.Avalonia"
              x:Class="NullWave.Views.Settings.AppearanceTab"
              x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Resources>
+        <converters:StringEqualsConverter x:Key="StrEq"/>
+        <converters:BoolToDimConverter x:Key="BoolToDim"/>
+    </UserControl.Resources>
 
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <!--  Accent Color  -->
-            <TextBlock Classes="section-label" Text="ACCENT COLOR" Margin="0,0,0,12"/>
-
+            <!-- ══ SIGNATURE EDITION ══ -->
+            <TextBlock Classes="section-label" Text="SIGNATURE EDITION" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
-                <StackPanel Spacing="12">
-                    <!-- Color swatches -->
-                    <WrapPanel>
-                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
-                                Background="#8B5CF6" Margin="0,0,8,0" Cursor="Hand"
-                                ToolTip.Tip="Purple (default)"/>
-                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
-                                Background="#60A5FA" Margin="0,0,8,0" Cursor="Hand"
-                                ToolTip.Tip="Sky Blue"/>
-                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
-                                Background="#FCD34D" Margin="0,0,8,0" Cursor="Hand"
-                                ToolTip.Tip="Amber"/>
-                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
-                                Background="#34D399" Margin="0,0,8,0" Cursor="Hand"
-                                ToolTip.Tip="Green"/>
-                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusFull}"
-                                Background="#F87171" Margin="0,0,0,0" Cursor="Hand"
-                                ToolTip.Tip="Red"/>
-                    </WrapPanel>
-                    <ComboBox ItemsSource="{Binding AccentColorOptions}"
-                              SelectedItem="{Binding AccentColor, Mode=TwoWay}"
-                              HorizontalAlignment="Stretch"/>
-                    <TextBlock Text="Full dynamic theming coming in a future update. Selection is saved."
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{StaticResource FontSizeXs}"/>
-                </StackPanel>
-            </Border>
-
-            <!--  Track Row Style  -->
-            <TextBlock Classes="section-label" Text="TRACK ROW STYLE" Margin="0,0,0,12"/>
-
-            <Border Classes="settings-card">
-                <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*,16,*,16,*">
-
-                        <Border Grid.Column="0"
-                                Background="{StaticResource BrushElevated}"
-                                BorderBrush="{StaticResource BrushAccent}"
-                                BorderThickness="2"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,10">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Comfortable" FontWeight="SemiBold"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
-                                <Border Height="6" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}"/>
-                                <Border Height="6" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}" Width="50"
-                                        HorizontalAlignment="Left"/>
-                                <TextBlock Text="44px · relaxed"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"/>
-                            </StackPanel>
+                <Button Classes="flat"
+                        Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Blue Orchid'}"
+                        Command="{Binding SetAccentCommand}" CommandParameter="Blue Orchid">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="{StaticResource RadiusFull}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="{DynamicResource ColorAccent}"  Offset="0"/>
+                                    <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <material:MaterialIcon Kind="Flower" Width="22" Height="22"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-
-                        <Border Grid.Column="2"
-                                Background="{StaticResource BrushElevated}"
-                                BorderBrush="{StaticResource BrushBorder}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,10">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Compact" FontWeight="SemiBold"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
-                                <Border Height="5" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}"/>
-                                <Border Height="5" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}" Width="40"
-                                        HorizontalAlignment="Left"/>
-                                <TextBlock Text="32px · dense"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"/>
-                            </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="2" Margin="14,0" VerticalAlignment="Center">
+                            <TextBlock Text="Blue Orchid" FontWeight="SemiBold"
+                                       Foreground="{StaticResource BrushTextPrimary}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"/>
+                            <TextBlock Text="The v0.5 signature edition — azure + orchid duo"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"
+                                Background="{StaticResource BrushAccent}"
+                                IsVisible="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Blue Orchid'}">
+                            <material:MaterialIcon Kind="Check" Width="14" Height="14"
+                                                   Foreground="{StaticResource BrushTextOnAccent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-
-                        <Border Grid.Column="4"
-                                Background="{StaticResource BrushElevated}"
-                                BorderBrush="{StaticResource BrushBorder}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource RadiusMd}"
-                                Padding="12,10">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Cozy" FontWeight="SemiBold"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBody}"/>
-                                <Border Height="8" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}"/>
-                                <Border Height="8" Background="{StaticResource BrushBorder}"
-                                        CornerRadius="{StaticResource RadiusXs}" Width="60"
-                                        HorizontalAlignment="Left"/>
-                                <TextBlock Text="56px · spacious"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{StaticResource FontSizeXs}"/>
-                            </StackPanel>
-                        </Border>
-
                     </Grid>
-                    <ComboBox ItemsSource="{Binding TrackRowStyleOptions}"
-                              SelectedItem="{Binding TrackRowStyle, Mode=TwoWay}"
-                              HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                </Button>
             </Border>
 
-            <!--  Display  -->
-            <TextBlock Classes="section-label" Text="DISPLAY" Margin="0,0,0,12"/>
+            <!-- ══ BASE COLORS (named chips, same style as duos) ══ -->
+            <TextBlock Classes="section-label" Text="BASE COLORS" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <WrapPanel>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Purple'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Purple">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#8B5CF6"/>
+                            <TextBlock Text="Purple"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Sky'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Sky">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#38BDF8"/>
+                            <TextBlock Text="Sky"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Green'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Green">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#34D399"/>
+                            <TextBlock Text="Green"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Amber'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Amber">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#FCD34D"/>
+                            <TextBlock Text="Amber"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Red'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Red">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#F87171"/>
+                            <TextBlock Text="Red"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Pink'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Pink">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#F472B6"/>
+                            <TextBlock Text="Pink"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Orange'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Orange">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#FB923C"/>
+                            <TextBlock Text="Orange"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Teal'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Teal">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#2DD4BF"/>
+                            <TextBlock Text="Teal"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Lime'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Lime">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}" Background="#A3E635"/>
+                            <TextBlock Text="Lime"/>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+            </Border>
 
+            <!-- ══ ACCENT DUOS (50/50 split + names) ══ -->
+            <TextBlock Classes="section-label" Text="ACCENT DUOS" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <WrapPanel>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Violet &amp; Lime'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Violet &amp; Lime">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#8B5CF6" Offset="0.5"/><GradientStop Color="#A3E635" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Violet &amp; Lime"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Navy &amp; Gold'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Navy &amp; Gold">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#2563EB" Offset="0.5"/><GradientStop Color="#FCD34D" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Navy &amp; Gold"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Crimson &amp; Ice'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Crimson &amp; Ice">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#EF4444" Offset="0.5"/><GradientStop Color="#7DD3FC" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Crimson &amp; Ice"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Orchid &amp; Mint'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Orchid &amp; Mint">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#A78BFA" Offset="0.5"/><GradientStop Color="#34D399" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Orchid &amp; Mint"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Teal &amp; Coral'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Teal &amp; Coral">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#14B8A6" Offset="0.5"/><GradientStop Color="#FB7185" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Teal &amp; Coral"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Magenta &amp; Spring'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Magenta &amp; Spring">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#D946EF" Offset="0.5"/><GradientStop Color="#84CC16" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Magenta &amp; Spring"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Amber &amp; Indigo'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Amber &amp; Indigo">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#F59E0B" Offset="0.5"/><GradientStop Color="#6366F1" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Amber &amp; Indigo"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Cyan &amp; Sunset'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Cyan &amp; Sunset">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#06B6D4" Offset="0.5"/><GradientStop Color="#FB923C" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Cyan &amp; Sunset"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Rose &amp; Jade'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Rose &amp; Jade">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#F43F5E" Offset="0.5"/><GradientStop Color="#10B981" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Rose &amp; Jade"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="duo-chip" Classes.active="{Binding AccentColor, Converter={StaticResource StrEq}, ConverterParameter='Azure &amp; Peach'}"
+                            Command="{Binding SetAccentCommand}" CommandParameter="Azure &amp; Peach">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="22" Height="22" CornerRadius="{StaticResource RadiusFull}"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#3B82F6" Offset="0.5"/><GradientStop Color="#FDBA74" Offset="0.5"/></LinearGradientBrush></Border.Background></Border>
+                            <TextBlock Text="Azure &amp; Peach"/>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+            </Border>
+
+            <!-- ══ TRACK ROW STYLE ══ -->
+            <TextBlock Classes="section-label" Text="TRACK ROW STYLE" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <Grid ColumnDefinitions="*,16,*,16,*"
+                      IsEnabled="{Binding !CompactMode}"
+                      Opacity="{Binding CompactMode, Converter={StaticResource BoolToDim}}">
+                    <Button Grid.Column="0" Classes="card-select"
+                            Classes.active="{Binding TrackRowStyle, Converter={StaticResource StrEq}, ConverterParameter='Comfortable'}"
+                            Command="{Binding SetRowStyleCommand}" CommandParameter="Comfortable"
+                            ToolTip.Tip="Disabled while Compact mode is on">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Comfortable" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                            <Border Height="6" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}"/>
+                            <Border Height="6" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}" Width="50" HorizontalAlignment="Left"/>
+                            <TextBlock Text="44px · relaxed" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Classes="card-select"
+                            Classes.active="{Binding TrackRowStyle, Converter={StaticResource StrEq}, ConverterParameter='Compact'}"
+                            Command="{Binding SetRowStyleCommand}" CommandParameter="Compact"
+                            ToolTip.Tip="Disabled while Compact mode is on">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Compact" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                            <Border Height="5" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}"/>
+                            <Border Height="5" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}" Width="40" HorizontalAlignment="Left"/>
+                            <TextBlock Text="32px · dense" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="4" Classes="card-select"
+                            Classes.active="{Binding TrackRowStyle, Converter={StaticResource StrEq}, ConverterParameter='Cozy'}"
+                            Command="{Binding SetRowStyleCommand}" CommandParameter="Cozy"
+                            ToolTip.Tip="Disabled while Compact mode is on">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Cozy" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                            <Border Height="8" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}"/>
+                            <Border Height="8" Background="{StaticResource BrushBorder}" CornerRadius="{StaticResource RadiusXs}" Width="60" HorizontalAlignment="Left"/>
+                            <TextBlock Text="56px · spacious" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ══ DISPLAY ══ -->
+            <TextBlock Classes="section-label" Text="DISPLAY" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
-
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Font scale"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Scales all text in the interface"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Font scale" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Scales all text in the interface" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding FontScaleOptions}"
-                                  SelectedItem="{Binding FontScale, Mode=TwoWay}"
-                                  MinWidth="130"
-                                  VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="chip" Classes.active="{Binding FontScale, Converter={StaticResource StrEq}, ConverterParameter='Small'}"
+                                    Command="{Binding SetFontScaleCommand}" CommandParameter="Small" Content="S"/>
+                            <Button Classes="chip" Classes.active="{Binding FontScale, Converter={StaticResource StrEq}, ConverterParameter='Medium'}"
+                                    Command="{Binding SetFontScaleCommand}" CommandParameter="Medium" Content="M"/>
+                            <Button Classes="chip" Classes.active="{Binding FontScale, Converter={StaticResource StrEq}, ConverterParameter='Large'}"
+                                    Command="{Binding SetFontScaleCommand}" CommandParameter="Large" Content="L"/>
+                        </StackPanel>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Sidebar width"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Narrow 160px · Normal 210px · Wide 280px"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Sidebar width" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Narrow 160px · Normal 210px · Wide 280px" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding SidebarWidthOptions}"
-                                  SelectedItem="{Binding SidebarWidth, Mode=TwoWay}"
-                                  MinWidth="130"
-                                  VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="chip" Classes.active="{Binding SidebarWidth, Converter={StaticResource StrEq}, ConverterParameter='Narrow'}"
+                                    Command="{Binding SetSidebarWidthCommand}" CommandParameter="Narrow" Content="Narrow"/>
+                            <Button Classes="chip" Classes.active="{Binding SidebarWidth, Converter={StaticResource StrEq}, ConverterParameter='Normal'}"
+                                    Command="{Binding SetSidebarWidthCommand}" CommandParameter="Normal" Content="Normal"/>
+                            <Button Classes="chip" Classes.active="{Binding SidebarWidth, Converter={StaticResource StrEq}, ConverterParameter='Wide'}"
+                                    Command="{Binding SetSidebarWidthCommand}" CommandParameter="Wide" Content="Wide"/>
+                        </StackPanel>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Compact mode"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Hides album art thumbnails in the track list"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                            <TextBlock Text="Compact mode" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Space-saver: overrides row style and shrinks rows, sidebar and the player bar" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1"
-                                      IsChecked="{Binding CompactMode, Mode=TwoWay}"
-                                      VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding CompactMode, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
-
                 </StackPanel>
             </Border>
 
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12">
-                <TextBlock Text="Appearance settings are saved and will take full effect in a future update. Live theming is planned for v0.4."
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
-                           TextWrapping="Wrap"/>
-            </Border>
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
-
 </UserControl>

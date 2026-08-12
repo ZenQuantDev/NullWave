@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
+using Avalonia.Input.Platform; 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
@@ -34,7 +36,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ExternalAITagService _externalAI = new();
     private readonly LocalAIService _localAI;
     private readonly PluginManager _plugins;
-    
+
     private System.Threading.Timer? _aiHealthTimer;
     private CancellationTokenSource? _debounceCts;
     private const int DebounceMs = 500;
@@ -46,8 +48,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private void ScheduleSave()
     {
         _debounceCts?.Cancel();
-        _debounceCts?.Dispose(); 
-        
+        _debounceCts?.Dispose();
+
         _debounceCts = new CancellationTokenSource();
         var token = _debounceCts.Token;
 
@@ -56,10 +58,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             try
             {
                 await Task.Delay(DebounceMs, token);
-                
+
                 if (!token.IsCancellationRequested)
                 {
-                    _prefsService.Save(); 
+                    _prefsService.Save();
                     Log.Information("[Settings] Debounced save successfully written to disk.");
                 }
             }
@@ -132,7 +134,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool AutoPlayNext { get => _prefsService.Current.AutoPlayNext; set { _prefsService.Update(p => p.AutoPlayNext = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); ScheduleSave(); } }
-    
+
     public bool AutoCleanMetadata { get => _prefsService.Current.AutoCleanMetadata; set { _prefsService.Update(p => p.AutoCleanMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool PreventDuplicateDownloads { get => _prefsService.Current.PreventDuplicateDownloads; set { _prefsService.Update(p => p.PreventDuplicateDownloads = value); OnPropertyChanged(); ScheduleSave(); } }
 
@@ -157,11 +159,78 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     public string LoggingModeLabel => VerboseLogging ? "Advanced / Verbose" : "Default";
 
-    public string AccentColor { get => _prefsService.Current.AccentColor; set { _prefsService.Update(p => p.AccentColor = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string TrackRowStyle { get => _prefsService.Current.TrackRowStyle; set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string FontScale { get => _prefsService.Current.FontScale; set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool CompactMode { get => _prefsService.Current.CompactMode; set { _prefsService.Update(p => p.CompactMode = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string SidebarWidth { get => _prefsService.Current.SidebarWidth; set { _prefsService.Update(p => p.SidebarWidth = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string AccentColor
+    {
+        get => _prefsService.Current.AccentColor;
+        set
+        {
+            _prefsService.Update(p => p.AccentColor = value);
+            OnPropertyChanged();
+            ThemeService.Instance.ApplyAccent(value);
+            ScheduleSave();
+        }
+    }
+
+    public string TrackRowStyle
+    {
+        get => _prefsService.Current.TrackRowStyle;
+        set
+        {
+            _prefsService.Update(p => p.TrackRowStyle = value);
+            OnPropertyChanged();
+            ThemeService.Instance.ApplyDensity(_prefsService.Current);
+            ScheduleSave();
+        }
+    }
+
+    public string FontScale
+    {
+        get => _prefsService.Current.FontScale;
+        set
+        {
+            _prefsService.Update(p => p.FontScale = value);
+            OnPropertyChanged();
+            ThemeService.Instance.ApplyFontScale(value);
+            ScheduleSave();
+        }
+    }
+
+    public bool CompactMode
+    {
+        get => _prefsService.Current.CompactMode;
+        set
+        {
+            _prefsService.Update(p => p.CompactMode = value);
+            OnPropertyChanged();
+            ThemeService.Instance.ApplyDensity(_prefsService.Current);
+            ScheduleSave();
+        }
+    }
+
+    public string SidebarWidth
+    {
+        get => _prefsService.Current.SidebarWidth;
+        set
+        {
+            _prefsService.Update(p => p.SidebarWidth = value);
+            OnPropertyChanged();
+            ThemeService.Instance.ApplySidebarWidth(value);
+            ScheduleSave();
+        }
+    }
+
+    [RelayCommand]
+    private void SetAccent(string name) => AccentColor = name;
+
+    [RelayCommand]
+    private void SetRowStyle(string style) => TrackRowStyle = style;
+
+    [RelayCommand]
+    private void SetFontScale(string v) => FontScale = v;
+
+    [RelayCommand]
+    private void SetSidebarWidth(string v) => SidebarWidth = v;
+
     public string SelectedModel { get => _prefsService.Current.SelectedAIModel; set { _prefsService.Update(p => p.SelectedAIModel = value); OnPropertyChanged(); ScheduleSave(); } }
     public bool UseLocalAI { get => _prefsService.Current.UseLocalAI; set { _prefsService.Update(p => p.UseLocalAI = value); OnPropertyChanged(); ScheduleSave(); } }
     public double Latitude { get => _prefsService.Current.Latitude; set { _prefsService.Update(p => p.Latitude = value); OnPropertyChanged(); ScheduleSave(); } }
@@ -170,7 +239,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public string MoodRefreshInterval { get => _prefsService.Current.MoodRefreshInterval; set { _prefsService.Update(p => p.MoodRefreshInterval = value); OnPropertyChanged(); ScheduleSave(); } }
     public string AIConfidenceThreshold { get => _prefsService.Current.AIConfidenceThreshold; set { _prefsService.Update(p => p.AIConfidenceThreshold = value); OnPropertyChanged(); ScheduleSave(); } }
     public string ExportFormat { get => _prefsService.Current.ExternalAIExportFormat; set { _prefsService.Update(p => p.ExternalAIExportFormat = value); OnPropertyChanged(); ScheduleSave(); } }
-    
+
     public bool AIFeaturesEnabled
     {
         get => _prefsService.Current.AIFeaturesEnabled;
@@ -225,26 +294,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     // Queue Auto-Fill Settings
-    public int QueueAutoFillSize 
-    { 
-        get => _prefsService.Current.QueueAutoFillSize; 
-        set 
-        { 
-            _prefsService.Update(p => p.QueueAutoFillSize = value); 
-            OnPropertyChanged(); 
-            ScheduleSave(); 
-        } 
+    public int QueueAutoFillSize
+    {
+        get => _prefsService.Current.QueueAutoFillSize;
+        set
+        {
+            _prefsService.Update(p => p.QueueAutoFillSize = value);
+            OnPropertyChanged();
+            ScheduleSave();
+        }
     }
-    
-    public bool QueueManualInsertAtBlockEnd 
-    { 
-        get => _prefsService.Current.QueueManualInsertAtBlockEnd; 
-        set 
-        { 
-            _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value); 
-            OnPropertyChanged(); 
-            ScheduleSave(); 
-        } 
+
+    public bool QueueManualInsertAtBlockEnd
+    {
+        get => _prefsService.Current.QueueManualInsertAtBlockEnd;
+        set
+        {
+            _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value);
+            OnPropertyChanged();
+            ScheduleSave();
+        }
     }
 
     [ObservableProperty] private int _currentSectionIndex = 0;
@@ -259,7 +328,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isRepairing = false;
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private string _ytDlpStatus = string.Empty;
-    [ObservableProperty] private string _vlcStatus = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanInstallVlc))]
+    private string _vlcStatus = string.Empty;
+
     [ObservableProperty] private string _ffmpegStatus = string.Empty;
     [ObservableProperty] private string _dotNetStatus = string.Empty;
     [ObservableProperty] private bool _isCheckingUpdate;
@@ -275,6 +348,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _modelDownloadStatus = string.Empty;
     [ObservableProperty] private string _moodPlaylistStatus = string.Empty;
     [ObservableProperty] private string _powerStateLabel = "Detecting...";
+    [ObservableProperty] private bool _isStagingUpdate;
+    [ObservableProperty] private bool _updateStaged;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AIStatusLabel))]
@@ -308,7 +383,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running ? "Stop" : "Start";
 
     public string[] ExportFormatOptions => new[] { "txt", "md", "json" };
-    public string[] AccentColorOptions => new[] { "Purple", "Blue", "Amber", "Green", "Red" };
+    public string[] AccentColorOptions => new[] { "Blue Orchid", "Purple", "Sky", "Green", "Amber", "Red", "Pink", "Orange", "Teal", "Lime",
+    "Violet & Lime", "Navy & Gold", "Crimson & Ice", "Orchid & Mint", "Teal & Coral",
+    "Magenta & Spring", "Amber & Indigo", "Cyan & Sunset", "Rose & Jade", "Azure & Peach" };
+
+    public string VersionCodename => CurrentVersion.StartsWith("0.5") ? "Blue Orchid" : string.Empty;
+    public string VersionLabel => string.IsNullOrEmpty(VersionCodename)
+        ? $"v{CurrentVersion}"
+        : $"v{CurrentVersion} \u201c{VersionCodename}\u201d";
+    public string OsLabel =>
+    OperatingSystem.IsWindows() ? "Windows" :
+    OperatingSystem.IsLinux()   ? "Linux" :
+    OperatingSystem.IsMacOS()   ? "macOS" : "Unknown";
+
+    public bool IsWindows => OperatingSystem.IsWindows();
+    public bool CanInstallVlc => IsWindows && VlcStatus == "Not installed";
+
     public string[] TrackRowStyleOptions => new[] { "Comfortable", "Compact", "Cozy" };
     public string[] FontScaleOptions => new[] { "Small", "Medium", "Large" };
     public string[] SidebarWidthOptions => new[] { "Narrow", "Normal", "Wide" };
@@ -349,6 +439,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ForceCleanTitlesRequested;
     public event Action? MergeSimilarArtistsRequested;
     public event Action<bool>? RemoveDuplicatesRequested;
+    public event Action? GenerateTagMoodPlaylistRequested;
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
     {
@@ -455,6 +546,95 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             UpdateStatus = result.IsUpdateAvailable ? $"Update available: v{result.LatestVersion}" : $"You are up to date (v{result.CurrentVersion})";
         }
         finally { IsCheckingUpdate = false; }
+    }
+
+    [RelayCommand]
+    private async Task DownloadUpdateAsync()
+    {
+        IsStagingUpdate = true;
+        try
+        {
+            var rid = RuntimeInformation.RuntimeIdentifier;
+            UpdateStaged = await _updater.StageUpdateAsync(rid);
+            ToastService.Instance.Show(
+                UpdateStaged ? "Update downloaded \u2014 restart to install." : "No matching release asset found.",
+                UpdateStaged ? ToastType.Success : ToastType.Warning);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error);
+        }
+        finally { IsStagingUpdate = false; }
+    }
+
+    [RelayCommand] private void GenerateTagMoodPlaylist() => GenerateTagMoodPlaylistRequested?.Invoke();
+
+    [RelayCommand]
+    private void RestartToUpdate() => _updater.LaunchUpdaterAndExit();
+
+    [RelayCommand]
+    private async Task InstallVlcAsync()
+    {
+        VlcStatus = "Installing...";
+        VlcStatus = await _deps.InstallVlcAsync();
+    }
+
+    [RelayCommand]
+    private async Task CopyDebugInfoAsync()
+    {
+        var text = $"NullWave v{CurrentVersion} \u201c{VersionCodename}\u201d\n" +
+                $"OS: {OsLabel} ({RuntimeInformation.OSDescription})\n" +
+                $"RID: {RuntimeInformation.RuntimeIdentifier}\n" +
+                $".NET: {Environment.Version}";
+
+        try
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(text);
+                ToastService.Instance.Show("Debug info copied to clipboard.", ToastType.Success);
+            }
+            else
+            {
+                ToastService.Instance.Show("Could not access clipboard.", ToastType.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Failed to copy debug info to clipboard");
+            ToastService.Instance.Show("Could not copy to clipboard.", ToastType.Warning);
+        }
+    }
+        private int _versionTapCount;
+
+    [RelayCommand]
+    private void TapVersion()
+    {
+        _versionTapCount++;
+        if (_versionTapCount >= 7)
+        {
+            _versionTapCount = 0;
+            ToastService.Instance.Show("🌸 Blue Orchid blooms for the curious.", ToastType.Info);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Failed to open URL: {Url}", url);
+        }
     }
 
     [RelayCommand]
@@ -599,7 +779,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IsRepairing = false;
         DedupeStatus = wasDryRun
             ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up."
-            : $"✓ Removed {removed} duplicate track(s) across {groups} group(s).";
+            : $"\u2713 Removed {removed} duplicate track(s) across {groups} group(s).";
         ToastService.Instance.Show(DedupeStatus, ToastType.Success);
     }
 
@@ -609,7 +789,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         SweepStatus = wasDryRun
             ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to delete."
             : failed == 0
-                ? $"✓ Deleted {deleted} orphaned file(s)."
+                ? $"\u2713 Deleted {deleted} orphaned file(s)."
                 : $"Deleted {deleted} file(s), {failed} failed (check logs).";
         ToastService.Instance.Show(SweepStatus, failed > 0 ? ToastType.Warning : ToastType.Success);
     }
@@ -619,8 +799,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IsRepairing = false;
         var saved = beforeKB - afterKB;
         VacuumStatus = saved > 0
-            ? $"✓ Optimized: {beforeKB}KB → {afterKB}KB ({saved}KB reclaimed)"
-            : $"✓ Database already optimal ({afterKB}KB)";
+            ? $"\u2713 Optimized: {beforeKB}KB \u2192 {afterKB}KB ({saved}KB reclaimed)"
+            : $"\u2713 Database already optimal ({afterKB}KB)";
         ToastService.Instance.Show(VacuumStatus, ToastType.Success);
     }
 
@@ -628,8 +808,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         IsRepairing = false;
         VerifyLinksStatus = mismatchCount == 0
-            ? $"✓ Checked {checkedCount} linked track(s) — no mismatches found."
-            : $"⚠ Checked {checkedCount} track(s) — found {mismatchCount} possible mis-link(s). See logs for details.";
+            ? $"\u2713 Checked {checkedCount} linked track(s) \u2014 no mismatches found."
+            : $"\u26a0 Checked {checkedCount} track(s) \u2014 found {mismatchCount} possible mis-link(s). See logs for details.";
         ToastService.Instance.Show(VerifyLinksStatus, mismatchCount > 0 ? ToastType.Warning : ToastType.Success);
     }
 
@@ -638,7 +818,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IsRepairing = false;
         ForceCleanStatus = cleaned == 0
             ? "No titles needed cleaning."
-            : $"✓ Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
+            : $"\u2713 Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
         ToastService.Instance.Show(ForceCleanStatus, ToastType.Success);
     }
 
@@ -709,7 +889,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 bool onBattery = true;
                 const string sysfsPath = "/sys/class/power_supply";
-                
+
                 if (System.IO.Directory.Exists(sysfsPath))
                 {
                     foreach (var dir in System.IO.Directory.GetDirectories(sysfsPath))
@@ -753,7 +933,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             var progress = new Progress<double>(pct => { ModelDownloadProgress = pct * 100; ModelDownloadStatus = $"Downloading {SelectedModel}... {pct:P0}"; });
             await _localAI.DownloadModelAsync(SelectedModel, progress);
-            ModelDownloadStatus = $"✓ {SelectedModel} downloaded successfully";
+            ModelDownloadStatus = $"\u2713 {SelectedModel} downloaded successfully";
             await ToggleAIServiceAsync();
         }
         catch (Exception ex) { ModelDownloadStatus = $" Download failed: {ex.Message}"; }
@@ -821,7 +1001,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
             bool running = await _localAI.PingAsync();
             if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
-            
+
             if (_plugins.Get<OllamaAIProvider>() is { } ollama)
                 ollama.State = running ? PluginState.Available : PluginState.Unavailable;
         }
@@ -854,37 +1034,37 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public void ReportThumbnailsCleared(int count) { ThumbnailStatus = $"Cleared {count} thumbnails - re-fetching in background..."; }
     public void ReportMoodPlaylistGenerated(int trackCount, string mood) { MoodPlaylistStatus = $"Generated {trackCount} tracks for mood: {mood}"; }
     public void ReportMoodPlaylistFailed(string reason) { MoodPlaylistStatus = $"Failed: {reason}"; }
-    
+
     public void ReportRepairPathsComplete(int total, int missing, int cleared)
     {
         IsRepairing = false;
-        RepairStatus = missing == 0 ? $"✓ All {total} file paths are valid." : $"Found {missing} missing file(s) - {cleared} path(s) cleared.";
+        RepairStatus = missing == 0 ? $"\u2713 All {total} file paths are valid." : $"Found {missing} missing file(s) - {cleared} path(s) cleared.";
         ToastService.Instance.Show(RepairStatus, missing == 0 ? ToastType.Success : ToastType.Warning);
     }
 
     public void ReportReimportComplete(int relinked)
     {
         IsRepairing = false;
-        RepairStatus = relinked == 0 ? "No new file matches found." : $"✓ Re-linked {relinked} track(s).";
+        RepairStatus = relinked == 0 ? "No new file matches found." : $"\u2713 Re-linked {relinked} track(s).";
         ToastService.Instance.Show(RepairStatus, relinked > 0 ? ToastType.Success : ToastType.Info);
     }
 
     public void ReportMetaResyncComplete(int cleared)
     {
         IsRepairing = false;
-        RepairStatus = $"✓ Cleared tags for {cleared} track(s) - re-sync running.";
+        RepairStatus = $"\u2713 Cleared tags for {cleared} track(s) - re-sync running.";
         ToastService.Instance.Show(RepairStatus, ToastType.Success);
     }
 
     public void ReportRepairFailed(string operation, string reason)
     {
         IsRepairing = false;
-        RepairStatus = $"✗ {operation} failed: {reason}";
+        RepairStatus = $"\u2717 {operation} failed: {reason}";
         ToastService.Instance.Show(RepairStatus, ToastType.Error);
     }
 
-    public void ReportLastFmAwaitingAuth() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Browser opened — approve access, then click \"I've Authorized It\"."; }
-    
+    public void ReportLastFmAwaitingAuth() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Browser opened \u2014 approve access, then click \"I've Authorized It\"."; }
+
     public void ReportLastFmConnected(string username)
     {
         LastFmUsername = username;
@@ -932,7 +1112,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             try { await using var stream = await file.OpenWriteAsync(); await using var writer = new System.IO.StreamWriter(stream); await writer.WriteAsync(content); savedCount++; }
             catch (Exception ex) { ExternalAIStatus = $"Export failed on part {savedCount + 1}: {ex.Message}"; return; }
         }
-        ExternalAIStatus = chunks.Count > 1 ? $"Exported {trackList.Count} tracks in {chunks.Count} files" : $"Exported {trackList.Count} tracks → {chunks[0].FileName}";
+        ExternalAIStatus = chunks.Count > 1 ? $"Exported {trackList.Count} tracks in {chunks.Count} files" : $"Exported {trackList.Count} tracks \u2192 {chunks[0].FileName}";
         ToastService.Instance.Show(ExternalAIStatus, ToastType.Success);
     }
 

@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NullWave.Views.RelinkDialog"
+        Title="NullWave - Relink Track"
+        Width="440" Height="210"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource BrushBase}">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Click="OnCancel" Classes="secondary" Padding="16,8"/>
+            <Button Content="Save" Click="OnSave" Classes="primary" Padding="16,8"/>
+        </StackPanel>
+        <StackPanel Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="New URL or local file path" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+            <TextBox x:Name="UrlInput" PlaceholderText="https://youtube.com/...  or  /home/user/music.mp3"/>
+            <Button Content="Choose local file..." Click="OnChooseFile" Classes="ghost" HorizontalAlignment="Left" Padding="12,6"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

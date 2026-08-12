@@ -1,83 +1,74 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!--
-    NullWave Color System - LIGHTER palette (readable at 50% brightness)
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    Surface layers:  Base(#111827) → Surface(#1C2333) → Surface2(#243047) → Elevated(#2D3A52)
-    Accents:         Purple · Sky Blue · Amber
-    Text:            Primary(#F0F4FF near-white) → Secondary(#A8B4CC) → Muted(#6B7A99)
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  -->
+  <!-- Surface layers (dark-only for v0.5; light set arrives in v0.6) -->
+  <Color x:Key="ColorBase">      #FF111827</Color>
+  <Color x:Key="ColorSurface">   #FF1C2333</Color>
+  <Color x:Key="ColorSurface2">  #FF243047</Color>
+  <Color x:Key="ColorElevated">  #FF2D3A52</Color>
+  <Color x:Key="ColorHover">     #FF344260</Color>
+  <Color x:Key="ColorBorder">    #FF2E3D5C</Color>
+  <Color x:Key="ColorBorderSub"> #FF38486E</Color>
 
-  <!-- Surface layers - significantly lighter than before -->
-  <Color x:Key="ColorBase">      #111827</Color>
-  <Color x:Key="ColorSurface">   #1C2333</Color>
-  <Color x:Key="ColorSurface2">  #243047</Color>
-  <Color x:Key="ColorElevated">  #2D3A52</Color>
-  <Color x:Key="ColorHover">     #344260</Color>
-  <Color x:Key="ColorBorder">    #2E3D5C</Color>
-  <Color x:Key="ColorBorderSub"> #38486E</Color>
+  <!-- Accent family (runtime-swappable; defaults = Blue Orchid v2) -->
+  <Color x:Key="ColorAccent">      #FF4E9BFF</Color>
+  <Color x:Key="ColorAccentHover"> #FF75B1FF</Color>
+  <Color x:Key="ColorAccentDim">   #FF223D63</Color>
+  <Color x:Key="ColorAccentGlow">  #FF2C5388</Color>
+  <Color x:Key="ColorAccent2">     #FFB08CFF</Color>
+  <Color x:Key="ColorTextOnAccent">#FFFFFFFF</Color>
 
-  <!-- Purple - primary accent -->
-  <Color x:Key="ColorAccent">      #8B5CF6</Color>
-  <Color x:Key="ColorAccentHover"> #A78BFA</Color>
-  <Color x:Key="ColorAccentDim">   #312E81</Color>
-  <Color x:Key="ColorAccentGlow">  #3730A3</Color>
+  <!-- Secondary accents -->
+  <Color x:Key="ColorBlue">        #FF60A5FA</Color>
+  <Color x:Key="ColorBlueDark">    #FF2563EB</Color>
+  <Color x:Key="ColorBlueDim">     #FF1E3A5F</Color>
+  <Color x:Key="ColorAmber">       #FFFCD34D</Color>
+  <Color x:Key="ColorAmberDark">   #FFF59E0B</Color>
+  <Color x:Key="ColorAmberDim">    #FF451A03</Color>
 
-  <!-- Sky blue - secondary accent -->
-  <Color x:Key="ColorBlue">        #60A5FA</Color>
-  <Color x:Key="ColorBlueDark">    #2563EB</Color>
-  <Color x:Key="ColorBlueDim">     #1E3A5F</Color>
-
-  <!-- Amber - highlights, favorites, warnings -->
-  <Color x:Key="ColorAmber">       #FCD34D</Color>
-  <Color x:Key="ColorAmberDark">   #F59E0B</Color>
-  <Color x:Key="ColorAmberDim">    #451A03</Color>
-
-  <!-- Text - bright enough for mid-brightness screens -->
-  <Color x:Key="ColorTextPrimary">   #F0F4FF</Color>
-  <Color x:Key="ColorTextSecondary"> #A8B4CC</Color>
-  <Color x:Key="ColorTextMuted">     #6B7A99</Color>
-  <Color x:Key="ColorTextOnAccent">  #FFFFFF</Color>
+  <!-- Text -->
+  <Color x:Key="ColorTextPrimary">   #FFF0F4FF</Color>
+  <Color x:Key="ColorTextSecondary"> #FFA8B4CC</Color>
+  <Color x:Key="ColorTextMuted">     #FF6B7A99</Color>
 
   <!-- Status -->
-  <Color x:Key="ColorGreen">    #34D399</Color>
-  <Color x:Key="ColorGreenDim"> #064E3B</Color>
-  <Color x:Key="ColorRed">      #F87171</Color>
-  <Color x:Key="ColorRedDim">   #450A0A</Color>
+  <Color x:Key="ColorGreen">    #FF34D399</Color>
+  <Color x:Key="ColorGreenDim"> #FF064E3B</Color>
+  <Color x:Key="ColorRed">      #FFF87171</Color>
+  <Color x:Key="ColorRedDim">   #FF450A0A</Color>
 
-  <!-- ═══ BRUSHES - use these in all XAML markup ═══════════════════════════ -->
+  <!-- ═══ BRUSHES ═══ -->
+  <SolidColorBrush x:Key="BrushBase"          Color="{DynamicResource ColorBase}"/>
+  <SolidColorBrush x:Key="BrushSurface"       Color="{DynamicResource ColorSurface}"/>
+  <SolidColorBrush x:Key="BrushSurface2"      Color="{DynamicResource ColorSurface2}"/>
+  <SolidColorBrush x:Key="BrushElevated"      Color="{DynamicResource ColorElevated}"/>
+  <SolidColorBrush x:Key="BrushHover"         Color="{DynamicResource ColorHover}"/>
+  <SolidColorBrush x:Key="BrushBorder"        Color="{DynamicResource ColorBorder}"/>
+  <SolidColorBrush x:Key="BrushBorderSub"     Color="{DynamicResource ColorBorderSub}"/>
+  <SolidColorBrush x:Key="BrushAccent"        Color="{DynamicResource ColorAccent}"/>
+  <SolidColorBrush x:Key="BrushAccentHover"   Color="{DynamicResource ColorAccentHover}"/>
+  <SolidColorBrush x:Key="BrushAccentDim"     Color="{DynamicResource ColorAccentDim}"/>
+  <SolidColorBrush x:Key="BrushAccentGlow"    Color="{DynamicResource ColorAccentGlow}"/>
+  <SolidColorBrush x:Key="BrushAccent2"       Color="{DynamicResource ColorAccent2}"/>
+  <SolidColorBrush x:Key="BrushTextOnAccent"  Color="{DynamicResource ColorTextOnAccent}"/>
 
-  <SolidColorBrush x:Key="BrushBase"          Color="{StaticResource ColorBase}"/>
-  <SolidColorBrush x:Key="BrushSurface"       Color="{StaticResource ColorSurface}"/>
-  <SolidColorBrush x:Key="BrushSurface2"      Color="{StaticResource ColorSurface2}"/>
-  <SolidColorBrush x:Key="BrushElevated"      Color="{StaticResource ColorElevated}"/>
-  <SolidColorBrush x:Key="BrushHover"         Color="{StaticResource ColorHover}"/>
-  <SolidColorBrush x:Key="BrushBorder"        Color="{StaticResource ColorBorder}"/>
-  <SolidColorBrush x:Key="BrushBorderSub"     Color="{StaticResource ColorBorderSub}"/>
+  <!-- Live duo gradient: stops follow ColorAccent/ColorAccent2 automatically -->
+  <LinearGradientBrush x:Key="BrushAccentGradient" StartPoint="0,0.5" EndPoint="1,0.5">
+    <GradientStop Color="{DynamicResource ColorAccent}"  Offset="0"/>
+    <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
+  </LinearGradientBrush>
 
-  <SolidColorBrush x:Key="BrushAccent"        Color="{StaticResource ColorAccent}"/>
-  <SolidColorBrush x:Key="BrushAccentHover"   Color="{StaticResource ColorAccentHover}"/>
-  <SolidColorBrush x:Key="BrushAccentDim"     Color="{StaticResource ColorAccentDim}"/>
-  <SolidColorBrush x:Key="BrushAccentGlow"    Color="{StaticResource ColorAccentGlow}"/>
-
-  <SolidColorBrush x:Key="BrushBlue"          Color="{StaticResource ColorBlue}"/>
-  <SolidColorBrush x:Key="BrushBlueDark"      Color="{StaticResource ColorBlueDark}"/>
-  <SolidColorBrush x:Key="BrushBlueDim"       Color="{StaticResource ColorBlueDim}"/>
-
-  <SolidColorBrush x:Key="BrushAmber"         Color="{StaticResource ColorAmber}"/>
-  <SolidColorBrush x:Key="BrushAmberDark"     Color="{StaticResource ColorAmberDark}"/>
-  <SolidColorBrush x:Key="BrushAmberDim"      Color="{StaticResource ColorAmberDim}"/>
-
-  <SolidColorBrush x:Key="BrushTextPrimary"   Color="{StaticResource ColorTextPrimary}"/>
-  <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}"/>
-  <SolidColorBrush x:Key="BrushTextMuted"     Color="{StaticResource ColorTextMuted}"/>
-  <SolidColorBrush x:Key="BrushTextOnAccent"  Color="{StaticResource ColorTextOnAccent}"/>
-
-  <SolidColorBrush x:Key="BrushGreen"         Color="{StaticResource ColorGreen}"/>
-  <SolidColorBrush x:Key="BrushGreenDim"      Color="{StaticResource ColorGreenDim}"/>
-  <SolidColorBrush x:Key="BrushRed"           Color="{StaticResource ColorRed}"/>
-  <SolidColorBrush x:Key="BrushRedDim"        Color="{StaticResource ColorRedDim}"/>
-
+  <SolidColorBrush x:Key="BrushBlue"          Color="{DynamicResource ColorBlue}"/>
+  <SolidColorBrush x:Key="BrushBlueDark"      Color="{DynamicResource ColorBlueDark}"/>
+  <SolidColorBrush x:Key="BrushBlueDim"       Color="{DynamicResource ColorBlueDim}"/>
+  <SolidColorBrush x:Key="BrushAmber"         Color="{DynamicResource ColorAmber}"/>
+  <SolidColorBrush x:Key="BrushAmberDark"     Color="{DynamicResource ColorAmberDark}"/>
+  <SolidColorBrush x:Key="BrushAmberDim"      Color="{DynamicResource ColorAmberDim}"/>
+  <SolidColorBrush x:Key="BrushTextPrimary"   Color="{DynamicResource ColorTextPrimary}"/>
+  <SolidColorBrush x:Key="BrushTextSecondary" Color="{DynamicResource ColorTextSecondary}"/>
+  <SolidColorBrush x:Key="BrushTextMuted"     Color="{DynamicResource ColorTextMuted}"/>
+  <SolidColorBrush x:Key="BrushGreen"         Color="{DynamicResource ColorGreen}"/>
+  <SolidColorBrush x:Key="BrushGreenDim"      Color="{DynamicResource ColorGreenDim}"/>
+  <SolidColorBrush x:Key="BrushRed"           Color="{DynamicResource ColorRed}"/>
+  <SolidColorBrush x:Key="BrushRedDim"        Color="{DynamicResource ColorRedDim}"/>
 </ResourceDictionary>

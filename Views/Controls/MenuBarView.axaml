@@ -5,7 +5,7 @@
       x:DataType="vm:MainViewModel"
       Background="{StaticResource BrushSurface}"
       Foreground="{StaticResource BrushTextSecondary}"
-      FontSize="{StaticResource FontSizeBase}"
+      FontSize="{DynamicResource FontSizeBase}"
       Padding="6,3">
 
   <!--

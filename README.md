@@ -2,6 +2,10 @@
 
 A personal music organizer with download, playback, and AI-powered smart sorting capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
 
+## Version
+
+v0.5.0 "Blue Orchid"
+
 ## About
 
 NullWave lets you save, organize, download, and play music from YouTube, Last.fm, SoundCloud, and local files in one unified library. It features context-aware playlist generation using local weather and on-device AI. Organizer-first, player second.
@@ -35,12 +39,17 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - Shuffle, Repeat One, Repeat All, and Seek ±5 seconds
 - Autoplay next track on finish
 
-### 🎨 UI & Security
-- Dark theme with customizable accent colors and typography scaling
-- Discord-style local profile bar with listening stats and library breakdown
-- Encrypted local API key storage (AES-256-GCM, machine-bound)
-- Secure 3-pass data wipe (keys, logs, everything)
-- Structured startup diagnostics and redacted logging
+### 🎨 UI & Customization
+- **Spotify-style Sidebar**: Collapsible rail mode (Ctrl+B), pinned playlists, playlist folders, and drag-and-drop reordering.
+- **Live Theme Engine**: 9 accent colors, 10 duotone pairs, 3 density styles, compact mode, and font scaling (zero restarts).
+- **Smart Search**: Operators (`artist:`, `title:`, `tag:`, `is:favorite`, `-exclude`) for precise library filtering.
+- **Mood Mix**: Weather-driven playlists (AI or tag-based) with auto-regeneration and pin preservation.
+
+### 🛠️ Maintenance Suite
+- Orphaned file sweep (dry-run preview + real deletion)
+- Duplicate detection with smart keeper selection
+- Link verification (stored metadata vs embedded tags)
+- Path repair, asset reimport, and database vacuum optimization
 
 ---
 
@@ -67,6 +76,8 @@ Keys are stored encrypted at `~/.nullwave/keys.enc` - never in the project folde
 export NULLWAVE_YOUTUBE_KEY="your_key"
 export NULLWAVE_LASTFM_KEY="your_key"
 export NULLWAVE_OPENWEATHER_KEY="your_key"
+```
+
 ---
 
 ## Requirements
@@ -75,6 +86,8 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 - libVLC - `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
 - yt-dlp - `pip install yt-dlp`
 - node.js - `sudo dnf install nodejs`
+
+**Windows note:** Requires .NET 8 SDK (or .NET 10 with `<RollForward>Major</RollForward>` in csproj). LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
 
 **Fedora note:** libVLC installs to `/usr/lib64`. NullWave expects `/usr/lib`. Create symlinks:
 ```bash
@@ -141,9 +154,6 @@ See [ROADMAP.md](ROADMAP.md) for the full phased development plan.
 
 ZenQuant
 
-## Version
-
-v0.4.2
 
 ## License
 

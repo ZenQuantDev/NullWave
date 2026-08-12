@@ -89,20 +89,26 @@ public class ToastService
     }
 
     /// <summary>
-    /// Marks a live activity as finished (100%, determinate) and lets it sit briefly
-    /// before auto-dismissing, giving the user a moment to see the completed state.
+    /// Finishes a live activity IN PLACE: the same toast shows the final message,
+    /// switches to the final type (color + icon), holds briefly, then dismisses.
+    /// Never spawns a second toast.
     /// </summary>
-    public void CompleteLiveActivity(LiveNotification? notification, string finalMessage, int lingerMs = 2500)
+    public void CompleteLiveActivity(LiveNotification? notification, string finalMessage,
+        int lingerMs = 2500, ToastType finalType = ToastType.Success)
     {
         if (notification == null) return;
 
-        UpdateLiveActivity(notification, message: finalMessage, progressValue: 100, isIndeterminate: false);
+        void Apply()
+        {
+            notification.Message = finalMessage;
+            notification.Type = finalType;        // morphs bar color + icon via INPC
+            notification.IsIndeterminate = false;
+            notification.ProgressValue = 100;
+            notification.IsCompleted = true;
+        }
 
-        void Apply() => notification.IsCompleted = true;
-        if (Dispatcher.UIThread.CheckAccess())
-            Apply();
-        else
-            Dispatcher.UIThread.Post(Apply);
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
 
         _ = Task.Run(async () =>
         {

@@ -25,7 +25,7 @@
         <StackPanel Spacing="8" VerticalAlignment="Center">
             <TextBlock Text="Playlist name"
                        Foreground="{StaticResource BrushTextPrimary}"
-                       FontSize="{StaticResource FontSizeBody}"/>
+                       FontSize="{DynamicResource FontSizeBody}"/>
             <TextBox Name="NameInput"
                      PlaceholderText="My Playlist"
                      KeyDown="OnNameInputKeyDown"/>

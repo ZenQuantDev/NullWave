@@ -1,11 +1,6 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!--
-    NullWave Shape & Spacing System
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  -->
-
   <!-- Corner radii -->
   <CornerRadius x:Key="RadiusXs">   2</CornerRadius>
   <CornerRadius x:Key="RadiusSm">   4</CornerRadius>
@@ -15,7 +10,7 @@
   <CornerRadius x:Key="RadiusFull">9999</CornerRadius>
   <CornerRadius x:Key="RadiusArt">   6</CornerRadius>
 
-  <!-- Spacing (used in Margin/Padding) -->
+  <!-- Spacing -->
   <x:Double x:Key="Space1">  4</x:Double>
   <x:Double x:Key="Space2">  8</x:Double>
   <x:Double x:Key="Space3"> 12</x:Double>
@@ -23,18 +18,26 @@
   <x:Double x:Key="Space5"> 20</x:Double>
   <x:Double x:Key="Space6"> 24</x:Double>
 
-  <!-- Sidebar width -->
+  <!-- Layout dimensions (single source of truth) -->
   <x:Double x:Key="SidebarWidth">210</x:Double>
-
-  <!-- Now-playing bar height -->
-  <x:Double x:Key="MiniPlayerHeight">72</x:Double>
-
-  <!-- Track detail panel width (open state) -->
+  <x:Double x:Key="MiniPlayerHeight">90</x:Double>
   <x:Double x:Key="DetailPanelWidth">320</x:Double>
+
+  <!-- Density tokens (rewritten at runtime by ThemeService) -->
+  <x:Double x:Key="TrackRowHeight">44</x:Double>
+  <x:Double x:Key="RowArtSize">40</x:Double>
+  <x:Double x:Key="RowTitleSize">15</x:Double>
+  <x:Double x:Key="RowSubSize">12</x:Double>
+  <x:Double x:Key="MiniArtSize">52</x:Double>
+  <Thickness x:Key="RowMargin">8,5</Thickness>
+  <Thickness x:Key="NavPadding">12,8</Thickness>
 
   <!-- Avatar sizes -->
   <x:Double x:Key="AvatarSm">32</x:Double>
   <x:Double x:Key="AvatarMd">44</x:Double>
   <x:Double x:Key="AvatarLg">64</x:Double>
 
+  <x:Double x:Key="DetailArtHeight">220</x:Double>
+  <x:Double x:Key="QueueRowHeight">48</x:Double>
+  <x:Double x:Key="QueueArtSize">40</x:Double>
 </ResourceDictionary>

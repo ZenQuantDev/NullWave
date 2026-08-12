@@ -18,11 +18,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Audio format"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Preferred container for downloaded streams"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AudioFormatOptions}"
@@ -37,11 +37,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Audio quality"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Bitrate for extraction - 'best' grabs the highest available"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AudioQualityOptions}"
@@ -57,7 +57,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Concurrent downloads"
                                            Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{StaticResource FontSizeBodyLarge}"
+                                           FontSize="{DynamicResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"/>
                                 <Button Classes="help-btn"
                                         ToolTip.Tip="How many yt-dlp processes can run simultaneously. Lower on slow connections, higher on fast fiber.">
@@ -66,7 +66,7 @@
                             </StackPanel>
                             <TextBlock Text="Limit parallel yt-dlp download threads (1 = sequential, 5 = max)"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding ConcurrentDownloadOptions}"
@@ -87,11 +87,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Fade on Pause / Resume"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Smoothly ramps volume down/up when toggling playback"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding FadeOnPauseEnabled}" VerticalAlignment="Center"/>
                     </Grid>
@@ -107,11 +107,11 @@
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="Crossfade Tracks"
                                        Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{StaticResource FontSizeBodyLarge}"
+                                       FontSize="{DynamicResource FontSizeBodyLarge}"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="Overlap audio at the end of tracks (Local files only)"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"/>
+                                       FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding CrossfadeEnabled}" VerticalAlignment="Center"/>
                     </Grid>
@@ -128,7 +128,7 @@
                     Padding="14,12">
                 <TextBlock Text="Format and quality apply to new downloads only. Existing files are not re-encoded."
                            Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{StaticResource FontSizeXs}"
+                           FontSize="{DynamicResource FontSizeXs}"
                            TextWrapping="Wrap"/>
             </Border>
             <Border Classes="BottomSpacer"/>

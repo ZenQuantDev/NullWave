@@ -1,28 +1,35 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!--
-    NullWave Typography System
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    Scale:  xs=11  sm=12  base=14  md=15  lg=17  xl=20  2xl=24  3xl=30
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  -->
+  <!-- Corner radii -->
+  <CornerRadius x:Key="RadiusXs">   2</CornerRadius>
+  <CornerRadius x:Key="RadiusSm">   4</CornerRadius>
+  <CornerRadius x:Key="RadiusMd">   6</CornerRadius>
+  <CornerRadius x:Key="RadiusLg">  10</CornerRadius>
+  <CornerRadius x:Key="RadiusXl">  14</CornerRadius>
+  <CornerRadius x:Key="RadiusFull">9999</CornerRadius>
+  <CornerRadius x:Key="RadiusArt">   6</CornerRadius>
 
-  <x:Double x:Key="FontSizeXs">  11</x:Double>
-  <x:Double x:Key="FontSizeSm">  12</x:Double>
-  <x:Double x:Key="FontSizeBase">14</x:Double>
-  <x:Double x:Key="FontSizeMd">  15</x:Double>
-  <x:Double x:Key="FontSizeLg">  17</x:Double>
-  <x:Double x:Key="FontSizeXl">  20</x:Double>
-  <x:Double x:Key="FontSize2xl"> 24</x:Double>
-  <x:Double x:Key="FontSize3xl"> 30</x:Double>
+  <!-- Spacing -->
+  <x:Double x:Key="Space1">  4</x:Double>
+  <x:Double x:Key="Space2">  8</x:Double>
+  <x:Double x:Key="Space3"> 12</x:Double>
+  <x:Double x:Key="Space4"> 16</x:Double>
+  <x:Double x:Key="Space5"> 20</x:Double>
+  <x:Double x:Key="Space6"> 24</x:Double>
 
-  <!-- Semantic aliases (use these in markup for intent clarity) -->
-  <x:Double x:Key="FontSizeLabel">     11</x:Double>  <!-- section headers, badges -->
-  <x:Double x:Key="FontSizeBody">      14</x:Double>  <!-- default body text       -->
-  <x:Double x:Key="FontSizeBodyLarge"> 15</x:Double>  <!-- slightly larger body    -->
-  <x:Double x:Key="FontSizeSubtitle">  17</x:Double>  <!-- card subtitles          -->
-  <x:Double x:Key="FontSizeTitle">     20</x:Double>  <!-- section titles          -->
-  <x:Double x:Key="FontSizeHeading">   24</x:Double>  <!-- page headings           -->
+  <!-- Layout dimensions (single source of truth) -->
+  <x:Double x:Key="SidebarWidth">210</x:Double>
+  <x:Double x:Key="MiniPlayerHeight">90</x:Double>
+  <x:Double x:Key="DetailPanelWidth">320</x:Double>
+
+  <!-- Track row density (rewritten at runtime by ThemeService) -->
+  <x:Double x:Key="TrackRowHeight">44</x:Double>
+  <x:Double x:Key="RowArtSize">40</x:Double>
+
+  <!-- Avatar sizes -->
+  <x:Double x:Key="AvatarSm">32</x:Double>
+  <x:Double x:Key="AvatarMd">44</x:Double>
+  <x:Double x:Key="AvatarLg">64</x:Double>
 
 </ResourceDictionary>

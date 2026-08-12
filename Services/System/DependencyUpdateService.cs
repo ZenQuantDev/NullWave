@@ -62,7 +62,6 @@ public class DependencyUpdateService
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // Windows: Prefer winget (handles standalone .exe installations perfectly)
             Log.Information("[DependencyUpdate] Attempting yt-dlp update via winget...");
             var wingetUpdate = await RunCommandAsync("winget", "upgrade yt-dlp.yt-dlp --accept-source-agreements --accept-package-agreements");
             if (wingetUpdate != null)
@@ -71,14 +70,12 @@ public class DependencyUpdateService
                 return "Update completed via winget";
             }
 
-            // Fallback to standard yt-dlp -U (if installed via pip/standalone and in PATH)
             var standardUpdate = await RunCommandAsync("yt-dlp", "-U");
             if (standardUpdate != null) return "Update completed via yt-dlp -U";
 
             return "Update failed: Ensure yt-dlp is installed via winget or pip";
         }
 
-        // Linux / macOS logic
         var standardUpdateLinux = await RunCommandAsync("yt-dlp", "-U");
         if (standardUpdateLinux != null)
         {
@@ -114,6 +111,22 @@ public class DependencyUpdateService
         };
     }
 
+    // VLC install (Windows via winget; Linux defers to the package manager)
+    public async Task<string> InstallVlcAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+            return "Install via your package manager (dnf/apt)";
+
+        Log.Information("[DependencyUpdate] Attempting VLC install via winget...");
+        var ok = await RunCommandAsync("winget", "install --id VideoLAN.VLC -e --accept-source-agreements --accept-package-agreements");
+        if (ok != null)
+        {
+            Log.Information("[DependencyUpdate] VLC installed via winget");
+            return "VLC installed via winget";
+        }
+        return "winget install failed \u2014 install VLC manually";
+    }
+
     // FFmpeg
     public async Task<DependencyInfo> GetFfmpegInfoAsync()
     {
@@ -146,7 +159,6 @@ public class DependencyUpdateService
         };
     }
 
-    // Helper: Returns standard output string on success, null on failure
     private static async Task<string?> RunCommandAsync(string cmd, string args)
     {
         try

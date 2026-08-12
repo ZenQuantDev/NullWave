@@ -6,13 +6,16 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <Version>0.4.2</Version>
-    <Authors>ZenQuant</Authors>
-    <Company>PackItPro Team</Company>
+    <Version>0.5.0</Version>
+    <Company>ZenQuant</Company>
     <Product>NullWave</Product>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="NullWave.Tests\**" />
+    <None Remove="NullWave.Tests\**" />
+    <EmbeddedResource Remove="NullWave.Tests\**" />
+  </ItemGroup>
 
   <!-- NuGet packages -->
   <ItemGroup>

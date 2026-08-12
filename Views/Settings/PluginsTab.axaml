@@ -11,7 +11,7 @@
       <TextBlock Classes="section-label" Text="PLUGINS &amp; INTEGRATIONS" Margin="4,0,0,12"/>
       <TextBlock Text="Enable or disable optional external services. Disabling a plugin hides its features but keeps your existing data intact."
                  Foreground="{StaticResource BrushTextSecondary}"
-                 FontSize="{StaticResource FontSizeBody}"
+                 FontSize="{DynamicResource FontSizeBody}"
                  TextWrapping="Wrap"
                  Margin="0,0,0,16"/>
 
@@ -26,11 +26,11 @@
 
                 <StackPanel Grid.Column="1">
                   <TextBlock Text="{Binding Name}"
-                             FontSize="{StaticResource FontSizeSubtitle}"
+                             FontSize="{DynamicResource FontSizeSubtitle}"
                              FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding Description}"
                              Foreground="{StaticResource BrushTextSecondary}"
-                             FontSize="{StaticResource FontSizeSm}"
+                             FontSize="{DynamicResource FontSizeSm}"
                              TextWrapping="Wrap"
                              Margin="0,2,0,0"/>
                 </StackPanel>

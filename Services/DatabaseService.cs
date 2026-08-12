@@ -21,13 +21,37 @@ public class DatabaseService : IDisposable
         DbPath = path;
         _db = new SQLiteConnection(path);
 
-        // Table initializations run at setup
         _db.CreateTable<TrackRecord>();
         _db.CreateTable<PlaylistRecord>();
         _db.CreateTable<PlaylistTrackRecord>();
         _db.CreateTable<PlaylistFolderRecord>();
 
+        MigrateSchema();
+
         Log.Information("[DatabaseService] Opened DB at {Path}", path);
+    }
+
+    /// <summary>SQLite-net CreateTable does NOT add columns to existing tables; add new columns manually.</summary>
+    private void MigrateSchema()
+    {
+        try
+        {
+            var cols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);");
+            if (!cols.Any(c => string.Equals(c.Name, "CustomArtPath", StringComparison.OrdinalIgnoreCase)))
+            {
+                _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
+                Log.Information("[DatabaseService] Migration: added Playlists.CustomArtPath column");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DatabaseService] Schema migration check failed");
+        }
+    }
+
+    private class ColumnInfo
+    {
+        public string Name { get; set; } = "";
     }
 
     public void Vacuum()
@@ -39,15 +63,11 @@ public class DatabaseService : IDisposable
             sizeBefore / 1024, sizeAfter / 1024);
     }
 
-    // ==========================================
-    // DATABASE ACCESS
-    // ==========================================
     public List<Track> LoadAll()
     {
         try
         {
-            var records = _db.Table<TrackRecord>().ToList();
-            return records.Select(r => r.ToTrack()).ToList();
+            return _db.Table<TrackRecord>().ToList().Select(r => r.ToTrack()).ToList();
         }
         catch (Exception ex)
         {
@@ -58,50 +78,26 @@ public class DatabaseService : IDisposable
 
     public void Insert(Track track)
     {
-        try
-        {
-            _db.InsertOrReplace(TrackRecord.FromTrack(track));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title);
-        }
+        try { _db.InsertOrReplace(TrackRecord.FromTrack(track)); }
+        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title); }
     }
 
     public void Update(Track track)
     {
-        try
-        {
-            _db.InsertOrReplace(TrackRecord.FromTrack(track));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title);
-        }
+        try { _db.InsertOrReplace(TrackRecord.FromTrack(track)); }
+        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title); }
     }
 
     public void Delete(Guid id)
     {
-        try
-        {
-            _db.Delete<TrackRecord>(id.ToString());
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id);
-        }
+        try { _db.Delete<TrackRecord>(id.ToString()); }
+        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id); }
     }
 
     public void RunInTransaction(Action action)
     {
-        try
-        {
-            _db.RunInTransaction(action);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Transaction failed");
-        }
+        try { _db.RunInTransaction(action); }
+        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Transaction failed"); }
     }
 
     public void SavePlaylist(Playlist playlist)
@@ -116,7 +112,8 @@ public class DatabaseService : IDisposable
                     Id = playlist.Id.ToString(),
                     Name = playlist.Name,
                     Description = playlist.Description,
-                    FolderId = playlist.FolderId?.ToString()
+                    FolderId = playlist.FolderId?.ToString(),
+                    CustomArtPath = playlist.CustomArtPath
                 });
                 syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
 
@@ -144,9 +141,8 @@ public class DatabaseService : IDisposable
         {
             var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
             var syncDb = _db;
-            var dbPlaylists = syncDb.Table<PlaylistRecord>().ToList();
 
-            foreach (var plRecord in dbPlaylists)
+            foreach (var plRecord in syncDb.Table<PlaylistRecord>().ToList())
             {
                 var pList = new Playlist
                 {
@@ -155,9 +151,8 @@ public class DatabaseService : IDisposable
                     Description = plRecord.Description,
                     FolderId = string.IsNullOrWhiteSpace(plRecord.FolderId)
                         ? null
-                        : Guid.TryParse(plRecord.FolderId, out var folderId)
-                            ? folderId
-                            : null
+                        : Guid.TryParse(plRecord.FolderId, out var folderId) ? folderId : null,
+                    CustomArtPath = plRecord.CustomArtPath
                 };
 
                 var dbTracks = syncDb.Table<PlaylistTrackRecord>()
@@ -166,12 +161,8 @@ public class DatabaseService : IDisposable
                     .ToList();
 
                 foreach (var pt in dbTracks)
-                {
                     if (trackMap.TryGetValue(pt.TrackId, out var track))
-                    {
                         pList.Tracks.Add(track);
-                    }
-                }
 
                 playlists.Add(pList);
             }
@@ -195,10 +186,7 @@ public class DatabaseService : IDisposable
                 CreatedAt = folder.DateCreated
             });
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to save playlist folder to database.");
-        }
+        catch (Exception ex) { Log.Error(ex, "Failed to save playlist folder to database."); }
     }
 
     public List<PlaylistFolder> LoadPlaylistFolders()
@@ -216,24 +204,15 @@ public class DatabaseService : IDisposable
                 });
             }
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to load playlist folders from database.");
-        }
+        catch (Exception ex) { Log.Error(ex, "Failed to load playlist folders from database."); }
 
         return folders;
     }
 
     public void DeletePlaylistFolder(Guid id)
     {
-        try
-        {
-            _db.Delete<PlaylistFolderRecord>(id.ToString());
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to delete playlist folder from database.");
-        }
+        try { _db.Delete<PlaylistFolderRecord>(id.ToString()); }
+        catch (Exception ex) { Log.Error(ex, "Failed to delete playlist folder from database."); }
     }
 
     public void DeletePlaylist(Guid id)
@@ -241,14 +220,10 @@ public class DatabaseService : IDisposable
         try
         {
             var strId = id.ToString();
-            var syncDb = _db;
-            syncDb.Delete<PlaylistRecord>(strId);
-            syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
+            _db.Delete<PlaylistRecord>(strId);
+            _db.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to delete playlist from database.");
-        }
+        catch (Exception ex) { Log.Error(ex, "Failed to delete playlist from database."); }
     }
 
     public void Dispose()

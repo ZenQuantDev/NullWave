@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 02-Aug-2026
+> Last updated: 09-Aug-2026
 
 ---
 
@@ -642,3 +642,23 @@ optional, disconnectable, and independently replaceable. Enable community plugin
 - AI features degrade gracefully when Ollama is unavailable
 - Plugin load time < 200ms per plugin
 - No feature regression from current functionality
+
+## Phase 15 - v0.5.0 "Blue Orchid" Final Polish ✅
+
+**Branch:** `feature/15-ui-polish`
+**Goal:** Final UI refinements, bug fixes, and cross-platform testing before release.
+
+- ✅ Sidebar drag & drop for playlist reordering and folder organization
+- ✅ Active playlist context (playback continues through playlist even after queue clear)
+- ✅ Instant sidebar refresh on playlist deletion (no reboot required)
+- ✅ Live play count and last played updates via `LibraryChanged` event
+- ✅ Slim scrollbars with hover reveal
+- ✅ Unified context menus (right-click and 3-dot menu parity)
+- ✅ Ghost pin purging on sidebar rebuild
+- ✅ Windows compatibility testing and `.csproj` adjustments
+- ✅ Documentation and CHANGELOG finalization
+
+### Known Limitations (deferred to v0.6+)
+- 📋 Ctrl+L keyboard shortcut for search focus
+- 📋 Hover preview flyouts on collapsed sidebar icons
+- 📋 Deduplicate mood generation double-toast

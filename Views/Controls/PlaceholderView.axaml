@@ -14,12 +14,12 @@
                    HorizontalAlignment="Center"/>
         <TextBlock Text="{Binding Title}"
                    Foreground="{StaticResource BrushTextPrimary}"
-                   FontSize="{StaticResource FontSizeXl}"
+                   FontSize="{DynamicResource FontSizeXl}"
                    FontWeight="Bold"
                    HorizontalAlignment="Center"/>
         <TextBlock Text="{Binding Message}"
                    Foreground="{StaticResource BrushTextMuted}"
-                   FontSize="{StaticResource FontSizeBody}"
+                   FontSize="{DynamicResource FontSizeBody}"
                    HorizontalAlignment="Center"
                    TextAlignment="Center"
                    TextWrapping="Wrap"

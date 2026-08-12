@@ -18,7 +18,7 @@ public class Preferences
     public bool ScrobbleToLastFm { get; set; } = true;
     public bool AutoCleanMetadata { get; set; } = true;
     public bool PreventDuplicateDownloads { get; set; } = true;
-    public string AccentColor    { get; set; } = "Purple";
+    public string AccentColor    { get; set; } = "Blue Orchid";
     public string TrackRowStyle  { get; set; } = "Comfortable";
     public string FontScale      { get; set; } = "Medium";
     public bool   CompactMode    { get; set; } = false;
@@ -56,4 +56,6 @@ public class Preferences
     public bool AutoSuggestPinEnabled { get; set; } = true;
     public int QueueAutoFillSize { get; set; } = 20;
     public bool QueueManualInsertAtBlockEnd { get; set; } = true;
+    public bool SidebarCollapsed { get; set; } = false;
+    public string LastPage { get; set; } = "Library";
 }

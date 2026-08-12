@@ -26,7 +26,7 @@
     <!-- Switched to a Grid layout to pin the top sections fixed in place -->
     <Grid RowDefinitions="Auto,Auto,*">
         <!-- ROW 0: Fixed Album Art -->
-        <Border Grid.Row="0" Height="220"
+        <Border Grid.Row="0" Height="{DynamicResource DetailArtHeight}"
                 Background="{StaticResource BrushSurface2}"
                 ClipToBounds="True">
             <Panel>
@@ -45,7 +45,7 @@
                                            Foreground="{StaticResource BrushTextMuted}"
                                            HorizontalAlignment="Center"/>
                     <TextBlock Text="No artwork"
-                               FontSize="{StaticResource FontSizeSm}"
+                               FontSize="{DynamicResource FontSizeSm}"
                                Foreground="{StaticResource BrushTextMuted}"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
@@ -58,7 +58,7 @@
                 <TextBlock Grid.Column="0"
                            Text="{Binding Detail.EditTitle}"
                            Foreground="{StaticResource BrushTextPrimary}"
-                           FontSize="{StaticResource FontSizeLg}"
+                           FontSize="{DynamicResource FontSizeLg}"
                            FontWeight="Bold"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
@@ -101,7 +101,7 @@
                             </Border.Background>
                             <TextBlock Text="{Binding Detail.DisplaySource}"
                                        Foreground="White"
-                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontSize="{DynamicResource FontSizeXs}"
                                        FontWeight="SemiBold"/>
                         </Border>
                     </StackPanel>
@@ -123,14 +123,14 @@
                         <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
                         <TextBlock Text="{Binding Detail.DisplayPlayCount}"
                                    Foreground="{StaticResource BrushBlue}"
-                                   FontSize="{StaticResource FontSizeLg}"
+                                   FontSize="{DynamicResource FontSizeLg}"
                                    FontWeight="Bold"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4">
                         <TextBlock Classes="section-label" Text="LAST PLAYED" Margin="0"/>
                         <TextBlock Text="{Binding Detail.DisplayLastPlayed}"
                                    Foreground="{StaticResource BrushTextSecondary}"
-                                   FontSize="{StaticResource FontSizeSm}"
+                                   FontSize="{DynamicResource FontSizeSm}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
@@ -140,7 +140,7 @@
                     <TextBlock Classes="section-label" Text="DATE ADDED" Margin="0"/>
                     <TextBlock Text="{Binding Detail.DisplayDateAdded}"
                                Foreground="{StaticResource BrushTextSecondary}"
-                               FontSize="{StaticResource FontSizeBody}"/>
+                               FontSize="{DynamicResource FontSizeBody}"/>
                 </StackPanel>
                 
                 <!-- URL / Path -->
@@ -148,7 +148,7 @@
                     <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
                     <TextBlock Text="{Binding Detail.DisplayUrl}"
                                Foreground="{StaticResource BrushBlue}"
-                               FontSize="{StaticResource FontSizeXs}"
+                               FontSize="{DynamicResource FontSizeXs}"
                                TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Classes="ghost"
@@ -182,7 +182,7 @@
                         </Border>
                         <TextBlock Text="{Binding Detail.EditArtist}" 
                                    Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{StaticResource FontSizeMd}"
+                                   FontSize="{DynamicResource FontSizeMd}"
                                    FontWeight="Bold"
                                    HorizontalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
@@ -198,25 +198,25 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="{Binding Detail.ArtistBio}"
                                        Foreground="{StaticResource BrushTextSecondary}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding Detail.HasArtistBio}"/>
                             <TextBlock Text="No artist biography available yet."
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding Detail.ShowLibraryFallback}"/>
                             <TextBlock Text="Loading artist info..."
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeSm}"
+                                       FontSize="{DynamicResource FontSizeSm}"
                                        IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
                             <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='Monthly listeners: {0}'}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontSize="{DynamicResource FontSizeXs}"
                                        IsVisible="{Binding Detail.HasArtistBio}"/>
                             <TextBlock Text="{Binding Detail.LibraryArtistTrackCount, StringFormat='Library matches: {0}'}"
                                        Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{StaticResource FontSizeXs}"
+                                       FontSize="{DynamicResource FontSizeXs}"
                                        IsVisible="{Binding Detail.ShowLibraryFallback}"/>
                         </StackPanel>
                     </Border>
@@ -241,7 +241,7 @@
                                             Cursor="Hand">
                                         <TextBlock Text="{Binding}"
                                                    Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontSize="{DynamicResource FontSizeSm}"
                                                    FontWeight="Medium"/>
                                     </Border>
                                 </DataTemplate>
