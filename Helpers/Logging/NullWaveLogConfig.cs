@@ -15,10 +15,10 @@ public static class NullWaveLogConfig
     {
         LevelSwitch.MinimumLevel = useVerbose ? LogEventLevel.Debug : LogEventLevel.Information;
 
-        var logDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nullwave", "logs");
-
+        // FIX: Use the same centralized path manager as the rest of the app!
+        // (Use AppDataDir, DataDir, or BaseDir depending on what your NullWavePaths class exposes)
+        var logDir = Path.Combine(NullWavePaths.DataDir, "logs"); 
+        
         Directory.CreateDirectory(logDir);
 
         var outputTemplate =

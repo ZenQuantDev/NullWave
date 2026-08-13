@@ -788,7 +788,10 @@ public class LibraryService : IDisposable
         int cleaned = 0;
         foreach (var track in _tracks)
         {
-            if (track.TitleForceCleaned) continue;
+            // Skip already-cleaned tracks, EXCEPT titles carrying exotic separators
+            // (~, ∞, ·, •, ///) the OLD parser didn't understand — those get one
+            // re-evaluation pass with the upgraded parser.
+            if (track.TitleForceCleaned && !Metadata.TrackTitleParser.HasExoticSeparator(track.Title)) continue;
 
             var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(track.Title);
             if (parsed == null) 
