@@ -102,25 +102,21 @@ public class PlayerViewModel : ViewModelBase
                     {
                         track.FilePath = filePath;
 
-                        if (track.Title == track.Url
-                            || track.Title == "Unknown Title"
-                            || string.IsNullOrWhiteSpace(track.Title)
-                            || track.Artist == "Unknown"
-                            || string.IsNullOrWhiteSpace(track.Artist))
+                        var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
+                        if (!string.IsNullOrWhiteSpace(tagTitle))
                         {
-                            var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                            if (!string.IsNullOrWhiteSpace(tagTitle)
-                                && tagTitle != System.IO.Path.GetFileNameWithoutExtension(filePath))
-                            {
-                                if (track.Title == track.Url
-                                    || track.Title == "Unknown Title"
-                                    || string.IsNullOrWhiteSpace(track.Title))
-                                    track.Title = tagTitle;
-                                if (track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
-                                    track.Artist = tagArtist;
-                            }
-                            track.Duration = duration;
+                            if (track.Title == track.Url
+                                || track.Title == "Unknown Title"
+                                || string.IsNullOrWhiteSpace(track.Title))
+                                track.Title = tagTitle;
+                                
+                            // FIX: Added "Unknown Artist" to the check!
+                            if (track.Artist == "Unknown" 
+                                || track.Artist == "Unknown Artist" 
+                                || string.IsNullOrWhiteSpace(track.Artist))
+                                track.Artist = tagArtist;
                         }
+                        track.Duration = duration;
 
                         _library.Update(track);
 
