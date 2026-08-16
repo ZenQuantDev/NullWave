@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.1] - 16-Aug-2026
+
+### Added
+- **Universal Action Feedback**: Toast notifications now support action buttons (e.g., "Undo" for deletions, "Retry" for failed downloads).
+- **Single-Host Toast Routing**: Prevents duplicate toasts when the Settings window is open.
+- **Toast Stacking Cap**: Limits visible toasts to 4, dropping the oldest non-live toast to prevent screen clutter.
+- **Undo Pattern**: Extended to Playlist and Folder deletions, as well as Queue clearing.
+- **Skip Penalty Decay**: Added exponential decay to skip penalties so accidentally skipped songs aren't permanently banned from Smart Shuffle.
+- **AI Playlist Padding**: If the AI returns fewer tracks than requested for a mood playlist, it now pads the result with manual tag-matched tracks to ensure a full playlist.
+
+### Fixed
+- **Playlist URL Interception**: Playlist URLs are now intercepted *before* creating a dummy track, preventing 400 Bad Request errors and UI flicker.
+- **LocalAIService JSON Parsing**: Fixed `KeyNotFoundException` crashes when Ollama returns malformed JSON or markdown code blocks by adding `TryGetProperty` guards and markdown stripping.
+- **YouTube Metadata 400s**: Replaced `EnsureSuccessStatusCode()` with a manual HTTP status check to gracefully handle 400/403/404 API rejections without throwing noisy exceptions.
+- **VerifyLinks False Positives**: Drastically reduced (27 → 6) by adding `FeatureArtistRegex` and `BracketContentRegex` to `TitlesLooselyMatch`, and properly handling "Artist - Title" splits.
+- **Stale Scrobble Metadata**: Fixed an issue where Last.fm scrobbles used stale cached track data instead of fetching the latest metadata from the database.
+
 ## [0.5.0] - 09-Aug-2026 — "Blue Orchid"
 
 ### Added
