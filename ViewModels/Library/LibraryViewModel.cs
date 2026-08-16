@@ -414,10 +414,25 @@ public partial class LibraryViewModel : ObservableObject
         Guid targetId = target.Id;
         if (SelectedTrack?.Id == targetId) SelectedTrack = null;
 
-        await Task.Run(() => _library.Remove(targetId));
+        // Keep a reference for the Undo action
+        var undoTrack = target;
 
+        await Task.Run(() => _library.Remove(targetId));
         NullActionLogger.TrackRemoved(targetId.ToString(), "LibraryViewModel");
         TriggerRefresh(debounce: false);
+
+        ToastService.Instance.Show(
+            message: $"Removed '{undoTrack.Title}'",
+            type: ToastType.Warning,
+            durationMs: 6000,
+            actionText: "Undo",
+            actionCallback: () => {
+                _library.Add(undoTrack); // Re-inserts into DB
+                TriggerRefresh(debounce: false);
+                ToastService.Instance.Show("Track restored.", ToastType.Success, durationMs: 2000, scope: "library-delete");
+            },
+            scope: "library-delete" // Groups rapid deletions into one updating toast
+        );
     }
 
     [RelayCommand]
@@ -452,6 +467,13 @@ public partial class LibraryViewModel : ObservableObject
         if (target == null) return;
         _library.AddToQueue(target.Id);
         NullActionLogger.User("AddToQueue", target.Id.ToString(), "LibraryViewModel");
+        
+        ToastService.Instance.Show(
+            message: $"Added '{target.Title}' to queue",
+            type: ToastType.Info,
+            durationMs: 2500,
+            scope: "queue-add" 
+        );
     }
 
     [RelayCommand] private void SortByTitle() => SetSort(SortField.Title);
@@ -606,7 +628,18 @@ public partial class LibraryViewModel : ObservableObject
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 AiPlaylistRequested?.Invoke(query, rankedTracks);
-                if (activity != null) ToastService.Instance.CompleteLiveActivity(activity, $"AI playlist '{query}' created with {rankedTracks.Count} tracks!");
+                if (activity != null) 
+                {
+                    ToastService.Instance.CompleteLiveActivity(
+                        activity, 
+                        $"AI playlist '{query}' created with {rankedTracks.Count} tracks!",
+                        lingerMs: 6000,
+                        actionText: "Play Now",
+                        actionCallback: () => {
+                            if (rankedTracks.Count > 0) PlayTrackRequested?.Invoke(rankedTracks[0]);
+                        }
+                    );
+                }
             });
         }
         catch (Exception ex)

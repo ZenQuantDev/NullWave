@@ -33,7 +33,6 @@ public class DownloadService
     public event Action<string, float>? ProgressChanged;
     public event Action<string, string, bool>? DownloadCompleted;
     public event Action<string, string, bool>? DownloadFailed;
-
     public event Action<int>? PlaylistBatchStarted;
     public event Action<int, int, int>? PlaylistBatchProgress;
     public event Action<int, int, int>? PlaylistBatchCompleted;
@@ -42,8 +41,7 @@ public class DownloadService
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
     private static readonly Regex TopicSuffixRegex = new(
         @"\s*-\s*Topic\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    
-    // FIX: Safe regexes to strip ONLY the ?si= tracking parameter
+
     private static readonly Regex SiParamRegex1 = new(@"&si=[^&]*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex2 = new(@"\?si=[^&]*&", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -52,15 +50,17 @@ public class DownloadService
     private CancellationTokenSource? _currentDownloadCts;
     private SemaphoreSlim _semaphore = new(2, 5);
     private int _currentLimit = 2;
-
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
+
+    // Dynamic Throttling State
+    private volatile int _backoffMultiplier = 1;
+    private volatile bool _rateLimitTriggered = false;
 
     public void UpdateConcurrencyLimit(int newLimit)
     {
         newLimit = Math.Clamp(newLimit, 1, 5);
         if (newLimit == _currentLimit) return;
-
         var old = _semaphore;
         _semaphore = new SemaphoreSlim(newLimit, 5);
         _currentLimit = newLimit;
@@ -86,11 +86,9 @@ public class DownloadService
     private static bool IsAria2cAvailable()
     {
         if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
-
         lock (_aria2cLock)
         {
             if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
-
             try
             {
                 var psi = new ProcessStartInfo
@@ -154,8 +152,6 @@ public class DownloadService
         bool isInteractive = true,
         CancellationToken ct = default)
     {
-        // FIX: Safely strip YouTube share tracking parameters (?si=...) 
-        // without destroying required ?v= or ?list= parameters.
         if (url.Contains("youtu.be") || url.Contains("youtube.com"))
         {
             url = SiParamRegex1.Replace(url, "");
@@ -235,8 +231,8 @@ public class DownloadService
                 cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             }
         }
-
         ct = cts.Token;
+
         Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
@@ -269,7 +265,6 @@ public class DownloadService
             {
                 if (string.IsNullOrWhiteSpace(e.Data)) return;
                 var line = e.Data.Trim();
-
                 var match = ProgressRegex.Match(line);
                 if (match.Success &&
                     float.TryParse(match.Groups[1].Value,
@@ -280,27 +275,50 @@ public class DownloadService
                     ProgressChanged?.Invoke(trackId, pct / 100f);
                     return;
                 }
-
                 if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
                 {
                     outputFilePath = line;
                     return;
                 }
-
                 Log.Debug("yt-dlp: {Line}", line);
             };
 
             process.ErrorDataReceived += (_, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
+                {
                     Log.Debug("yt-dlp stderr: {Line}", e.Data);
+                    // Detect Rate Limiting / 429 Too Many Requests
+                    if (e.Data.Contains("429") || 
+                        e.Data.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase) || 
+                        e.Data.Contains("Rate limit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _rateLimitTriggered = true;
+                    }
+                }
             };
 
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync(ct);
-            process.WaitForExit();
+            
+            try
+            {
+                await process.WaitForExitAsync(ct);
+                process.WaitForExit(); // Ensures ExitCode is populated
+            }
+            catch (OperationCanceledException)
+            {
+                // FIX: Kill the zombie yt-dlp/ffmpeg process tree
+                if (!process.HasExited)
+                {
+                    try { process.Kill(true); } catch { /* Ignore */ }
+                }
+                
+                Log.Warning("Download cancelled: {TrackId}", trackId);
+                DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
+                return; // Exit early so we don't trigger success logic
+            }
 
             if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
@@ -394,14 +412,12 @@ public class DownloadService
                     using var doc = System.Text.Json.JsonDocument.Parse(line);
                     var root = doc.RootElement;
 
-                    // FIX: Parse the title ONCE at the top of the scope
                     var rawTitle = root.TryGetProperty("title", out var titleProp)
                         ? titleProp.GetString() ?? "Unknown Track" : "Unknown Track";
 
                     string videoId = root.TryGetProperty("id", out var idProp)
                         ? (idProp.GetString() ?? "") : "";
 
-                    // Fallback to extract video ID from the "url" property if "id" is missing
                     if (string.IsNullOrEmpty(videoId) && root.TryGetProperty("url", out var urlProp))
                     {
                         var rawUrl = urlProp.GetString() ?? "";
@@ -410,14 +426,12 @@ public class DownloadService
                         else if (rawUrl.Contains("youtu.be/")) videoId = rawUrl.Split("youtu.be/")[1].Split('?')[0];
                     }
 
-                    // Skip tracks entirely if we still can't find a video ID
                     if (string.IsNullOrEmpty(videoId))
                     {
                         Log.Warning("[DownloadService] Skipping playlist track with missing video ID: {Title}", rawTitle);
-                        continue; 
+                        continue;
                     }
 
-                    // Continue with artist parsing...
                     string artist = "Unknown Artist";
                     if (root.TryGetProperty("artist", out var artistProp) &&
                         !string.IsNullOrWhiteSpace(artistProp.GetString()))
@@ -425,17 +439,17 @@ public class DownloadService
                         artist = artistProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("creator", out var creatorProp) &&
-                        !string.IsNullOrWhiteSpace(creatorProp.GetString()))
+                             !string.IsNullOrWhiteSpace(creatorProp.GetString()))
                     {
                         artist = creatorProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("uploader", out var uploaderProp) &&
-                        !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
+                             !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
                     {
                         artist = uploaderProp.GetString()!.Trim();
                     }
                     else if (root.TryGetProperty("channel", out var channelProp) &&
-                        !string.IsNullOrWhiteSpace(channelProp.GetString()))
+                             !string.IsNullOrWhiteSpace(channelProp.GetString()))
                     {
                         artist = channelProp.GetString()!.Trim();
                     }
@@ -445,13 +459,29 @@ public class DownloadService
                         artist = TopicSuffixRegex.Replace(artist, string.Empty).Trim();
                     }
 
+                    // FIX: Fallback to channel name if artist is generic/unknown
+                    if (string.IsNullOrWhiteSpace(artist) || 
+                        artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
+                        artist.Equals("Various Artists", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (root.TryGetProperty("channel", out var fallbackChannelProp) && 
+                            !string.IsNullOrWhiteSpace(fallbackChannelProp.GetString()))
+                        {
+                            var channelName = fallbackChannelProp.GetString()!.Trim();
+                            if (!channelName.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) &&
+                                !channelName.EndsWith("- Topic", StringComparison.OrdinalIgnoreCase))
+                            {
+                                artist = channelName;
+                            }
+                        }
+                    }
+
                     string cleanTitle = rawTitle;
                     if (string.IsNullOrWhiteSpace(artist) ||
                         artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase))
                     {
                         var parsed = NullWave.Services.Metadata.TrackTitleParser
                             .TryParseArtistTitle(rawTitle);
-
                         if (parsed != null)
                         {
                             artist     = parsed.Value.Artist;
@@ -506,7 +536,6 @@ public class DownloadService
                 }
 
                 _libraryService.Add(newTrack);
-
                 var tcs = new TaskCompletionSource<bool>();
 
                 System.Action<string, string, bool> OnCompleted = (id, filePath, isInteractive) =>
@@ -540,6 +569,18 @@ public class DownloadService
 
                     var success = await tcs.Task;
 
+                    // Apply Exponential Backoff Logic
+                    if (_rateLimitTriggered)
+                    {
+                        _backoffMultiplier = Math.Min(_backoffMultiplier * 2, 8); // Cap at 8x base delay
+                        _rateLimitTriggered = false;
+                        Log.Warning("[DownloadService] Rate limit detected. Increasing backoff multiplier to {Mult}x.", _backoffMultiplier);
+                    }
+                    else
+                    {
+                        if (_backoffMultiplier > 1) _backoffMultiplier = Math.Max(1, _backoffMultiplier / 2);
+                    }
+
                     if (!success)
                     {
                         _libraryService.Remove(trackId);
@@ -549,7 +590,6 @@ public class DownloadService
                     {
                         completedCount++;
                         var dbTrack = _libraryService.GetAll().FirstOrDefault(t => t.Id == trackId);
-
                         if (dbTrack != null)
                         {
                             dbTrack.FilePath = finalFilePath;
@@ -568,7 +608,6 @@ public class DownloadService
                                 {
                                     var parsed = NullWave.Services.Metadata.TrackTitleParser
                                         .TryParseArtistTitle(dbTrack.Title);
-
                                     if (parsed != null)
                                     {
                                         cleanArtist    = parsed.Value.Artist;
@@ -584,10 +623,9 @@ public class DownloadService
                             {
                                 var parsed = NullWave.Services.Metadata.TrackTitleParser
                                     .TryParseArtistTitle(dbTrack.Title);
-
                                 if (parsed != null &&
                                     (dbTrack.Artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
-                                    string.IsNullOrWhiteSpace(dbTrack.Artist)))
+                                     string.IsNullOrWhiteSpace(dbTrack.Artist)))
                                 {
                                     dbTrack.Artist = parsed.Value.Artist;
                                     dbTrack.Title  = parsed.Value.Title;
@@ -596,6 +634,7 @@ public class DownloadService
 
                             dbTrack.AlbumArtPath = await _albumArtService.GetArtPathAsync(dbTrack);
                             _libraryService.Update(dbTrack);
+
                             Log.Debug("[DownloadService] Track ready: '{Title}' by '{Artist}' → {Path}",
                                 dbTrack.Title, dbTrack.Artist, finalFilePath);
                             onTrackReady?.Invoke(dbTrack);
@@ -606,8 +645,9 @@ public class DownloadService
 
                     if (i < tracks.Count - 1)
                     {
-                        var delayMs = GetThrottleDelayMs();
-                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms", delayMs);
+                        var baseDelay = GetThrottleDelayMs();
+                        var delayMs = baseDelay * _backoffMultiplier;
+                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, _backoffMultiplier);
                         await Task.Delay(delayMs, ct);
                     }
                 }
@@ -660,6 +700,7 @@ public class DownloadService
             if (linkedPaths.Contains(file.FullName)) continue;
             if (newest == null || file.LastWriteTime > newest.LastWriteTime) newest = file;
         }
+
         return newest?.FullName;
     }
 

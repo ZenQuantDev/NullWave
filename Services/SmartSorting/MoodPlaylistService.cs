@@ -1,4 +1,3 @@
-// MoodPlaylistService.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,12 +20,6 @@ public class MoodPlaylistResult
     public bool UsedAI { get; init; }
 }
 
-/// <summary>
-/// Orchestrates the full mood-playlist pipeline: fetch weather, map to mood
-/// tags, filter the library by those tags, then either hand the filtered
-/// list to LocalAIService for ranking (Tier 1) or use the tag-filtered list
-/// directly (Tier 2 fallback - no AI, or AI unavailable/disabled).
-/// </summary>
 public class MoodPlaylistService
 {
     private readonly WeatherService _weather;
@@ -83,8 +76,6 @@ public class MoodPlaylistService
 
             Log.Information("[MoodPlaylist] {Count} tracks matched mood tags", candidates.Count);
 
-            // Fallback: if no tagged tracks match, widen to the whole library so
-            // the user still gets a result rather than an empty playlist.
             var usingFallbackPool = false;
             if (candidates.Count == 0)
             {
@@ -105,7 +96,6 @@ public class MoodPlaylistService
                 };
             }
 
-            // Tier 1 - local AI ranking, only if requested and reachable
             if (useLocalAI && !usingFallbackPool)
             {
                 var ollamaUp = await _ai.IsOllamaRunningAsync();
@@ -125,6 +115,19 @@ public class MoodPlaylistService
 
                         if (ranked.Count > 0)
                         {
+                            // FIX: Implement padding fallback if AI returns fewer tracks than target
+                            if (ranked.Count < maxResults)
+                            {
+                                var remainingCandidates = candidates
+                                    .Where(t => !ranked.Contains(t))
+                                    .OrderByDescending(t => t.PlayCount)
+                                    .ThenByDescending(t => t.IsFavorite)
+                                    .Take(maxResults - ranked.Count)
+                                    .ToList();
+                                    
+                                ranked.AddRange(remainingCandidates);
+                            }
+
                             return new MoodPlaylistResult
                             {
                                 Success = true,
@@ -145,7 +148,6 @@ public class MoodPlaylistService
                 }
             }
 
-            // Tier 2 - tag-only fallback: most-played first within the matched mood pool
             var tagOnly = candidates
                 .OrderByDescending(t => t.PlayCount)
                 .ThenByDescending(t => t.IsFavorite)
@@ -169,13 +171,6 @@ public class MoodPlaylistService
     }
 }
 
-/// <summary>
-/// Maps weather condition + temperature + time of day to mood tag
-/// candidates. Tags match against Track.Tags, which are populated by
-/// LastFmEnrichmentService from real Last.fm community tags - genre and
-/// descriptor words like "pop", "dance", "rnb", "electronic", "90s",
-/// "female vocalists", "acoustic", "chill", "ambient", etc.
-/// </summary>
 public static class WeatherMoodMap
 {
     public static string[] GetMoodTags(string condition, double tempC, int hour)
@@ -206,8 +201,6 @@ public static class WeatherMoodMap
             _ => new[] { "pop", "chill" }
         };
 
-        // Late night / early morning skews toward lower-energy descriptors -
-        // these are common standalone Last.fm tags, not invented words.
         if (hour >= 22 || hour < 5)
             tags = tags.Concat(new[] { "chill", "ambient", "rnb", "soul" }).Distinct().ToArray();
 

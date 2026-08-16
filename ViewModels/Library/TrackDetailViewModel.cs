@@ -142,6 +142,25 @@ public class TrackDetailViewModel : ViewModelBase
     public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
     public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
+    
+    public string DisplaySkipWeight
+    {
+        get
+        {
+            if (_currentTrack == null) return "0";
+            var skipCount = _currentTrack.SkipCount;
+            
+            if (_currentTrack.LastSkipped.HasValue && _currentTrack.LastSkipped.Value != DateTime.MinValue)
+            {
+                var daysSinceLastSkip = (DateTime.UtcNow - _currentTrack.LastSkipped.Value).TotalDays;
+                var decayFactor = Math.Pow(0.5, daysSinceLastSkip);
+                skipCount = (int)Math.Round(skipCount * decayFactor);
+            }
+            return skipCount.ToString();
+        }
+    }
+
+    public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
 
     public ICommand SaveCommand { get; }
@@ -194,6 +213,7 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        // Silent UI Updates: Only refresh bound properties, NEVER trigger navigation or Open commands
         RefreshDisplayProperties();
     }
 
@@ -205,6 +225,8 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayDateAdded));
         OnPropertyChanged(nameof(DisplayLastPlayed));
         OnPropertyChanged(nameof(DisplayPlayCount));
+        OnPropertyChanged(nameof(DisplaySkipWeight));
+        OnPropertyChanged(nameof(DisplayLastSkipped));
         OnPropertyChanged(nameof(IsFavorite));
     }
 

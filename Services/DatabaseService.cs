@@ -21,6 +21,11 @@ public class DatabaseService : IDisposable
         DbPath = path;
         _db = new SQLiteConnection(path);
 
+        // FIX: Use ExecuteScalar instead of Execute because this PRAGMA returns a row ("wal")
+        // Using Execute() throws a confusing "not an error" SQLiteException in sqlite-net 
+        // when the C-API returns SQLITE_ROW instead of SQLITE_DONE.
+        _db.ExecuteScalar<string>("PRAGMA journal_mode=WAL;");
+
         _db.CreateTable<TrackRecord>();
         _db.CreateTable<PlaylistRecord>();
         _db.CreateTable<PlaylistTrackRecord>();
@@ -28,7 +33,7 @@ public class DatabaseService : IDisposable
 
         MigrateSchema();
 
-        Log.Information("[DatabaseService] Opened DB at {Path}", path);
+        Log.Information("[DatabaseService] Opened DB at {Path} with WAL mode enabled", path);
     }
 
     /// <summary>SQLite-net CreateTable does NOT add columns to existing tables; add new columns manually.</summary>

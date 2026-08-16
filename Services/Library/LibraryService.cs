@@ -1,10 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using NullWave.Helpers;
+using NullWave.Helpers.Logging;
+using NullWave.Services;
+using NullWave.Services.Integration;
+using NullWave.Services.Plugins;
+using NullWave.Services.SmartSorting;
+using NullWave.ViewModels.Base;
 using NullWave.Models;
 using SQLite;
 using Serilog;
@@ -20,7 +33,6 @@ public record LinkMismatch(
     string FilePath);
 
 public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
-
 public record ArtistMergeGroup(string CanonicalName, List<string> Variants, int TotalTracks);
 
 public class LibraryService : IDisposable
@@ -45,6 +57,18 @@ public class LibraryService : IDisposable
         "and", "with", "of", "in", "on", "part", "pt", "the", "that", "this"
     };
 
+    private static readonly Regex[] YouTubeArtifactTitleRegexes = new[]
+    {
+        new Regex(@"\s*[\(\[]\s*(?:Official\s*(?:Music\s*)?Video|Official\s*Audio|Official\s*Lyric\s*Video|Lyric\s*Video|Lyrics|Audio|Video|Visualizer|Remix|Live|Performance|Clip)\s*[\)\]]", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new Regex(@"\s*[\(\[]\s*(?:Explicit|Clean)\s*[\)\]]", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+    };
+
+    private static readonly Regex YouTubeTopicArtistRegex = new(@"\s*-\s*Topic\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // FIX: Added regexes to extract featured artists and bracketed context (e.g. subtitles, OSTs)
+    private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–—]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex BracketContentRegex = new(@"[\(\[](.*?)[\)\]]", RegexOptions.Compiled);
+
     public event EventHandler? LibraryChanged;
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
@@ -56,20 +80,38 @@ public class LibraryService : IDisposable
         _prefs = prefs;
         _tracks = _db.LoadAll();
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+
         CleanupBadUrls();
         BackfillAlbumArt();
         BackfillYouTubeThumbnails();
         BackfillSoundCloudThumbnails();
     }
 
+    public static string CleanYouTubeArtifacts(string input, bool isArtist = false)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return input;
+        var cleaned = input;
+        if (isArtist)
+        {
+            cleaned = YouTubeTopicArtistRegex.Replace(cleaned, "");
+        }
+        else
+        {
+            foreach (var regex in YouTubeArtifactTitleRegexes)
+            {
+                cleaned = regex.Replace(cleaned, "");
+            }
+        }
+        return cleaned.Trim();
+    }
+
     private void BackfillYouTubeThumbnails()
     {
         var ytTracks = _tracks
             .Where(t => t.Source == TrackSource.YouTube
-                && string.IsNullOrEmpty(t.AlbumArtPath)
-                && !string.IsNullOrEmpty(t.Url))
+                     && string.IsNullOrEmpty(t.AlbumArtPath)
+                     && !string.IsNullOrEmpty(t.Url))
             .ToList();
-
         if (ytTracks.Count == 0) return;
 
         Log.Information("[LibraryService] Backfilling thumbnails for {Count} YouTube tracks", ytTracks.Count);
@@ -82,8 +124,10 @@ public class LibraryService : IDisposable
                 {
                     var id = Metadata.YouTubeMetadataFetcher.ExtractYouTubeId(track.Url!);
                     if (string.IsNullOrEmpty(id)) continue;
+
                     var thumbPath = await Metadata.YouTubeMetadataFetcher.FetchThumbnailAsync(id);
                     if (string.IsNullOrEmpty(thumbPath)) continue;
+
                     track.AlbumArtPath = thumbPath;
                     updatedTracks.Add(track);
                     Log.Debug("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
@@ -113,10 +157,9 @@ public class LibraryService : IDisposable
     {
         var scTracks = _tracks
             .Where(t => t.Source == TrackSource.SoundCloud
-                && string.IsNullOrEmpty(t.AlbumArtPath)
-                && !string.IsNullOrEmpty(t.Url))
+                     && string.IsNullOrEmpty(t.AlbumArtPath)
+                     && !string.IsNullOrEmpty(t.Url))
             .ToList();
-
         if (scTracks.Count == 0) return;
 
         Log.Information("[LibraryService] Backfilling thumbnails for {Count} SoundCloud tracks", scTracks.Count);
@@ -124,6 +167,7 @@ public class LibraryService : IDisposable
         {
             var fetcher = new Metadata.SoundCloudMetadataFetcher();
             var updatedTracks = new List<Track>();
+
             foreach (var track in scTracks)
             {
                 try
@@ -183,10 +227,9 @@ public class LibraryService : IDisposable
     {
         var bad = _tracks
             .Where(t => !string.IsNullOrEmpty(t.Url)
-                && !SourceDetector.IsPlayableUrl(t.Url)
-                && string.IsNullOrEmpty(t.FilePath))
+                     && !SourceDetector.IsPlayableUrl(t.Url)
+                     && string.IsNullOrEmpty(t.FilePath))
             .ToList();
-
         if (bad.Count == 0) return;
 
         foreach (var track in bad)
@@ -256,7 +299,6 @@ public class LibraryService : IDisposable
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
-
         _tracks.Remove(track);
         _db.Delete(id);
         StateVersion++;
@@ -293,7 +335,7 @@ public class LibraryService : IDisposable
 
         var results = _tracks
             .Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
+                     || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
 
         IEnumerable<Track> sorted = field switch
         {
@@ -341,7 +383,6 @@ public class LibraryService : IDisposable
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
-
         track.IsFavorite = !track.IsFavorite;
         _db.Update(track);
         StateVersion++;
@@ -351,7 +392,6 @@ public class LibraryService : IDisposable
     {
         var track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
-
         track.PlayCount++;
         track.LastPlayed = DateTime.Now;
         _db.Update(track);
@@ -387,9 +427,9 @@ public class LibraryService : IDisposable
             int insertIndex = _prefs?.Current.QueueManualInsertAtBlockEnd == true
                 ? _queue.FindIndex(e => !e.IsManual)
                 : 0;
-            
+
             if (insertIndex < 0) insertIndex = _queue.Count;
-            
+
             _queue.Insert(insertIndex, new QueueEntry(track, IsManual: true));
             QueueChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -403,6 +443,12 @@ public class LibraryService : IDisposable
             _queue.Remove(entry);
             QueueChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+    public void RestoreQueue(IEnumerable<QueueEntry> entries)
+    {
+        if (_queue.Count > 0) return;
+        _queue.AddRange(entries);
+        QueueChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ClearQueue()
@@ -433,13 +479,13 @@ public class LibraryService : IDisposable
     {
         var currentAutoCount = _queue.Count(e => !e.IsManual);
         var target = _prefs?.Current.QueueAutoFillSize ?? 20;
-        
+
         if (currentAutoCount >= target) return;
 
         var needed = target - currentAutoCount;
         foreach (var track in autoTracks.Take(needed))
             _queue.Add(new QueueEntry(track, IsManual: false));
-        
+
         QueueChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -497,7 +543,6 @@ public class LibraryService : IDisposable
     public void RefreshAlbumArt(Track track)
     {
         if (_metadata == null || string.IsNullOrEmpty(track.FilePath)) return;
-
         track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
         _db.Update(track);
         StateVersion++;
@@ -513,6 +558,7 @@ public class LibraryService : IDisposable
         foreach (var track in withPath)
         {
             if (File.Exists(track.FilePath)) continue;
+
             missing++;
             Log.Debug("[LibraryService] Dead file path: {Path} (track: {Title})",
                 track.FilePath, track.Title);
@@ -525,9 +571,9 @@ public class LibraryService : IDisposable
         }
 
         if (removed > 0) StateVersion++;
+
         Log.Information("[LibraryService] RepairPaths: {Total} checked, {Missing} missing, {Removed} cleared",
             withPath.Count, missing, removed);
-
         return (withPath.Count, missing, removed);
     }
 
@@ -540,7 +586,7 @@ public class LibraryService : IDisposable
         }
 
         var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        { ".mp3", ".flac", ".m4a", ".ogg", ".wav", ".aac", ".opus" };
+            { ".mp3", ".flac", ".m4a", ".ogg", ".wav", ".aac", ".opus" };
 
         var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories)
             .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
@@ -597,9 +643,9 @@ public class LibraryService : IDisposable
             _db.Update(track);
 
         if (toUpdate.Count > 0) StateVersion++;
+
         Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
             files.Count, toUpdate.Count);
-
         return toUpdate.Count;
     }
 
@@ -613,7 +659,6 @@ public class LibraryService : IDisposable
     public (int Checked, List<LinkMismatch> Mismatches) VerifyLinks()
     {
         var mismatches = new List<LinkMismatch>();
-
         if (_metadata == null)
         {
             Log.Warning("[LibraryService] VerifyLinks: no MetadataService available, cannot read embedded tags");
@@ -638,7 +683,6 @@ public class LibraryService : IDisposable
             }
 
             if (string.IsNullOrWhiteSpace(embedded.Title)) continue;
-
             if (TitlesLooselyMatch(track.Title, embedded.Title, track.Artist, embedded.Artist)) continue;
 
             var mismatch = new LinkMismatch(
@@ -655,21 +699,62 @@ public class LibraryService : IDisposable
 
         Log.Information("[LibraryService] VerifyLinks: {Checked} tracks checked, {Mismatches} possible mismatch(es) found",
             withFile.Count, mismatches.Count);
-
         return (withFile.Count, mismatches);
     }
 
     private static List<string> Tokens(string s) =>
         Regex.Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
-            .Select(m => m.Value)
-            .Where(w => w.Length > 1)
-            .ToList();
+             .Select(m => m.Value)
+             .Where(w => w.Length > 1)
+             .ToList();
 
     private static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle,
         string storedArtist = "", string embeddedArtist = "")
     {
-        var a = NormalizeForCompare(storedTitle);
-        var b = NormalizeForCompare(embeddedTitle);
+        // 1. Clean YouTube artifacts from BOTH to ensure parity
+        var cleanStoredTitle = CleanYouTubeArtifacts(storedTitle, isArtist: false);
+        var cleanEmbTitle = CleanYouTubeArtifacts(embeddedTitle, isArtist: false);
+        var cleanEmbArtist = CleanYouTubeArtifacts(embeddedArtist, isArtist: true);
+
+        // 2. Handle "Artist - Title" format embedded in the Title tag
+        // We attempt to split it if the left side matches either the stored or embedded artist.
+        if (cleanEmbTitle.Contains(" - "))
+        {
+            var split = cleanEmbTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
+            if (split.Length == 2)
+            {
+                var leftNorm = NormalizeArtistKey(split[0]);
+                var storedArtistNorm = NormalizeArtistKey(storedArtist);
+                var embArtistNorm = NormalizeArtistKey(cleanEmbArtist);
+                
+                // If left side matches known artists, or if embedded artist is missing, perform the split
+                if (leftNorm == storedArtistNorm || leftNorm == embArtistNorm || 
+                    string.IsNullOrWhiteSpace(cleanEmbArtist) || cleanEmbArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanEmbArtist = string.IsNullOrWhiteSpace(cleanEmbArtist) ? split[0].Trim() : cleanEmbArtist;
+                    cleanEmbTitle = split[1].Trim();
+                }
+            }
+        }
+
+        // Also check if storedTitle has "Artist - Title" format and strip it for parity
+        if (cleanStoredTitle.Contains(" - "))
+        {
+            var split = cleanStoredTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
+            if (split.Length == 2)
+            {
+                var leftNorm = NormalizeArtistKey(split[0]);
+                var storedArtistNorm = NormalizeArtistKey(storedArtist);
+                if (leftNorm == storedArtistNorm)
+                {
+                    cleanStoredTitle = split[1].Trim();
+                }
+            }
+        }
+
+        var a = NormalizeForCompare(cleanStoredTitle);
+        var b = NormalizeForCompare(cleanEmbTitle);
+
         if (a.Length == 0 || b.Length == 0) return true;
         if (a == b) return true;
 
@@ -677,17 +762,42 @@ public class LibraryService : IDisposable
         if (!longer.Contains(shorter, StringComparison.Ordinal)) return false;
 
         var (shorterRaw, longerRaw) = a.Length <= b.Length
-            ? (storedTitle, embeddedTitle)
-            : (embeddedTitle, storedTitle);
+            ? (cleanStoredTitle, cleanEmbTitle)
+            : (cleanEmbTitle, cleanStoredTitle);
 
         var known = Tokens(shorterRaw)
             .Concat(Tokens(storedArtist))
-            .Concat(Tokens(embeddedArtist))
+            .Concat(Tokens(cleanEmbArtist))
             .ToHashSet(StringComparer.Ordinal);
 
-        // Extra words must be decoration/artist only — content words mean a wrong file.
+        // FIX: Extract featured artists, parentheticals, and brackets from the longer string
+        // and add them to the 'known' tokens so they don't cause false positives.
+        var extraTokens = ExtractContextTokens(longerRaw);
+        foreach(var token in extraTokens) known.Add(token);
+
         return !Tokens(longerRaw)
             .Any(t => !known.Contains(t) && !DecorationTokens.Contains(t));
+    }
+
+    private static IEnumerable<string> ExtractContextTokens(string rawTitle)
+    {
+        var tokens = new List<string>();
+        
+        // 1. Extract featured/collaborating artists (e.g., "ft. Jamie Foxx", "with Andrea Bocelli")
+        var featureMatches = FeatureArtistRegex.Matches(rawTitle);
+        foreach (Match match in featureMatches)
+        {
+            tokens.AddRange(Tokens(match.Groups[1].Value));
+        }
+
+        // 2. Extract anything inside parentheses () or brackets [] (e.g., "(From Black Panther)")
+        var bracketMatches = BracketContentRegex.Matches(rawTitle);
+        foreach (Match match in bracketMatches)
+        {
+            tokens.AddRange(Tokens(match.Groups[1].Value));
+        }
+
+        return tokens;
     }
 
     private static string NormalizeForCompare(string s)
@@ -695,7 +805,7 @@ public class LibraryService : IDisposable
         var decomposed = (s ?? string.Empty).Normalize(System.Text.NormalizationForm.FormD);
         var stripped = new string(decomposed
             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                        != System.Globalization.UnicodeCategory.NonSpacingMark)
+                     != System.Globalization.UnicodeCategory.NonSpacingMark)
             .ToArray());
         return new string(stripped.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
     }
@@ -704,7 +814,6 @@ public class LibraryService : IDisposable
     {
         if (string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)) return false;
         if (_metadata == null) return true;
-
         try
         {
             var embedded = _metadata.FetchFromLocalFile(t.FilePath);
@@ -730,7 +839,6 @@ public class LibraryService : IDisposable
                     .OrderByDescending(v => v.Count)
                     .ThenBy(v => v.Name, StringComparer.Ordinal)
                     .ToList();
-
                 return new ArtistMergeGroup(
                     CanonicalName: variantCounts[0].Name,
                     Variants: variantCounts.Select(v => v.Name).ToList(),
@@ -755,6 +863,7 @@ public class LibraryService : IDisposable
         }
 
         if (toUpdate.Count > 0) StateVersion++;
+
         Log.Information("[LibraryService] MergeArtistGroup: {Count} track(s) updated to canonical name '{Name}'",
             toUpdate.Count, group.CanonicalName);
         return toUpdate.Count;
@@ -764,19 +873,16 @@ public class LibraryService : IDisposable
     {
         var stripped = new string(artist.Where(c =>
             System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                != System.Globalization.UnicodeCategory.Format).ToArray());
-
+            != System.Globalization.UnicodeCategory.Format).ToArray());
         var normalized = stripped.Normalize(System.Text.NormalizationForm.FormKC);
         var collapsed = Regex.Replace(normalized.Trim(), @"\s+", " ");
         var joinerNormalized = ArtistSeparatorRegex.Replace(collapsed, " & ");
-
         return joinerNormalized.ToLowerInvariant();
     }
 
     public static List<string> SplitArtistCredits(string artist)
     {
         if (string.IsNullOrWhiteSpace(artist)) return new List<string>();
-
         return ArtistSeparatorRegex.Split(artist)
             .Select(s => s.Trim())
             .Where(s => s.Length > 0)
@@ -793,15 +899,18 @@ public class LibraryService : IDisposable
             // re-evaluation pass with the upgraded parser.
             if (track.TitleForceCleaned && !Metadata.TrackTitleParser.HasExoticSeparator(track.Title)) continue;
 
-            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(track.Title);
-            if (parsed == null) 
-            { 
-                track.TitleForceCleaned = true; 
-                _db.Update(track); 
-                continue; 
+            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
+            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(titleToParse);
+
+            if (parsed == null)
+            {
+                track.TitleForceCleaned = true;
+                _db.Update(track);
+                continue;
             }
 
             var (parsedArtist, parsedTitle) = parsed.Value;
+
             if (string.IsNullOrWhiteSpace(parsedArtist) || string.IsNullOrWhiteSpace(parsedTitle))
             {
                 track.TitleForceCleaned = true;
@@ -827,6 +936,7 @@ public class LibraryService : IDisposable
         }
 
         if (cleaned > 0) StateVersion++;
+
         Log.Information("[LibraryService] ForceCleanTitles: {Count} of {Total} tracks cleaned",
             cleaned, _tracks.Count);
         return cleaned;
@@ -889,7 +999,6 @@ public class LibraryService : IDisposable
 
         Log.Information("[LibraryService] SweepOrphanedFiles: {Scanned} scanned, {Orphaned} orphaned, {Deleted} deleted, {Failed} failed (dryRun={DryRun})",
             audioFiles.Count, orphaned, deleted, failed, dryRun);
-
         return (audioFiles.Count, orphaned, deleted, failed);
     }
 
@@ -929,9 +1038,9 @@ public class LibraryService : IDisposable
         }
 
         if (removed > 0) StateVersion++;
+
         Log.Information("[LibraryService] RemoveDuplicates: {Scanned} tracks scanned, {Groups} duplicate group(s) found, {Removed} removed (dryRun={DryRun})",
             _tracks.Count, groups.Count, removed, dryRun);
-
         return (_tracks.Count, groups.Count, removed);
     }
 

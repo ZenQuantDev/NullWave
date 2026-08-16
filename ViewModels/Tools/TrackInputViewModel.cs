@@ -35,21 +35,18 @@ public class TrackInputViewModel : ViewModelBase
     private bool _isUrlInputVisible;
     private string _statusMessage = string.Empty;
 
-    // Guards against the live-typing preview fetch (InputUrl setter) and the
-    // guaranteed-backfill fetch (AddTrack, when no title was provided yet) racing
-    // each other for the same URL — previously both could fire within the same
-    // add-flow, spawning two separate yt-dlp processes for one track. Entries are
-    // removed once their fetch completes, so a later, genuinely separate fetch for
-    // the same URL (a different session, or after this one finished) still works.
     private readonly HashSet<string> _fetchesInFlight = new();
 
     public Array SourceOptions => Enum.GetValues(typeof(TrackSource));
+
     public ICommand AddTrackCommand { get; }
     public ICommand AddLocalFileCommand { get; }
     public ICommand ShowUrlInputCommand { get; }
 
     public event Action? TrackAdded;
     public event Action? TrackMetadataUpdated;
+    public event Action<string>? PlaylistImportRequested;
+
     private string? _lastFetchedThumbnail;
 
     public bool IsFetching
@@ -139,7 +136,6 @@ public class TrackInputViewModel : ViewModelBase
         _download.DownloadCompleted += async (trackId, filePath, _) =>
         {
             if (!Guid.TryParse(trackId, out var trackGuid)) return;
-
             var track = _library.GetAll().FirstOrDefault(t => t.Id == trackGuid);
             if (track == null) return;
 
@@ -153,15 +149,16 @@ public class TrackInputViewModel : ViewModelBase
         ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
     }
 
-    /// <summary>
-    /// Strips the query string from a URL, purely for use as a cosmetic placeholder
-    /// title. The real Url field used for playback/download always keeps the full,
-    /// untouched string — this only affects what's shown before metadata resolves.
-    /// </summary>
     private static string StripQueryStringForDisplay(string url)
     {
         var qIndex = url.IndexOf('?');
         return qIndex > 0 ? url[..qIndex] : url;
+    }
+
+    private bool IsYouTubePlaylist(string url)
+    {
+        return url.Contains("list=", StringComparison.OrdinalIgnoreCase) || 
+               url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase);
     }
 
     public void AddTrack()
@@ -175,7 +172,15 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // Spotify → YouTube bridge
+        // FIX: Early Interception to prevent dummy track creation and log spam
+        if (IsYouTubePlaylist(url))
+        {
+            PlaylistImportRequested?.Invoke(url);
+            ClearInputs();
+            IsUrlInputVisible = false;
+            return;
+        }
+
         if (SelectedSource == TrackSource.Spotify)
         {
             IsUrlInputVisible = false;
@@ -184,7 +189,6 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // Auto-detect local file/folder path
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
             !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
@@ -193,6 +197,7 @@ public class TrackInputViewModel : ViewModelBase
                 _ = AddFolderPathAsync(url);
                 return;
             }
+
             if (System.IO.File.Exists(url) && _urlParser.IsSupportedAudioFile(url))
             {
                 var (t, a, duration) = _metadata.FetchFromLocalFile(url);
@@ -213,30 +218,32 @@ public class TrackInputViewModel : ViewModelBase
             }
         }
 
-        // Reject bare domain roots and unplayable URLs
         if (!SourceDetector.IsPlayableUrl(url))
         {
-            StatusMessage = "That URL doesn't look like a playable track. " +
-                            "Paste a direct video or track link.";
-            Log.Warning("[{Source}] Rejected unplayable URL: {Url}",
-                nameof(TrackInputViewModel), url);
+            ToastService.Instance.Show(
+                "That URL doesn't look like a playable track. Paste a direct video or track link.",
+                type: ToastType.Warning,
+                durationMs: 4000,
+                title: "Invalid URL"
+            );
+            Log.Warning("[{Source}] Rejected unplayable URL: {Url}", nameof(TrackInputViewModel), url);
             return;
         }
 
-        // The raw pasted URL (tracking params and all) used to become the *permanent*
-        // title whenever InputTitle was empty, relying entirely on the live-typing
-        // preview fetch (FetchMetadataAsync, triggered by the InputUrl setter) to
-        // backfill a real title later. That preview fetch is deduped and gets
-        // abandoned the moment ClearInputs() resets InputUrl below — so a track added
-        // before the preview resolves could keep a raw URL as its title forever with
-        // no retry path. Fix: query-strip the placeholder, and always guarantee a
-        // backfill attempt when no title was provided — FetchMetadataAsync itself now
-        // dedupes against the live-typing fetch via _fetchesInFlight, so this no
-        // longer double-spawns yt-dlp for the same URL.
         var usedFallbackTitle = string.IsNullOrWhiteSpace(providedTitle);
-        var title = usedFallbackTitle ? StripQueryStringForDisplay(url) : providedTitle;
-
+        
+        // FIX: Prevent raw URLs from being saved as titles by using source-aware fallbacks
+        var fallbackTitle = SelectedSource switch
+        {
+            TrackSource.SoundCloud => "SoundCloud track",
+            TrackSource.YouTube    => "YouTube track",
+            TrackSource.Spotify    => "Spotify track",
+            _                      => StripQueryStringForDisplay(url)
+        };
+        
+        var title = usedFallbackTitle ? fallbackTitle : providedTitle;
         var source = SelectedSource;
+
         var newTrack = new Track
         {
             Title        = title,
@@ -245,8 +252,8 @@ public class TrackInputViewModel : ViewModelBase
             Source       = source,
             AlbumArtPath = _lastFetchedThumbnail
         };
-        _lastFetchedThumbnail = null;
 
+        _lastFetchedThumbnail = null;
         _library.Add(newTrack);
         NullActionLogger.TrackAdded(newTrack.Id.ToString(), url, nameof(TrackInputViewModel));
 
@@ -259,7 +266,6 @@ public class TrackInputViewModel : ViewModelBase
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
 
-        // Auto-download for YouTube and SoundCloud
         if (source == TrackSource.YouTube || source == TrackSource.SoundCloud)
         {
             _ = Task.Run(async () =>
@@ -273,10 +279,6 @@ public class TrackInputViewModel : ViewModelBase
     {
         if (!_fetchesInFlight.Add(url))
         {
-            // Another fetch for this exact URL is already running (the live-typing
-            // preview fetch and the guaranteed post-add backfill can both target the
-            // same URL when Add is clicked before typing has resolved) — skip the
-            // duplicate yt-dlp spawn, the in-flight one will complete the backfill.
             Log.Debug("[{Source}] Skipping duplicate in-flight metadata fetch for {Url}",
                 nameof(TrackInputViewModel), url);
             return;
@@ -286,29 +288,37 @@ public class TrackInputViewModel : ViewModelBase
         try
         {
             var (title, artist, thumbnail) = await _metadata.FetchFromUrlAsync(url);
-            if (string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
-            if (string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
+            
+            if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
+            if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
             _lastFetchedThumbnail = thumbnail;
+
             Log.Information("[{Source}] Metadata fetched: {Title} by {Artist}",
                 nameof(TrackInputViewModel), title, artist);
 
-            // Backfill the track in the library if it was already added
             var existing = _library.GetAll()
                 .FirstOrDefault(t => t.Url == url);
+
             if (existing != null)
             {
-                if (existing.Title == url
+                if (!string.IsNullOrWhiteSpace(title) &&
+                    (existing.Title == url
                     || existing.Title == StripQueryStringForDisplay(url)
                     || existing.Title == "Unknown Title"
-                    || string.IsNullOrWhiteSpace(existing.Title))
+                    || string.IsNullOrWhiteSpace(existing.Title)))
                     existing.Title = title;
-                if (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist))
+
+                if (!string.IsNullOrWhiteSpace(artist) &&
+                    (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist)))
                     existing.Artist = artist;
+
                 if (string.IsNullOrEmpty(existing.AlbumArtPath) && thumbnail != null)
                     existing.AlbumArtPath = thumbnail;
+
                 _library.Update(existing);
                 Avalonia.Threading.Dispatcher.UIThread.Post(
                     () => TrackMetadataUpdated?.Invoke());
+
                 Log.Information("[{Source}] Backfilled track metadata: {Title} by {Artist}",
                     nameof(TrackInputViewModel), title, artist);
             }
@@ -328,6 +338,7 @@ public class TrackInputViewModel : ViewModelBase
     {
         var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow : null;
+
         if (window == null) return;
 
         var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -405,8 +416,8 @@ public class TrackInputViewModel : ViewModelBase
             ? desktop.MainWindow : null;
         if (window == null) return;
 
-        var message = $"Found on YouTube:\n\n\"{result.YouTubeTitle}\"\n\n" +
-                     $"Spotify track: {result.SpotifyTitle} by {result.SpotifyArtist}\n\nAdd to library?";
+        var message = $"Found on YouTube:\n\"{result.YouTubeTitle}\"\n" +
+                      $"Spotify track: {result.SpotifyTitle} by {result.SpotifyArtist}\nAdd to library?";
 
         var dialog = new Views.ConfirmDialog("Spotify → YouTube Match", message);
         var confirmed = await dialog.ShowDialog<bool>(window);

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
 using NullWave.Helpers;
@@ -29,7 +28,6 @@ public class QueueViewModel : ViewModelBase
     public double PanelWidth => _isOpen ? 320 : 0;
     public double PanelOpacity => _isOpen ? 1.0 : 0.0;
 
-    // Changed to QueueEntry to match the new LibraryService signature
     public BulkObservableCollection<QueueEntry> Tracks { get; } = new();
 
     public ICommand CloseCommand { get; }
@@ -40,6 +38,9 @@ public class QueueViewModel : ViewModelBase
     public ICommand PlayNowCommand { get; }
 
     public event Action<Track>? PlayTrackRequested;
+    public event Action<Track>? TrackDetailRequested;
+
+    public void OpenTrackDetail(Track track) => TrackDetailRequested?.Invoke(track);
 
     public QueueViewModel(LibraryService library)
     {
@@ -48,17 +49,29 @@ public class QueueViewModel : ViewModelBase
         Refresh();
 
         CloseCommand = new RelayCommand(() => IsOpen = false);
-        ClearQueueCommand = new RelayCommand(() => _library.ClearQueue());
-        
-        // CommandParameter in XAML passes the Track object
+
+        ClearQueueCommand = new RelayCommand(() =>
+        {
+            var snapshot = _library.GetQueue().ToList();
+            if (snapshot.Count == 0) return;
+
+            _library.ClearQueue();
+
+            ToastService.Instance.Show(
+                message: $"Cleared {snapshot.Count} item(s) from queue.",
+                type: ToastType.Warning,
+                durationMs: 6000,
+                actionText: "Undo",
+                actionCallback: () => _library.RestoreQueue(snapshot),
+                scope: "queue-clear");
+        });
+
         RemoveFromQueueCommand = new RelayCommand<Track>(t =>
         {
             if (t != null) _library.RemoveFromQueue(t.Id);
         });
-        
         MoveUpCommand = new RelayCommand<Track>(t => Move(t, -1));
         MoveDownCommand = new RelayCommand<Track>(t => Move(t, 1));
-        
         PlayNowCommand = new RelayCommand<Track>(t =>
         {
             if (t != null) PlayTrackRequested?.Invoke(t);
@@ -73,10 +86,7 @@ public class QueueViewModel : ViewModelBase
         _library.MoveQueueItem(oldIndex, newIndex);
     }
 
-    private void Refresh()
-    {
-        Tracks.ReplaceAll(_library.GetQueue());
-    }
+    private void Refresh() => Tracks.ReplaceAll(_library.GetQueue());
 
     private void Move(Track? track, int delta)
     {

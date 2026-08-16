@@ -14,43 +14,48 @@ using Serilog;
 
 namespace NullWave.Services.SmartSorting;
 
-public class LocalAIService
+public class LocalAIService : IDisposable
 {
     private static readonly HttpClient _pingClient = new() { Timeout = TimeSpan.FromSeconds(5) };
     private static readonly HttpClient _genClient = new() { Timeout = Timeout.InfiniteTimeSpan };
     private readonly string _ollamaUrl = "http://localhost:11434";
     private static readonly SemaphoreSlim _aiEngineLock = new(1, 1);
 
-    // Thread-safe background pipeline for serializing state changes chronologically
     private readonly Channel<Func<Task>> _stateQueue = Channel.CreateUnbounded<Func<Task>>(new UnboundedChannelOptions
     {
         SingleReader = true,
         AllowSynchronousContinuations = false
     });
 
-    // Core configuration states
     private string _batteryModel = "qwen2.5:3b";
     private string _preferredPerformanceModel = "gemma3:4b";
 
-    // Volatile thread barriers for safe, lock-free cross-thread reading
     private volatile string _currentModel = "qwen2.5:3b";
     private volatile PowerState _currentPowerState = PowerState.AC;
     private volatile bool _autoPowerSwitch = true;
+    
+    private volatile bool _isReachable = true;
+    public bool IsReachable => _isReachable;
 
-    /// <summary>
-    /// Fires whenever RankTracksForMoodAsync silently falls back to local keyword
-    /// sorting instead of using the AI model — e.g. Ollama returned a non-success
-    /// HTTP status, or the request threw (timeout, connection reset, etc). Without
-    /// this, the only sign anything went wrong was the raw exception in the log
-    /// file; the mood playlist would still "succeed" from the caller's point of
-    /// view with no indication the AI step was skipped.
-    /// </summary>
+    private readonly CancellationTokenSource _cts = new();
+
     public event Action<string>? FallbackNotice;
 
     public LocalAIService()
     {
-        // Fire up the long-running sequential queue processor
         _ = StartQueueProcessorAsync();
+        _ = StartHealingPingAsync(_cts.Token);
+    }
+
+    public void Shutdown()
+    {
+        _cts.Cancel();
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
     }
 
     private async Task StartQueueProcessorAsync()
@@ -67,6 +72,32 @@ public class LocalAIService
                 catch (Exception ex)
                 {
                     Log.Error(ex, "[LocalAIService] Critical error during sequential state execution pipeline.");
+                }
+            }
+        }
+    }
+
+    private async Task StartHealingPingAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(5), ct);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            if (!_isReachable)
+            {
+                Log.Debug("[LocalAIService] Running background healing ping...");
+                var isUp = await PingAsync();
+                if (isUp)
+                {
+                    Log.Information("[LocalAIService] Healing ping succeeded. Local AI is back online.");
+                    FallbackNotice?.Invoke("Local AI connection restored! AI features are back online.");
                 }
             }
         }
@@ -102,8 +133,7 @@ public class LocalAIService
             if (!string.Equals(_currentModel, newValue, StringComparison.OrdinalIgnoreCase))
             {
                 var oldModel = _currentModel;
-                _currentModel = newValue; // Synchronous update to prevent race conditions with immediate generations
-
+                _currentModel = newValue; 
                 _stateQueue.Writer.TryWrite(async () =>
                 {
                     await _aiEngineLock.WaitAsync();
@@ -149,9 +179,8 @@ public class LocalAIService
             if (!string.Equals(_currentModel, targetModel, StringComparison.OrdinalIgnoreCase))
             {
                 var oldModel = _currentModel;
-                _currentModel = targetModel; // Synchronous update
+                _currentModel = targetModel; 
                 Log.Warning("[LocalAIService] [{Source}] Swapping models safely from '{Old}' to '{New}'...", contextSource, oldModel, targetModel);
-                
                 if (!string.IsNullOrWhiteSpace(oldModel))
                 {
                     await UnloadModelAsync(oldModel);
@@ -169,7 +198,12 @@ public class LocalAIService
         try
         {
             var response = await _pingClient.GetAsync($"{_ollamaUrl}/");
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                _isReachable = true; 
+                return true;
+            }
+            return false;
         }
         catch (Exception ex)
         {
@@ -197,10 +231,8 @@ public class LocalAIService
 
             using var stream = await response.Content.ReadAsStreamAsync();
             using var doc = await JsonDocument.ParseAsync(stream);
-
             var targetModel = model.Contains(':') ? model : $"{model}:latest";
             var models = doc.RootElement.GetProperty("models");
-
             return models.EnumerateArray().Any(m =>
                 string.Equals(m.GetProperty("name").GetString(), targetModel, StringComparison.OrdinalIgnoreCase));
         }
@@ -262,6 +294,12 @@ public class LocalAIService
         Track[] candidateTracks, int maxResults = 20, CancellationToken ct = default)
     {
         if (candidateTracks == null || candidateTracks.Length == 0) return Array.Empty<string>();
+        
+        if (!_isReachable)
+        {
+            Log.Debug("[LocalAI] Skipping AI ranking - circuit breaker open (Ollama unreachable).");
+            return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
+        }
 
         await _aiEngineLock.WaitAsync(ct);
         try
@@ -271,38 +309,27 @@ public class LocalAIService
                 .ToDictionary(x => x.idx, x => x.Id);
 
             var prompt = BuildIndexedMoodPrompt(mood, weather, temperature, candidateTracks, maxResults);
+
             var requestBody = new
             {
                 model = _currentModel,
-                prompt = prompt,
+                prompt = prompt + "\n\nRespond ONLY with a valid JSON object matching the schema. Do not include markdown formatting or explanations.",
                 stream = false,
-                format = new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        indices = new
-                        {
-                            type = "array",
-                            items = new { type = "integer" }
-                        }
-                    },
-                    required = new[] { "indices" }
-                },
+                format = "json",
                 options = new
                 {
                     temperature = 0.2,
                     top_p = 0.9,
-                    num_predict = 400,
-                    num_ctx = Math.Max(2048, 1024 + (120 * candidateTracks.Length))
+                    num_predict = 4096, 
+                    num_ctx = Math.Max(4096, 2048 + (120 * candidateTracks.Length))
                 }
             };
 
             try
             {
                 Log.Debug("[LocalAI] Requesting fast indexed ranking using model: '{Model}' for {TrackCount} candidates", _currentModel, candidateTracks.Length);
-
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
+
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorResponse = await response.Content.ReadAsStringAsync(ct);
@@ -321,6 +348,13 @@ public class LocalAIService
                     .Select(idx => indexToIdMap[idx])
                     .ToArray();
             }
+            catch (HttpRequestException ex) when (ex.Message.Contains("refused", StringComparison.OrdinalIgnoreCase) || (ex.InnerException?.Message?.Contains("refused", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                _isReachable = false;
+                Log.Warning("[LocalAI] Ollama connection refused. Circuit breaker activated - disabling AI fallback for this session.");
+                FallbackNotice?.Invoke("Local AI is unreachable (Connection Refused). AI ranking disabled for this session.");
+                return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, "[LocalAI] Critical failure or timeout during local AI calculation. Falling back to local keyword sorting.");
@@ -336,50 +370,42 @@ public class LocalAIService
 
     public async Task<string[]> GenerateTagsForTrackAsync(string title, string artist, string filePath, CancellationToken ct = default)
     {
+        if (!_isReachable) return Array.Empty<string>();
+
         await _aiEngineLock.WaitAsync(ct);
         try
         {
             var prompt = $$"""
-                You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
-
-                [TRACK METADATA]
-                Artist: {{CleanForPrompt(artist)}}
-                Title: {{CleanForPrompt(title)}}
-                File Path: {{CleanForPrompt(filePath)}}
-                """;
+            You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
+            
+            [TRACK METADATA]
+            Artist: {{CleanForPrompt(artist)}}
+            Title: {{CleanForPrompt(title)}}
+            File Path: {{CleanForPrompt(filePath)}}
+            
+            Respond ONLY with a valid JSON object matching the schema. Do not include markdown formatting.
+            """;
 
             var requestBody = new
             {
                 model = _currentModel,
                 prompt = prompt,
                 stream = false,
-                format = new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        tags = new
-                        {
-                            type = "array",
-                            items = new { type = "string" }
-                        }
-                    },
-                    required = new[] { "tags" }
-                },
+                format = "json",
                 options = new
                 {
                     temperature = 0.4,
                     top_p = 0.9,
-                    num_predict = 60,
-                    num_ctx = 2048
+                    num_predict = 2048,
+                    num_ctx = 4096
                 }
             };
 
             try
             {
                 Log.Debug("[LocalAI] Requesting single tag generation using model: '{Model}' for '{Title}'", _currentModel, title);
-
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
+
                 if (!response.IsSuccessStatusCode)
                 {
                     Log.Warning("[LocalAI] Tag generation endpoint failed with HTTP status code: {StatusCode}", response.StatusCode);
@@ -390,12 +416,39 @@ public class LocalAIService
                 using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
                 var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
 
-                using var jsonDoc = JsonDocument.Parse(responseText);
-                return jsonDoc.RootElement.GetProperty("tags")
-                    .EnumerateArray()
-                    .Select(e => e.GetString() ?? string.Empty)
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .ToArray();
+                // FIX: Strip markdown code blocks that LLMs often add despite instructions
+                var cleanResponse = responseText.Trim();
+                if (cleanResponse.StartsWith("```json")) cleanResponse = cleanResponse.Substring(7);
+                else if (cleanResponse.StartsWith("```")) cleanResponse = cleanResponse.Substring(3);
+                if (cleanResponse.EndsWith("```")) cleanResponse = cleanResponse.Substring(0, cleanResponse.Length - 3);
+                cleanResponse = cleanResponse.Trim();
+
+                if (string.IsNullOrEmpty(cleanResponse))
+                {
+                    Log.Warning("[LocalAI] Empty response received for tag generation of '{Title}'", title);
+                    return Array.Empty<string>();
+                }
+
+                using var jsonDoc = JsonDocument.Parse(cleanResponse);
+                
+                // FIX: Use TryGetProperty to prevent KeyNotFoundException if schema is unexpected
+                if (jsonDoc.RootElement.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array)
+                {
+                    return tagsProp.EnumerateArray()
+                        .Select(e => e.GetString() ?? string.Empty)
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .ToArray();
+                }
+
+                Log.Warning("[LocalAI] Unexpected JSON structure for tag generation of '{Title}': {Response}", title, cleanResponse);
+                return Array.Empty<string>();
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("refused", StringComparison.OrdinalIgnoreCase) || (ex.InnerException?.Message?.Contains("refused", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                _isReachable = false;
+                Log.Warning("[LocalAI] Ollama connection refused during tag generation. Circuit breaker activated.");
+                FallbackNotice?.Invoke("Local AI is unreachable (Connection Refused). AI tagging disabled for this session.");
+                return Array.Empty<string>();
             }
             catch (Exception ex)
             {
@@ -412,6 +465,8 @@ public class LocalAIService
 
     public async Task<List<string[]>> GenerateTagsBulkAsync(List<(int Index, string Title, string Artist, string FilePath)> tracks, CancellationToken ct = default)
     {
+        if (!_isReachable) return Enumerable.Repeat(Array.Empty<string>(), tracks.Count).ToList();
+
         await _aiEngineLock.WaitAsync(ct);
         try
         {
@@ -422,57 +477,34 @@ public class LocalAIService
             }
 
             var prompt = $$"""
-                You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
-
-                Analyze these tracks:
-                {{trackList}}
-                """;
+            You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
+            
+            Analyze these tracks:
+            {{trackList}}
+            
+            Respond ONLY with a valid JSON object matching the schema. Do not include markdown formatting.
+            """;
 
             var requestBody = new
             {
                 model = _currentModel,
                 prompt = prompt,
                 stream = false,
-                format = new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        results = new
-                        {
-                            type = "array",
-                            items = new
-                            {
-                                type = "object",
-                                properties = new
-                                {
-                                    id = new { type = "integer" },
-                                    tags = new
-                                    {
-                                        type = "array",
-                                        items = new { type = "string" }
-                                    }
-                                },
-                                required = new[] { "id", "tags" }
-                            }
-                        }
-                    },
-                    required = new[] { "results" }
-                },
+                format = "json",
                 options = new
                 {
                     temperature = 0.4,
                     top_p = 0.9,
-                    num_predict = 80 * tracks.Count,
-                    num_ctx = Math.Max(2048, 1024 + (160 * tracks.Count))
+                    num_predict = 4096,
+                    num_ctx = Math.Max(4096, 2048 + (160 * tracks.Count))
                 }
             };
 
             try
             {
                 Log.Debug("[LocalAI] Requesting bulk tag generation for {Count} tracks using model: '{Model}'", tracks.Count, _currentModel);
-
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
+
                 if (!response.IsSuccessStatusCode)
                 {
                     Log.Warning("[LocalAI] Bulk tag generation endpoint failed with HTTP status code: {StatusCode}", response.StatusCode);
@@ -483,19 +515,37 @@ public class LocalAIService
                 using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
                 var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
 
-                using var jsonDoc = JsonDocument.Parse(responseText);
+                // FIX: Strip markdown code blocks
+                var cleanResponse = responseText.Trim();
+                if (cleanResponse.StartsWith("```json")) cleanResponse = cleanResponse.Substring(7);
+                else if (cleanResponse.StartsWith("```")) cleanResponse = cleanResponse.Substring(3);
+                if (cleanResponse.EndsWith("```")) cleanResponse = cleanResponse.Substring(0, cleanResponse.Length - 3);
+                cleanResponse = cleanResponse.Trim();
+
+                using var jsonDoc = JsonDocument.Parse(cleanResponse);
                 var resultMap = new Dictionary<int, string[]>();
 
-                foreach (var item in jsonDoc.RootElement.GetProperty("results").EnumerateArray())
+                // FIX: Safe property access
+                if (jsonDoc.RootElement.TryGetProperty("results", out var resultsProp) && resultsProp.ValueKind == JsonValueKind.Array)
                 {
-                    int id = item.GetProperty("id").GetInt32();
-                    var tags = item.GetProperty("tags")
-                        .EnumerateArray()
-                        .Select(e => e.GetString() ?? string.Empty)
-                        .Where(s => !string.IsNullOrEmpty(s))
-                        .ToArray();
-
-                    resultMap[id] = tags;
+                    foreach (var item in resultsProp.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("id", out var idProp) && 
+                            item.TryGetProperty("tags", out var tagsProp) && 
+                            tagsProp.ValueKind == JsonValueKind.Array)
+                        {
+                            int id = idProp.GetInt32();
+                            var tags = tagsProp.EnumerateArray()
+                                .Select(e => e.GetString() ?? string.Empty)
+                                .Where(s => !string.IsNullOrEmpty(s))
+                                .ToArray();
+                            resultMap[id] = tags;
+                        }
+                    }
+                }
+                else
+                {
+                    Log.Warning("[LocalAI] Unexpected JSON structure for bulk tag generation: {Response}", cleanResponse);
                 }
 
                 var finalResults = new List<string[]>();
@@ -510,8 +560,14 @@ public class LocalAIService
                         finalResults.Add(Array.Empty<string>());
                     }
                 }
-
                 return finalResults;
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("refused", StringComparison.OrdinalIgnoreCase) || (ex.InnerException?.Message?.Contains("refused", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                _isReachable = false;
+                Log.Warning("[LocalAI] Ollama connection refused during bulk tag generation. Circuit breaker activated.");
+                FallbackNotice?.Invoke("Local AI is unreachable (Connection Refused). Bulk AI tagging disabled for this session.");
+                return Enumerable.Repeat(Array.Empty<string>(), tracks.Count).ToList();
             }
             catch (Exception ex)
             {
@@ -545,7 +601,6 @@ public class LocalAIService
             .Select(track =>
             {
                 int matchScore = 0;
-
                 foreach (var tag in track.Tags)
                 {
                     if (string.IsNullOrEmpty(tag)) continue;
@@ -591,25 +646,51 @@ public class LocalAIService
         }
 
         return $$"""
-                You are a deterministic music recommendation engine.
-                Task: Select track indices from the list below that best fit the context.
-                Tracks available:
-                {{trackList}}
-
-                [DYNAMIC CONTEXT]
-                Weather: {{CleanForPrompt(weather)}}
-                Temperature: {{temp}}°C
-                Target Moods: {{CleanForPrompt(mood)}}
-                Max Results Requested: {{maxResults}}
-                """;
+        You are a deterministic music recommendation engine. 
+        
+        Task: Select track indices from the list below that best fit the context.
+        
+        Tracks available:
+        {{trackList}}
+        
+        [DYNAMIC CONTEXT]
+        Weather: {{CleanForPrompt(weather)}}
+        Temperature: {{temp}}°C
+        Target Moods: {{CleanForPrompt(mood)}}
+        Max Results Requested: {{maxResults}}
+        """;
     }
 
     private static int[] ParseTrackIndicesFromResponse(string response)
     {
-        using var doc = JsonDocument.Parse(response);
-        return doc.RootElement.GetProperty("indices")
-            .EnumerateArray()
-            .Select(e => e.GetInt32())
-            .ToArray();
+        var cleanResponse = response.Trim();
+        if (cleanResponse.StartsWith("```json")) cleanResponse = cleanResponse.Substring(7);
+        else if (cleanResponse.StartsWith("```")) cleanResponse = cleanResponse.Substring(3);
+        if (cleanResponse.EndsWith("```")) cleanResponse = cleanResponse.Substring(0, cleanResponse.Length - 3);
+        cleanResponse = cleanResponse.Trim();
+
+        if (string.IsNullOrEmpty(cleanResponse)) return Array.Empty<int>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(cleanResponse);
+            
+            if (doc.RootElement.TryGetProperty("indices", out var indicesProp) && indicesProp.ValueKind == JsonValueKind.Array)
+            {
+                return indicesProp.EnumerateArray().Select(e => e.GetInt32()).ToArray();
+            }
+            
+            // Fallback if model wraps it in an object differently or returns a raw array
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                return doc.RootElement.EnumerateArray().Select(e => e.GetInt32()).ToArray();
+            }
+        }
+        catch (JsonException)
+        {
+            // Invalid JSON, return empty
+        }
+        
+        return Array.Empty<int>();
     }
 }

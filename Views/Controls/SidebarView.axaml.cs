@@ -201,7 +201,7 @@ public partial class SidebarView : Border
     {
         if (MenuPlaylist(s) is not { } pl || DataContext is not MainViewModel vm) return;
         foreach (var t in pl.Tracks) vm.Library.AddToQueueCommand.Execute(t);
-        ToastService.Instance.Show($"Added {pl.Tracks.Count} track(s) to queue.", ToastType.Success);
+        ToastService.Instance.Show($"Added {pl.Tracks.Count} track(s) to queue.", ToastType.Success, scope: "queue-add");
     }
 
     private void OnPlaylistMenuMoveToFolder(object? s, RoutedEventArgs e)

@@ -110,7 +110,6 @@ public class PlayerViewModel : ViewModelBase
                                 || string.IsNullOrWhiteSpace(track.Title))
                                 track.Title = tagTitle;
                                 
-                            // FIX: Added "Unknown Artist" to the check!
                             if (track.Artist == "Unknown" 
                                 || track.Artist == "Unknown Artist" 
                                 || string.IsNullOrWhiteSpace(track.Artist))
@@ -137,6 +136,23 @@ public class PlayerViewModel : ViewModelBase
                 IsDownloading = false;
                 StatusText = $"Download failed: {error}";
                 NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"trackId={trackId}");
+                
+                if (Guid.TryParse(trackId, out var id))
+                {
+                    var failedTrack = _library.GetAll().FirstOrDefault(t => t.Id == id);
+                    if (failedTrack != null)
+                    {
+                        var retryTarget = failedTrack; // non-null capture for the lambda
+                        ToastService.Instance.Show(
+                            message: $"Failed to download '{retryTarget.Title}'",
+                            type: ToastType.Error,
+                            durationMs: 6000,
+                            detailedMessage: error,
+                            actionText: "Retry",
+                            actionCallback: () => DownloadTrackCommand.Execute(retryTarget),
+                            scope: "download-fail");
+                    }
+                }
             });
         };
 
@@ -587,7 +603,14 @@ public class PlayerViewModel : ViewModelBase
             NullActionLogger.TrackStopped(_currentTrack.Id.ToString(), nameof(PlayerViewModel));
 
             if (_position >= _settings.ScrobbleThreshold)
-                TrackScrobbleRequested?.Invoke(_currentTrack.Title, _currentTrack.Artist, DateTime.UtcNow);
+            {
+                // FIX: Fetch fresh track data from DB to avoid scrobbling stale metadata
+                var freshTrack = _library.GetAll().FirstOrDefault(t => t.Id == _currentTrack.Id);
+                var scrobbleTitle = freshTrack?.Title ?? _currentTrack.Title;
+                var scrobbleArtist = freshTrack?.Artist ?? _currentTrack.Artist;
+                
+                TrackScrobbleRequested?.Invoke(scrobbleTitle, scrobbleArtist, DateTime.UtcNow);
+            }
         }
 
         if (_navigator.ShouldRepeatCurrent() && _currentTrack != null)
@@ -675,11 +698,19 @@ public class PlayerViewModel : ViewModelBase
 
         if (elapsed <= window)
         {
+            // FIX: Check .HasValue and use .Value for the subtraction
+            if (_currentTrack.LastSkipped.HasValue && _currentTrack.LastSkipped.Value != DateTime.MinValue)
+            {
+                var daysSinceLastSkip = (DateTime.UtcNow - _currentTrack.LastSkipped.Value).TotalDays;
+                var decayFactor = Math.Pow(0.5, daysSinceLastSkip);
+                _currentTrack.SkipCount = (int)Math.Round(_currentTrack.SkipCount * decayFactor);
+            }
+
             _currentTrack.SkipCount++;
             _currentTrack.LastSkipped = DateTime.UtcNow;
             _library.Update(_currentTrack);
 
-            Log.Information("[Player] Skip penalty recorded for '{Title}' (skipped after {Elapsed:F1}s, total skips: {Count})",
+            Log.Information("[Player] Skip penalty recorded for '{Title}' (skipped after {Elapsed:F1}s, decayed total skips: {Count})",
                 _currentTrack.Title, elapsed, _currentTrack.SkipCount);
 
             NullActionLogger.User("SkipPenalty",

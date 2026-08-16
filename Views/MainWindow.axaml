@@ -19,6 +19,7 @@
         <converters:BoolToDoubleConverter x:Key="BoolToDouble"/>
         <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
         <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
+        <converters:BoolNegationConverter x:Key="BoolNegation"/>
     </Window.Resources>
     <Window.Styles>
         <Style Selector="Border.success, Border.error, Border.warning, Border.info">
@@ -138,134 +139,110 @@
             </Grid>
         </DockPanel>
         
-        <!-- THE TOAST OVERLAY LAYER -->
-        <ItemsControl ItemsSource="{Binding ActiveToasts}"
-                      VerticalAlignment="Bottom"
-                      HorizontalAlignment="Right"
-                      Margin="0,0,24,24"
-                      IsHitTestVisible="True">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="models:LiveNotification">
-                    <Border Width="360"
-                            Margin="0,2"
-                            Background="{StaticResource BrushSurface}"
-                            BorderBrush="{StaticResource BrushBorder}"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            BoxShadow="0 4 20 0 #55000000"
-                            ClipToBounds="True">
-                        <Border.Styles>
-                            <Style Selector="Border">
-                                <Style.Animations>
-                                    <Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
-                                        <KeyFrame KeyTime="0:0:0">
-                                            <Setter Property="Opacity" Value="0"/>
-                                            <Setter Property="TranslateTransform.Y" Value="15"/>
-                                        </KeyFrame>
-                                        <KeyFrame KeyTime="0:0:0.25">
-                                            <Setter Property="Opacity" Value="1"/>
-                                            <Setter Property="TranslateTransform.Y" Value="0"/>
-                                        </KeyFrame>
-                                    </Animation>
-                                </Style.Animations>
-                            </Style>
-                        </Border.Styles>
-                        <Grid ColumnDefinitions="Auto, *">
-                            <Border Width="5"
-                                    VerticalAlignment="Stretch"
-                                    Background="{Binding NotificationColor}"/>
-                            <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                <Grid ColumnDefinitions="Auto, *, Auto">
-                                    <Path Grid.Column="0"
-                                          Width="15" Height="15"
-                                          Margin="0,0,8,0"
-                                          Fill="{Binding NotificationColor}"
-                                          Data="{Binding IconData}"
-                                          Stretch="Uniform"
-                                          VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Title}"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Foreground="{StaticResource BrushTextPrimary}"
-                                               VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"/>
-                                    <Button Grid.Column="2"
-                                            Command="{Binding CloseCommand}"
-                                            Background="Transparent" BorderThickness="0"
-                                            Padding="4" MinWidth="0" MinHeight="0"
-                                            Cursor="Hand">
-                                        <Button.Styles>
-                                            <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="Transparent"/>
-                                                <Setter Property="Opacity" Value="0.7"/>
-                                            </Style>
-                                        </Button.Styles>
-                                        <materialIcons:MaterialIcon Kind="Close" Width="14" Height="14"
-                                                                    Foreground="{StaticResource BrushTextMuted}"/>
-                                    </Button>
-                                </Grid>
-                                <TextBlock Text="{Binding Message}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource BrushTextSecondary}"
-                                           TextWrapping="Wrap"
-                                           Margin="23,0,0,2"/>
-                                <ProgressBar IsVisible="{Binding ShowProgressBar}"
-                                             Value="{Binding ProgressValue}"
-                                             IsIndeterminate="{Binding IsIndeterminate}"
-                                             Height="4"
-                                             Margin="23,2,0,2"
-                                             CornerRadius="2"
-                                             Background="{StaticResource BrushBorder}"
-                                             Foreground="{Binding NotificationColor}"/>
-                                <Button IsVisible="{Binding ShowActionButton}"
-                                        Command="{Binding ActionCommand}"
-                                        Content="{Binding ActionButtonText}"
-                                        HorizontalAlignment="Right"
-                                        FontSize="{DynamicResource FontSizeXs}"
-                                        Padding="10,4"
-                                        Background="{StaticResource BrushSurface2}"
-                                        Foreground="{StaticResource BrushTextPrimary}"
-                                        CornerRadius="6"/>
-                                <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
-                                    <Button Command="{Binding ToggleExpandCommand}"
-                                            Background="Transparent" BorderThickness="0" Padding="0"
-                                            HorizontalAlignment="Left" Cursor="Hand">
-                                        <Panel>
-                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
-                                                <materialIcons:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
-                                                <materialIcons:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Panel>
-                                    </Button>
-                                    <Border IsVisible="{Binding IsExpanded}"
-                                            Margin="0,6,0,0" Padding="8"
-                                            Background="{StaticResource BrushBase}"
-                                            CornerRadius="6"
-                                            BorderBrush="{StaticResource BrushBorder}"
-                                            BorderThickness="1">
-                                        <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding DetailedMessage}"
-                                                       FontSize="11"
-                                                       Foreground="{StaticResource BrushTextMuted}"
-                                                       TextWrapping="Wrap"/>
-                                        </ScrollViewer>
-                                    </Border>
+        <!-- THE TOAST OVERLAY LAYER (visible only while Settings is NOT the active host) -->
+        <StackPanel DataContext="{x:Static services:ToastService.Instance}"
+                    x:DataType="services:ToastService"
+                    IsVisible="{Binding SettingsHostActive, Converter={StaticResource BoolNegation}}"
+                    VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,24">
+            <Button Content="Dismiss all" Classes="ghost" Padding="8,4"
+                    HorizontalAlignment="Right" Margin="0,0,0,6"
+                    IsVisible="{Binding ShowDismissAll}"
+                    Command="{Binding DismissAllCommand}"/>
+            <ItemsControl ItemsSource="{Binding ActiveToasts}" IsHitTestVisible="True">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:LiveNotification">
+                        <Border Width="360" Margin="0,2"
+                                Background="{StaticResource BrushSurface}"
+                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                                CornerRadius="12" BoxShadow="0 4 20 0 #55000000" ClipToBounds="True"
+                                PointerEntered="OnToastPointerEntered"
+                                PointerExited="OnToastPointerExited">
+                            <Border.Styles>
+                                <Style Selector="Border">
+                                    <Style.Animations>
+                                        <Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
+                                            <KeyFrame KeyTime="0:0:0">
+                                                <Setter Property="Opacity" Value="0"/>
+                                                <Setter Property="TranslateTransform.Y" Value="15"/>
+                                            </KeyFrame>
+                                            <KeyFrame KeyTime="0:0:0.25">
+                                                <Setter Property="Opacity" Value="1"/>
+                                                <Setter Property="TranslateTransform.Y" Value="0"/>
+                                            </KeyFrame>
+                                        </Animation>
+                                    </Style.Animations>
+                                </Style>
+                            </Border.Styles>
+                            <Grid ColumnDefinitions="Auto, *">
+                                <Border Width="5" VerticalAlignment="Stretch" Background="{Binding NotificationColor}"/>
+                                <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
+                                    <Grid ColumnDefinitions="Auto, *, Auto">
+                                        <Path Grid.Column="0" Width="15" Height="15" Margin="0,0,8,0"
+                                            Fill="{Binding NotificationColor}" Data="{Binding IconData}"
+                                            Stretch="Uniform" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"
+                                                TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="2" Command="{Binding CloseCommand}"
+                                                Background="Transparent" BorderThickness="0" Padding="4"
+                                                MinWidth="0" MinHeight="0" Cursor="Hand">
+                                            <Button.Styles>
+                                                <Style Selector="Button:pointerover">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Opacity" Value="0.7"/>
+                                                </Style>
+                                            </Button.Styles>
+                                            <materialIcons:MaterialIcon Kind="Close" Width="14" Height="14"
+                                                                        Foreground="{StaticResource BrushTextMuted}"/>
+                                        </Button>
+                                    </Grid>
+                                    <TextBlock Text="{Binding Message}" FontSize="12"
+                                            Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"
+                                            Margin="23,0,0,2"/>
+                                    <ProgressBar IsVisible="{Binding ShowProgressBar}" Value="{Binding ProgressValue}"
+                                                IsIndeterminate="{Binding IsIndeterminate}" Height="4" Margin="23,2,0,2"
+                                                CornerRadius="2" Background="{StaticResource BrushBorder}"
+                                                Foreground="{Binding NotificationColor}"/>
+                                    <Button IsVisible="{Binding ShowActionButton}" Command="{Binding ActionCommand}"
+                                            Content="{Binding ActionButtonText}" HorizontalAlignment="Right"
+                                            FontSize="{DynamicResource FontSizeXs}" Padding="10,4"
+                                            Background="{StaticResource BrushSurface2}"
+                                            Foreground="{StaticResource BrushTextPrimary}" CornerRadius="6"/>
+                                    <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
+                                        <Button Command="{Binding ToggleExpandCommand}"
+                                                Background="Transparent" BorderThickness="0" Padding="0"
+                                                HorizontalAlignment="Left" Cursor="Hand">
+                                            <Panel>
+                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
+                                                    <materialIcons:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
+                                                    <materialIcons:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Panel>
+                                        </Button>
+                                        <Border IsVisible="{Binding IsExpanded}" Margin="0,6,0,0" Padding="8"
+                                                Background="{StaticResource BrushBase}" CornerRadius="6"
+                                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                            <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
+                                                <TextBlock Text="{Binding DetailedMessage}" FontSize="11"
+                                                        Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
     </Panel>
 </Window>

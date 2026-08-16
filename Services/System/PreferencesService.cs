@@ -1,7 +1,8 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Text.Json;
 using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
@@ -13,10 +14,11 @@ public class PreferencesService : IDisposable
     private readonly string _prefsPath;
     private Preferences _prefs;
     
-    // Debounce fields
-    private Timer? _debounceTimer;
+    // FIX: Replaced Timer with CancellationTokenSource for robust thread-safe shutdown
+    private CancellationTokenSource? _debounceCts;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(2);
     private readonly object _saveLock = new object();
+    private bool _disposed;
 
     public Preferences Current => _prefs;
 
@@ -32,13 +34,13 @@ public class PreferencesService : IDisposable
         {
             if (!File.Exists(_prefsPath))
                 return new Preferences { DownloadDirectory = NullWavePaths.DownloadsDir };
-
+                
             var json = File.ReadAllText(_prefsPath);
             var prefs = JsonSerializer.Deserialize<Preferences>(json) ?? new Preferences();
             
             if (string.IsNullOrEmpty(prefs.DownloadDirectory))
                 prefs.DownloadDirectory = NullWavePaths.DownloadsDir;
-
+                
             Log.Debug("[PreferencesService] Loaded preferences from {Path}", _prefsPath);
             return prefs;
         }
@@ -51,9 +53,9 @@ public class PreferencesService : IDisposable
 
     public void Save()
     {
-        // Ensure thread safety since the timer runs on a background thread
         lock (_saveLock)
         {
+            if (_disposed) return;
             try
             {
                 var json = JsonSerializer.Serialize(_prefs, new JsonSerializerOptions { WriteIndented = true });
@@ -69,26 +71,53 @@ public class PreferencesService : IDisposable
 
     public void Update(Action<Preferences> updater)
     {
-        // 1. Update the object in memory immediately
-        updater(_prefs);
+        lock (_saveLock)
+        {
+            if (_disposed) return;
+            
+            // 1. Update the object in memory immediately
+            updater(_prefs);
 
-        // 2. Reset or start the debounce timer
-        if (_debounceTimer == null)
-        {
-            // Timeout.InfiniteTimeSpan prevents the timer from firing more than once per trigger
-            _debounceTimer = new Timer(_ => Save(), null, _debounceInterval, Timeout.InfiniteTimeSpan);
-        }
-        else
-        {
-            _debounceTimer.Change(_debounceInterval, Timeout.InfiniteTimeSpan);
+            // 2. Cancel any existing pending save
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            
+            // 3. Start a new debounce task
+            _debounceCts = new CancellationTokenSource();
+            var token = _debounceCts.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(_debounceInterval, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        Save();
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    // Expected when a new update comes in or service is disposed
+                }
+            }, token);
         }
     }
 
     public void Dispose()
     {
-        _debounceTimer?.Dispose();
-        
-        // Force a final save on shutdown if there are pending changes
-        Save();
+        lock (_saveLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            
+            // Cancel any pending debounce task immediately
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = null;
+            
+            // Force a final synchronous save on shutdown
+            Save();
+        }
     }
 }

@@ -6,6 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using NullWave.ViewModels;
+using NullWave.Models;
+using NullWave.Services;
 using Serilog;
 
 namespace NullWave.Views;
@@ -26,13 +28,11 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.Settings.StopHealthCheck();
-                vm.DisposePowerState(); // Clean up native polling allocations
-
+                vm.DisposePowerState();
                 var model = vm.Settings.SelectedModel;
                 if (!string.IsNullOrWhiteSpace(model) && vm.Settings.AiServiceState == AIServiceState.Running)
                 {
                     Log.Information("[MainWindow] Offloading Ollama model '{Model}' to background worker process for exit sequence", model);
-                    // Run the process detached on a threadpool task worker so the UI shuts down instantly
                     Task.Run(() =>
                     {
                         try
@@ -44,7 +44,6 @@ public partial class MainWindow : Window
                                 UseShellExecute = false,
                                 CreateNoWindow = true
                             };
-
                             using var ollamaProcess = Process.Start(startInfo);
                             ollamaProcess?.WaitForExit(2000);
                             Log.Information("[MainWindow] Asynchronous VRAM flush call completed for '{Model}'.", model);
@@ -66,11 +65,8 @@ public partial class MainWindow : Window
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainViewModel vm) return;
-
-        // Clean hotkey implementation for tracking Alt modifiers
         if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt || (e.KeyModifiers & KeyModifiers.Alt) != 0)
         {
-            // Only toggle if Alt is hit cleanly standalone or F10 fallback is used
             if (e.Key == Key.LeftAlt || e.Key == Key.RightAlt || e.Key == Key.F10)
             {
                 vm.ToggleMenuBar();
@@ -84,16 +80,7 @@ public partial class MainWindow : Window
             e.Handled = true;
             return;
         }
-
-        // Do not intercept hotkeys while typing inside any text input. e.Source is
-        // usually the TextBox's internal TextPresenter (not the TextBox itself), so
-        // a bare "e.Source is TextBox" check silently fails and lets keys like
-        // M/N/Space leak through as global hotkeys (mute/next/play-pause) while the
-        // user is typing in the search box. Walking up the visual tree from the
-        // actual source catches the TextBox regardless of which internal element
-        // raised the event.
         if (IsWithinTextInput(e.Source)) return;
-
         switch (e.Key)
         {
             case Key.Space:
@@ -126,12 +113,23 @@ public partial class MainWindow : Window
     private static bool IsWithinTextInput(object? source)
     {
         if (source is not Visual visual) return false;
-
         foreach (var ancestor in visual.GetVisualAncestors())
         {
             if (ancestor is TextBox or AutoCompleteBox) return true;
         }
-
         return source is TextBox or AutoCompleteBox;
+    }
+
+    //  Toast hover-pause handlers 
+    private void OnToastPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is Control c && c.DataContext is LiveNotification n)
+            ToastService.Instance.PauseAutoDismiss(n);
+    }
+
+    private void OnToastPointerExited(object? sender, PointerEventArgs e)
+    {
+        if (sender is Control c && c.DataContext is LiveNotification n)
+            ToastService.Instance.ResumeAutoDismiss(n);
     }
 }

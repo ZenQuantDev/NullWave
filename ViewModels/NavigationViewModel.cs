@@ -284,7 +284,26 @@ public class NavigationViewModel : ViewModelBase
         var ok = await new Views.ConfirmDialog("Delete Folder?",
             $"Delete '{node.Folder.Name}'? Playlists inside move to the top level.").ShowDialog<bool>(d.MainWindow);
         if (!ok) return;
-        _playlists.RemoveFolder(node.Folder.Id);
+
+        var folderSnapshot = node.Folder;
+        var memberIds = _playlists.GetAll()
+            .Where(p => p.FolderId == folderSnapshot.Id)
+            .Select(p => p.Id)
+            .ToList();
+
+        _playlists.RemoveFolder(folderSnapshot.Id);
         RefreshPlaylistLists();
+
+        ToastService.Instance.Show(
+            message: $"Folder '{folderSnapshot.Name}' deleted.",
+            type: ToastType.Warning,
+            durationMs: 8000,
+            actionText: "Undo",
+            actionCallback: () =>
+            {
+                _playlists.RestoreFolder(folderSnapshot, memberIds);
+                RefreshPlaylistLists();
+            },
+            scope: "folder-delete");
     }
 }

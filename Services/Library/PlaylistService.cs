@@ -152,6 +152,27 @@ public class PlaylistService
     /// playlists into the kept folder) and deletes duplicate playlist rows, so a
     /// database written by older buggy boots heals itself permanently.
     /// </summary>
+
+    public void Restore(Playlist playlist)
+    {
+        if (_playlists.Any(p => p.Id == playlist.Id)) return;
+        _playlists.Add(playlist);
+        _db.SavePlaylist(playlist);
+    }
+
+    public void RestoreFolder(PlaylistFolder folder, IEnumerable<Guid> memberPlaylistIds)
+    {
+        if (_folders.All(f => f.Id != folder.Id))
+        {
+            _folders.Add(folder);
+            _db.SavePlaylistFolder(folder);
+        }
+        foreach (var id in memberPlaylistIds)
+        {
+            var pl = GetById(id);
+            if (pl != null) { pl.FolderId = folder.Id; _db.SavePlaylist(pl); }
+        }
+    }
     private void Deduplicate()
     {
         int removedFolders = 0, removedPlaylists = 0;
