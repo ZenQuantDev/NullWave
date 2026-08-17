@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -107,6 +108,50 @@ public class MetadataService
         {
             Log.Warning(ex, "Album art extraction failed for {Path}", filePath);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Writes cleaned/updated metadata back into the physical audio file's embedded tags (ID3, Vorbis, etc.).
+    /// </summary>
+    public bool WriteTagsToFile(string filePath, string? title, string? artist)
+    {
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return false;
+        
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            if (file == null) return false;
+
+            var tag = file.Tag;
+            var fileTitle = tag.Title ?? "";
+            var fileArtist = string.Join(", ", tag.Performers ?? Array.Empty<string>());
+
+            // Idempotency: file already matches the DB -> nothing to do.
+            if (LibraryService.TitlesLooselyMatch(title ?? "", fileTitle, artist ?? "", fileArtist))
+                return false;
+
+            // Safety: if DB title matches the FILE's artist and vice versa, the DB row is
+            // the corrupted (swapped) side. Refuse to destroy good file tags.
+            if (LibraryService.TitlesLooselyMatch(title ?? "", fileArtist, artist ?? "", fileTitle))
+            {
+                Log.Warning("[MetadataService] Refusing to write swapped tags to {Path} (DB row looks corrupted: Title='{Title}', Artist='{Artist}')",
+                    filePath, title, artist);
+                return false;
+            }
+
+            tag.Title = title;
+            tag.Performers = LibraryService.SplitArtistCredits(artist ?? "").ToArray(); // REPLACE, never append
+            file.Save();
+            Log.Information("[MetadataService] Wrote embedded tags to file: {Path} (Title: {Title}, Artist: {Artist})", 
+                filePath, title, artist);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Gracefully handle corrupted files or unsupported formats without crashing the app
+            Log.Warning(ex, "[MetadataService] Failed to write tags to {Path}", filePath);
+            return false;
         }
     }
 }

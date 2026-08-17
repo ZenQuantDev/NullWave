@@ -275,7 +275,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -321,7 +320,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -356,7 +354,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -391,7 +388,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -433,7 +429,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -470,7 +465,6 @@ public class MainViewModel : ViewModelBase
         {
             if (_isMaintenanceRunning) return;
             _isMaintenanceRunning = true;
-
             _ = Task.Run(async () =>
             {
                 LiveNotification? activity = null;
@@ -499,6 +493,44 @@ public class MainViewModel : ViewModelBase
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         ToastService.Instance.CompleteLiveActivity(activity, "Artist merge failed.");
+                        _isMaintenanceRunning = false;
+                    });
+                }
+            });
+        };
+
+        // 11. Sync Files
+        Settings.SyncFilesRequested += dryRun =>
+        {
+            if (_isMaintenanceRunning) return;
+            _isMaintenanceRunning = true;
+            _ = Task.Run(async () =>
+            {
+                LiveNotification? activity = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    activity = ToastService.Instance.StartLiveActivity("Sync Files",
+                        dryRun ? "Previewing file sync..." : "Syncing files with library...", true));
+                try
+                {
+                    string? playing = null;
+                    await Dispatcher.UIThread.InvokeAsync(() => playing = Player.CurrentTrack?.FilePath);
+                    var r = _library.SyncLocalFilesWithLibrary(dryRun, playing);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Settings.ReportSyncFilesComplete(r, dryRun);
+                        ToastService.Instance.CompleteLiveActivity(activity,
+                            dryRun ? $"Preview: {r.Retagged} retags, {r.Renamed} renames pending."
+                                   : $"Synced: {r.Retagged} retagged, {r.Renamed} renamed.");
+                        Library.Refresh();
+                        _isMaintenanceRunning = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    NullActionLogger.Error(nameof(MainViewModel), ex, "SyncFiles failed");
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ToastService.Instance.CompleteLiveActivity(activity, "File sync failed.", finalType: ToastType.Error);
                         _isMaintenanceRunning = false;
                     });
                 }
@@ -631,7 +663,6 @@ public class MainViewModel : ViewModelBase
         };
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
-
         Input.TrackMetadataUpdated += Library.Refresh;
         Library.TrackDetailRequested += track => Detail.OpenFor(track);
         Library.PlayTrackRequested += Player.PlayTrack;
@@ -1226,13 +1257,12 @@ public class MainViewModel : ViewModelBase
 
     private async Task RunMoodPlaylistAsync(bool forceRefresh, bool forceTags = false)
     {
-        // FIX: Added scope to prevent double-toast and group mood-gen activities
         var activity = ToastService.Instance.StartLiveActivity(
             "Mood Playlist",
             "Fetching weather data...",
-            isIndeterminate: true,
-            scope: "mood-mix");
-            
+            isIndeterminate: true
+        );
+
         try
         {
             if (_plugins.Get<IWeatherProvider>() is not { } weatherProvider)

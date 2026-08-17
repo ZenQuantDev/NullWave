@@ -118,6 +118,9 @@ public class PlayerViewModel : ViewModelBase
                         track.Duration = duration;
 
                         _library.Update(track);
+                        
+                        // NEW: Ensure the newly downloaded file is born clean (tags + filename)
+                        _library.NormalizeLocalFile(track);
 
                         var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
                         var toPlay = fresh ?? track;
@@ -134,22 +137,22 @@ public class PlayerViewModel : ViewModelBase
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 IsDownloading = false;
-                StatusText = $"Download failed: {error}";
-                NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error}", $"trackId={trackId}");
+                StatusText = $"Download failed: {error ?? "Unknown error"}";
+                NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error ?? "Unknown error"}", $"trackId={trackId}");
                 
                 if (Guid.TryParse(trackId, out var id))
                 {
                     var failedTrack = _library.GetAll().FirstOrDefault(t => t.Id == id);
                     if (failedTrack != null)
                     {
-                        var retryTarget = failedTrack; // non-null capture for the lambda
+                        var retryTarget = failedTrack;
                         ToastService.Instance.Show(
-                            message: $"Failed to download '{retryTarget.Title}'",
+                            message: $"Failed to download '{retryTarget?.Title ?? "Unknown Track"}'",
                             type: ToastType.Error,
                             durationMs: 6000,
-                            detailedMessage: error,
+                            detailedMessage: error ?? "An unknown error occurred during download.",
                             actionText: "Retry",
-                            actionCallback: () => DownloadTrackCommand.Execute(retryTarget),
+                            actionCallback: () => { if (retryTarget != null) DownloadTrackCommand.Execute(retryTarget); },
                             scope: "download-fail");
                     }
                 }
@@ -604,7 +607,6 @@ public class PlayerViewModel : ViewModelBase
 
             if (_position >= _settings.ScrobbleThreshold)
             {
-                // FIX: Fetch fresh track data from DB to avoid scrobbling stale metadata
                 var freshTrack = _library.GetAll().FirstOrDefault(t => t.Id == _currentTrack.Id);
                 var scrobbleTitle = freshTrack?.Title ?? _currentTrack.Title;
                 var scrobbleArtist = freshTrack?.Artist ?? _currentTrack.Artist;
@@ -698,7 +700,6 @@ public class PlayerViewModel : ViewModelBase
 
         if (elapsed <= window)
         {
-            // FIX: Check .HasValue and use .Value for the subtraction
             if (_currentTrack.LastSkipped.HasValue && _currentTrack.LastSkipped.Value != DateTime.MinValue)
             {
                 var daysSinceLastSkip = (DateTime.UtcNow - _currentTrack.LastSkipped.Value).TotalDays;

@@ -453,6 +453,16 @@
 
 ---
 
+## Phase 19 - Export & Decentralized Sharing 💡
+
+**Goal:** Make the library truly portable and enable P2P sharing between users.
+
+- 📋 **Batch Export & Archiving**: Export selected tracks, playlists, or the entire library to a target folder (e.g., flash drive, phone music player) with options to zip or maintain folder structure.
+- 📋 **P2P / Torrent-like Sharing**: Generate magnet links or `.torrent` files for playlists/albums. Allow users to seamlessly share and download library chunks from peers without relying on centralized YouTube/SoundCloud APIs.
+- 📋 **Embedded Tag Sync**: Ensure all exported files carry their NullWave database metadata (tags, play counts, ratings) in their ID3/Vorbis headers. (Foundation laid in v0.5.1 via `MetadataService.WriteTagsToFile`).
+
+---
+
 ## Architecture Guidelines
 
 ### File size limits

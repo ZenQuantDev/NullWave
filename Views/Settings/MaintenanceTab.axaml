@@ -128,6 +128,24 @@
                             <Button Classes="danger" Content="Remove" Command="{Binding RemoveDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                         </StackPanel>
                     </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    
+                    <!-- NEW: Sync files with library -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Sync files with library" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="Rewrites embedded ID3 tags and renames local files to 'Artist - Title' so they match your cleaned library metadata.">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Retro-fix for files downloaded before cleaning existed" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="Preview" Command="{Binding PreviewSyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="primary" Content="Sync" Command="{Binding SyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 

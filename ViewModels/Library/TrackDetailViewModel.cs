@@ -213,7 +213,6 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void OnTrackPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        // Silent UI Updates: Only refresh bound properties, NEVER trigger navigation or Open commands
         RefreshDisplayProperties();
     }
 
@@ -243,6 +242,9 @@ public class TrackDetailViewModel : ViewModelBase
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
 
         _library.Update(_currentTrack);
+        
+        // NEW: Write manual edits back to the physical audio file
+        _library.UpdateFileTags(_currentTrack);
 
         string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
         NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), alteredFieldsSummary, "TrackDetailViewModel");

@@ -42,7 +42,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const int DebounceMs = 500;
 
     public System.Collections.ObjectModel.ObservableCollection<NullWave.Models.LiveNotification> ActiveToasts => NullWave.Services.ToastService.Instance.ActiveToasts;
-
     public ObservableCollection<PluginRowViewModel> PluginRows { get; }
 
     private void ScheduleSave()
@@ -150,7 +149,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             Log.Information("[Settings] Logging mode changed to {Mode}", value ? "Advanced/Verbose" : "Default");
         }
     }
-
     public string LoggingModeLabel => VerboseLogging ? "Advanced / Verbose" : "Default";
 
     public string AccentColor
@@ -284,13 +282,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public int QueueAutoFillSize
     {
         get => _prefsService.Current.QueueAutoFillSize;
-        set { _prefsService.Update(p => p.QueueAutoFillSize = value); OnPropertyChanged(); ScheduleSave(); }
+        set
+        {
+            _prefsService.Update(p => p.QueueAutoFillSize = value);
+            OnPropertyChanged();
+            ScheduleSave();
+        }
     }
 
     public bool QueueManualInsertAtBlockEnd
     {
         get => _prefsService.Current.QueueManualInsertAtBlockEnd;
-        set { _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value); OnPropertyChanged(); ScheduleSave(); }
+        set
+        {
+            _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value);
+            OnPropertyChanged();
+            ScheduleSave();
+        }
     }
 
     [ObservableProperty] private int _currentSectionIndex = 0;
@@ -302,14 +310,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _verifyLinksStatus = string.Empty;
     [ObservableProperty] private string _forceCleanStatus = string.Empty;
     [ObservableProperty] private string _dedupeStatus = string.Empty;
+    [ObservableProperty] private string _syncFilesStatus = string.Empty;
     [ObservableProperty] private bool _isRepairing = false;
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private string _ytDlpStatus = string.Empty;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanInstallVlc))]
     private string _vlcStatus = string.Empty;
-
     [ObservableProperty] private string _ffmpegStatus = string.Empty;
     [ObservableProperty] private string _dotNetStatus = string.Empty;
     [ObservableProperty] private bool _isCheckingUpdate;
@@ -327,20 +334,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _powerStateLabel = "Detecting...";
     [ObservableProperty] private bool _isStagingUpdate;
     [ObservableProperty] private bool _updateStaged;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AIStatusLabel))]
     [NotifyPropertyChangedFor(nameof(AIStatusDescription))]
     [NotifyPropertyChangedFor(nameof(AIStatusDotColor))]
     [NotifyPropertyChangedFor(nameof(AIToggleButtonLabel))]
     private AIServiceState _aiServiceState = AIServiceState.Stopped;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LastFmStateLabel))]
     [NotifyPropertyChangedFor(nameof(IsLastFmConnected))]
     [NotifyPropertyChangedFor(nameof(IsLastFmAwaitingAuth))]
     private LastFmConnectionState _lastFmState = LastFmConnectionState.Disconnected;
-
     [ObservableProperty] private string _lastFmUsername = string.Empty;
     [ObservableProperty] private string _lastFmStatusMessage = string.Empty;
 
@@ -353,19 +357,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LastFmConnectionState.Error         => "Connection failed",
         _                                   => "Not connected"
     };
-
     public string AIStatusLabel => AiServiceState switch { AIServiceState.Running => "Active", AIServiceState.Starting => "Starting...", AIServiceState.Error => "Error", _ => "Stopped" };
     public string AIStatusDescription => AiServiceState switch { AIServiceState.Running => $"Model '{SelectedModel}' is loaded and ready.", AIServiceState.Starting => "Loading model...", AIServiceState.Error => "Could not reach Ollama.", _ => "AI service is not running." };
     public string AIStatusDotColor => AiServiceState switch { AIServiceState.Running => "#4CAF50", AIServiceState.Starting => "#FCD34D", AIServiceState.Error => "#F44336", _ => "#6B7280" };
     public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running ? "Stop" : "Start";
 
     public string[] ExportFormatOptions => new[] { "txt", "md", "json" };
-    public string[] AccentColorOptions => new[] { "Blue Orchid", "Purple", "Sky", "Green", "Amber", "Red", "Pink", "Orange", "Teal", "Lime", "Violet & Lime", "Navy & Gold", "Crimson & Ice", "Orchid & Mint", "Teal & Coral", "Magenta & Spring", "Amber & Indigo", "Cyan & Sunset", "Rose & Jade", "Azure & Peach" };
-
+    public string[] AccentColorOptions => new[] { "Blue Orchid", "Purple", "Sky", "Green", "Amber", "Red", "Pink", "Orange", "Teal", "Lime",
+        "Violet & Lime", "Navy & Gold", "Crimson & Ice", "Orchid & Mint", "Teal & Coral",
+        "Magenta & Spring", "Amber & Indigo", "Cyan & Sunset", "Rose & Jade", "Azure & Peach" };
     public string VersionCodename => CurrentVersion.StartsWith("0.5") ? "Blue Orchid" : string.Empty;
-    public string VersionLabel => string.IsNullOrEmpty(VersionCodename) ? $"v{CurrentVersion}" : $"v{CurrentVersion} \u201c{VersionCodename}\u201d";
-    public string OsLabel => OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsLinux() ? "Linux" : OperatingSystem.IsMacOS() ? "macOS" : "Unknown";
-
+    public string VersionLabel => string.IsNullOrEmpty(VersionCodename)
+        ? $"v{CurrentVersion}"
+        : $"v{CurrentVersion} \u201c{VersionCodename}\u201d";
+    public string OsLabel =>
+        OperatingSystem.IsWindows() ? "Windows" :
+        OperatingSystem.IsLinux()   ? "Linux" :
+        OperatingSystem.IsMacOS()   ? "macOS" : "Unknown";
     public bool IsWindows => OperatingSystem.IsWindows();
     public bool CanInstallVlc => IsWindows && VlcStatus == "Not installed";
 
@@ -410,6 +418,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? MergeSimilarArtistsRequested;
     public event Action<bool>? RemoveDuplicatesRequested;
     public event Action? GenerateTagMoodPlaylistRequested;
+    public event Action<bool>? SyncFilesRequested;
 
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
     {
@@ -447,19 +456,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 switch (plugin.Name)
                 {
-                    case "yt-dlp Downloader": _prefsService.Update(p => p.EnableYtDlp = enabled); break;
-                    case "Last.fm": _prefsService.Update(p => p.EnableLastFm = enabled); break;
-                    case "OpenWeather": _prefsService.Update(p => p.EnableOpenWeather = enabled); break;
-                    case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); break;
+                    case "yt-dlp Downloader":
+                        _prefsService.Update(p => p.EnableYtDlp = enabled);
+                        break;
+                    case "Last.fm":
+                        _prefsService.Update(p => p.EnableLastFm = enabled);
+                        break;
+                    case "OpenWeather":
+                        _prefsService.Update(p => p.EnableOpenWeather = enabled);
+                        break;
+                    case "Ollama Local AI":
+                        _prefsService.Update(p => p.EnableOllama = enabled);
+                        break;
                 }
             }));
         }
     }
 
     [RelayCommand] private void RefreshWeather() => RefreshWeatherRequested?.Invoke();
-
-    [RelayCommand]
-    private void SaveKeys()
+    [RelayCommand] private void SaveKeys()
     {
         if (!string.IsNullOrWhiteSpace(YouTubeApiKey)) _keyStore.SaveKey("YouTube", YouTubeApiKey);
         if (!string.IsNullOrWhiteSpace(SpotifyClientId)) _keyStore.SaveKey("Spotify:ClientId", SpotifyClientId);
@@ -468,33 +483,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrWhiteSpace(LastFmApiKey)) _keyStore.SaveKey("LastFm", LastFmApiKey);
         if (!string.IsNullOrWhiteSpace(LastFmApiSecret)) _keyStore.SaveKey("LastFm:Secret", LastFmApiSecret);
         if (!string.IsNullOrWhiteSpace(OpenWeatherApiKey)) _keyStore.SaveKey("OpenWeather", OpenWeatherApiKey);
-        ToastService.Instance.Show("API keys saved securely.", ToastType.Success, scope: "settings-save");
     }
-
     [RelayCommand] private void DeleteApiKeys()
     {
         _secureDelete.DeleteApiKeys();
         YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
     }
-
     [RelayCommand] private void DeleteLogs() => _secureDelete.DeleteLogs();
-
     [RelayCommand] private void DeleteEverything()
     {
         _secureDelete.DeleteEverything();
         YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
     }
-
-    [RelayCommand]
-    private async Task BrowseDownloadDirAsync()
+    [RelayCommand] private async Task BrowseDownloadDirAsync()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
         var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Select Download Directory" });
         if (folders.Count > 0) DownloadDirectory = folders[0].Path.LocalPath;
     }
-
-    [RelayCommand]
-    private async Task CheckForUpdateAsync()
+    [RelayCommand] private async Task CheckForUpdateAsync()
     {
         IsCheckingUpdate = true;
         UpdateStatus = "Checking...";
@@ -508,9 +515,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
         finally { IsCheckingUpdate = false; }
     }
-
-    [RelayCommand]
-    private async Task DownloadUpdateAsync()
+    [RelayCommand] private async Task DownloadUpdateAsync()
     {
         IsStagingUpdate = true;
         try
@@ -519,27 +524,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             UpdateStaged = await _updater.StageUpdateAsync(rid);
             ToastService.Instance.Show(
                 UpdateStaged ? "Update downloaded \u2014 restart to install." : "No matching release asset found.",
-                UpdateStaged ? ToastType.Success : ToastType.Warning, scope: "update");
+                UpdateStaged ? ToastType.Success : ToastType.Warning);
         }
         catch (Exception ex)
         {
-            ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error, scope: "update");
+            ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error);
         }
         finally { IsStagingUpdate = false; }
     }
-
     [RelayCommand] private void GenerateTagMoodPlaylist() => GenerateTagMoodPlaylistRequested?.Invoke();
     [RelayCommand] private void RestartToUpdate() => _updater.LaunchUpdaterAndExit();
-
-    [RelayCommand]
-    private async Task InstallVlcAsync()
+    [RelayCommand] private async Task InstallVlcAsync()
     {
         VlcStatus = "Installing...";
         VlcStatus = await _deps.InstallVlcAsync();
     }
-
-    [RelayCommand]
-    private async Task CopyDebugInfoAsync()
+    [RelayCommand] private async Task CopyDebugInfoAsync()
     {
         var text = $"NullWave v{CurrentVersion} \u201c{VersionCodename}\u201d\n" +
                    $"OS: {OsLabel} ({RuntimeInformation.OSDescription})\n" +
@@ -547,7 +547,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                    $".NET: {Environment.Version}";
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow?.Clipboard is { } clipboard)
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow?.Clipboard is { } clipboard)
             {
                 await clipboard.SetTextAsync(text);
                 ToastService.Instance.Show("Debug info copied to clipboard.", ToastType.Success);
@@ -563,10 +564,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ToastService.Instance.Show("Could not copy to clipboard.", ToastType.Warning);
         }
     }
-
     private int _versionTapCount;
-    [RelayCommand]
-    private void TapVersion()
+    [RelayCommand] private void TapVersion()
     {
         _versionTapCount++;
         if (_versionTapCount >= 7)
@@ -575,23 +574,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ToastService.Instance.Show("🌸 Blue Orchid blooms for the curious.", ToastType.Info);
         }
     }
-
-    [RelayCommand]
-    private void OpenUrl(string? url)
+    [RelayCommand] private void OpenUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return;
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[Settings] Failed to open URL: {Url}", url);
         }
     }
-
-    [RelayCommand]
-    private async Task UpdateYtDlpAsync()
+    [RelayCommand] private async Task UpdateYtDlpAsync()
     {
         IsUpdatingYtDlp = true;
         YtDlpStatus = "Updating yt-dlp...";
@@ -603,9 +602,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
         finally { IsUpdatingYtDlp = false; }
     }
-
-    [RelayCommand]
-    private async Task CheckDependenciesAsync()
+    [RelayCommand] private async Task CheckDependenciesAsync()
     {
         YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Checking...";
         var ytDlp = await _deps.GetYtDlpInfoAsync();
@@ -617,160 +614,154 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         FfmpegStatus = ffmpeg.IsInstalled ? ffmpeg.InstalledVersion : "Not installed";
         DotNetStatus = dotNet.IsInstalled ? dotNet.InstalledVersion : "Not found";
     }
-
     [RelayCommand] private void OpenDataFolder() => OpenFolder(NullWavePaths.DataDir);
     [RelayCommand] private void OpenLogsFolder() => OpenFolder(NullWavePaths.LogsDir);
-
-    [RelayCommand]
-    private void OpenReleasePage()
+    [RelayCommand] private void OpenReleasePage()
     {
         if (!string.IsNullOrEmpty(ReleaseUrl))
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ReleaseUrl, UseShellExecute = true });
     }
-
-    [RelayCommand] private void ClearThumbnails() { ThumbnailStatus = "Clearing thumbnails..."; ClearThumbnailsRequested?.Invoke(); }
-    [RelayCommand] private void ClearYtDlpCache() { ClearYtDlpCacheRequested?.Invoke(); }
-    [RelayCommand] private void RepairPaths() { IsRepairing = true; RepairStatus = "Scanning file paths..."; RepairPathsRequested?.Invoke(); }
-    [RelayCommand] private void ReimportAssets() { IsRepairing = true; RepairStatus = "Scanning download folder..."; ReimportAssetsRequested?.Invoke(); }
-    [RelayCommand] private void ForceMetaResync() { IsRepairing = true; RepairStatus = "Clearing cached tags - re-sync starting..."; ForceMetaResyncRequested?.Invoke(); }
-    [RelayCommand] private void PreviewOrphanedFiles() { IsRepairing = true; SweepStatus = "Scanning for orphaned files..."; SweepOrphanedFilesRequested?.Invoke(true); }
-    [RelayCommand] private void SweepOrphanedFiles() { IsRepairing = true; SweepStatus = "Deleting orphaned files..."; SweepOrphanedFilesRequested?.Invoke(false); }
-    [RelayCommand] private void VacuumDatabase() { IsRepairing = true; VacuumStatus = "Optimizing database..."; VacuumDatabaseRequested?.Invoke(); }
-    [RelayCommand] private void VerifyLinks() { IsRepairing = true; VerifyLinksStatus = "Checking file links against embedded metadata..."; VerifyLinksRequested?.Invoke(); }
-    [RelayCommand] private void ForceCleanTitles() { IsRepairing = true; ForceCleanStatus = "Re-parsing track titles for embedded artist names..."; ForceCleanTitlesRequested?.Invoke(); }
-    [RelayCommand] private void MergeSimilarArtists() { MergeSimilarArtistsRequested?.Invoke(); }
-    [RelayCommand] private void PreviewDuplicates() { IsRepairing = true; DedupeStatus = "Scanning for duplicate tracks..."; RemoveDuplicatesRequested?.Invoke(true); }
-    [RelayCommand] private void RemoveDuplicates() { IsRepairing = true; DedupeStatus = "Removing duplicate tracks..."; RemoveDuplicatesRequested?.Invoke(false); }
+    [RelayCommand] private void ClearThumbnails()
+    {
+        ThumbnailStatus = "Clearing thumbnails...";
+        ClearThumbnailsRequested?.Invoke();
+    }
+    [RelayCommand] private void ClearYtDlpCache() => ClearYtDlpCacheRequested?.Invoke();
+    [RelayCommand] private void RepairPaths()
+    {
+        IsRepairing = true;
+        RepairStatus = "Scanning file paths...";
+        RepairPathsRequested?.Invoke();
+    }
+    [RelayCommand] private void ReimportAssets()
+    {
+        IsRepairing = true;
+        RepairStatus = "Scanning download folder...";
+        ReimportAssetsRequested?.Invoke();
+    }
+    [RelayCommand] private void ForceMetaResync()
+    {
+        IsRepairing = true;
+        RepairStatus = "Clearing cached tags - re-sync starting...";
+        ForceMetaResyncRequested?.Invoke();
+    }
+    [RelayCommand] private void PreviewOrphanedFiles()
+    {
+        IsRepairing = true;
+        SweepStatus = "Scanning for orphaned files...";
+        SweepOrphanedFilesRequested?.Invoke(true);
+    }
+    [RelayCommand] private void SweepOrphanedFiles()
+    {
+        IsRepairing = true;
+        SweepStatus = "Deleting orphaned files...";
+        SweepOrphanedFilesRequested?.Invoke(false);
+    }
+    [RelayCommand] private void VacuumDatabase()
+    {
+        IsRepairing = true;
+        VacuumStatus = "Optimizing database...";
+        VacuumDatabaseRequested?.Invoke();
+    }
+    [RelayCommand] private void VerifyLinks()
+    {
+        IsRepairing = true;
+        VerifyLinksStatus = "Checking file links against embedded metadata...";
+        VerifyLinksRequested?.Invoke();
+    }
+    [RelayCommand] private void ForceCleanTitles()
+    {
+        IsRepairing = true;
+        ForceCleanStatus = "Re-parsing track titles for embedded artist names...";
+        ForceCleanTitlesRequested?.Invoke();
+    }
+    [RelayCommand] private void MergeSimilarArtists() => MergeSimilarArtistsRequested?.Invoke();
+    [RelayCommand] private void PreviewDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Scanning for duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(true);
+    }
+    [RelayCommand] private void RemoveDuplicates()
+    {
+        IsRepairing = true;
+        DedupeStatus = "Removing duplicate tracks...";
+        RemoveDuplicatesRequested?.Invoke(false);
+    }
+    [RelayCommand] private void PreviewSyncFiles()
+    {
+        IsRepairing = true;
+        SyncFilesStatus = "Scanning files...";
+        SyncFilesRequested?.Invoke(true);
+    }
+    [RelayCommand] private void SyncFiles()
+    {
+        IsRepairing = true;
+        SyncFilesStatus = "Syncing files...";
+        SyncFilesRequested?.Invoke(false);
+    }
 
     public void ReportDedupeComplete(int scanned, int groups, int removed, bool wasDryRun)
     {
         IsRepairing = false;
         DedupeStatus = wasDryRun
-            ? $"Found {groups} duplicate group(s) out of {scanned} scanned."
-            : $"Removed {removed} duplicate track(s) across {groups} group(s).";
+            ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up."
+            : $"\u2713 Removed {removed} duplicate track(s) across {groups} group(s).";
+        ToastService.Instance.Show(DedupeStatus, ToastType.Success, scope: "maintenance");
     }
-
     public void ReportSweepComplete(int scanned, int orphaned, int deleted, int failed, bool wasDryRun)
     {
         IsRepairing = false;
-        SweepStatus = wasDryRun ? $"Found {orphaned} orphaned file(s)." : $"Deleted {deleted}, {failed} failed.";
+        SweepStatus = wasDryRun
+            ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to delete."
+            : failed == 0
+                ? $"\u2713 Deleted {deleted} orphaned file(s)."
+                : $"Deleted {deleted} file(s), {failed} failed (check logs).";
+        ToastService.Instance.Show(SweepStatus, failed > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
-
     public void ReportVacuumComplete(long beforeKB, long afterKB)
     {
         IsRepairing = false;
-        VacuumStatus = $"Optimized: {beforeKB}KB → {afterKB}KB";
+        var saved = beforeKB - afterKB;
+        VacuumStatus = saved > 0
+            ? $"\u2713 Optimized: {beforeKB}KB \u2192 {afterKB}KB ({saved}KB reclaimed)"
+            : $"\u2713 Database already optimal ({afterKB}KB)";
+        ToastService.Instance.Show(VacuumStatus, ToastType.Success, scope: "maintenance");
     }
-
     public void ReportVerifyLinksComplete(int checkedCount, int mismatchCount)
     {
         IsRepairing = false;
-        VerifyLinksStatus = $"Checked {checkedCount}, {mismatchCount} mismatch(es).";
+        VerifyLinksStatus = mismatchCount == 0
+            ? $"\u2713 Checked {checkedCount} linked track(s) \u2014 no mismatches found."
+            : $"\u26a0 Checked {checkedCount} track(s) \u2014 found {mismatchCount} possible mis-link(s). See logs for details.";
+        ToastService.Instance.Show(VerifyLinksStatus, mismatchCount > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
-
     public void ReportForceCleanComplete(int cleaned)
     {
         IsRepairing = false;
-        ForceCleanStatus = cleaned == 0 ? "No titles needed cleaning." : $"Cleaned {cleaned} title(s).";
+        ForceCleanStatus = cleaned == 0
+            ? "No titles needed cleaning."
+            : $"\u2713 Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
+        ToastService.Instance.Show(ForceCleanStatus, ToastType.Success, scope: "maintenance");
     }
-
     public void ReportArtistMergeComplete(int groupsFound, int tracksUpdated)
     {
+        var message = groupsFound == 0
+            ? "No duplicate artist names found."
+            : $"Merged {groupsFound} artist group(s), updated {tracksUpdated} track(s).";
+        ToastService.Instance.Show(message, ToastType.Info, scope: "maintenance");
         Log.Information("[Settings] Artist merge complete: {Groups} groups, {Tracks} tracks updated", groupsFound, tracksUpdated);
     }
-
-    public void ReportRepairPathsComplete(int total, int missing, int cleared)
+    public void ReportSyncFilesComplete(FileSyncReport r, bool wasDryRun)
     {
         IsRepairing = false;
-        RepairStatus = missing == 0 ? $"All {total} file paths are valid." : $"{missing} missing, {cleared} cleared.";
+        SyncFilesStatus = wasDryRun
+            ? $"Preview: {r.Retagged} file(s) would be retagged, {r.Renamed} renamed (of {r.Scanned} scanned)."
+            : $"\u2713 Synced {r.Scanned} file(s): {r.Retagged} retagged, {r.Renamed} renamed, {r.Failed} failed.";
+        ToastService.Instance.Show(SyncFilesStatus, r.Failed > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
 
-    public void ReportReimportComplete(int relinked)
-    {
-        IsRepairing = false;
-        RepairStatus = relinked == 0 ? "No new file matches found." : $"Re-linked {relinked} track(s).";
-    }
-
-    public void ReportMetaResyncComplete(int cleared)
-    {
-        IsRepairing = false;
-        RepairStatus = $"Cleared tags for {cleared} track(s).";
-    }
-
-    public void ReportRepairFailed(string operation, string reason)
-    {
-        IsRepairing = false;
-        RepairStatus = $"{operation} failed: {reason}";
-    }
-
-    public void ReportLastFmAwaitingAuth() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Browser opened \u2014 approve access, then click \"I've Authorized It\"."; }
-
-    public void ReportLastFmConnected(string username)
-    {
-        LastFmUsername = username;
-        LastFmState = LastFmConnectionState.Connected;
-        LastFmStatusMessage = string.Empty;
-        ToastService.Instance.Show($"Connected to Last.fm as {username}", ToastType.Success);
-    }
-
-    public void ReportLastFmDisconnected()
-    {
-        LastFmUsername = string.Empty;
-        LastFmState = LastFmConnectionState.Disconnected;
-        LastFmStatusMessage = string.Empty;
-        ToastService.Instance.Show("Disconnected from Last.fm", ToastType.Info);
-    }
-
-    public void ReportLastFmAuthFailed(string reason)
-    {
-        LastFmState = LastFmConnectionState.Error;
-        LastFmStatusMessage = reason;
-        ToastService.Instance.Show($"Last.fm: {reason}", ToastType.Error);
-    }
-
-    public async Task ReportExportReadyAsync(IEnumerable<Track> tracks, Avalonia.Controls.Window parentWindow)
-    {
-        var trackList = tracks.ToList();
-        if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
-        var format = ExportFormat ?? "txt";
-        var timestamp = DateTime.Now.ToString("ddMMyyyy_HHmm");
-        var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
-        var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
-        var sp = new FilePickerSaveOptions
-        {
-            Title = chunks.Count > 1 ? $"Save AI Prompt - Part 1 of {chunks.Count}" : "Save AI Tagging Prompt",
-            SuggestedFileName = chunks[0].FileName,
-            FileTypeChoices = new[] { new FilePickerFileType("Text") { Patterns = new[] { "*.txt" } }, new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } }, new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } } }
-        };
-        int savedCount = 0;
-        foreach (var (content, fileName) in chunks)
-        {
-            sp.SuggestedFileName = fileName;
-            if (savedCount > 0) sp.Title = $"Save AI Prompt - Part {savedCount + 1} of {chunks.Count}";
-            var file = await parentWindow.StorageProvider.SaveFilePickerAsync(sp);
-            if (file == null) { ExternalAIStatus = savedCount == 0 ? "Export cancelled." : $"Partial export - saved {savedCount} of {chunks.Count} files."; return; }
-            try { await using var stream = await file.OpenWriteAsync(); await using var writer = new System.IO.StreamWriter(stream); await writer.WriteAsync(content); savedCount++; }
-            catch (Exception ex) { ExternalAIStatus = $"Export failed on part {savedCount + 1}: {ex.Message}"; return; }
-        }
-        ExternalAIStatus = chunks.Count > 1 ? $"Exported {trackList.Count} tracks in {chunks.Count} files" : $"Exported {trackList.Count} tracks \u2192 {chunks[0].FileName}";
-        ToastService.Instance.Show(ExternalAIStatus, ToastType.Success);
-    }
-
-    public void ReportImportComplete(int applied, int total)
-    {
-        if (applied == 0 && total == 0) { ExternalAIStatus = "Import cancelled or file was empty."; return; }
-        ExternalAIStatus = total == 0 ? "No matching tracks found in import." : $"Import complete - tagged {applied} of {total} tracks.";
-        ToastService.Instance.Show(ExternalAIStatus, applied > 0 ? ToastType.Success : ToastType.Warning);
-    }
-
-    public void ReportImportFailed(string reason)
-    {
-        ExternalAIStatus = $"Import failed: {reason}";
-        ToastService.Instance.Show($"Import failed: {reason}", ToastType.Error);
-    }
-
-    [RelayCommand]
-    private void DetectHardware()
+    [RelayCommand] private void DetectHardware()
     {
         IsDetectingHardware = true;
         try
@@ -779,17 +770,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var info = detector.Detect();
             HardwareInfo = $"CPU: {info.CpuCores} cores | RAM: {info.RamGB}GB\nGPU: {info.GpuType} ({info.GpuVramGB}GB VRAM)\nRecommended: {info.RecommendedModel}\n{info.RecommendationReason}";
             var currentPrefs = _prefsService.Current;
-            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel)) SelectedModel = info.RecommendedModel;
-            else OnPropertyChanged(nameof(SelectedModel));
-
+            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel))
+            {
+                SelectedModel = info.RecommendedModel;
+            }
+            else
+            {
+                OnPropertyChanged(nameof(SelectedModel));
+            }
             var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
             var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
-            if (string.IsNullOrEmpty(currentPrefs.BatteryModel)) BatteryModel = suggestedBattery;
-            else OnPropertyChanged(nameof(BatteryModel));
-
-            if (string.IsNullOrEmpty(currentPrefs.PerformanceModel)) PerformanceModel = suggestedPerf;
-            else OnPropertyChanged(nameof(PerformanceModel));
-
+            if (string.IsNullOrEmpty(currentPrefs.BatteryModel))
+            {
+                BatteryModel = suggestedBattery;
+            }
+            else
+            {
+                OnPropertyChanged(nameof(BatteryModel));
+            }
+            if (string.IsNullOrEmpty(currentPrefs.PerformanceModel))
+            {
+                PerformanceModel = suggestedPerf;
+            }
+            else
+            {
+                OnPropertyChanged(nameof(PerformanceModel));
+            }
             UpdatePowerState();
         }
         catch (Exception ex) { HardwareInfo = $"Detection failed: {ex.Message}"; }
@@ -836,8 +842,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task DownloadModelAsync()
+    [RelayCommand] private async Task DownloadModelAsync()
     {
         if (IsDownloadingModel) return;
         IsDownloadingModel = true;
@@ -854,10 +859,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         finally { IsDownloadingModel = false; }
     }
 
-    [RelayCommand] private void GenerateMoodPlaylist() { MoodPlaylistStatus = "Generating mood playlist..."; GenerateMoodPlaylistRequested?.Invoke(); }
+    [RelayCommand] private void GenerateMoodPlaylist()
+    {
+        MoodPlaylistStatus = "Generating mood playlist...";
+        GenerateMoodPlaylistRequested?.Invoke();
+    }
 
-    [RelayCommand]
-    private async Task ToggleAIServiceAsync()
+    [RelayCommand] private async Task ToggleAIServiceAsync()
     {
         if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
         if (AiServiceState == AIServiceState.Running) { AiServiceState = AIServiceState.Stopped; return; }
@@ -871,10 +879,30 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch { AiServiceState = AIServiceState.Error; }
     }
 
-    [RelayCommand] private async Task ExportUntaggedTracksAsync() { ExternalAIStatus = "Preparing export..."; ExportUntaggedTracksRequested?.Invoke(); await Task.CompletedTask; }
-    [RelayCommand] private async Task ImportAiTagsAsync() { var task = ImportAiTagsRequested?.Invoke(); if (task != null) await task; }
-    [RelayCommand] private void NavigateSettings(string page) { if (!string.IsNullOrWhiteSpace(page)) CurrentSettingsPage = page; }
-    [RelayCommand] private void LastFmConnect() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Opening browser for Last.fm authorization..."; LastFmConnectRequested?.Invoke(); }
+    [RelayCommand] private async Task ExportUntaggedTracksAsync()
+    {
+        ExternalAIStatus = "Preparing export...";
+        ExportUntaggedTracksRequested?.Invoke();
+        await Task.CompletedTask;
+    }
+
+    [RelayCommand] private async Task ImportAiTagsAsync()
+    {
+        var task = ImportAiTagsRequested?.Invoke();
+        if (task != null) await task;
+    }
+
+    [RelayCommand] private void NavigateSettings(string page)
+    {
+        if (!string.IsNullOrWhiteSpace(page)) CurrentSettingsPage = page;
+    }
+
+    [RelayCommand] private void LastFmConnect()
+    {
+        LastFmState = LastFmConnectionState.AwaitingAuth;
+        LastFmStatusMessage = "Opening browser for Last.fm authorization...";
+        LastFmConnectRequested?.Invoke();
+    }
     [RelayCommand] private void LastFmConfirmAuth() => LastFmConfirmAuthRequested?.Invoke();
     [RelayCommand] private void LastFmDisconnect() => LastFmDisconnectRequested?.Invoke();
 
@@ -885,12 +913,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
             bool running = await _localAI.PingAsync();
             if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
-            if (_plugins.Get<OllamaAIProvider>() is { } ollama) ollama.State = running ? PluginState.Available : PluginState.Unavailable;
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = running ? PluginState.Available : PluginState.Unavailable;
         }
         catch { }
     }
 
-    public void StartAIHealthCheck() { _aiHealthTimer = new System.Threading.Timer(async _ => await HealthCheckTickAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30)); }
+    public void StartAIHealthCheck()
+    {
+        _aiHealthTimer = new System.Threading.Timer(async _ => await HealthCheckTickAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
 
     private async Task HealthCheckTickAsync()
     {
@@ -900,16 +932,109 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             bool reachable = await _localAI.PingAsync();
             var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
             if (AiServiceState != newState) AiServiceState = newState;
-            if (_plugins.Get<OllamaAIProvider>() is { } ollama) ollama.State = reachable ? PluginState.Available : PluginState.Error;
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = reachable ? PluginState.Available : PluginState.Error;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] AI Health check encountered an unexpected error");
+            AiServiceState = AIServiceState.Error;
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = PluginState.Error;
+        }
     }
 
     public void StopHealthCheck() { _aiHealthTimer?.Dispose(); _aiHealthTimer = null; }
     public void SetAIServiceState(AIServiceState state) => AiServiceState = state;
+
     public void ReportThumbnailsCleared(int count) { ThumbnailStatus = $"Cleared {count} thumbnails - re-fetching in background..."; }
     public void ReportMoodPlaylistGenerated(int trackCount, string mood) { MoodPlaylistStatus = $"Generated {trackCount} tracks for mood: {mood}"; }
     public void ReportMoodPlaylistFailed(string reason) { MoodPlaylistStatus = $"Failed: {reason}"; }
+    public void ReportRepairPathsComplete(int total, int missing, int cleared)
+    {
+        IsRepairing = false;
+        RepairStatus = missing == 0 ? $"\u2713 All {total} file paths are valid." : $"Found {missing} missing file(s) - {cleared} path(s) cleared.";
+        ToastService.Instance.Show(RepairStatus, missing == 0 ? ToastType.Success : ToastType.Warning, scope: "maintenance");
+    }
+    public void ReportReimportComplete(int relinked)
+    {
+        IsRepairing = false;
+        RepairStatus = relinked == 0 ? "No new file matches found." : $"\u2713 Re-linked {relinked} track(s).";
+        ToastService.Instance.Show(RepairStatus, relinked > 0 ? ToastType.Success : ToastType.Info, scope: "maintenance");
+    }
+    public void ReportMetaResyncComplete(int cleared)
+    {
+        IsRepairing = false;
+        RepairStatus = $"\u2713 Cleared tags for {cleared} track(s) - re-sync running.";
+        ToastService.Instance.Show(RepairStatus, ToastType.Success, scope: "maintenance");
+    }
+    public void ReportRepairFailed(string operation, string reason)
+    {
+        IsRepairing = false;
+        RepairStatus = $"\u2717 {operation} failed: {reason}";
+        ToastService.Instance.Show(RepairStatus, ToastType.Error, scope: "maintenance");
+    }
+    public void ReportLastFmAwaitingAuth() { LastFmState = LastFmConnectionState.AwaitingAuth; LastFmStatusMessage = "Browser opened \u2014 approve access, then click \"I've Authorized It\"."; }
+    public void ReportLastFmConnected(string username)
+    {
+        LastFmUsername = username;
+        LastFmState = LastFmConnectionState.Connected;
+        LastFmStatusMessage = string.Empty;
+        ToastService.Instance.Show($"Connected to Last.fm as {username}", ToastType.Success);
+    }
+    public void ReportLastFmDisconnected()
+    {
+        LastFmUsername = string.Empty;
+        LastFmState = LastFmConnectionState.Disconnected;
+        LastFmStatusMessage = string.Empty;
+        ToastService.Instance.Show("Disconnected from Last.fm", ToastType.Info);
+    }
+    public void ReportLastFmAuthFailed(string reason)
+    {
+        LastFmState = LastFmConnectionState.Error;
+        LastFmStatusMessage = reason;
+        ToastService.Instance.Show($"Last.fm: {reason}", ToastType.Error);
+    }
+
+    public async Task ReportExportReadyAsync(IEnumerable<Track> tracks, Avalonia.Controls.Window parentWindow)
+    {
+        var trackList = tracks.ToList();
+        if (trackList.Count == 0) { ExternalAIStatus = "No untagged tracks found."; return; }
+        var format = ExportFormat ?? "txt";
+        var timestamp = DateTime.Now.ToString("ddMMyyyy_HHmm");
+        var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
+        var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
+        var sp = new FilePickerSaveOptions
+        {
+            Title = chunks.Count > 1 ? $"Save AI Prompt - Part 1 of {chunks.Count}" : "Save AI Tagging Prompt",
+            SuggestedFileName = chunks[0].FileName,
+            FileTypeChoices = new[] { new FilePickerFileType("Text") { Patterns = new[] { "*.txt" } }, new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } }, new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } } }
+        };
+        int savedCount = 0;
+        foreach (var (content, fileName) in chunks)
+        {
+            sp.SuggestedFileName = fileName;
+            if (savedCount > 0) sp.Title = $"Save AI Prompt - Part {savedCount + 1} of {chunks.Count}";
+            var file = await parentWindow.StorageProvider.SaveFilePickerAsync(sp);
+            if (file == null) { ExternalAIStatus = savedCount == 0 ? "Export cancelled." : $"Partial export - saved {savedCount} of {chunks.Count} files."; return; }
+            try { await using var stream = await file.OpenWriteAsync(); await using var writer = new System.IO.StreamWriter(stream); await writer.WriteAsync(content); savedCount++; }
+            catch (Exception ex) { ExternalAIStatus = $"Export failed on part {savedCount + 1}: {ex.Message}"; return; }
+        }
+        ExternalAIStatus = chunks.Count > 1 ? $"Exported {trackList.Count} tracks in {chunks.Count} files" : $"Exported {trackList.Count} tracks \u2192 {chunks[0].FileName}";
+        ToastService.Instance.Show(ExternalAIStatus, ToastType.Success);
+    }
+
+    public void ReportImportComplete(int applied, int total)
+    {
+        if (applied == 0 && total == 0) { ExternalAIStatus = "Import cancelled or file was empty."; return; }
+        ExternalAIStatus = total == 0 ? "No matching tracks found in import." : $"Import complete - tagged {applied} of {total} tracks.";
+        ToastService.Instance.Show(ExternalAIStatus, applied > 0 ? ToastType.Success : ToastType.Warning);
+    }
+    public void ReportImportFailed(string reason)
+    {
+        ExternalAIStatus = $"Import failed: {reason}";
+        ToastService.Instance.Show($"Import failed: {reason}", ToastType.Error);
+    }
 
     private static void OpenFolder(string path)
     {

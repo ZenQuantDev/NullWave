@@ -34,6 +34,7 @@ public record LinkMismatch(
 
 public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
 public record ArtistMergeGroup(string CanonicalName, List<string> Variants, int TotalTracks);
+public record FileSyncReport(int Scanned, int Retagged, int Renamed, int Skipped, int Failed);
 
 public class LibraryService : IDisposable
 {
@@ -65,7 +66,6 @@ public class LibraryService : IDisposable
 
     private static readonly Regex YouTubeTopicArtistRegex = new(@"\s*-\s*Topic\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    // FIX: Added regexes to extract featured artists and bracketed context (e.g. subtitles, OSTs)
     private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–—]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex BracketContentRegex = new(@"[\(\[](.*?)[\)\]]", RegexOptions.Compiled);
 
@@ -289,10 +289,25 @@ public class LibraryService : IDisposable
             track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
         }
 
+        if (_prefs?.Current.AutoCleanMetadata == true)
+        {
+            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
+            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(titleToParse);
+            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Artist) && !string.IsNullOrWhiteSpace(parsed.Value.Title))
+            {
+                if (track.Artist == "Unknown" || track.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(track.Artist))
+                    track.Artist = parsed.Value.Artist;
+                if (track.Title == track.Url || track.Title == "Unknown Title" || string.IsNullOrWhiteSpace(track.Title))
+                    track.Title = parsed.Value.Title;
+            }
+        }
+
         _tracks.Add(track);
         _db.Insert(track);
         StateVersion++;
         OnLibraryChanged();
+
+        UpdateFileTags(track);
     }
 
     public void Remove(Guid id)
@@ -444,6 +459,7 @@ public class LibraryService : IDisposable
             QueueChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+    
     public void RestoreQueue(IEnumerable<QueueEntry> entries)
     {
         if (_queue.Count > 0) return;
@@ -547,6 +563,102 @@ public class LibraryService : IDisposable
         _db.Update(track);
         StateVersion++;
         OnLibraryChanged();
+    }
+
+    public void UpdateFileTags(Track track)
+    {
+        if (_metadata == null || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
+        _metadata.WriteTagsToFile(track.FilePath, track.Title, track.Artist);
+    }
+
+    public FileSyncReport SyncLocalFilesWithLibrary(bool dryRun, string? currentlyPlayingPath)
+    {
+        int scanned = 0, retagged = 0, renamed = 0, skipped = 0, failed = 0;
+
+        foreach (var track in _tracks.ToList())
+        {
+            if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) continue;
+            scanned++;
+            try
+            {
+                var (wasRetagged, wasRenamed) = SyncOne(track, dryRun, currentlyPlayingPath);
+                if (wasRetagged) retagged++;
+                if (wasRenamed) renamed++;
+            }
+            catch (IOException) { skipped++; }
+            catch (Exception ex) { failed++; Log.Warning(ex, "[LibraryService] File sync failed for {Path}", track.FilePath); }
+        }
+
+        if (!dryRun && (retagged > 0 || renamed > 0)) StateVersion++;
+        Log.Information("[LibraryService] SyncLocalFiles: {Scanned} scanned, {Retagged} retagged, {Renamed} renamed, {Skipped} skipped, {Failed} failed (dryRun={DryRun})",
+            scanned, retagged, renamed, skipped, failed, dryRun);
+        return new FileSyncReport(scanned, retagged, renamed, skipped, failed);
+    }
+
+    public void NormalizeLocalFile(Track track)
+    {
+        if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
+        try { SyncOne(track, dryRun: false, currentlyPlayingPath: null); StateVersion++; }
+        catch (Exception ex) { Log.Warning(ex, "[LibraryService] NormalizeLocalFile failed for {Path}", track.FilePath); }
+    }
+
+    private (bool Retagged, bool Renamed) SyncOne(Track track, bool dryRun, string? currentlyPlayingPath)
+    {
+        if (currentlyPlayingPath != null &&
+            string.Equals(Path.GetFullPath(track.FilePath!), Path.GetFullPath(currentlyPlayingPath), StringComparison.OrdinalIgnoreCase))
+            return (false, false);
+
+        bool retagged = false, renamed = false;
+
+        if (_metadata != null)
+        {
+            var (fileTitle, fileArtist, _) = _metadata.FetchFromLocalFile(track.FilePath!);
+
+            // Self-heal: file tags are the swapped mirror of the DB row -> the DB is wrong.
+            // Repair the DB from the file, never the other way around.
+            if (!TitlesLooselyMatch(track.Title, fileTitle, track.Artist, fileArtist) &&
+                TitlesLooselyMatch(track.Title, fileArtist, track.Artist, fileTitle))
+            {
+                track.Title = CleanYouTubeArtifacts(fileTitle);
+                track.Artist = CleanYouTubeArtifacts(fileArtist);
+                if (!dryRun) _db.Update(track);
+                Log.Warning("[LibraryService] Self-healed swapped DB row: '{Title}' by '{Artist}' (from file tags)", track.Title, track.Artist);
+                retagged = true;
+                return (retagged, renamed);
+            }
+
+            if (!string.Equals(fileTitle, track.Title, StringComparison.Ordinal) ||
+                !string.Equals(fileArtist, track.Artist, StringComparison.Ordinal))
+            {
+                if (!dryRun) _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist);
+                retagged = true;
+            }
+        }
+
+        var dir    = Path.GetDirectoryName(track.FilePath!)!;
+        var ext    = Path.GetExtension(track.FilePath!);
+        var name   = SanitizeFileName($"{track.Artist} - {track.Title}") + ext;
+        var target = Path.Combine(dir, name);
+
+        if (!string.Equals(Path.GetFileName(track.FilePath!), name, StringComparison.OrdinalIgnoreCase))
+        {
+            if (File.Exists(target)) return (retagged, false);
+            if (!dryRun)
+            {
+                File.Move(track.FilePath!, target);
+                track.FilePath = target;
+                _db.Update(track);
+            }
+            renamed = true;
+        }
+
+        return (retagged, renamed);
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
     }
 
     public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
@@ -708,16 +820,13 @@ public class LibraryService : IDisposable
              .Where(w => w.Length > 1)
              .ToList();
 
-    private static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle,
+    internal static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle,
         string storedArtist = "", string embeddedArtist = "")
     {
-        // 1. Clean YouTube artifacts from BOTH to ensure parity
         var cleanStoredTitle = CleanYouTubeArtifacts(storedTitle, isArtist: false);
         var cleanEmbTitle = CleanYouTubeArtifacts(embeddedTitle, isArtist: false);
         var cleanEmbArtist = CleanYouTubeArtifacts(embeddedArtist, isArtist: true);
 
-        // 2. Handle "Artist - Title" format embedded in the Title tag
-        // We attempt to split it if the left side matches either the stored or embedded artist.
         if (cleanEmbTitle.Contains(" - "))
         {
             var split = cleanEmbTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
@@ -727,7 +836,6 @@ public class LibraryService : IDisposable
                 var storedArtistNorm = NormalizeArtistKey(storedArtist);
                 var embArtistNorm = NormalizeArtistKey(cleanEmbArtist);
                 
-                // If left side matches known artists, or if embedded artist is missing, perform the split
                 if (leftNorm == storedArtistNorm || leftNorm == embArtistNorm || 
                     string.IsNullOrWhiteSpace(cleanEmbArtist) || cleanEmbArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                 {
@@ -737,7 +845,6 @@ public class LibraryService : IDisposable
             }
         }
 
-        // Also check if storedTitle has "Artist - Title" format and strip it for parity
         if (cleanStoredTitle.Contains(" - "))
         {
             var split = cleanStoredTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
@@ -770,8 +877,6 @@ public class LibraryService : IDisposable
             .Concat(Tokens(cleanEmbArtist))
             .ToHashSet(StringComparer.Ordinal);
 
-        // FIX: Extract featured artists, parentheticals, and brackets from the longer string
-        // and add them to the 'known' tokens so they don't cause false positives.
         var extraTokens = ExtractContextTokens(longerRaw);
         foreach(var token in extraTokens) known.Add(token);
 
@@ -783,14 +888,12 @@ public class LibraryService : IDisposable
     {
         var tokens = new List<string>();
         
-        // 1. Extract featured/collaborating artists (e.g., "ft. Jamie Foxx", "with Andrea Bocelli")
         var featureMatches = FeatureArtistRegex.Matches(rawTitle);
         foreach (Match match in featureMatches)
         {
             tokens.AddRange(Tokens(match.Groups[1].Value));
         }
 
-        // 2. Extract anything inside parentheses () or brackets [] (e.g., "(From Black Panther)")
         var bracketMatches = BracketContentRegex.Matches(rawTitle);
         foreach (Match match in bracketMatches)
         {
@@ -925,6 +1028,19 @@ public class LibraryService : IDisposable
                 continue;
             }
 
+            // Guard: never accept a swap
+            bool artistMatchesExisting = TitlesLooselyMatch(parsedArtist, track.Artist);
+            bool existingArtistUnknown = string.IsNullOrWhiteSpace(track.Artist)
+                || track.Artist == "Unknown" || track.Artist.EndsWith("- Topic");
+
+            // Only trust the split when the parsed artist agrees with what we already know.
+            if (!artistMatchesExisting && !existingArtistUnknown)
+            {
+                track.TitleForceCleaned = true;
+                _db.Update(track);
+                continue;
+            }
+
             Log.Debug("[LibraryService] Force-cleaned: '{OldTitle}' by '{OldArtist}' → '{NewTitle}' by '{NewArtist}'",
                 track.Title, track.Artist, parsedTitle, parsedArtist);
 
@@ -932,6 +1048,9 @@ public class LibraryService : IDisposable
             track.Artist = parsedArtist;
             track.TitleForceCleaned = true;
             _db.Update(track);
+            
+            UpdateFileTags(track);
+            
             cleaned++;
         }
 
