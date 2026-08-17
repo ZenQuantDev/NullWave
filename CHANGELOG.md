@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.5.1] - 16-Aug-2026
+## [0.5.2] - 17-Aug-2026
 
 ### Added
 - **Universal Action Feedback**: Toast notifications now support action buttons (e.g., "Undo" for deletions, "Retry" for failed downloads).
