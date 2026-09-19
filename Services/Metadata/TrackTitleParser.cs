@@ -22,7 +22,7 @@ public static partial class TrackTitleParser
     [GeneratedRegex(@"^(.+?)\s*(?:\/\/\/|\/\/|⧸|∞|~|〜|·|•)\s*(.+)$", RegexOptions.Compiled)]
     private static partial Regex ExoticSeparatorRegex();
 
-    private static readonly string[] Separators = { " - ", " – ", " — " };
+    private static readonly string[] Separators = { " - ", " – ", " - " };
     private static readonly string[] JunkPatterns = { "- Topic", "[Official Music Video]", "(Official Video)", "[Official Video]", "(Video)", "Official Audio" };
 
     /// <summary>

@@ -75,6 +75,9 @@ public class PlaylistService
     /// <summary>Persist metadata changes (rename, cover, folder move).</summary>
     public void UpdatePlaylist(Playlist playlist) => _db.SavePlaylist(playlist);
 
+    /// <summary>NEW: persist folder metadata (expanded/collapsed state, name edits).</summary>
+    public void UpdateFolder(PlaylistFolder folder) => _db.SavePlaylistFolder(folder);
+
     public bool AddTrack(Guid playlistId, Track track)
     {
         var playlist = GetById(playlistId);
@@ -82,6 +85,8 @@ public class PlaylistService
         if (playlist.Tracks.Any(t => t.Id == track.Id)) return false;
 
         playlist.Tracks.Add(track);
+        // NEW: Track the exact time it was added to this specific playlist
+        playlist.TrackDateAdded[track.Id] = DateTime.UtcNow;
         _db.SavePlaylist(playlist);
         return true;
     }
@@ -95,6 +100,7 @@ public class PlaylistService
         if (track == null) return false;
 
         playlist.Tracks.Remove(track);
+        playlist.TrackDateAdded.Remove(trackId); // Clean up dictionary
         _db.SavePlaylist(playlist);
         return true;
     }
@@ -106,9 +112,8 @@ public class PlaylistService
         if (fromIndex < 0 || toIndex < 0) return false;
         if (fromIndex >= playlist.Tracks.Count || toIndex >= playlist.Tracks.Count) return false;
 
-        var track = playlist.Tracks[fromIndex];
-        playlist.Tracks.RemoveAt(fromIndex);
-        playlist.Tracks.Insert(toIndex, track);
+        // UPDATED: Use ObservableCollection's native Move for single-operation UI updates
+        playlist.Tracks.Move(fromIndex, toIndex);
 
         _db.SavePlaylist(playlist);
         return true;
@@ -147,12 +152,6 @@ public class PlaylistService
     public bool NameExists(string name) =>
         _playlists.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// One-time startup integrity sweep. Merges duplicate folders (re-homing their
-    /// playlists into the kept folder) and deletes duplicate playlist rows, so a
-    /// database written by older buggy boots heals itself permanently.
-    /// </summary>
-
     public void Restore(Playlist playlist)
     {
         if (_playlists.Any(p => p.Id == playlist.Id)) return;
@@ -173,6 +172,12 @@ public class PlaylistService
             if (pl != null) { pl.FolderId = folder.Id; _db.SavePlaylist(pl); }
         }
     }
+
+    /// <summary>
+    /// One-time startup integrity sweep. Merges duplicate folders (re-homing their
+    /// playlists into the kept folder) and deletes duplicate playlist rows, so a
+    /// database written by older buggy boots heals itself permanently.
+    /// </summary>
     private void Deduplicate()
     {
         int removedFolders = 0, removedPlaylists = 0;

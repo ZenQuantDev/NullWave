@@ -62,7 +62,7 @@ public class OllamaAIProvider : IAIProvider
         }
 
         State = PluginState.Unavailable;
-        Log.Warning("[{Name}] Ollama not detected at localhost:11434 — AI features disabled", Name);
+        Log.Warning("[{Name}] Ollama not detected at localhost:11434 - AI features disabled", Name);
         return false;
     }
 

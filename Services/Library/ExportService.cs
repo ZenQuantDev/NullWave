@@ -21,11 +21,17 @@ public class ExportService
 
         foreach (var t in tracks)
         {
+            // FIX: Sanitize formula injection before RFC-4180 escaping
+            var safeTitle = CsvSafe(t.Title);
+            var safeArtist = CsvSafe(t.Artist);
+            var safeUrl = CsvSafe(t.Url);
+            var safePath = CsvSafe(t.FilePath);
+
             // RFC-4180 CSV escaping: double up internal quotes
-            var escapedTitle = t.Title?.Replace("\"", "\"\"") ?? "";
-            var escapedArtist = t.Artist?.Replace("\"", "\"\"") ?? "";
-            var escapedUrl = t.Url?.Replace("\"", "\"\"") ?? "";
-            var escapedPath = t.FilePath?.Replace("\"", "\"\"") ?? "";
+            var escapedTitle = safeTitle?.Replace("\"", "\"\"") ?? "";
+            var escapedArtist = safeArtist?.Replace("\"", "\"\"") ?? "";
+            var escapedUrl = safeUrl?.Replace("\"", "\"\"") ?? "";
+            var escapedPath = safePath?.Replace("\"", "\"\"") ?? "";
 
             sb.AppendLine($"\"{escapedTitle}\",\"{escapedArtist}\",{t.Source},\"{escapedUrl}\",\"{escapedPath}\",{t.DateAdded:yyyy-MM-dd}");
         }
@@ -37,5 +43,17 @@ public class ExportService
     {
         var json = File.ReadAllText(filePath);
         return JsonSerializer.Deserialize<List<Track>>(json) ?? new();
+    }
+
+    /// <summary>
+    /// Prevents CSV formula injection by prefixing dangerous characters with a single quote.
+    /// Characters that trigger formula interpretation in Excel: = + - @ \t \r
+    /// </summary>
+    private static string? CsvSafe(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        if ("=+-@\t\r".Contains(value[0]))
+            return "'" + value;
+        return value;
     }
 }

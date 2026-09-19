@@ -29,7 +29,7 @@ public class ToastService : INotifyPropertyChanged
 
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _timers = new();
 
-    //  Single-host routing: only ONE window renders toasts at a time 
+    //  Single-host routing: only ONE window renders toasts at a time
     private bool _settingsHostActive;
     public bool SettingsHostActive
     {
@@ -47,8 +47,9 @@ public class ToastService : INotifyPropertyChanged
     /// <summary>Called by SettingsWindow on Opened/Closed.</summary>
     public void SetActiveHost(bool settingsWindowActive) => SettingsHostActive = settingsWindowActive;
 
-    //  Dismiss-all pill 
+    //  Dismiss-all pill
     public bool ShowDismissAll => ActiveToasts.Count > 2;
+    public bool HasActiveNotifications => ActiveToasts.Count > 0;
     public RelayCommand DismissAllCommand { get; }
 
     private ToastService()
@@ -57,14 +58,18 @@ public class ToastService : INotifyPropertyChanged
         {
             foreach (var t in ActiveToasts.ToList()) Dismiss(t);
         });
-        ActiveToasts.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowDismissAll));
+        ActiveToasts.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(ShowDismissAll));
+            OnPropertyChanged(nameof(HasActiveNotifications));
+        };
     }
 
-    //  Pathway 1: static toast 
+    //  Pathway 1: static toast
     public LiveNotification ShowToast(string message, ToastType type = ToastType.Info, string title = "", string detailedMessage = "")
         => Show(message, type, 7000, title, detailedMessage);
 
-    //  Pathway 2: live activity (scope = reuse existing instead of stacking) 
+    //  Pathway 2: live activity (scope = reuse existing instead of stacking)
     public LiveNotification StartLiveActivity(string title, string initialMessage, bool isIndeterminate = true, string? scope = null)
     {
         if (scope != null)
@@ -140,7 +145,7 @@ public class ToastService : INotifyPropertyChanged
         ScheduleDismiss(notification, lingerMs);
     }
 
-    //  Pathway 3: grouped + actionable toast 
+    //  Pathway 3: grouped + actionable toast
     public LiveNotification Show(
         string message, ToastType type = ToastType.Info, int durationMs = 4000,
         string title = "", string detailedMessage = "",
@@ -157,10 +162,22 @@ public class ToastService : INotifyPropertyChanged
             ShowProgressBar = false
         };
 
-        notification.Title = string.IsNullOrWhiteSpace(title) ? type.ToString() : title;
+        // Live-update semantics: a scoped call NEVER spawns a second toast.
+        // Keep the live activity's title; only new toasts fall back to the type name.
+        if (!string.IsNullOrWhiteSpace(title)) notification.Title = title;
+        else if (existing == null) notification.Title = type.ToString();
+
         notification.Message = message;
         notification.DetailedMessage = detailedMessage;
         notification.Type = type;
+
+        // Reusing a live activity = completion: finalize its progress bar.
+        if (existing != null && existing.IsLiveActivity)
+        {
+            existing.IsIndeterminate = false;
+            existing.ProgressValue = 100;
+            existing.IsCompleted = true;
+        }
 
         if (!string.IsNullOrEmpty(actionText) && actionCallback != null)
         {
@@ -179,7 +196,7 @@ public class ToastService : INotifyPropertyChanged
         return notification;
     }
 
-    //  Hover-pause 
+    //  Hover-pause
     public void PauseAutoDismiss(LiveNotification n)
     {
         if (_timers.TryGetValue(n.Id, out var cts)) cts.Cancel();
@@ -187,7 +204,7 @@ public class ToastService : INotifyPropertyChanged
 
     public void ResumeAutoDismiss(LiveNotification n, int ms = 4000) => ScheduleDismiss(n, ms);
 
-    //  Internals 
+    //  Internals
     private void AddToast(LiveNotification n)
     {
         void Add() { ActiveToasts.Add(n); EnforceCap(); }
@@ -199,8 +216,10 @@ public class ToastService : INotifyPropertyChanged
     {
         while (ActiveToasts.Count > MaxVisibleToasts)
         {
-            var victim = ActiveToasts.FirstOrDefault(t => !t.IsLiveActivity) ?? ActiveToasts[0];
-            if (victim != null) Dismiss(victim);
+            var victim = ActiveToasts.FirstOrDefault(t => !t.IsLiveActivity && !t.IsDismissing)
+                ?? ActiveToasts.FirstOrDefault(t => !t.IsDismissing);
+            if (victim == null) break;
+            Dismiss(victim);
         }
     }
 
@@ -218,15 +237,23 @@ public class ToastService : INotifyPropertyChanged
 
     public void Dismiss(LiveNotification notification)
     {
-        if (notification == null) return;
+        if (notification == null || notification.IsDismissing) return;
         if (_timers.TryRemove(notification.Id, out var cts)) cts.Cancel();
 
-        void Remove()
+        void BeginExit() => notification.IsDismissing = true;
+        if (Dispatcher.UIThread.CheckAccess()) BeginExit();
+        else Dispatcher.UIThread.Post(BeginExit);
+
+        _ = Task.Run(async () =>
         {
-            if (ActiveToasts.Contains(notification)) ActiveToasts.Remove(notification);
-        }
-        if (Dispatcher.UIThread.CheckAccess()) Remove();
-        else Dispatcher.UIThread.Post(Remove);
+            await Task.Delay(220);
+            void Remove()
+            {
+                if (ActiveToasts.Contains(notification)) ActiveToasts.Remove(notification);
+            }
+            if (Dispatcher.UIThread.CheckAccess()) Remove();
+            else Dispatcher.UIThread.Post(Remove);
+        });
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

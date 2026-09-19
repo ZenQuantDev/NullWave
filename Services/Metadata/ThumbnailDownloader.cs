@@ -36,6 +36,12 @@ public static class ThumbnailDownloader
 
             await File.WriteAllBytesAsync(artPath, bytes);
             Log.Information("Thumbnail saved: {Path}", artPath);
+
+            // Square-crop the freshly downloaded thumbnail to eliminate YouTube's
+            // baked-in 4:3 letterbox bars. Idempotent: already-square files are left
+            // untouched by ThumbnailCropper.
+            ThumbnailCropper.CropFileToSquare(artPath);
+
             return artPath;
         }
         catch (Exception ex)

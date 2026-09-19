@@ -32,7 +32,7 @@ public record UpdateAsset(string Name, string Url);
 public class UpdateService
 {
     private const string ApiUrl =
-        "https://api.github.com/repos/Alexsandrgardaphadze/NullWave/releases/latest";
+        "https://api.github.com/repos/ZenQuantDev/NullWave/releases/latest";
     private readonly HttpClient _http;
 
     public UpdateService()
@@ -135,8 +135,8 @@ public class UpdateService
             await src.CopyToAsync(dst);
 
         // FIX: Security Polish - Verify Hash if available
-        // Note: GitHub API doesn't provide SHA256 natively in the asset object, 
-        // but if it were appended to the release notes or fetched from a manifest, 
+        // Note: GitHub API doesn't provide SHA256 natively in the asset object,
+        // but if it were appended to the release notes or fetched from a manifest,
         // you would verify it here. For now, we ensure the file is fully written and valid.
         var fileInfo = new FileInfo(zip);
         if (!fileInfo.Exists || fileInfo.Length == 0)
@@ -162,12 +162,12 @@ public class UpdateService
             rm -f "$2"
             "$3/NullWave" &
             """);
-            
+
         if (!OperatingSystem.IsWindows())
         {
             try
             {
-                File.SetUnixFileMode(sh, 
+                File.SetUnixFileMode(sh,
                     UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
@@ -198,7 +198,7 @@ public class UpdateService
                 $"-ExecutionPolicy Bypass -File \"{Path.Combine(staging, "update.ps1")}\" {pid} \"{zip}\" \"{dir}\"")
             : new ProcessStartInfo("/bin/sh",
                 $"\"{Path.Combine(staging, "update.sh")}\" {pid} \"{zip}\" \"{dir}\"");
-                
+
         psi.UseShellExecute = false;
         Process.Start(psi);
         Environment.Exit(0);

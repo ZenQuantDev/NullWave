@@ -14,7 +14,7 @@ public class PreferencesService : IDisposable
     private readonly string _prefsPath;
     private Preferences _prefs;
     
-    // FIX: Replaced Timer with CancellationTokenSource for robust thread-safe shutdown
+    // Replaced Timer with CancellationTokenSource for robust thread-safe shutdown
     private CancellationTokenSource? _debounceCts;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(2);
     private readonly object _saveLock = new object();

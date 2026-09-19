@@ -339,7 +339,7 @@ public class LastFmService
             artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
             artist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
         {
-            Log.Debug("[LastFm] Scrobble skipped — missing or unknown artist for '{Title}'", title);
+            Log.Debug("[LastFm] Scrobble skipped - missing or unknown artist for '{Title}'", title);
             return false;
         }
 

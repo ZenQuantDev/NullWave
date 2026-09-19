@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NullWave.Helpers;
+using NullWave.Services.Security;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
@@ -49,7 +50,7 @@ public class StartupDiagnosticsService
         var sep = new string('━', 51);
         NullActionLogger.StartupLine(sep);
 
-        //  1. App identity 
+        //  1. App identity
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion ?? "unknown";
@@ -61,7 +62,7 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine(
             $"NullWave v{version} | {runtime} | OS: {os}");
 
-        //  2. Library load 
+        //  2. Library load
         var sw = Stopwatch.StartNew();
         var allTracks = _library.GetAll();
         sw.Stop();
@@ -71,7 +72,7 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine(
             $"Library: {allTracks.Count} tracks | DB: {dbPath} | Load: {sw.ElapsedMilliseconds}ms");
 
-        //  3. API key status 
+        //  3. API key status
         foreach (var key in KeyNames)
         {
             string status;
@@ -88,17 +89,17 @@ public class StartupDiagnosticsService
             NullActionLogger.StartupLine($"Key: {key,-20}→ {status}");
         }
 
-        //  4. Internet connectivity 
+        //  4. Internet connectivity
         await CheckConnectivityAsync();
 
-        //  5. Tool versions 
+        //  5. Tool versions
         await LogToolVersionAsync("vlc", "--version", "VLC");
         await LogToolVersionAsync("yt-dlp", "--version", "yt-dlp");
 
         NullActionLogger.StartupLine(sep);
     }
 
-    //  Helpers 
+    //  Helpers
 
     private static async Task CheckConnectivityAsync()
     {
@@ -127,7 +128,12 @@ public class StartupDiagnosticsService
     {
         try
         {
-            var exe = PlatformHelper.ResolveExecutable(command);
+            var vlcDirectory = command.Equals("vlc", StringComparison.OrdinalIgnoreCase)
+                ? PlatformHelper.ResolveVlcDirectory()
+                : null;
+            var exe = vlcDirectory == null
+                ? PlatformHelper.ResolveExecutable(command)
+                : Path.Combine(vlcDirectory, "vlc.exe");
             var psi = new ProcessStartInfo(exe, versionArg)
             {
                 RedirectStandardOutput = true,
@@ -140,13 +146,14 @@ public class StartupDiagnosticsService
                 NullActionLogger.StartupLine($"{displayName,-20}→ not found");
                 return;
             }
-            var output = await proc.StandardOutput.ReadLineAsync()
-                         ?? await proc.StandardError.ReadLineAsync()
-                         ?? "unknown";
+            var standardOutputTask = proc.StandardOutput.ReadToEndAsync();
+            var standardErrorTask = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
+            var output = await standardOutputTask;
+            var error = await standardErrorTask;
 
-            // Take only first line, trim it
-            var ver = output.Split('\n')[0].Trim();
+            var ver = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();
+            if (string.IsNullOrWhiteSpace(ver)) ver = "unknown";
             NullActionLogger.StartupLine($"{displayName,-20}→ {ver}");
         }
         catch

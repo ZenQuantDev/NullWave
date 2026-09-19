@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services;
@@ -28,11 +29,6 @@ public class SpotifyBridgeService
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave/1.0");
     }
 
-    /// <summary>
-    /// Given a Spotify track URL, fetch its title+artist from Spotify's
-    /// oEmbed endpoint (no API key needed), then search YouTube for it.
-    /// TODO: Add caching to avoid redundant network round-trips for the same track.
-    /// </summary>
     public async Task<SpotifyBridgeResult> BridgeAsync(string spotifyUrl)
     {
         var (title, artist) = await FetchSpotifyMetaAsync(spotifyUrl);
@@ -83,9 +79,16 @@ public class SpotifyBridgeService
     {
         try
         {
-            var psi = new ProcessStartInfo("yt-dlp",
-                $"--no-download --print \"%(title)s\" --print \"%(artist)s\" \"{spotifyUrl}\"")
+            // FIX: Use ArgumentList to prevent argument injection
+            var psi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
+                ArgumentList =
+                {
+                    "--no-download",
+                    "--print", "%(title)s",
+                    "--print", "%(artist)s",
+                    spotifyUrl
+                },
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
@@ -162,9 +165,16 @@ public class SpotifyBridgeService
         try
         {
             var query = $"ytsearch1:{title} {artist} official audio";
-            var psi   = new ProcessStartInfo("yt-dlp",
-                $"--no-download --print id --print title \"{query}\"")
+            // FIX: Use ArgumentList to prevent argument injection
+            var psi   = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
+                ArgumentList =
+                {
+                    "--no-download",
+                    "--print", "id",
+                    "--print", "title",
+                    query
+                },
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
