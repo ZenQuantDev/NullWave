@@ -4,7 +4,7 @@ namespace NullWave.Models;
 
 /// <summary>
 /// Persisted shape of a user-pinned nav item. Mirrors the subset of NavItem
-/// that's actually serializable — commands and UI state live only on NavItem.
+/// that's actually serializable - commands and UI state live only on NavItem.
 /// </summary>
 public class PinnedItemData
 {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace NullWave.Models;
@@ -18,11 +18,12 @@ public class Preferences
     public bool ScrobbleToLastFm { get; set; } = true;
     public bool AutoCleanMetadata { get; set; } = true;
     public bool PreventDuplicateDownloads { get; set; } = true;
-    public string AccentColor    { get; set; } = "Blue Orchid";
+    public string AccentColor    { get; set; } = "Oxeye Daisy";
     public string TrackRowStyle  { get; set; } = "Comfortable";
     public string FontScale      { get; set; } = "Medium";
     public bool   CompactMode    { get; set; } = false;
     public string SidebarWidth   { get; set; } = "Normal";
+    public string ProfileFrameStyle { get; set; } = "None";
     public string SelectedAIModel { get; set; } = "qwen2.5:7b";
     public bool   UseLocalAI      { get; set; } = true;
     public double Latitude        { get; set; } = 0.0;
@@ -41,7 +42,7 @@ public class Preferences
     public bool AIFeaturesEnabled { get; set; } = true;
     public bool FadeOnPauseEnabled { get; set; } = true;
     public int FadeOnPauseDurationMs { get; set; } = 300;
-    public bool CrossfadeEnabled { get; set; } = true;
+    public bool CrossfadeEnabled { get; set; } = false;
     public int CrossfadeDurationSeconds { get; set; } = 5;
     public bool UseAria2c { get; set; } = false;
     public bool VerboseLogging { get; set; } = false;
@@ -58,4 +59,14 @@ public class Preferences
     public bool QueueManualInsertAtBlockEnd { get; set; } = true;
     public bool SidebarCollapsed { get; set; } = false;
     public string LastPage { get; set; } = "Library";
+    public bool HasCompletedOnboarding { get; set; } = false;
+    public bool SettingsSidebarCollapsed { get; set; } = false;
+    public string Language { get; set; } = "en-US";
+    public string ProfileBannerColor { get; set; } = "accent";
+    public bool EnableTrackSharing { get; set; } = false;
+    public bool EnableAutoBackups { get; set; } = true;
+    public int BackupRetentionCount { get; set; } = 3;
+    public bool AutoResumeAudiobooks { get; set; } = true;
+    public float AudiobookPlaybackRate { get; set; } = 1.0f;
+    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "System"
 }
