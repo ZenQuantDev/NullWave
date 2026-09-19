@@ -138,18 +138,28 @@ public class TrackDetailViewModel : ViewModelBase
 
     public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
     public string DisplayUrl => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
-    public string DisplaySource => _currentTrack?.Source.ToString() ?? "-";
+    
+    // MediaType-aware: radio stations are stored as Source=Unknown by design
+    // (the Source enum drives sidebar filters), so the display layer derives
+    // the human label from MediaType. Same for audiobooks.
+    public string DisplaySource => _currentTrack?.MediaType switch
+    {
+        MediaType.Radio     => "Live",
+        MediaType.Audiobook => "Audiobook",
+        _ => _currentTrack?.Source.ToString() ?? "-"
+    };
     public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
     public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
-    
+    public string DisplayDuration => _currentTrack?.DisplayDuration ?? "-";
+
     public string DisplaySkipWeight
     {
         get
         {
             if (_currentTrack == null) return "0";
             var skipCount = _currentTrack.SkipCount;
-            
+
             if (_currentTrack.LastSkipped.HasValue && _currentTrack.LastSkipped.Value != DateTime.MinValue)
             {
                 var daysSinceLastSkip = (DateTime.UtcNow - _currentTrack.LastSkipped.Value).TotalDays;
@@ -227,6 +237,7 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplaySkipWeight));
         OnPropertyChanged(nameof(DisplayLastSkipped));
         OnPropertyChanged(nameof(IsFavorite));
+        OnPropertyChanged(nameof(DisplayDuration));
     }
 
     private void Save()
@@ -242,7 +253,7 @@ public class TrackDetailViewModel : ViewModelBase
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
 
         _library.Update(_currentTrack);
-        
+
         // NEW: Write manual edits back to the physical audio file
         _library.UpdateFileTags(_currentTrack);
 
@@ -282,32 +293,20 @@ public class TrackDetailViewModel : ViewModelBase
     {
         if (_isCopying) return;
 
-        var url = _currentTrack?.Url ?? _currentTrack?.FilePath;
-        if (string.IsNullOrEmpty(url)) return;
-
         try
         {
             _isCopying = true;
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
+
+            if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack))
             {
-                var clipboard = desktop.MainWindow.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                    CopyStatus = "Copied!";
-                    await Task.Delay(2000);
-                    Log.Debug("URL copied to clipboard: {Url}", url);
-                    return;
-                }
+                CopyStatus = "Copied!";
+                await Task.Delay(2000);
             }
-            CopyStatus = "Failed";
-            await Task.Delay(2000);
-        }
-        catch (Exception ex)
-        {
-            NullActionLogger.Error("TrackDetailViewModel", ex, "Failed to copy target details locator route asset down to platform window clipboard space layout context.");
-            CopyStatus = "Failed";
-            await Task.Delay(2000);
+            else
+            {
+                CopyStatus = "Failed";
+                await Task.Delay(2000);
+            }
         }
         finally
         {
@@ -358,7 +357,7 @@ public class TrackDetailViewModel : ViewModelBase
         var trackId = track.Id;
         IsLoadingArtistInfo = true;
 
-        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist;
+        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
 
         LastFmArtistInfo? info = null;
         if (_plugins.Get<LastFmMetadataProvider>() is { } provider)

@@ -27,6 +27,7 @@ public class QueueViewModel : ViewModelBase
 
     public double PanelWidth => _isOpen ? 320 : 0;
     public double PanelOpacity => _isOpen ? 1.0 : 0.0;
+    public bool HasTracks => Tracks.Count > 0;
 
     public BulkObservableCollection<QueueEntry> Tracks { get; } = new();
 
@@ -86,7 +87,11 @@ public class QueueViewModel : ViewModelBase
         _library.MoveQueueItem(oldIndex, newIndex);
     }
 
-    private void Refresh() => Tracks.ReplaceAll(_library.GetQueue());
+    private void Refresh()
+    {
+        Tracks.ReplaceAll(_library.GetQueue());
+        OnPropertyChanged(nameof(HasTracks));
+    }
 
     private void Move(Track? track, int delta)
     {

@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,13 +25,12 @@ public partial class PluginRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEnabled;
 
-    public string StatusDotColor => State switch
+    public IBrush StatusDotBrush => State switch
     {
-        PluginState.Available => "#4CAF50",
-        PluginState.Loading   => "#FCD34D",
-        PluginState.Error     => "#F44336",
-        PluginState.Disabled  => "#6B7280",
-        _                     => "#6B7280" // Unavailable
+        PluginState.Available => (IBrush)Application.Current!.Resources["BrushGreen"]!,
+        PluginState.Loading   => (IBrush)Application.Current!.Resources["BrushAmber"]!,
+        PluginState.Error     => (IBrush)Application.Current!.Resources["BrushRed"]!,
+        _                     => (IBrush)Application.Current!.Resources["BrushTextMuted"]!
     };
 
     public PluginRowViewModel(IPlugin plugin, Action<bool> persistToggle)
@@ -52,7 +53,7 @@ public partial class PluginRowViewModel : ObservableObject
         var wasEnabled = _plugin.IsEnabled;
         await _plugin.InitializeAsync();
         State = _plugin.State;
-        OnPropertyChanged(nameof(StatusDotColor));
+        OnPropertyChanged(nameof(StatusDotBrush));
 
         // Only notify if the user just enabled it (disabling is self-evident by the gray dot)
         if (!wasEnabled) return;
@@ -60,7 +61,7 @@ public partial class PluginRowViewModel : ObservableObject
         var message = State switch
         {
             PluginState.Available => $"{Name} connected successfully.",
-            PluginState.Error     => $"{Name} failed to connect — check configuration.",
+            PluginState.Error     => $"{Name} failed to connect - check configuration.",
             PluginState.Unavailable => $"{Name} is unavailable right now.",
             _ => null
         };
