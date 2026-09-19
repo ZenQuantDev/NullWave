@@ -17,7 +17,12 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-        ThemeService.Instance.Initialize(new PreferencesService().Current);
+        var prefs = new PreferencesService().Current;
+
+        // Initialize localization with saved preference BEFORE ThemeService
+        LocalizationService.Instance.Initialize(prefs.Language);
+
+        ThemeService.Instance.Initialize(prefs);
         RegisterAntiCrashSystem();
     }
 
@@ -25,7 +30,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             desktop.MainWindow = new MainWindow();
-            
+
         base.OnFrameworkInitializationCompleted();
     }
 
@@ -34,10 +39,8 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
             var exception = e.Exception.InnerException ?? e.Exception;
-            
-            // FIX: Only swallow known network timeouts or cancellation exceptions.
-            // Let critical memory/state exceptions crash the app so they can be logged properly.
-            if (exception is TaskCanceledException || 
+
+            if (exception is TaskCanceledException ||
                 exception is OperationCanceledException ||
                 exception is HttpRequestException ||
                 exception is SocketException ||
@@ -51,7 +54,6 @@ public partial class App : Application
             {
                 Log.Fatal(exception, "Anti-Crash: CRITICAL unobserved async task exception. App state may be corrupted.");
                 NullActionLogger.Error("Global_CriticalCore", exception, "Fatal background async loop exception intercepted. Allowing crash.");
-                // Do NOT set observed. Let the runtime crash the app to prevent data corruption.
             }
         };
 
@@ -61,7 +63,7 @@ public partial class App : Application
             {
                 Log.Fatal(exception, "Anti-Crash: Critical unhandled domain exception. IsTerminating: {IsTerminating}", e.IsTerminating);
                 NullActionLogger.Error("Global_CriticalCore", exception, $"Fatal application boundary crash intercepted. IsTerminating={e.IsTerminating}");
-                
+
                 if (e.IsTerminating)
                     Log.Information("NullWave is shutting down due to a fatal environment failure. Emergency cleanup executed.");
             }

@@ -2,12 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:controls="using:NullWave.Views.Controls"
+             xmlns:converters="using:NullWave.Helpers.Converters"
              xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-             x:Class="NullWave.App"
-             RequestedThemeVariant="Dark">
+             x:Class="NullWave.App">
 
     <Application.Resources>
         <ResourceDictionary>
+            <!-- Globally available converters to prevent Flyout/Dialog KeyNotFoundExceptions -->
+            <converters:BoolNegationConverter x:Key="BoolNegation"/>
+            <converters:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+            
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://NullWave/Themes/Colors.axaml"/>
                 <ResourceInclude Source="avares://NullWave/Themes/Typography.axaml"/>
@@ -19,7 +23,6 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://NullWave/Themes/ControlStyles.axaml"/>
-        
         <materialIcons:MaterialIconStyles />
     </Application.Styles>
 </Application>
