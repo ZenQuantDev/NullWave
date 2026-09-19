@@ -98,6 +98,9 @@ public class ImportViewModel : ViewModelBase
                     Source = TrackSource.Local,
                     Duration = duration
                 };
+                var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(filePath);
+                track.Album = album;
+                track.TrackNumber = trackNum;
 
                 if (!_library.IsDuplicate(track))
                 {
@@ -121,7 +124,7 @@ public class ImportViewModel : ViewModelBase
 
             stopwatch.Stop();
             ToastService.Instance.CompleteLiveActivity(
-                activity, $"Import complete — {added} added, {skipped} skipped (duplicates).");
+                activity, $"Import complete - {added} added, {skipped} skipped (duplicates).");
 
             NullActionLogger.ImportCompleted(folderPath, $"{added} tracks added", stopwatch.ElapsedMilliseconds, "ImportViewModel");
             Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}", added, skipped, folderPath);

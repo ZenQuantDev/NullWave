@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
+using System.IO;
+using System.Linq;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Integration;
 using NullWave.ViewModels.Base;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
 using Serilog;
 
 namespace NullWave.ViewModels;
@@ -46,6 +47,7 @@ public class TrackInputViewModel : ViewModelBase
     public event Action? TrackAdded;
     public event Action? TrackMetadataUpdated;
     public event Action<string>? PlaylistImportRequested;
+    public event Action<string, IReadOnlyList<RadioChannel>>? RadioSiteRequested;
 
     private string? _lastFetchedThumbnail;
 
@@ -77,7 +79,8 @@ public class TrackInputViewModel : ViewModelBase
             OnPropertyChanged(nameof(IsInputUrlValid));
             SelectedSource = SourceDetector.Detect(value);
 
-            if (_urlParser.IsValidUrl(value) && value != _lastFetchedUrl)
+            if (_urlParser.IsValidUrl(value) && value != _lastFetchedUrl
+                && DetectMediaType(value) != MediaType.Radio)
             {
                 _lastFetchedUrl = value;
                 _ = FetchMetadataAsync(value);
@@ -157,7 +160,7 @@ public class TrackInputViewModel : ViewModelBase
 
     private bool IsYouTubePlaylist(string url)
     {
-        return url.Contains("list=", StringComparison.OrdinalIgnoreCase) || 
+        return url.Contains("list=", StringComparison.OrdinalIgnoreCase) ||
                url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -176,6 +179,15 @@ public class TrackInputViewModel : ViewModelBase
         if (IsYouTubePlaylist(url))
         {
             PlaylistImportRequested?.Invoke(url);
+            ClearInputs();
+            IsUrlInputVisible = false;
+            return;
+        }
+
+        // Known multi-stream radio sites need station selection instead of a dummy track.
+        if (RadioStationCatalog.TryGetChannels(url, out var stationName, out var channels))
+        {
+            RadioSiteRequested?.Invoke(stationName, channels);
             ClearInputs();
             IsUrlInputVisible = false;
             return;
@@ -207,8 +219,12 @@ public class TrackInputViewModel : ViewModelBase
                     Artist = InputArtist.Trim().Length > 0 ? InputArtist.Trim() : a,
                     FilePath = url,
                     Source = TrackSource.Local,
-                    Duration = duration
+                    Duration = duration,
+                    MediaType = _metadata.DetectLocalMediaType(url)
                 };
+                var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(url);
+                track.Album = album;
+                track.TrackNumber = trackNum;
                 _library.Add(track);
                 NullActionLogger.TrackAdded(track.Id.ToString(), url, nameof(TrackInputViewModel));
                 ClearInputs();
@@ -231,16 +247,18 @@ public class TrackInputViewModel : ViewModelBase
         }
 
         var usedFallbackTitle = string.IsNullOrWhiteSpace(providedTitle);
-        
+
         // FIX: Prevent raw URLs from being saved as titles by using source-aware fallbacks
         var fallbackTitle = SelectedSource switch
         {
             TrackSource.SoundCloud => "SoundCloud track",
             TrackSource.YouTube    => "YouTube track",
             TrackSource.Spotify    => "Spotify track",
-            _                      => StripQueryStringForDisplay(url)
+            _                      => DetectMediaType(url) == MediaType.Radio
+                ? FriendlyRadioName(url)
+                : StripQueryStringForDisplay(url)
         };
-        
+
         var title = usedFallbackTitle ? fallbackTitle : providedTitle;
         var source = SelectedSource;
 
@@ -250,6 +268,7 @@ public class TrackInputViewModel : ViewModelBase
             Artist       = InputArtist.Trim(),
             Url          = url,
             Source       = source,
+            MediaType    = DetectMediaType(url),
             AlbumArtPath = _lastFetchedThumbnail
         };
 
@@ -275,6 +294,27 @@ public class TrackInputViewModel : ViewModelBase
         }
     }
 
+    private static MediaType DetectMediaType(string url)
+    {
+        var value = url.ToLowerInvariant();
+        if (value.EndsWith(".m3u8") || value.EndsWith(".m3u") || value.EndsWith(".pls") ||
+            value.Contains("icecast") || value.Contains("/stream") || value.Contains("radio") ||
+            RadioStationCatalog.TryGetChannels(url, out _, out _))
+            return MediaType.Radio;
+
+        if (value.Contains("audiobook") || value.Contains("librivox") || value.Contains("spoken word") ||
+            value.Contains("full book") || value.Contains("archive.org/details/audiobook"))
+            return MediaType.Audiobook;
+        return MediaType.Music;
+    }
+
+    private static string FriendlyRadioName(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var u)
+            ? u.Host.Replace("www.", "")
+            : url;
+    }
+
     private async Task FetchMetadataAsync(string url)
     {
         if (!_fetchesInFlight.Add(url))
@@ -287,8 +327,8 @@ public class TrackInputViewModel : ViewModelBase
         IsFetching = true;
         try
         {
-            var (title, artist, thumbnail) = await _metadata.FetchFromUrlAsync(url);
-            
+            var (title, artist, thumbnail, duration) = await _metadata.FetchFromUrlAsync(url);
+
             if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
             if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
             _lastFetchedThumbnail = thumbnail;
@@ -314,6 +354,9 @@ public class TrackInputViewModel : ViewModelBase
 
                 if (string.IsNullOrEmpty(existing.AlbumArtPath) && thumbnail != null)
                     existing.AlbumArtPath = thumbnail;
+
+                if (existing.Duration == TimeSpan.Zero && duration > TimeSpan.Zero)
+                    existing.Duration = duration;
 
                 _library.Update(existing);
                 Avalonia.Threading.Dispatcher.UIThread.Post(
@@ -366,8 +409,12 @@ public class TrackInputViewModel : ViewModelBase
             Artist = artist,
             FilePath = filePath,
             Source = TrackSource.Local,
-            Duration = duration
+            Duration = duration,
+            MediaType = _metadata.DetectLocalMediaType(filePath)
         };
+        var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(filePath);
+        track.Album = album;
+        track.TrackNumber = trackNum;
 
         _library.Add(track);
         NullActionLogger.TrackAdded(track.Id.ToString(), filePath, nameof(TrackInputViewModel));
@@ -389,8 +436,12 @@ public class TrackInputViewModel : ViewModelBase
                 Artist = a,
                 FilePath = file,
                 Source = TrackSource.Local,
-                Duration = duration
+                Duration = duration,
+                MediaType = _metadata.DetectLocalMediaType(file)
             };
+            var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(file);
+            track.Album = album;
+            track.TrackNumber = trackNum;
             _library.Add(track);
             NullActionLogger.TrackAdded(track.Id.ToString(), file, nameof(TrackInputViewModel));
         }

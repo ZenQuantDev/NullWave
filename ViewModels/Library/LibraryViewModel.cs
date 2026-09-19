@@ -25,6 +25,17 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _stateCts;
     private CancellationTokenSource? _aiPromptCts;
     private string? _selectedArtistFilter;
+    private MediaType? _mediaTypeFilter;
+    private List<Track> _currentSelection = new();
+
+    /// <summary>Media types hidden when no explicit MediaTypeFilter is set (used by the Library tab).</summary>
+    public HashSet<MediaType> ExcludedMediaTypes { get; } = new();
+
+    public MediaType? MediaTypeFilter
+    {
+        get => _mediaTypeFilter;
+        set { _mediaTypeFilter = value; Refresh(); }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSearchQuery))]
@@ -77,11 +88,19 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsSpotifyFilter))]
     private TrackSource? _activeSourceFilter = null;
 
+    // Multi-select state (drives the floating bulk action bar)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMultiSelection))]
+    [NotifyPropertyChangedFor(nameof(SelectionCountLabel))]
+    private int _selectionCount;
+
+    public bool HasMultiSelection => SelectionCount > 1;
+    public string SelectionCountLabel => $"{SelectionCount} selected";
+
     public enum LibraryView { All, Favorites, Recent, Source }
 
     public BulkObservableCollection<Track> Tracks { get; } = new();
     public Array SortOptions => Enum.GetValues(typeof(SortField));
-
     public bool IsFavoritesView => CurrentView == LibraryView.Favorites;
     public bool IsRecentView => CurrentView == LibraryView.Recent;
     public bool IsYouTubeFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.YouTube;
@@ -89,15 +108,15 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsSoundCloudFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.SoundCloud;
     public bool IsLocalFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Local;
     public bool IsSpotifyFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Spotify;
-    
+
     public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery) || !string.IsNullOrEmpty(_selectedArtistFilter);
-    
+
     public bool IsSortedByTitle => CurrentSort == SortField.Title;
     public bool IsSortedByArtist => CurrentSort == SortField.Artist;
     public bool IsSortedBySource => CurrentSort == SortField.Source;
     public bool IsSortedByPlayCount => CurrentSort == SortField.PlayCount;
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
-    
+
     public string ResultCountLabel => Tracks.Count == 1 ? "1 track" : $"{Tracks.Count} tracks";
 
     public ObservableCollection<ArtistGroup> ArtistGroups { get; } = new();
@@ -105,6 +124,8 @@ public partial class LibraryViewModel : ObservableObject
     public event Action<Track>? TrackDetailRequested;
     public event Action<Track>? PlayTrackRequested;
     public event Action<string, System.Collections.Generic.List<Track>>? AiPlaylistRequested;
+    public event Action<List<Track>>? BulkAddToPlaylistRequested;
+    public event Action<Track>? AddToPlaylistRequested;
 
     public LibraryViewModel(LibraryService library, LocalAIService localAI)
     {
@@ -112,6 +133,12 @@ public partial class LibraryViewModel : ObservableObject
         _localAI = localAI;
         TriggerRefresh(debounce: false);
         RefreshArtistGroups();
+    }
+
+    public void UpdateSelection(IEnumerable<Track> selected)
+    {
+        _currentSelection = selected?.ToList() ?? new List<Track>();
+        SelectionCount = _currentSelection.Count;
     }
 
     public void RefreshArtistGroups()
@@ -153,10 +180,10 @@ public partial class LibraryViewModel : ObservableObject
         TriggerRefresh(debounce: false);
     }
 
-    partial void OnSearchQueryChanged(string value) 
+    partial void OnSearchQueryChanged(string value)
     {
         _selectedArtistFilter = null;
-        
+
         // FIX: Wrap Cancel/Dispose in try-catch to handle race condition
         // where the background AI task disposes the CTS before we can cancel it
         try
@@ -173,7 +200,7 @@ public partial class LibraryViewModel : ObservableObject
         {
             _aiPromptCts = new CancellationTokenSource();
             var token = _aiPromptCts.Token;
-            
+
             _ = Task.Run(async () =>
             {
                 try
@@ -192,7 +219,7 @@ public partial class LibraryViewModel : ObservableObject
             TriggerRefresh(debounce: true);
         }
     }
-    
+
     partial void OnCurrentSortChanged(SortField value) => TriggerRefresh(debounce: false);
     partial void OnSortAscendingChanged(bool value) => TriggerRefresh(debounce: false);
     partial void OnCurrentViewChanged(LibraryView value) => TriggerRefresh(debounce: false);
@@ -222,6 +249,7 @@ public partial class LibraryViewModel : ObservableObject
         bool ascending = SortAscending;
         LibraryView view = CurrentView;
         TrackSource? filter = ActiveSourceFilter;
+        MediaType? mediaTypeFilter = MediaTypeFilter;
 
         _ = Task.Run(async () =>
         {
@@ -232,7 +260,7 @@ public partial class LibraryViewModel : ObservableObject
                     await Task.Delay(300, token);
                 }
 
-                var (results, wasSearch) = FetchLibraryDataInternal(query, artistFilter, sort, ascending, view, filter);
+                var (results, wasSearch) = FetchLibraryDataInternal(query, artistFilter, sort, ascending, view, filter, mediaTypeFilter);
 
                 if (token.IsCancellationRequested) return;
 
@@ -247,7 +275,12 @@ public partial class LibraryViewModel : ObservableObject
 
                     if (previousSelectedId.HasValue)
                     {
-                        SelectedTrack = Tracks.FirstOrDefault(t => t.Id == previousSelectedId.Value);
+                        var newSelected = Tracks.FirstOrDefault(t => t.Id == previousSelectedId.Value);
+                        if (newSelected != null)
+                        {
+                            SelectedTrack = null;
+                            SelectedTrack = newSelected;
+                        }
                     }
 
                     if (wasSearch)
@@ -349,7 +382,7 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     private (IEnumerable<Track> Results, bool WasSearchExecuted) FetchLibraryDataInternal(
-        string? query, string? artistFilter, SortField sort, bool ascending, LibraryView view, TrackSource? filter)
+        string? query, string? artistFilter, SortField sort, bool ascending, LibraryView view, TrackSource? filter, MediaType? mediaTypeFilter)
     {
         IEnumerable<Track> baseSet = view switch
         {
@@ -377,6 +410,11 @@ public partial class LibraryViewModel : ObservableObject
             wasSearch = true;
         }
 
+        if (mediaTypeFilter.HasValue)
+            baseSet = baseSet.Where(t => t.MediaType == mediaTypeFilter.Value);
+        else if (ExcludedMediaTypes.Count > 0)
+            baseSet = baseSet.Where(t => !ExcludedMediaTypes.Contains(t.MediaType));
+
         IEnumerable<Track> sorted = sort switch
         {
             SortField.Title      => baseSet.OrderBy(t => t.Title).ThenBy(t => t.Artist),
@@ -403,6 +441,12 @@ public partial class LibraryViewModel : ObservableObject
             CurrentView = LibraryView.Source;
             ActiveSourceFilter = source;
         }
+    }
+
+    public void ShowAll()
+    {
+        CurrentView = LibraryView.All;
+        ActiveSourceFilter = null;
     }
 
     [RelayCommand]
@@ -435,13 +479,111 @@ public partial class LibraryViewModel : ObservableObject
         );
     }
 
-    [RelayCommand]
-    private async Task ToggleFavoriteAsync()
-    {
-        if (SelectedTrack == null) return;
+    //  BULK ACTIONS (multi-select)
 
-        Guid targetId = SelectedTrack.Id;
-        bool expectedNewState = !SelectedTrack.IsFavorite;
+    [RelayCommand]
+    private async Task BulkRemoveAsync()
+    {
+        var targets = _currentSelection.ToList();
+        if (targets.Count == 0) return;
+
+        await Task.Run(() =>
+        {
+            foreach (var t in targets) _library.Remove(t.Id);
+        });
+
+        NullActionLogger.User("BulkRemove", $"count={targets.Count}", "LibraryViewModel");
+        TriggerRefresh(debounce: false);
+
+        ToastService.Instance.Show(
+            message: $"Removed {targets.Count} track(s)",
+            type: ToastType.Warning,
+            durationMs: 6000,
+            actionText: "Undo",
+            actionCallback: () =>
+            {
+                foreach (var t in targets) _library.Add(t);
+                TriggerRefresh(debounce: false);
+                ToastService.Instance.Show("Tracks restored.", ToastType.Success, durationMs: 2000, scope: "library-delete");
+            },
+            scope: "library-delete");
+    }
+
+    [RelayCommand]
+    private void BulkAddToQueue()
+    {
+        var targets = _currentSelection.ToList();
+        if (targets.Count == 0) return;
+
+        foreach (var t in targets) _library.AddToQueue(t.Id);
+        NullActionLogger.User("BulkAddToQueue", $"count={targets.Count}", "LibraryViewModel");
+
+        ToastService.Instance.Show(
+            message: $"Added {targets.Count} track(s) to queue",
+            type: ToastType.Info,
+            durationMs: 2500,
+            scope: "queue-add");
+    }
+
+    [RelayCommand]
+    private async Task BulkToggleFavoriteAsync()
+    {
+        var targets = _currentSelection.ToList();
+        if (targets.Count == 0) return;
+
+        // Deterministic: if ANY selected track is not a favorite, favorite all; otherwise unfavorite all.
+        bool desired = targets.Any(t => !t.IsFavorite);
+
+        await Task.Run(() =>
+        {
+            foreach (var t in targets)
+            {
+                if (t.IsFavorite != desired) _library.ToggleFavorite(t.Id);
+            }
+        });
+
+        NullActionLogger.User("BulkToggleFavorite", $"count={targets.Count} fav={desired}", "LibraryViewModel");
+        TriggerRefresh(debounce: false);
+    }
+
+    [RelayCommand]
+    private void BulkAddToPlaylist()
+    {
+        var targets = _currentSelection.ToList();
+        if (targets.Count == 0) return;
+        BulkAddToPlaylistRequested?.Invoke(targets);
+    }
+
+    [RelayCommand]
+    private void MarkAsAudiobook()
+    {
+        var targets = _currentSelection.Any() ? _currentSelection : (SelectedTrack != null ? new List<Track> { SelectedTrack } : new List<Track>());
+        if (!targets.Any()) return;
+        foreach (var t in targets) { t.MediaType = MediaType.Audiobook; _library.Update(t); }
+        TriggerRefresh(debounce: false);
+        ToastService.Instance.Show($"Marked {targets.Count} item(s) as Audiobook.", ToastType.Success, 2000);
+    }
+
+    [RelayCommand]
+    private void MarkAsMusic()
+    {
+        var targets = _currentSelection.Any() ? _currentSelection : (SelectedTrack != null ? new List<Track> { SelectedTrack } : new List<Track>());
+        if (!targets.Any()) return;
+        foreach (var t in targets) { t.MediaType = MediaType.Music; _library.Update(t); }
+        TriggerRefresh(debounce: false);
+        ToastService.Instance.Show($"Marked {targets.Count} item(s) as Music.", ToastType.Success, 2000);
+    }
+
+    //  END BULK ACTIONS
+
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync(Track? t)
+    {
+        var target = t ?? SelectedTrack;
+        if (target == null) return;
+
+        Guid targetId = target.Id;
+        bool expectedNewState = !target.IsFavorite;
 
         await Task.Run(() => _library.ToggleFavorite(targetId));
 
@@ -453,10 +595,10 @@ public partial class LibraryViewModel : ObservableObject
     private async Task RecordPlayAsync()
     {
         if (SelectedTrack == null) return;
-        
+
         Guid targetId = SelectedTrack.Id;
         await Task.Run(() => _library.RecordPlay(targetId));
-        
+
         TriggerRefresh(debounce: false);
     }
 
@@ -467,13 +609,20 @@ public partial class LibraryViewModel : ObservableObject
         if (target == null) return;
         _library.AddToQueue(target.Id);
         NullActionLogger.User("AddToQueue", target.Id.ToString(), "LibraryViewModel");
-        
+
         ToastService.Instance.Show(
             message: $"Added '{target.Title}' to queue",
             type: ToastType.Info,
             durationMs: 2500,
-            scope: "queue-add" 
+            scope: "queue-add"
         );
+    }
+
+    [RelayCommand]
+    private void RequestAddToPlaylist(Track? t)
+    {
+        var target = t ?? SelectedTrack;
+        if (target != null) AddToPlaylistRequested?.Invoke(target);
     }
 
     [RelayCommand] private void SortByTitle() => SetSort(SortField.Title);
@@ -495,18 +644,18 @@ public partial class LibraryViewModel : ObservableObject
         ActiveSourceFilter = null;
     }
 
-    [RelayCommand] 
-    private void ShowFavorites() 
-    { 
-        CurrentView = LibraryView.Favorites; 
-        ActiveSourceFilter = null; 
+    [RelayCommand]
+    private void ShowFavorites()
+    {
+        CurrentView = LibraryView.Favorites;
+        ActiveSourceFilter = null;
     }
 
-    [RelayCommand] 
-    private void ShowRecent() 
-    { 
-        CurrentView = LibraryView.Recent; 
-        ActiveSourceFilter = null; 
+    [RelayCommand]
+    private void ShowRecent()
+    {
+        CurrentView = LibraryView.Recent;
+        ActiveSourceFilter = null;
     }
 
     [RelayCommand] private void FilterYouTube() => SetSourceFilter(TrackSource.YouTube);
@@ -514,7 +663,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand] private void FilterSoundCloud() => SetSourceFilter(TrackSource.SoundCloud);
     [RelayCommand] private void FilterLocal() => SetSourceFilter(TrackSource.Local);
     [RelayCommand] private void FilterLastFm() => SetSourceFilter(TrackSource.LastFm);
-    
+
     [RelayCommand] private void OpenDetail() { if (SelectedTrack != null) TrackDetailRequested?.Invoke(SelectedTrack); }
 
     [RelayCommand]
@@ -530,23 +679,9 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private async Task CopyUrlAsync()
     {
-        var url = SelectedTrack?.Url ?? SelectedTrack?.FilePath;
-        if (string.IsNullOrEmpty(url)) return;
-        try
+        if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(SelectedTrack))
         {
-            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
-            {
-                var clipboard = TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                    Log.Information("URL copied to clipboard: {Url}", url);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            NullActionLogger.Error("LibraryViewModel", ex, "Failed to copy target link asset route destination to local clipboard stack.");
+            ToastService.Instance.Show("URL copied to clipboard.", ToastType.Success, durationMs: 2000);
         }
     }
 
@@ -593,7 +728,7 @@ public partial class LibraryViewModel : ObservableObject
 
             const int MaxCandidatesForAI = 60;
             Track[] finalCandidates = candidateTracks;
-            
+
             if (candidateTracks.Length > MaxCandidatesForAI)
             {
                 finalCandidates = candidateTracks
@@ -601,8 +736,8 @@ public partial class LibraryViewModel : ObservableObject
                     .ThenByDescending(t => t.PlayCount)
                     .Take(MaxCandidatesForAI)
                     .ToArray();
-                
-                Log.Information("[LibraryViewModel] AI prompt matched {Total} tracks, capped to {Capped} candidates", 
+
+                Log.Information("[LibraryViewModel] AI prompt matched {Total} tracks, capped to {Capped} candidates",
                     candidateTracks.Length, finalCandidates.Length);
             }
 
@@ -612,8 +747,8 @@ public partial class LibraryViewModel : ObservableObject
             });
 
             var rankedIds = await _localAI.RankTracksForMoodAsync(
-                query, 
-                "custom", 
+                query,
+                "custom",
                 20.0,
                 finalCandidates,
                 maxResults: Math.Min(50, finalCandidates.Length)
@@ -628,10 +763,10 @@ public partial class LibraryViewModel : ObservableObject
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 AiPlaylistRequested?.Invoke(query, rankedTracks);
-                if (activity != null) 
+                if (activity != null)
                 {
                     ToastService.Instance.CompleteLiveActivity(
-                        activity, 
+                        activity,
                         $"AI playlist '{query}' created with {rankedTracks.Count} tracks!",
                         lingerMs: 6000,
                         actionText: "Play Now",

@@ -20,8 +20,12 @@ public class PlaylistViewModel : ViewModelBase
     private Playlist? _selectedPlaylist;
     private string _renameText = string.Empty;
     private bool _isRenaming;
-
     private string _searchQuery = string.Empty;
+
+    // NEW: Dialog Abstractions
+    public Func<Task<string?>>? RequestCreatePlaylistName;
+    public Func<Task<string?>>? RequestCreateFolderName;
+
     public string SearchQuery
     {
         get => _searchQuery;
@@ -29,7 +33,8 @@ public class PlaylistViewModel : ViewModelBase
     }
     public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery);
 
-    private SortField _currentSort = SortField.DateAdded;
+    // UPDATED: Default to Custom sort for playlists
+    private SortField _currentSort = SortField.Custom;
     public SortField CurrentSort
     {
         get => _currentSort;
@@ -44,15 +49,17 @@ public class PlaylistViewModel : ViewModelBase
     }
 
     public Array SortOptions => Enum.GetValues(typeof(SortField));
-
     public bool IsSortedByTitle => CurrentSort == SortField.Title;
     public bool IsSortedByArtist => CurrentSort == SortField.Artist;
     public bool IsSortedBySource => CurrentSort == SortField.Source;
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
+    
+    // NEW: Custom Sort Properties
+    public bool IsSortedByCustom => CurrentSort == SortField.Custom;
+    public bool IsDragReorderEnabled => CurrentSort == SortField.Custom && string.IsNullOrEmpty(SearchQuery);
 
     public BulkObservableCollection<Track> FilteredTracks { get; } = new();
-    public string ResultCountLabel => FilteredTracks.Count == 1 ? "1 track" : $"{FilteredTracks.Count} tracks";
-
+    public string ResultCountLabel => string.Format(LocalizationService.Instance["Playlist_RESULTCount_Format"], FilteredTracks.Count);
     public ObservableCollection<Playlist> Playlists { get; } = new();
 
     public ICommand CreatePlaylistCommand { get; }
@@ -117,61 +124,60 @@ public class PlaylistViewModel : ViewModelBase
         _playlists = playlists;
         CreatePlaylistCommand = new RelayCommand(async () => await CreatePlaylistAsync());
         CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync());
-        RemovePlaylistCommand = new RelayCommand(RemovePlaylist);
+        
+        // UPDATED: Safe async relay command
+        RemovePlaylistCommand = new RelayCommand(async () => await RemovePlaylistAsync_Safe());
+        
         AddToPlaylistCommand = new RelayCommand<Track>(AddToPlaylist);
         RemoveFromPlaylistCommand = new RelayCommand<Track>(RemoveFromPlaylist);
         StartRenameCommand = new RelayCommand(StartRename);
         ConfirmRenameCommand = new RelayCommand(ConfirmRename);
         CancelRenameCommand = new RelayCommand(() => IsRenaming = false);
-        
-        PinCommand = new RelayCommand(() =>
-        {
-            if (SelectedPlaylist != null) PinRequested?.Invoke(SelectedPlaylist);
-        });
-        
-        UnpinCommand = new RelayCommand(() =>
-        {
-            if (SelectedPlaylist != null) UnpinRequested?.Invoke(SelectedPlaylist);
-        });
-
+        PinCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PinRequested?.Invoke(SelectedPlaylist); });
+        UnpinCommand = new RelayCommand(() => { if (SelectedPlaylist != null) UnpinRequested?.Invoke(SelectedPlaylist); });
         ClearSearchTextCommand = new RelayCommand(() => SearchQuery = string.Empty);
         SortByTitleCommand = new RelayCommand(() => SetSort(SortField.Title));
         SortByArtistCommand = new RelayCommand(() => SetSort(SortField.Artist));
         SortBySourceCommand = new RelayCommand(() => SetSort(SortField.Source));
         SortByDateCommand = new RelayCommand(() => SetSort(SortField.DateAdded));
         ToggleSortDirectionCommand = new RelayCommand(() => SortAscending = !SortAscending);
-
-        PlayAllCommand = new RelayCommand(() =>
-        {
-            if (SelectedPlaylist != null) PlayAllRequested?.Invoke(SelectedPlaylist);
-        });
-
+        PlayAllCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PlayAllRequested?.Invoke(SelectedPlaylist); });
+        
         Refresh();
+    }
+
+    // NEW: Safe wrapper for fire-and-forget removal
+    private async Task RemovePlaylistAsync_Safe()
+    {
+        if (SelectedPlaylist == null) return;
+        try
+        {
+            await RemovePlaylistAsync(SelectedPlaylist);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Playlist] Failed to remove playlist");
+            ToastService.Instance.Show("Couldn't delete playlist - see logs.", ToastType.Error);
+        }
     }
 
     public void Refresh()
     {
         var selectedId = SelectedPlaylist?.Id;
-
         Playlists.Clear();
         foreach (var playlist in _playlists.GetAll())
             Playlists.Add(playlist);
-
         SelectedPlaylist = selectedId.HasValue
             ? Playlists.FirstOrDefault(p => p.Id == selectedId.Value)
             : null;
-
         RefreshPinnedState();
     }
 
-        private async Task CreatePlaylistAsync()
+    private async Task CreatePlaylistAsync()
     {
-        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow : null;
-        if (window == null) return;
-
-        var dialog = new Views.CreatePlaylistDialog();
-        var name = await dialog.ShowDialog<string?>(window);
+        // UPDATED: Use Delegate
+        if (RequestCreatePlaylistName == null) return;
+        var name = await RequestCreatePlaylistName();
         if (string.IsNullOrWhiteSpace(name)) return;
 
         if (_playlists.NameExists(name))
@@ -188,13 +194,11 @@ public class PlaylistViewModel : ViewModelBase
     private async Task RemovePlaylistAsync(Playlist target)
     {
         var snapshot = target;
-
         _playlists.Remove(target.Id);
         Playlists.Remove(target);
         if (SelectedPlaylist?.Id == target.Id) SelectedPlaylist = null;
         PlaylistsChanged?.Invoke();
         Log.Information("[Playlist] Removed: {Name}", target.Name);
-
         ToastService.Instance.Show(
             message: $"Playlist '{target.Name}' deleted.",
             type: ToastType.Warning,
@@ -207,14 +211,12 @@ public class PlaylistViewModel : ViewModelBase
                 PlaylistsChanged?.Invoke();
             },
             scope: "playlist-delete");
-
         await Task.CompletedTask;
     }
 
     private void AddToPlaylist(Track? track)
     {
         if (track == null || SelectedPlaylist == null) return;
-
         var playlist = SelectedPlaylist;
         var added = _playlists.AddTrack(playlist.Id, track);
         if (added)
@@ -235,24 +237,14 @@ public class PlaylistViewModel : ViewModelBase
 
     private async Task CreateFolderAsync()
     {
-        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow : null;
-        if (window == null) return;
-
-        var dialog = new Views.CreateFolderDialog();
-        var name = await dialog.ShowDialog<string?>(window);
-
+        // UPDATED: Use Delegate
+        if (RequestCreateFolderName == null) return;
+        var name = await RequestCreateFolderName();
         if (string.IsNullOrWhiteSpace(name)) return;
 
         var folder = _playlists.CreateFolder(name);
         Log.Information("[PlaylistFolder] Created: {Name}", name);
         PlaylistsChanged?.Invoke();
-    }
-
-    private void RemovePlaylist()
-    {
-        if (SelectedPlaylist == null) return;
-        _ = RemovePlaylistAsync(SelectedPlaylist);
     }
 
     private void StartRename()
@@ -265,20 +257,16 @@ public class PlaylistViewModel : ViewModelBase
     private void ConfirmRename()
     {
         if (SelectedPlaylist == null) return;
-
         var trimmed = RenameText.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
         {
             ToastService.Instance.Show("Playlist name can't be empty.", ToastType.Warning);
             return;
         }
-
         var oldName = SelectedPlaylist.Name;
         _playlists.Rename(SelectedPlaylist.Id, trimmed);
-        
         Refresh();
         SelectedPlaylist = Playlists.FirstOrDefault(p => p.Name == trimmed) ?? SelectedPlaylist;
-
         ToastService.Instance.Show($"Renamed '{oldName}' to '{trimmed}'.", ToastType.Success);
         IsRenaming = false;
         PlaylistsChanged?.Invoke();
@@ -287,22 +275,24 @@ public class PlaylistViewModel : ViewModelBase
     private void RemoveFromPlaylist(Track? track)
     {
         if (track == null || SelectedPlaylist == null) return;
-
         var removed = _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
         if (removed)
             ToastService.Instance.Show($"Removed '{track.Title}' from '{SelectedPlaylist.Name}'.", ToastType.Info);
-
         RefreshFilteredTracks();
     }
 
-    public void SelectById(Guid playlistId)
-    {
-        SelectedPlaylist = Playlists.FirstOrDefault(p => p.Id == playlistId);
-    }
+    public void SelectById(Guid playlistId) => SelectedPlaylist = Playlists.FirstOrDefault(p => p.Id == playlistId);
+    public void SelectFirst() { if (SelectedPlaylist == null && Playlists.Count > 0) SelectById(Playlists[0].Id); }
+    public void OpenTrackDetail(Track track) => TrackDetailRequested?.Invoke(track);
 
-    public void OpenTrackDetail(Track track) 
+    // NEW: Encapsulated move method for UI drag/drop
+    public void MoveTrackInSelectedPlaylist(int fromIndex, int toIndex)
     {
-        TrackDetailRequested?.Invoke(track);
+        if (SelectedPlaylist == null) return;
+        if (_playlists.MoveTrack(SelectedPlaylist.Id, fromIndex, toIndex))
+        {
+            RefreshFilteredTracks();
+        }
     }
 
     private void SetSort(SortField field)
@@ -317,9 +307,12 @@ public class PlaylistViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSortedByArtist));
         OnPropertyChanged(nameof(IsSortedBySource));
         OnPropertyChanged(nameof(IsSortedByDate));
+        OnPropertyChanged(nameof(IsSortedByCustom));
+        OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 
-    private void RefreshFilteredTracks()
+    // UPDATED: Made public for UI drag-drop refresh
+    public void RefreshFilteredTracks()
     {
         if (SelectedPlaylist == null)
         {
@@ -329,11 +322,6 @@ public class PlaylistViewModel : ViewModelBase
         }
 
         IEnumerable<Track> tracks = SelectedPlaylist.Tracks;
-
-        // FIX: "ai: ..." is a command, not a filter — never filter the list by it.
-        // The global search box forwards its raw text to Playlist.SearchQuery, and
-        // filtering by the literal prompt ("ai: hip hop") emptied the visible track
-        // list while the header still showed the raw playlist count.
         var query = (SearchQuery ?? string.Empty).Trim();
         if (query.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
             query = string.Empty;
@@ -346,15 +334,24 @@ public class PlaylistViewModel : ViewModelBase
                 t.Artist.ToLowerInvariant().Contains(q));
         }
 
-        IEnumerable<Track> sorted = CurrentSort switch
+        // UPDATED: Replaced .Reverse() with OrderByDescending and added Custom/Playlist-DateAdded logic
+        IEnumerable<Track> sorted = (CurrentSort, SortAscending) switch
         {
-            SortField.Title  => tracks.OrderBy(t => t.Title).ThenBy(t => t.Artist),
-            SortField.Artist => tracks.OrderBy(t => t.Artist).ThenBy(t => t.Title),
-            SortField.Source => tracks.OrderBy(t => t.Source).ThenBy(t => t.Title),
-            _                => tracks.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),
+            (SortField.Custom, _)          => tracks, // Preserve native DB SortOrder
+            (SortField.Title, true)        => tracks.OrderBy(t => t.Title).ThenBy(t => t.Artist),
+            (SortField.Title, false)       => tracks.OrderByDescending(t => t.Title).ThenByDescending(t => t.Artist),
+            (SortField.Artist, true)       => tracks.OrderBy(t => t.Artist).ThenBy(t => t.Title),
+            (SortField.Artist, false)      => tracks.OrderByDescending(t => t.Artist).ThenByDescending(t => t.Title),
+            (SortField.Source, true)       => tracks.OrderBy(t => t.Source).ThenBy(t => t.Title),
+            (SortField.Source, false)      => tracks.OrderByDescending(t => t.Source).ThenByDescending(t => t.Title),
+            (SortField.DateAdded, true)    => tracks.OrderBy(t => SelectedPlaylist!.GetDateAdded(t.Id)).ThenBy(t => t.Title),
+            (SortField.DateAdded, false)   => tracks.OrderByDescending(t => SelectedPlaylist!.GetDateAdded(t.Id)).ThenByDescending(t => t.Title),
+            (_, true)                      => tracks.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),
+            (_, false)                     => tracks.OrderByDescending(t => t.DateAdded).ThenByDescending(t => t.Title),
         };
 
-        FilteredTracks.ReplaceAll(SortAscending ? sorted : sorted.Reverse());
+        FilteredTracks.ReplaceAll(sorted);
         OnPropertyChanged(nameof(ResultCountLabel));
+        OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 }
