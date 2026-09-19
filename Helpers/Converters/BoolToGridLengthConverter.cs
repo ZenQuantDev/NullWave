@@ -7,7 +7,7 @@ namespace NullWave.Helpers.Converters;
 
 /// <summary>
 /// Converts a bool to a GridLength for collapsible Pixel columns. Parameter format:
-/// "collapsedPixels,expandedPixels" (e.g. "0,220"). Used for sidebar collapse — NOT
+/// "collapsedPixels,expandedPixels" (e.g. "0,220"). Used for sidebar collapse - NOT
 /// a general-purpose GridLength converter, since it only handles the two-state case.
 /// </summary>
 public class BoolToGridLengthConverter : IValueConverter

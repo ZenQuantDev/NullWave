@@ -10,12 +10,16 @@ public class SortFieldDisplayConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not SortField field) return value;
+        var L = LocalizationService.Instance;
         return field switch
         {
-            SortField.DateAdded  => "Date Added",
-            SortField.PlayCount  => "Play Count",
-            SortField.LastPlayed => "Last Played",
-            _ => field.ToString() // Title, Artist, Source are already fine as-is
+            SortField.DateAdded  => L["Sort_DateAdded"],
+            SortField.PlayCount  => L["Sort_PlayCount"],
+            SortField.LastPlayed => L["Sort_LastPlayed"],
+            SortField.Title      => L["Sort_Title"],
+            SortField.Artist     => L["Sort_Artist"],
+            SortField.Source     => L["Sort_Source"],
+            _ => field.ToString()
         };
     }
 
@@ -26,7 +30,14 @@ public class SortFieldDisplayConverter : IValueConverter
 public class BoolToSortIconConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is bool ascending ? (ascending ? "SortAscending" : "SortDescending") : "SortAscending";
+    {
+        // Returns the string name of the Material Icon, which Avalonia automatically parses into the MaterialIconKind enum
+        if (value is bool ascending)
+        {
+            return ascending ? "SortAscending" : "SortDescending";
+        }
+        return "SortAscending";
+    }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();

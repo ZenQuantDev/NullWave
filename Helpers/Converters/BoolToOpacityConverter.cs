@@ -1,8 +1,9 @@
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
 
-namespace NullWave.Helpers;
+namespace NullWave.Helpers.Converters; 
 
 public class BoolToOpacityConverter : IValueConverter
 {
@@ -12,5 +13,5 @@ public class BoolToOpacityConverter : IValueConverter
         => value is true ? 1.0 : 0.2;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => AvaloniaProperty.UnsetValue;
 }
