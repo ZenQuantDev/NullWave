@@ -5,9 +5,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] - 19-Sep-2026 🌼 "Oxeye Daisy"
+
+### Added
+
+- **Light theme** with Dark / Light / System modes; theme-aware accent mixing in `ThemeService`.
+- **Oxeye Daisy** signature accent (#EAB308 / #65A30D); Blue Orchid retained as a regular duo.
+- **Audiobook mode**: 0.75x–2.0x speed, resume-from-position, chapter prev/next, "stop at end of chapter" sleep timer.
+- **Radio page**: dedicated library page, SomaFM catalog + mood picker, and ICY now-playing metadata.
+- **Onboarding Wizard Overhaul**: Expanded to a comprehensive 5-step flow (Appearance, System Dependencies, Services & API Keys, Vault/Downloads, Playback). Includes Ollama/AI model installation guides and unified styling.
+- **Settings Tabs Redesign**: Unified style system across Appearance, Audio, API Keys, and Help tabs.
+- **API Keys Security & UX**: Secure hidden inputs (`PasswordChar`), inline verification checkmarks, and Last.fm account connection flow.
+- **Help Tab**: Quick start guides, API setup links, smart search syntax reference, keyboard shortcuts, and troubleshooting tools (open data/logs folders, restore DB).
+- **Audio & Download Settings**: Dedicated Audio tab for format/quality/concurrent downloads, crossfade, and fade-on-pause configurations.
+- **Local AI Tag Generation**: Fallback routing to local Ollama models (e.g., `gemma3:4b`) for genre/tag enrichment when Last.fm scrapers return zero tags.
+- **Library Maintenance Tools**: Automated orphaned file sweeping, duplicate removal, and title force-cleaning (stripping "Artist - " prefixes and junk from raw YouTube download titles).
+- **Localization**: full English/Russian string tables with live language switching.
+- **Database safety**: rolling auto-backups with retention and restore-from-backup.
+- **Proxy support**: yt-dlp proxy and geo-proxy fields.
+- **Download Manager UI**: dedicated view for tracking active, completed, and failed yt-dlp jobs with retry actions.
+- **Identity & Install ID**: cryptographic fingerprint generation for profile badges and track sharing prep.
+- **Sleep timer** (15/30/45/60 min) with live mini-player countdown.
+- **Crossfade (experimental, opt-in)**: dual long-lived `MediaPlayer` engine with generation-guarded transitions.
+- **Profile window**: signed + computed badges, consolidated stats, managed avatar/banner assets under `.nullwave/profile-assets/`.
+- Version-tap easter egg updated (7 taps: lore toast; 14 taps: signature accent).
+- **Keyboard Shortcuts**: `Ctrl+L` now instantly focuses and selects the global search bar from anywhere in the app.
+- **Rich Sidebar Tooltips**: Collapsed sidebar rail mode now shows rich, theme-aware preview flyouts (displaying playlist names, track counts, and folder contents) on hover.
+
+### Changed
+
+- **Unified UI System**: Checkboxes, sliders, and buttons across Onboarding and Settings now strictly use the centralized `Themes/ControlStyles.axaml` tokens.
+- **Language Selector**: Moved to the Appearance step in the Onboarding wizard for better flow; removed "vibe" terminology.
+- **Download Manager**: Improved rate-limit throttling and native yt-dlp fallback when `aria2c` is missing.
+- **Architecture (Settings Refactor)**: Split the monolithic `SettingsViewModel` into 7 domain-specific `partial` class files (ApiKeys, Preferences, Maintenance, Updates, AI, ExternalAI, Core) to improve maintainability and enforce file-size limits.
+- Playback engine: two long-lived players replace per-crossfade player creation; volume-target restore; playback-state watchdog.
+- Shuffle / next / previous respect media-type context (music never pulls radio or audiobooks).
+- Previous button follows the 3-second rule (restart current track after 3s).
+- Sidebar: flattened tile/row shadows; avatars bind decoded bitmaps directly.
+
+### Fixed
+
+- **Onboarding Navigation**: Fixed missing 5th tab and layout spacing issues on "Next"/"Back" buttons.
+- **API Key Visibility**: Raw text API keys are now properly masked in the Settings and Onboarding views.
+- **XAML Resource Crash**: Fixed `KeyNotFoundException` for `BoolNegation` converter in `DownloadManagerView` that caused fatal crashes on popup open.
+- **AI Model Unload**: Improved Ollama model swapping and VRAM eviction policies to prevent timeout hangs on exit.
+- **Playlist Downloads**: Gracefully skip unavailable videos and dummy tracks during bulk YouTube playlist imports.
+- **System Theme Accent Mixing**: Fixed a bug in `ThemeService` where selecting "System" theme mode caused muddy/unreadable accent colors by correctly resolving the OS-level `ActualThemeVariant` instead of `RequestedThemeVariant`.
+- **Mood Generation Double-Toast**: Fixed duplicate toast notifications firing during concurrent or rapid Mood Mix generation by implementing scoped toast grouping (`scope: "mood-gen"`).
+- Crossfade native crash (disposed-player race) and silent-after-crossfade playback.
+- Queue/shuffle track oscillation; pause/resume state desync.
+- Light-theme contrast pass (stars, shuffle/repeat icons, player buttons, grooves).
+
+### Removed
+
+- `Strings.resx` - legacy, unreferenced resource file removed in favor of the custom `LocalizationService` dictionary approach.
+
 ## [0.5.2] - 17-Aug-2026
 
 ### Added
+
 - **Universal Action Feedback**: Toast notifications now support action buttons (e.g., "Undo" for deletions, "Retry" for failed downloads).
 - **Single-Host Toast Routing**: Prevents duplicate toasts when the Settings window is open.
 - **Toast Stacking Cap**: Limits visible toasts to 4, dropping the oldest non-live toast to prevent screen clutter.
@@ -16,15 +72,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **AI Playlist Padding**: If the AI returns fewer tracks than requested for a mood playlist, it now pads the result with manual tag-matched tracks to ensure a full playlist.
 
 ### Fixed
-- **Playlist URL Interception**: Playlist URLs are now intercepted *before* creating a dummy track, preventing 400 Bad Request errors and UI flicker.
+
+- **Playlist URL Interception**: Playlist URLs are now intercepted _before_ creating a dummy track, preventing 400 Bad Request errors and UI flicker.
 - **LocalAIService JSON Parsing**: Fixed `KeyNotFoundException` crashes when Ollama returns malformed JSON or markdown code blocks by adding `TryGetProperty` guards and markdown stripping.
 - **YouTube Metadata 400s**: Replaced `EnsureSuccessStatusCode()` with a manual HTTP status check to gracefully handle 400/403/404 API rejections without throwing noisy exceptions.
-- **VerifyLinks False Positives**: Drastically reduced (27 → 6) by adding `FeatureArtistRegex` and `BracketContentRegex` to `TitlesLooselyMatch`, and properly handling "Artist - Title" splits.
+- **VerifyLinks False Positives**: Drastically reduced (27 > 6) by adding `FeatureArtistRegex` and `BracketContentRegex` to `TitlesLooselyMatch`, and properly handling "Artist - Title" splits.
 - **Stale Scrobble Metadata**: Fixed an issue where Last.fm scrobbles used stale cached track data instead of fetching the latest metadata from the database.
 
-## [0.5.0] - 09-Aug-2026 — "Blue Orchid"
+## [0.5.0] - 09-Aug-2026 � "Blue Orchid"
 
 ### Added
+
 - **Active Playlist Context**: Playback now continues through the active playlist even if the queue is cleared.
 - **Slim Scrollbars**: Quiet, minimal scrollbars that reveal on hover.
 - **About tab redesign** - gradient hero, version chip (tap 7x for a surprise), "What's new", clickable tech credits, GitHub/issue/license links.
@@ -44,7 +102,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Gradient rollout** - `BrushAccentGradient` (dynamic stops) now drives the seek
   and volume sliders, progress bars and the now-playing accent bar.
 - **Artist panel upgrade** - Track Detail shows the Last.fm artist photo with
-  placeholder-hash detection (`2a96cbd8…`) and album-art fallback, plus a
+  placeholder-hash detection (`2a96cbd8�`) and album-art fallback, plus a
   "Fans Also Like" similar-artists row.
 - **Windows Support** - Conditional `VideoLAN.LibVLC.Windows` package and
   `&lt;RollForward&gt;Major&lt;/RollForward&gt;` for .NET 10 compatibility; `NullWavePaths`
@@ -52,13 +110,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   yt-dlp and VLC via `winget`; `HardwareDetector` falls back to PowerShell/CIM on
   Windows; native libVLC discovery for Windows install locations.
 - **Config hygiene** - `cspell.json` and `.markdownlint.json` updated for the new
-  vocabulary (duotone, swatch, orchid, extralarge, …).
+  vocabulary (duotone, swatch, orchid, extralarge, �).
 - **AI Playlist Persistence**: `ai:` search prompts now create real, persisted playlists in a dedicated "AI Playlists" folder.
 - **Playlist Folders**: Added `PlaylistFolderRecord` and `CreateFolderDialog` for organizing playlists.
 - **Offline Indicator**: Track list now shows an offline-ready checkmark for locally available tracks.
 - **Plugin Feedback**: Toggling plugins in Settings now triggers immediate success/warning toasts.
+- **Fullscreen mode**: `F11` / `Alt+Enter` toggles true fullscreen; previous window state (Normal/Maximized) is restored on exit.
+
 
 ### Fixed
+
 - **Instant Sidebar Refresh**: Deleted playlists and folders now disappear from the sidebar immediately (no reboot required).
 - **Live Play Counts**: `PlayCount` and `LastPlayed` now update live in the UI via `LibraryChanged` events.
 - **Ghost Pin Purging**: Pinned playlists that are deleted are now automatically removed from preferences during sidebar rebuilds.
@@ -70,9 +131,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Seek bar duration label** - `PlayerViewModel.Position` now also notifies
   `DurationDisplay`, fixing the right-hand label frozen at `00:00`.
 - **Queue Oscillation**: Fixed critical bug where tracks would bounce back and forth due to history stack corruption in `PlaybackNavigator`.
-- **Crossfade Stability**: 
-  - Fixed queue desync causing track oscillation during crossfade.
-  - Added safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
+- **Crossfade Stability**:
+    - Fixed queue desync causing track oscillation during crossfade.
+    - Added safety delay in `PlaybackService` to prevent native PipeWire segfaults on Linux during crossfade teardown.
 - **Smart Shuffle Loop**: Added candidate pool floor to prevent 2-track loops under heavy skip pressure.
 - **Add to Queue**: Fixed bug where command ignored the passed track parameter and used `SelectedTrack` instead.
 - **Right-panel layout collapse** - `MainViewModel.ActiveRightPanelWidth` now returns
@@ -83,47 +144,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ("Eminem - X" vs "X"); decoration-aware false-positive tuning tracked in ROADMAP 9.1d.
 
 ### Changed
+
 - **Queue System**: Refactored to use `QueueEntry` model, distinguishing between manually added and auto-filled tracks.
 - **Roadmap**: Retroactively added Phase 12 (Navigation Redesign) and Phase 14 (Stability & Polish) to reflect shipped work.
 - Appearance tab is now a **live** control surface (previously save-only).
 - `Preferences.AccentColor` default is now `Blue Orchid`.
 - Docs: README bumped to v0.5.0 "Blue Orchid"; ROADMAP gained Phase 15.
 
-
 ## [0.4.2] - 19-Jul-2026
 
 ### Added
+
 - **Smart Search Syntax**
-  - `LibraryViewModel.ApplySmartSearch` - key:value query syntax: `artist:`/`a:`,
-    `title:`/`t:`, `source:`/`s:`, `tag:`/`genre:`, `is:favorite`/`fav`, combined
-    with bare global terms (OR-matched against Title/Artist).
-  - Multi-word value support via a `pendingKey`/`pendingValueParts` accumulator,
-    so `artist:tame impala` parses as a single filter instead of splitting on
-    whitespace.
-  - Negation support: `-word` (bare exclusion) and `-key:value` (negated filter,
-    e.g. `-artist:eminem`).
+    - `LibraryViewModel.ApplySmartSearch` - key:value query syntax: `artist:`/`a:`,
+      `title:`/`t:`, `source:`/`s:`, `tag:`/`genre:`, `is:favorite`/`fav`, combined
+      with bare global terms (OR-matched against Title/Artist).
+    - Multi-word value support via a `pendingKey`/`pendingValueParts` accumulator,
+      so `artist:tame impala` parses as a single filter instead of splitting on
+      whitespace.
+    - Negation support: `-word` (bare exclusion) and `-key:value` (negated filter,
+      e.g. `-artist:eminem`).
 - **Toolbar Redesign** (`Views/Controls/TrackListView.axaml`)
-  - Search box: magnifying-glass icon, inline "×" clear button, and a "?" help
-    flyout documenting the smart search syntax.
-  - Sort-direction toggle button next to the sort dropdown.
-  - Sort dropdown now shows human-readable labels ("Date Added" instead of
-    "DateAdded") via new `SortFieldDisplayConverter`.
-  - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
-    triggers with a direction-arrow indicator; clicking the active column
-    flips sort direction.
-  - Track-count label ("415 tracks") added to the header row.
-  - "+ Add Track" redesigned as a self-contained flyout (URL input + Add button
-    - local file/folder options), replacing the old always-visible "URL INPUT"
-    row. Add button gated on new `TrackInputViewModel.IsInputUrlValid`.
+    - Search box: magnifying-glass icon, inline "?" clear button, and a "?" help
+      flyout documenting the smart search syntax.
+    - Sort-direction toggle button next to the sort dropdown.
+    - Sort dropdown now shows human-readable labels ("Date Added" instead of
+      "DateAdded") via new `SortFieldDisplayConverter`.
+    - Column headers (Title/Artist, Source, Plays, Added) are now clickable sort
+      triggers with a direction-arrow indicator; clicking the active column
+      flips sort direction.
+    - Track-count label ("415 tracks") added to the header row.
+    - "+ Add Track" redesigned as a self-contained flyout (URL input + Add button
+        - local file/folder options), replacing the old always-visible "URL INPUT"
+          row. Add button gated on new `TrackInputViewModel.IsInputUrlValid`.
 - `Helpers/Converters/SortFieldDisplayConverter.cs` and `BoolToSortIconConverter.cs`
 
 ### Changed
+
 - `LibraryService`/`LibraryViewModel` sorting now applies a secondary `.ThenBy`
   tie-breaker per `SortField` (mostly by Title), so equal-value groups (e.g.
   many tracks with `PlayCount == 0`) render in a stable, predictable order.
 - `TrackInputViewModel.InputUrl` setter now also notifies `IsInputUrlValid`.
 
 ### Fixed
+
 - `LibraryViewModel.FetchLibraryDataInternal` - search was silently ignored
   whenever a sidebar source filter (e.g. "YouTube") was active, because the
   `LibraryView.Source` branch never applied the query at all. Also fixed a
@@ -141,6 +205,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   erroring), leaving the layout fragile against future changes.
 
 ### Removed
+
 - `ViewModels/Playlists/PlaylistImportViewModel.cs` - constructed and wired
   into `TrackInputViewModel`, but its one real method (`ImportPlaylist`) had
   no call sites anywhere in the app; the actual playlist-download flow has
@@ -149,64 +214,67 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   left over from before the toast-based live activity system replaced inline
   progress bars; also removed its stale reference from `MainWindow.axaml`.
 
-
 ## [0.4.1] - 30-Jun-2026
 
 ### Added
+
 - **Robust Playlist Import Engine**
-  - `DownloadService.DownloadPlaylistAsync` now features advanced metadata parsing, extracting `artist`, `creator`, `uploader`, and `channel` from `yt-dlp` `--flat-playlist` JSON with strict priority fallback.
-  - Automatic stripping of YouTube's " - Topic" suffix from official channel names during playlist parsing.
-  - Fallback to `TrackTitleParser` to split messy "Artist - Title" video names into clean, separate metadata fields.
-  - Real-time enrichment via `onTrackReady` callback: tracks are linked to their local `FilePath` and passed to `LastFmEnrichmentService` immediately upon individual download completion.
-  - Rate limit protection: randomized 3-8 second throttling between playlist track downloads to prevent YouTube 403 rate-limit errors.
+    - `DownloadService.DownloadPlaylistAsync` now features advanced metadata parsing, extracting `artist`, `creator`, `uploader`, and `channel` from `yt-dlp` `--flat-playlist` JSON with strict priority fallback.
+    - Automatic stripping of YouTube's " - Topic" suffix from official channel names during playlist parsing.
+    - Fallback to `TrackTitleParser` to split messy "Artist - Title" video names into clean, separate metadata fields.
+    - Real-time enrichment via `onTrackReady` callback: tracks are linked to their local `FilePath` and passed to `LastFmEnrichmentService` immediately upon individual download completion.
+    - Rate limit protection: randomized 3-8 second throttling between playlist track downloads to prevent YouTube 403 rate-limit errors.
 - **Database & Library Synchronization**
-  - `DatabaseService` now manages `PlaylistRecord` and `PlaylistTrackRecord` tables for full playlist persistence.
-  - `PlaylistService` handles full CRUD operations, including track addition, removal, and reordering.
-  - `LibraryService` now fires `LibraryChanged` events on `Add`, `Remove`, and `Update`, ensuring the UI reflects database changes instantly.
-  - Startup backfillers for missing YouTube and SoundCloud thumbnails.
-  - Maintenance utilities: `RepairPaths`, `ReimportAssets`, `ClearTagsForReSync`, and `ClearAllArt`.
+    - `DatabaseService` now manages `PlaylistRecord` and `PlaylistTrackRecord` tables for full playlist persistence.
+    - `PlaylistService` handles full CRUD operations, including track addition, removal, and reordering.
+    - `LibraryService` now fires `LibraryChanged` events on `Add`, `Remove`, and `Update`, ensuring the UI reflects database changes instantly.
+    - Startup backfillers for missing YouTube and SoundCloud thumbnails.
+    - Maintenance utilities: `RepairPaths`, `ReimportAssets`, `ClearTagsForReSync`, and `ClearAllArt`.
 - **UI/UX & Theming (`ControlStyles.axaml`)**
-  - Comprehensive Avalonia styling system using centralized static resources.
-  - New button variants: `.danger`, `.nav`, `.icon-btn`, `.player-btn` (Spotify-style borderless), `.primary`, `.secondary`, and `.ghost` with smooth hover/press transitions.
-  - Custom `ToggleSwitch` template with smooth thickness and brush transitions.
-  - Layout components: `.settings-card`, `.help-btn`, `.section-label`, and `.BottomSpacer`.
-  - Polished `ListBox`, `TextBox`, `ProgressBar`, `Slider`, `ComboBox`, and `TabControl` styles.
+    - Comprehensive Avalonia styling system using centralized static resources.
+    - New button variants: `.danger`, `.nav`, `.icon-btn`, `.player-btn` (Spotify-style borderless), `.primary`, `.secondary`, and `.ghost` with smooth hover/press transitions.
+    - Custom `ToggleSwitch` template with smooth thickness and brush transitions.
+    - Layout components: `.settings-card`, `.help-btn`, `.section-label`, and `.BottomSpacer`.
+    - Polished `ListBox`, `TextBox`, `ProgressBar`, `Slider`, `ComboBox`, and `TabControl` styles.
 
 ### Changed
+
 - `DownloadService` now blocks playlist URLs in the single-track `DownloadAsync` pipeline to prevent duplicate/rogue download processes.
 - `DownloadCompleted` and `DownloadFailed` events now include an `isInteractive` boolean flag to distinguish between user-initiated single downloads and background playlist imports.
 - `PlayerViewModel` safely ignores non-interactive download events, preventing background playlist imports from hijacking the active player UI, triggering false error toasts, or interrupting currently playing music.
 - Accurate error logging: fixed misleading error logs by correctly mapping the first event argument to `trackId` instead of `url` in failure handlers.
 
 ### Fixed
+
 - Concurrency race condition where the single-track pipeline hijacked playlist URLs, causing duplicate downloads and rate-limit throttling.
 - Background playlist downloads interrupting active playback and flooding the UI with error toasts for unavailable videos.
 - Playlist tracks appearing in the library with "Unknown Artist" and missing album art due to incomplete flat-playlist JSON metadata.
 - Tracks not being playable immediately after playlist download due to `FilePath` not being written back to the database.
-
 
 ---
 
 ## [0.4.0] - 21-Jun-2026
 
 ### Added
+
 - **Smart Sorting (Local AI + Weather)**
-  - `Services/SmartSorting/HardwareDetector.cs` - detects CPU cores, RAM, and GPU VRAM (Nvidia/AMD) to recommend the optimal local Ollama model.
-  - `Services/SmartSorting/LocalAIService.cs` - integrates with local Ollama instance to rank tracks based on mood and weather.
-  - `Services/SmartSorting/MoodPlaylistService.cs` - orchestrates weather fetching, tag mapping, library filtering, and AI ranking.
-  - `Services/SmartSorting/WeatherService.cs` - OpenWeather API integration with 1-hour caching.
-  - `Services/SmartSorting/WeatherMoodMap.cs` - maps weather conditions and time of day to real Last.fm community tags.
-  - Settings UI for Smart Sorting: hardware detection, model download progress, and location coordinates.
+    - `Services/SmartSorting/HardwareDetector.cs` - detects CPU cores, RAM, and GPU VRAM (Nvidia/AMD) to recommend the optimal local Ollama model.
+    - `Services/SmartSorting/LocalAIService.cs` - integrates with local Ollama instance to rank tracks based on mood and weather.
+    - `Services/SmartSorting/MoodPlaylistService.cs` - orchestrates weather fetching, tag mapping, library filtering, and AI ranking.
+    - `Services/SmartSorting/WeatherService.cs` - OpenWeather API integration with 1-hour caching.
+    - `Services/SmartSorting/WeatherMoodMap.cs` - maps weather conditions and time of day to real Last.fm community tags.
+    - Settings UI for Smart Sorting: hardware detection, model download progress, and location coordinates.
 - **Last.fm Enrichment & Album Art**
-  - `Services/Integration/LastFmEnrichmentService.cs` - automatically backfills missing tags and album art for untagged tracks on startup.
-  - `Services/Integration/AlbumArtService.cs` - unified fallback chain for album art (YouTube → SoundCloud → Last.fm → Placeholder).
-  - `Services/Metadata/TrackTitleParser.cs` - cleans messy YouTube titles (strips "Official Video", "ft.", etc.) for accurate Last.fm queries.
+    - `Services/Integration/LastFmEnrichmentService.cs` - automatically backfills missing tags and album art for untagged tracks on startup.
+    - `Services/Integration/AlbumArtService.cs` - unified fallback chain for album art (YouTube > SoundCloud > Last.fm > Placeholder).
+    - `Services/Metadata/TrackTitleParser.cs` - cleans messy YouTube titles (strips "Official Video", "ft.", etc.) for accurate Last.fm queries.
 - **UI & Navigation**
-  - `Helpers/Converters/StringEqualsConverter.cs` & `TrackIdEqualsConverter.cs` - new converters for robust page routing and now-playing indicators.
-  - "Now Playing" accent bar added to track rows in `TrackListView` and `PlaylistsView`.
-  - OpenWeather API key support added to the encrypted `KeyStore`.
+    - `Helpers/Converters/StringEqualsConverter.cs` & `TrackIdEqualsConverter.cs` - new converters for robust page routing and now-playing indicators.
+    - "Now Playing" accent bar added to track rows in `TrackListView` and `PlaylistsView`.
+    - OpenWeather API key support added to the encrypted `KeyStore`.
 
 ### Changed
+
 - `MainWindow.axaml` - replaced `ContentControl` page routing with direct `IsVisible` bindings to fix `DataContext` inheritance bugs.
 - `MainViewModel` - removed `CurrentPageViewModel`; navigation now relies solely on the `CurrentPage` string property.
 - `App.axaml` - removed `Application.DataTemplates` section as views are now declared directly in `MainWindow`.
@@ -214,6 +282,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `MetadataService` refactored to use `TrackTitleParser` for cleaner Last.fm fallback searches.
 
 ### Fixed
+
 - Library filter tabs (YouTube, SoundCloud, etc.) not displaying filtered content due to `ContentControl` `DataContext` reset.
 - Search and URL input bar bindings breaking when switching between filtered library views.
 - Sidebar filter buttons not visually highlighting when active (Favorites, Recent, Sources).
@@ -222,6 +291,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.3.1] - 14-Jun-2026
 
 ### Added
+
 - `Services/Metadata/ThumbnailDownloader.cs` - shared static helper for
   downloading and caching remote thumbnails to `~/.nullwave/art/`
 - `Helpers/Converters/SourceToBackgroundConverter.cs` - maps `TrackSource`
@@ -232,6 +302,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   missing thumbnails and corrects stale metadata for SoundCloud tracks
 
 ### Fixed
+
 - YouTube thumbnails not showing - `_lastFetchedThumbnail` now cached in
   `TrackInputViewModel` and applied when track is added
 - SoundCloud thumbnails not showing - fetched via `yt-dlp --print thumbnail`
@@ -246,6 +317,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   correctly with `using Avalonia.Input.Platform`
 
 ### Changed
+
 - `MetadataService.FetchFromUrlAsync` return type extended to include
   `ThumbnailPath` - all call sites updated
 - Source badges in `TrackListView` and `TrackDetailView` now colored
@@ -253,16 +325,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Services reorganized into subfolders: `Audio/`, `Download/`, `Library/`,
   `Security/`, `System/`, `Integration/`, `Metadata/`
 
-
 ## [0.3.0] - 13-Jun-2026
 
 ### Added
+
 - `Views/Settings/AppearanceTab.axaml` - new Appearance settings tab with:
-  - Accent color picker (Purple / Blue / Amber / Green / Red) - saved, live theming in v0.4
-  - Track row style selector (Comfortable / Compact / Cozy) with visual previews
-  - Font scale selector (Small / Medium / Large)
-  - Sidebar width preset (Narrow / Normal / Wide)
-  - Compact mode toggle (hides album art thumbnails)
+    - Accent color picker (Purple / Blue / Amber / Green / Red) - saved, live theming in v0.4
+    - Track row style selector (Comfortable / Compact / Cozy) with visual previews
+    - Font scale selector (Small / Medium / Large)
+    - Sidebar width preset (Narrow / Normal / Wide)
+    - Compact mode toggle (hides album art thumbnails)
 - `Services/PreferencesService.cs` - JSON persistence for all General and Appearance settings; auto-saves on every change
 - `Models/Preferences.cs` - `AccentColor`, `TrackRowStyle`, `FontScale`, `CompactMode`, `SidebarWidth` fields
 - `Services/PlaybackNavigator.cs` - extracted shuffle/repeat/queue navigation logic from `PlayerViewModel`
@@ -274,8 +346,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Themes/ControlStyles.axaml` - `.secondary` button class added
 
 ### Changed
-- `SettingsWindow.axaml` - removed clipping footer, switched to `DockPanel`, tab order updated (General → Appearance → API Keys → Audio → Updates → Advanced → About)
-- `ApiKeysTab.axaml` - Save button moved from global footer into tab, per-field ✓ saved indicator
+
+- `SettingsWindow.axaml` - removed clipping footer, switched to `DockPanel`, tab order updated (General > Appearance > API Keys > Audio > Updates > Advanced > About)
+- `ApiKeysTab.axaml` - Save button moved from global footer into tab, per-field ? saved indicator
 - `ImportProgressView.axaml` - hardcoded hex colors replaced with theme brushes, added `x / total` counter
 - `ConfirmDialog.axaml` - hardcoded hex colors replaced with theme brushes, buttons use `secondary`/`danger` classes
 - `TrackListView.axaml` - playlist import bindings updated to `Input.PlaylistImport.*`
@@ -285,12 +358,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `SettingsViewModel.cs` - appearance properties wired to `PreferencesService`
 
 ### Fixed
+
 - Settings window content clipping at bottom - `Grid` with fixed `RowDefinitions` replaced with `DockPanel`
 - Playlist import progress bar bindings broken after `PlaylistImportViewModel` extraction
 
 ## [0.2.1] - 07-Jun-2026
 
 ### Added
+
 - `ControlStyles.axaml` - `.player-btn` style: Spotify-inspired borderless player buttons, no background box, subtle hover only
 - `.player-btn.play` - filled white circle for play/pause, dark icon inside
 - `PlayerViewModel` - `ShuffleForeground` property: accent color when shuffle is on, muted when off
@@ -310,9 +385,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `TrackDetailViewModel` - `CurrentTrackArtPath` property, refreshed via `RefreshDisplayProperties()`
 - `TrackDetailViewModel` - `Save()` now calls `_library.Update()` to persist edits to SQLite
 - `PlaybackService` - re-applies volume on `Playing` event to fix silent-start bug on LibVLC pipeline init
-- `MainWindow` - keyboard shortcuts: Space (play/pause), ←/→ (seek ±5s), M (mute), N (next), P (previous)
+- `MainWindow` - keyboard shortcuts: Space (play/pause), </> (seek �5s), M (mute), N (next), P (previous)
 
 ### Fixed
+
 - Track list thumbnails not showing - `Image.Source` now uses `FilePathToBitmapConverter` instead of raw string binding
 - Track detail panel art not showing - same converter applied to `Detail.CurrentTrackArtPath`
 - Miniplayer album art not showing - converter applied to `Player.AlbumArtPath`
@@ -322,6 +398,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Shuffle/repeat buttons gave no visual feedback - now use accent color when active
 
 ### Changed
+
 - Miniplayer buttons fully redesigned - Spotify-style `.player-btn` class replaces `.icon-btn`
 - Miniplayer layout switched from `StackPanel` to two-row `Grid` center section - eliminates vertical clipping
 - Miniplayer fixed `Height="90"`, fixed center `Width="440"` - consistent layout at all window sizes
@@ -331,11 +408,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 06-Jun-2026
 
 ### Added
+
 - `Themes/Shapes.axaml` - `RadiusArt` (6px) corner radius for track art thumbnails
 - `Themes/ControlStyles.axaml` - `.danger` button class (red border, fills on hover)
 - `Themes/ControlStyles.axaml` - `ListBoxItem` opacity transition (150ms fade-in on add)
 - `MiniPlayerView` - shuffle toggle (`IsShuffle`, `ShuffleIcon`, `ToggleShuffleCommand`)
-- `MiniPlayerView` - repeat mode cycle: None → All → One (`CycleRepeatCommand`, `RepeatIcon`)
+- `MiniPlayerView` - repeat mode cycle: None > All > One (`CycleRepeatCommand`, `RepeatIcon`)
 - `MiniPlayerView` - seek slider now fires only on `PointerReleased` (no feedback loop)
 - `MiniPlayerView` - `-5s` / `+5s` seek buttons replacing broken Unicode glyphs
 - `MiniPlayerView` - volume slider restored (`Mode=TwoWay` on `Player.Volume`)
@@ -355,12 +433,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `TrackInputViewModel` - playlist URL auto-detection (`IsPlaylistUrl`) triggers `ImportPlaylistAsync`
 - `DownloadService` - `IsPlaylistUrl()` static helper (detects `list=`, `/sets/`, `/playlist/`)
 - `DownloadService` - `DownloadPlaylistAsync()` - fetches flat metadata via `--flat-playlist --dump-json`, then downloads each track individually with per-track progress callbacks
-- `SidebarView` - 32×32 logo placeholder ("N" in accent square) beside NullWave wordmark
-- `MainViewModel` - wires `Player.PlaySelectedTrackRequested` → play selected or first track
+- `SidebarView` - 32?32 logo placeholder ("N" in accent square) beside NullWave wordmark
+- `MainViewModel` - wires `Player.PlaySelectedTrackRequested` > play selected or first track
 - SQLite-net-pcl + SQLitePCLRaw.bundle_green packages added (persistence implementation coming next)
 
 ### Fixed
-- Seek slider feedback loop - `Mode=TwoWay` → `Mode=OneWay`, seek fires on pointer release only
+
+- Seek slider feedback loop - `Mode=TwoWay` > `Mode=OneWay`, seek fires on pointer release only
 - Volume slider broken after previous refactor - binding and converter references cleaned up
 - Play button on miniplayer did nothing when no track was loaded - now starts selected track
 - `PlayCount` and `LastPlayed` in detail panel never updated after playback - fixed via INPC subscription
@@ -369,10 +448,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ImportPlaylistAsync` fire-and-forget warning (CS4014) suppressed with explicit discard
 
 ### Changed
-- `+ Add Track` + `Import ▼` two-button toolbar replaced with single `SplitButton`
+
+- `+ Add Track` + `Import �` two-button toolbar replaced with single `SplitButton`
 - URL / Title / Artist input row collapsed by default, shown on demand
 - `PlayPrevious` / `PlayNext` now operate on full library (`GetAll()`) not queue only
-- Seek `-5s`/`+5s` buttons replace `⏪`/`⏩` Unicode glyphs (missing on Fedora)
+- Seek `-5s`/`+5s` buttons replace `?`/`?` Unicode glyphs (missing on Fedora)
 - Stop button removed from miniplayer bar (still accessible via context menu)
 
 ---
@@ -380,11 +460,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.1.3] - 30-May-2026
 
 ### Added
+
 - `Themes/` folder - design system split into four files:
-  - `Colors.axaml` - full color palette (dark blue, purple accent, surface layers) + all brushes
-  - `Typography.axaml` - type scale xs→3xl with semantic aliases (Label, Body, Title, Heading)
-  - `Shapes.axaml` - corner radii, spacing tokens, dimension constants (sidebar width, player height, avatar sizes)
-  - `ControlStyles.axaml` - all reusable styles: nav/icon-btn/primary/ghost buttons, ListBoxItem, TextBox, ProgressBar, Slider, Menu, ScrollBar
+    - `Colors.axaml` - full color palette (dark blue, purple accent, surface layers) + all brushes
+    - `Typography.axaml` - type scale xs>3xl with semantic aliases (Label, Body, Title, Heading)
+    - `Shapes.axaml` - corner radii, spacing tokens, dimension constants (sidebar width, player height, avatar sizes)
+    - `ControlStyles.axaml` - all reusable styles: nav/icon-btn/primary/ghost buttons, ListBoxItem, TextBox, ProgressBar, Slider, Menu, ScrollBar
 - `App.axaml` reduced to thin shell - merges theme files via `ResourceInclude` and `StyleInclude`
 - `Helpers/NullWavePaths.cs` - single source of truth for all `~/.nullwave/*` paths; `EnsureDirectories()` called at startup
 - `Helpers/Logging/NullActionLogger.cs` - static structured logger for user actions and attributed errors
@@ -395,17 +476,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `MainViewModel` - `IsMenuBarVisible` + `ToggleMenuBar()` for Alt-key toggle; `Profile` child ViewModel; startup diagnostics wired
 - `PlayerViewModel` - `AlbumArtPath` / `HasAlbumArt` properties (Phase 6 placeholder); all playback actions emit structured log entries
 - `MainWindow.axaml.cs` - `OnKeyDown` handler toggles menu bar on `Alt` press (Firefox-style)
-- `SidebarView.axaml` - Discord-style local profile bar at bottom (avatar circle, username, bio, gear → Settings)
+- `SidebarView.axaml` - Discord-style local profile bar at bottom (avatar circle, username, bio, gear > Settings)
 - `MiniPlayerView.axaml` - Spotify-style 3-column layout: track info + art thumbnail left, controls + progress center, volume slider right
 - `MenuBarView.axaml` - hidden by default, shown/hidden via Alt key
 
 ### Changed
+
 - All hardcoded hex colors replaced with `{StaticResource Brush*}` tokens
 - All hardcoded font sizes replaced with `{StaticResource FontSize*}` tokens
 - All hardcoded corner radii replaced with `{StaticResource Radius*}` tokens
 - `ImportProgressView` shows track count fraction (x / total) alongside status text
 
 ### Fixed
+
 - `MenuBarView.axaml` XAML parse errors - missing spaces between attributes
 - `PlayerViewModel.AlbumArtPath` stored on ViewModel directly, not read from Track model
 
@@ -414,30 +497,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.1.2] - 29-May-2026
 
 ### Added
+
 - LibVLCSharp local file playback (play/pause/stop/seek/volume)
 - yt-dlp download integration (audio download to `~/.nullwave/downloads/`)
 - `PlayerViewModel` - mini player bar with track display, status, download progress
 - `DownloadService` - wraps yt-dlp as process, parses progress, fires completion events
 - `PlaybackService` - wraps LibVLCSharp MediaPlayer with event-driven state
-- `TrackDetailViewModel` - sliding right panel (0→320px animated) with editable fields
+- `TrackDetailViewModel` - sliding right panel (0>320px animated) with editable fields
 - `ImportViewModel` - bulk folder import with progress bar and subfolder dialog
 - `ConfirmDialog` - reusable Yes/No dialog
 - `BoolToOpacityConverter` - favorite star opacity (full/dim)
-- Play command in ⋮ context menu per track row
+- Play command in ? context menu per track row
 - Mini player bar wired to `PlayerViewModel`
 
 ### Changed
-- `MainViewModel` wired: `Library.PlayTrackRequested` → `Player.PlayTrack`
+
+- `MainViewModel` wired: `Library.PlayTrackRequested` > `Player.PlayTrack`
 - `MainWindow.axaml` fully rewritten with sidebar, detail panel, floating + button
-- Track rows now show stacked Title+Artist, play count, inline ⭐, ⋮ menu
+- Track rows now show stacked Title+Artist, play count, inline ?, ? menu
 - Material.Avalonia removed (incompatible with Avalonia 12.0.3), pure custom styles used
 
 ### Fixed
+
 - libVLC not found on Fedora (`/usr/lib64`) - symlinks + ldconfig config added
 - `BoolConverters.ToObject` unavailable in Avalonia 12 - replaced with custom converter
 - `FilterLastFmCommand` declared twice - duplicate removed
 
 ### Security
+
 - API key redaction in logs verified working
 - KeyStore encryption confirmed operational
 
@@ -446,6 +533,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.1.1] - 28-May-2026
 
 ### Added
+
 - YouTube Data API v3 real metadata fetching (title + channel name)
 - Encrypted local API key storage (AES-256-GCM, machine-bound via `/etc/machine-id`)
 - `KeyStoreService` - secure read/write/delete of API keys to `~/.nullwave/keys.enc`
@@ -460,16 +548,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - DISCLAIMER.md, ROADMAP.md, SECURITY.md, CONTRIBUTING.md added
 
 ### Changed
+
 - Removed Instagram from `TrackSource` (replaced with SoundCloud)
 - `MainViewModel` refactored into focused child ViewModels
 - API keys moved from config files to encrypted KeyStore
 
 ### Fixed
+
 - Duplicate variable declaration in `TrackInputViewModel.AddLocalFileAsync`
 - Missing using directives in `SettingsViewModel`
 - `obj/bin` removed from git tracking
 
 ### Security
+
 - API keys never stored in project folder or git history
 - Keystore encrypted with AES-256-GCM, key derived from machine-id + username
 - Log output redacts strings matching API key patterns
@@ -480,6 +571,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.1.0] - 26-May-2026
 
 ### Added
+
 - Initial project setup with Avalonia UI (.NET 8)
 - Core track model: Title, Artist, URL, FilePath, Source, DateAdded
 - `TrackSource` enum (YouTube, Spotify, Local, SoundCloud, Unknown)
