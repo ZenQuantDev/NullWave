@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -30,7 +29,7 @@ public class DependencyUpdateService
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
     }
 
-    // yt-dlp
+    // ===== YT-DLP =====
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
         var installed = await RunCommandAsync("yt-dlp", "--version");
@@ -40,11 +39,9 @@ public class DependencyUpdateService
         string latest = "unknown";
         try
         {
-            var json = await _http.GetStringAsync(
-                "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest");
+            var json = await _http.GetStringAsync("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest");
             using var doc = JsonDocument.Parse(json);
-            latest = doc.RootElement
-                .GetProperty("tag_name").GetString() ?? "unknown";
+            latest = doc.RootElement.GetProperty("tag_name").GetString() ?? "unknown";
         }
         catch { }
 
@@ -60,58 +57,84 @@ public class DependencyUpdateService
 
     public async Task<string> UpdateYtDlpAsync()
     {
+        // 1. ALWAYS try yt-dlp's native self-updater first.
+        // This works for standalone .exe, pip, and most package managers.
+        var selfUpdate = await RunCommandAsync("yt-dlp", "-U");
+        if (selfUpdate != null)
+        {
+            Log.Information("[DependencyUpdate] yt-dlp updated successfully via native self-updater (-U)");
+            return "Update completed via yt-dlp";
+        }
+
+        // 2. Fallback for Windows: try winget (only works if originally installed via winget)
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Log.Information("[DependencyUpdate] Attempting yt-dlp update via winget...");
+            Log.Information("[DependencyUpdate] Native update failed, attempting winget fallback...");
             var wingetUpdate = await RunCommandAsync("winget", "upgrade yt-dlp.yt-dlp --accept-source-agreements --accept-package-agreements");
             if (wingetUpdate != null)
             {
                 Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
                 return "Update completed via winget";
             }
-
-            var standardUpdate = await RunCommandAsync("yt-dlp", "-U");
-            if (standardUpdate != null) return "Update completed via yt-dlp -U";
-
-            return "Update failed: Ensure yt-dlp is installed via winget or pip";
         }
 
-        var standardUpdateLinux = await RunCommandAsync("yt-dlp", "-U");
-        if (standardUpdateLinux != null)
-        {
-            Log.Information("[DependencyUpdate] yt-dlp updated successfully via standard method");
-            return "Update completed via yt-dlp -U";
-        }
-
+        // 3. Fallback for Linux: try pip
         var pipUpdate = await RunCommandAsync("pip", "install --upgrade yt-dlp");
         if (pipUpdate != null)
         {
             Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
-            return "Update completed via pip install --upgrade yt-dlp";
+            return "Update completed via pip";
         }
 
-        return "Update failed: yt-dlp is not installed or not accessible";
+        return "Update failed: Ensure yt-dlp is installed correctly.";
     }
 
-    // VLC
+    // ===== VLC MEDIA PLAYER =====
     public async Task<DependencyInfo> GetVlcInfoAsync()
     {
+        // 1. Try CLI (works on Linux/macOS or if added to Windows PATH)
         var installed = await RunCommandAsync("vlc", "--version");
-        if (string.IsNullOrWhiteSpace(installed))
-            return new DependencyInfo { Name = "VLC", IsInstalled = false };
-
-        var firstLine = installed.Split('\n')[0].Trim();
-        return new DependencyInfo
+        if (!string.IsNullOrWhiteSpace(installed))
         {
-            Name = "VLC",
-            InstalledVersion = firstLine,
-            LatestVersion = "Check vlc.videolan.org",
-            CanSelfUpdate = false,
-            IsInstalled = true
-        };
+            var firstLine = installed.Split('\n')[0].Trim();
+            return new DependencyInfo
+            {
+                Name = "VLC",
+                InstalledVersion = firstLine,
+                LatestVersion = "Check videolan.org",
+                CanSelfUpdate = false,
+                IsInstalled = true
+            };
+        }
+
+        // 2. Fallback: Check standard Windows installation paths via FileVersionInfo
+        if (OperatingSystem.IsWindows())
+        {
+            string[] standardPaths = {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VideoLAN", "VLC", "vlc.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VideoLAN", "VLC", "vlc.exe")
+            };
+
+            foreach (var path in standardPaths)
+            {
+                if (File.Exists(path))
+                {
+                    var versionInfo = FileVersionInfo.GetVersionInfo(path);
+                    return new DependencyInfo
+                    {
+                        Name = "VLC",
+                        InstalledVersion = versionInfo.FileVersion ?? versionInfo.ProductVersion ?? "Installed",
+                        LatestVersion = "Check videolan.org",
+                        CanSelfUpdate = false,
+                        IsInstalled = true
+                    };
+                }
+            }
+        }
+
+        return new DependencyInfo { Name = "VLC", IsInstalled = false };
     }
 
-    // VLC install (Windows via winget; Linux defers to the package manager)
     public async Task<string> InstallVlcAsync()
     {
         if (!OperatingSystem.IsWindows())
@@ -124,10 +147,10 @@ public class DependencyUpdateService
             Log.Information("[DependencyUpdate] VLC installed via winget");
             return "VLC installed via winget";
         }
-        return "winget install failed \u2014 install VLC manually";
+        return "winget install failed - install VLC manually";
     }
 
-    // FFmpeg
+    // ===== FFMPEG & .NET =====
     public async Task<DependencyInfo> GetFfmpegInfoAsync()
     {
         var installed = await RunCommandAsync("ffmpeg", "-version");
@@ -145,7 +168,6 @@ public class DependencyUpdateService
         };
     }
 
-    // .NET
     public async Task<DependencyInfo> GetDotNetInfoAsync()
     {
         var installed = await RunCommandAsync("dotnet", "--version");
@@ -159,6 +181,7 @@ public class DependencyUpdateService
         };
     }
 
+    // ===== HELPERS =====
     private static async Task<string?> RunCommandAsync(string cmd, string args)
     {
         try
@@ -178,7 +201,13 @@ public class DependencyUpdateService
             var output = await proc.StandardOutput.ReadToEndAsync();
             await proc.WaitForExitAsync();
 
-            return proc.ExitCode == 0 ? output : null;
+            if (proc.ExitCode == 0) return output;
+
+            // Special case: yt-dlp -U might exit with 0 but output "yt-dlp is up to date"
+            if (cmd == "yt-dlp" && args == "-U" && output.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+                return output;
+
+            return null;
         }
         catch (Exception ex)
         {

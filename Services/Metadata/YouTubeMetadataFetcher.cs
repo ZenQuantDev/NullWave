@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using Serilog;
 
 namespace NullWave.Services.Metadata;
@@ -12,84 +13,75 @@ public partial class YouTubeMetadataFetcher
     private readonly HttpClient _http = new();
     private readonly string _apiKey;
 
-    public YouTubeMetadataFetcher(string apiKey)
-    {
-        _apiKey = apiKey;
-    }
+    public YouTubeMetadataFetcher(string apiKey) { _apiKey = apiKey; }
 
-    public async Task<(string Title, string Artist, string? ThumbnailPath)> FetchAsync(string url)
+    public async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchAsync(string url)
     {
-        // Fail gracefully instead of throwing a 400 Bad Request exception
         if (url.Contains("list=") || url.Contains("/playlist?"))
         {
             Log.Warning("Skipped single-track metadata fetch for playlist URL: {Url}", url);
-            // Return empty strings instead of "Unknown" to prevent UI flicker
-            return (string.Empty, string.Empty, null); 
+            return (string.Empty, string.Empty, null, TimeSpan.Zero);
         }
 
-        // Normalize youtu.be shortlinks to standard watch URLs for the API
         if (url.Contains("youtu.be/"))
         {
             try
             {
                 var uri = new Uri(url);
                 var videoId = uri.AbsolutePath.TrimStart('/');
-                if (!string.IsNullOrEmpty(videoId))
-                {
-                    url = $"https://www.youtube.com/watch?v={videoId}";
-                }
+                if (!string.IsNullOrEmpty(videoId)) url = $"https://www.youtube.com/watch?v={videoId}";
             }
-            catch (UriFormatException)
-            {
-                // Ignore and fall through to ExtractYouTubeId
-            }
+            catch (UriFormatException) { }
         }
 
         var id = ExtractYouTubeId(url);
-        if (string.IsNullOrEmpty(id))
-            return ("YouTube track (unknown id)", "Unknown", null);
+        if (string.IsNullOrEmpty(id)) return ($"YouTube track ({id})", "Unknown", null, TimeSpan.Zero);
 
         string? thumbnailPath = await FetchThumbnailAsync(id);
 
         if (string.IsNullOrEmpty(_apiKey))
         {
             Log.Warning("YouTube API key not configured");
-            return ($"YouTube track ({id})", "Unknown", thumbnailPath);
+            return ($"YouTube track ({id})", "Unknown", thumbnailPath, TimeSpan.Zero);
         }
 
         try
         {
-            var requestUrl =
-                $"https://www.googleapis.com/youtube/v3/videos" +
-                $"?part=snippet&id={id}&key={_apiKey}";
-
+            var requestUrl = $"https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id={id}&key={_apiKey}";
             var response = await _http.GetAsync(requestUrl);
-            
-            // FIX: Manual status check to avoid throwing exceptions on expected API rejections (400, 403, 404)
             if (!response.IsSuccessStatusCode)
             {
                 Log.Warning("YouTube API returned {StatusCode} for {Url}", response.StatusCode, url);
-                return ("Unknown Title", "Unknown Artist", thumbnailPath);
+                return ("Unknown Title", "Unknown Artist", thumbnailPath, TimeSpan.Zero);
             }
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             var items = doc.RootElement.GetProperty("items");
-
-            if (items.GetArrayLength() == 0)
-                return ("Unknown Title", "Unknown Artist", thumbnailPath);
+            if (items.GetArrayLength() == 0) return ("Unknown Title", "Unknown Artist", thumbnailPath, TimeSpan.Zero);
 
             var snippet = items[0].GetProperty("snippet");
-            var title   = snippet.GetProperty("title").GetString()        ?? "Unknown Title";
-            var artist  = snippet.GetProperty("channelTitle").GetString() ?? "Unknown Artist";
+            var title = snippet.GetProperty("title").GetString() ?? "Unknown Title";
+            var artist = snippet.GetProperty("channelTitle").GetString() ?? "Unknown Artist";
+
+            var duration = TimeSpan.Zero;
+            if (items[0].TryGetProperty("contentDetails", out var contentDetails) &&
+                contentDetails.TryGetProperty("duration", out var durationElement))
+            {
+                var iso = durationElement.GetString();
+                if (!string.IsNullOrEmpty(iso))
+                {
+                    try { duration = XmlConvert.ToTimeSpan(iso); } catch { duration = TimeSpan.Zero; }
+                }
+            }
 
             Log.Information("YouTube metadata fetched: {Title} by {Artist}", title, artist);
-            return (title, artist, thumbnailPath);
+            return (title, artist, thumbnailPath, duration);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "YouTube metadata fetch failed for {Url}", url);
-            return ("Unknown Title", "Unknown Artist", thumbnailPath);
+            return ("Unknown Title", "Unknown Artist", thumbnailPath, TimeSpan.Zero);
         }
     }
 

@@ -12,7 +12,7 @@ namespace NullWave.Services.Integration;
 /// Two categories:
 ///   - Generic: noise tags that add no genre/mood value ("seen live", etc.)
 ///   - Offensive: crowdsourced troll/hate tags that occasionally get voted onto
-///     legitimate tracks. Add specific terms you've observed here — kept as a
+///     legitimate tracks. Add specific terms you've observed here - kept as a
 ///     plain list so it's easy to extend without touching filtering logic.
 /// </summary>
 public static class TagDenylist

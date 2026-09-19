@@ -1,6 +1,8 @@
+using NullWave.Services.Security;
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services;
@@ -13,9 +15,7 @@ public class SecureDeleteService
     public SecureDeleteService(KeyStoreService keyStore)
     {
         _keyStore = keyStore;
-        _nullwaveDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nullwave");
+        _nullwaveDir = NullWavePaths.DataDir;
     }
 
     // Wipe only API keys
@@ -27,7 +27,7 @@ public class SecureDeleteService
     // Wipe logs only
     public void DeleteLogs()
     {
-        var logDir = Path.Combine(_nullwaveDir, "logs");
+        var logDir = NullWavePaths.LogsDir;
         if (!Directory.Exists(logDir)) return;
 
         foreach (var file in Directory.GetFiles(logDir, "*.log"))

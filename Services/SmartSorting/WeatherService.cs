@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Services;
+using NullWave.Services.Security;
 using Serilog;
 
 namespace NullWave.Services.SmartSorting;

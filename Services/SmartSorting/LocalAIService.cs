@@ -33,9 +33,15 @@ public class LocalAIService : IDisposable
     private volatile string _currentModel = "qwen2.5:3b";
     private volatile PowerState _currentPowerState = PowerState.AC;
     private volatile bool _autoPowerSwitch = true;
-    
+
     private volatile bool _isReachable = true;
     public bool IsReachable => _isReachable;
+
+    // NEW: True only while a model has actually been loaded into RAM/VRAM by a
+    // successful generation request this session. Lets shutdown skip the unload
+    // call entirely when AI features were never used.
+    private volatile bool _isModelLoaded;
+    public bool IsModelLoaded => _isModelLoaded;
 
     private readonly CancellationTokenSource _cts = new();
 
@@ -133,7 +139,7 @@ public class LocalAIService : IDisposable
             if (!string.Equals(_currentModel, newValue, StringComparison.OrdinalIgnoreCase))
             {
                 var oldModel = _currentModel;
-                _currentModel = newValue; 
+                _currentModel = newValue;
                 _stateQueue.Writer.TryWrite(async () =>
                 {
                     await _aiEngineLock.WaitAsync();
@@ -179,7 +185,7 @@ public class LocalAIService : IDisposable
             if (!string.Equals(_currentModel, targetModel, StringComparison.OrdinalIgnoreCase))
             {
                 var oldModel = _currentModel;
-                _currentModel = targetModel; 
+                _currentModel = targetModel;
                 Log.Warning("[LocalAIService] [{Source}] Swapping models safely from '{Old}' to '{New}'...", contextSource, oldModel, targetModel);
                 if (!string.IsNullOrWhiteSpace(oldModel))
                 {
@@ -200,7 +206,7 @@ public class LocalAIService : IDisposable
             var response = await _pingClient.GetAsync($"{_ollamaUrl}/");
             if (response.IsSuccessStatusCode)
             {
-                _isReachable = true; 
+                _isReachable = true;
                 return true;
             }
             return false;
@@ -222,32 +228,105 @@ public class LocalAIService : IDisposable
         catch { return false; }
     }
 
-    public async Task<bool> IsModelDownloadedAsync(string model)
+    private async Task<List<string>> GetInstalledModelsAsync()
     {
         try
         {
             var response = await _pingClient.GetAsync($"{_ollamaUrl}/api/tags");
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode) return new List<string>();
 
             using var stream = await response.Content.ReadAsStreamAsync();
             using var doc = await JsonDocument.ParseAsync(stream);
-            var targetModel = model.Contains(':') ? model : $"{model}:latest";
-            var models = doc.RootElement.GetProperty("models");
-            return models.EnumerateArray().Any(m =>
-                string.Equals(m.GetProperty("name").GetString(), targetModel, StringComparison.OrdinalIgnoreCase));
+            if (!doc.RootElement.TryGetProperty("models", out var models)
+                || models.ValueKind != JsonValueKind.Array)
+                return new List<string>();
+
+            return models.EnumerateArray()
+                .Where(model => model.TryGetProperty("name", out _))
+                .Select(model => model.GetProperty("name").GetString() ?? string.Empty)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
         }
-        catch { return false; }
+        catch
+        {
+            return new List<string>();
+        }
     }
 
+    public async Task<bool> IsModelDownloadedAsync(string model)
+    {
+        var installed = await GetInstalledModelsAsync();
+        var targetModel = model.Contains(':') ? model : $"{model}:latest";
+        return installed.Any(installedModel =>
+            string.Equals(installedModel, targetModel, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(installedModel, model, StringComparison.OrdinalIgnoreCase)
+            || installedModel.StartsWith(model + ":", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<string> ResolveActiveModelAsync()
+    {
+        if (await IsModelDownloadedAsync(_currentModel))
+            return _currentModel;
+
+        var installedModels = await GetInstalledModelsAsync();
+        if (installedModels.Count == 0)
+        {
+            Log.Warning("[LocalAI] Configured model '{Model}' is not downloaded, and no other models were found in Ollama.", _currentModel);
+            return _currentModel;
+        }
+
+        var catalogMatches = AIModelCatalog.All
+            .Where(model => installedModels.Any(installedModel =>
+                installedModel.StartsWith(model.OllamaId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(installedModel, model.OllamaId, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (catalogMatches.Count > 0)
+        {
+            var bestFit = catalogMatches
+                .OrderByDescending(model => model.ParametersBillions <= 8 ? 1 : 0)
+                .ThenByDescending(model => model.ParametersBillions)
+                .First();
+
+            var match = installedModels.First(installedModel =>
+                installedModel.StartsWith(bestFit.OllamaId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(installedModel, bestFit.OllamaId, StringComparison.OrdinalIgnoreCase));
+
+            Log.Information("[LocalAI] Configured model '{Configured}' not found. Auto-switching to safe installed model '{Fallback}' ({Params}B).", _currentModel, match, bestFit.ParametersBillions);
+            _currentModel = match;
+            return match;
+        }
+
+        var fallback = installedModels[0];
+        Log.Information("[LocalAI] Configured model '{Configured}' not found. Auto-switching to unknown installed model '{Fallback}'.", _currentModel, fallback);
+        _currentModel = fallback;
+        return fallback;
+    }
+
+    /// <summary>
+    /// Fast, conditional VRAM/RAM eviction. Returns immediately if no model was
+    /// ever loaded this session; otherwise capped at ~500ms so shutdown never
+    /// feels blocked. Every generation request also carries keep_alive="5m", so
+    /// Ollama self-evicts shortly after last use even if this call never runs.
+    /// </summary>
     public async Task UnloadModelAsync(string modelName)
     {
-        if (string.IsNullOrWhiteSpace(modelName)) return;
+        if (string.IsNullOrWhiteSpace(modelName) || !_isModelLoaded) return;
+
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
             var payload = new { model = modelName, prompt = "", keep_alive = 0 };
-            var response = await _pingClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", payload);
+            var response = await _pingClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", payload, cts.Token);
             if (response.IsSuccessStatusCode)
-                Log.Information("[LocalAIService] Evicted '{Model}' from RAM", modelName);
+            {
+                Log.Information("[LocalAIService] Evicted '{Model}' from RAM/VRAM", modelName);
+                _isModelLoaded = false;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Debug("[LocalAIService] Unload of '{Model}' timed out after 500ms; keep_alive policy will evict it anyway.", modelName);
         }
         catch (Exception ex)
         {
@@ -294,7 +373,7 @@ public class LocalAIService : IDisposable
         Track[] candidateTracks, int maxResults = 20, CancellationToken ct = default)
     {
         if (candidateTracks == null || candidateTracks.Length == 0) return Array.Empty<string>();
-        
+
         if (!_isReachable)
         {
             Log.Debug("[LocalAI] Skipping AI ranking - circuit breaker open (Ollama unreachable).");
@@ -304,6 +383,7 @@ public class LocalAIService : IDisposable
         await _aiEngineLock.WaitAsync(ct);
         try
         {
+            var activeModel = await ResolveActiveModelAsync();
             var indexToIdMap = candidateTracks
                 .Select((track, idx) => new { idx, Id = track.Id.ToString() })
                 .ToDictionary(x => x.idx, x => x.Id);
@@ -312,31 +392,34 @@ public class LocalAIService : IDisposable
 
             var requestBody = new
             {
-                model = _currentModel,
+                model = activeModel,
                 prompt = prompt + "\n\nRespond ONLY with a valid JSON object matching the schema. Do not include markdown formatting or explanations.",
                 stream = false,
                 format = "json",
+                keep_alive = "5m",
                 options = new
                 {
                     temperature = 0.2,
                     top_p = 0.9,
-                    num_predict = 4096, 
+                    num_predict = 4096,
                     num_ctx = Math.Max(4096, 2048 + (120 * candidateTracks.Length))
                 }
             };
 
             try
             {
-                Log.Debug("[LocalAI] Requesting fast indexed ranking using model: '{Model}' for {TrackCount} candidates", _currentModel, candidateTracks.Length);
+                Log.Debug("[LocalAI] Requesting fast indexed ranking using model: '{Model}' for {TrackCount} candidates", activeModel, candidateTracks.Length);
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorResponse = await response.Content.ReadAsStringAsync(ct);
                     Log.Error("[LocalAI] Ollama API returned HTTP {StatusCode}: {ErrorBody}. Falling back to local keyword sorting.", (int)response.StatusCode, errorResponse);
-                    FallbackNotice?.Invoke($"Local AI request failed (HTTP {(int)response.StatusCode}) — used keyword-based sorting instead.");
+                    FallbackNotice?.Invoke($"Local AI request failed (HTTP {(int)response.StatusCode}) - used keyword-based sorting instead.");
                     return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
                 }
+
+                _isModelLoaded = true; 
 
                 using var responseStream = await response.Content.ReadAsStreamAsync(ct);
                 using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
@@ -358,7 +441,7 @@ public class LocalAIService : IDisposable
             catch (Exception ex)
             {
                 Log.Error(ex, "[LocalAI] Critical failure or timeout during local AI calculation. Falling back to local keyword sorting.");
-                FallbackNotice?.Invoke("Local AI timed out or was unreachable — used keyword-based sorting instead.");
+                FallbackNotice?.Invoke("Local AI timed out or was unreachable - used keyword-based sorting instead.");
                 return GetLocalFallbackRanking(mood, weather, candidateTracks, maxResults);
             }
         }
@@ -375,23 +458,30 @@ public class LocalAIService : IDisposable
         await _aiEngineLock.WaitAsync(ct);
         try
         {
-            var prompt = $$"""
-            You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
+            var activeModel = await ResolveActiveModelAsync();
             
+            // FIX: Explicitly state the schema in the prompt so smaller models don't improvise keys like "genre"
+            var prompt = $$"""
+            You are a deterministic music categorization engine.
+
             [TRACK METADATA]
             Artist: {{CleanForPrompt(artist)}}
             Title: {{CleanForPrompt(title)}}
             File Path: {{CleanForPrompt(filePath)}}
-            
-            Respond ONLY with a valid JSON object matching the schema. Do not include markdown formatting.
+
+            Respond ONLY with a valid JSON object matching this EXACT schema:
+            { "tags": ["tag one", "tag two", "tag three"] }
+
+            Rules: 3-8 tags, lowercase genre/mood words, no markdown, no extra keys.
             """;
 
             var requestBody = new
             {
-                model = _currentModel,
+                model = activeModel,
                 prompt = prompt,
                 stream = false,
                 format = "json",
+                keep_alive = "5m",
                 options = new
                 {
                     temperature = 0.4,
@@ -403,7 +493,7 @@ public class LocalAIService : IDisposable
 
             try
             {
-                Log.Debug("[LocalAI] Requesting single tag generation using model: '{Model}' for '{Title}'", _currentModel, title);
+                Log.Debug("[LocalAI] Requesting single tag generation using model: '{Model}' for '{Title}'", activeModel, title);
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
 
                 if (!response.IsSuccessStatusCode)
@@ -412,11 +502,12 @@ public class LocalAIService : IDisposable
                     return Array.Empty<string>();
                 }
 
+                _isModelLoaded = true; 
+
                 using var responseStream = await response.Content.ReadAsStreamAsync(ct);
                 using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
                 var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
 
-                // FIX: Strip markdown code blocks that LLMs often add despite instructions
                 var cleanResponse = responseText.Trim();
                 if (cleanResponse.StartsWith("```json")) cleanResponse = cleanResponse.Substring(7);
                 else if (cleanResponse.StartsWith("```")) cleanResponse = cleanResponse.Substring(3);
@@ -430,15 +521,10 @@ public class LocalAIService : IDisposable
                 }
 
                 using var jsonDoc = JsonDocument.Parse(cleanResponse);
-                
-                // FIX: Use TryGetProperty to prevent KeyNotFoundException if schema is unexpected
-                if (jsonDoc.RootElement.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array)
-                {
-                    return tagsProp.EnumerateArray()
-                        .Select(e => e.GetString() ?? string.Empty)
-                        .Where(s => !string.IsNullOrEmpty(s))
-                        .ToArray();
-                }
+
+                // FIX: Use tolerant parser that accepts "tags", "genre", "mood", etc. as arrays or comma-strings
+                var tags = ExtractTagArray(jsonDoc.RootElement);
+                if (tags.Length > 0) return tags;
 
                 Log.Warning("[LocalAI] Unexpected JSON structure for tag generation of '{Title}': {Response}", title, cleanResponse);
                 return Array.Empty<string>();
@@ -470,27 +556,33 @@ public class LocalAIService : IDisposable
         await _aiEngineLock.WaitAsync(ct);
         try
         {
+            var activeModel = await ResolveActiveModelAsync();
             var trackList = new StringBuilder();
             foreach (var track in tracks)
             {
                 trackList.AppendLine($"{track.Index}. {CleanForPrompt(track.Title)} - {CleanForPrompt(track.Artist)}");
             }
 
+            // FIX: Explicitly state the schema in the prompt
             var prompt = $$"""
-            You are a deterministic music categorization engine. Your task is to analyze the provided track details and output tags.
-            
+            You are a deterministic music categorization engine.
+
             Analyze these tracks:
             {{trackList}}
-            
-            Respond ONLY with a valid JSON object matching the schema. Do not include markdown formatting.
+
+            Respond ONLY with a valid JSON object matching this EXACT schema:
+            { "results": [ { "id": 1, "tags": ["tag a", "tag b"] }, { "id": 2, "tags": ["tag c"] } ] }
+
+            Rules: 3-8 tags per track, lowercase genre/mood words, no markdown, no extra keys.
             """;
 
             var requestBody = new
             {
-                model = _currentModel,
+                model = activeModel,
                 prompt = prompt,
                 stream = false,
                 format = "json",
+                keep_alive = "5m",
                 options = new
                 {
                     temperature = 0.4,
@@ -502,7 +594,7 @@ public class LocalAIService : IDisposable
 
             try
             {
-                Log.Debug("[LocalAI] Requesting bulk tag generation for {Count} tracks using model: '{Model}'", tracks.Count, _currentModel);
+                Log.Debug("[LocalAI] Requesting bulk tag generation for {Count} tracks using model: '{Model}'", tracks.Count, activeModel);
                 var response = await _genClient.PostAsJsonAsync($"{_ollamaUrl}/api/generate", requestBody, ct);
 
                 if (!response.IsSuccessStatusCode)
@@ -511,11 +603,12 @@ public class LocalAIService : IDisposable
                     return Enumerable.Repeat(Array.Empty<string>(), tracks.Count).ToList();
                 }
 
+                _isModelLoaded = true; 
+
                 using var responseStream = await response.Content.ReadAsStreamAsync(ct);
                 using var doc = await JsonDocument.ParseAsync(responseStream, cancellationToken: ct);
                 var responseText = doc.RootElement.GetProperty("response").GetString() ?? "";
 
-                // FIX: Strip markdown code blocks
                 var cleanResponse = responseText.Trim();
                 if (cleanResponse.StartsWith("```json")) cleanResponse = cleanResponse.Substring(7);
                 else if (cleanResponse.StartsWith("```")) cleanResponse = cleanResponse.Substring(3);
@@ -525,20 +618,15 @@ public class LocalAIService : IDisposable
                 using var jsonDoc = JsonDocument.Parse(cleanResponse);
                 var resultMap = new Dictionary<int, string[]>();
 
-                // FIX: Safe property access
                 if (jsonDoc.RootElement.TryGetProperty("results", out var resultsProp) && resultsProp.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var item in resultsProp.EnumerateArray())
                     {
-                        if (item.TryGetProperty("id", out var idProp) && 
-                            item.TryGetProperty("tags", out var tagsProp) && 
-                            tagsProp.ValueKind == JsonValueKind.Array)
+                        if (item.TryGetProperty("id", out var idProp))
                         {
                             int id = idProp.GetInt32();
-                            var tags = tagsProp.EnumerateArray()
-                                .Select(e => e.GetString() ?? string.Empty)
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToArray();
+                            // FIX: Use tolerant parser for each item
+                            var tags = ExtractTagArray(item);
                             resultMap[id] = tags;
                         }
                     }
@@ -580,6 +668,25 @@ public class LocalAIService : IDisposable
         {
             _aiEngineLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Tolerant tag extraction: accepts "tags"/"genre"/"genres"/"mood"/"moods"/"style",
+    /// as JSON arrays or comma-separated strings - small models frequently improvise keys.
+    /// </summary>
+    private static string[] ExtractTagArray(JsonElement root)
+    {
+        var result = new List<string>();
+        foreach (var key in new[] { "tags", "genre", "genres", "mood", "moods", "style", "styles" })
+        {
+            if (!root.TryGetProperty(key, out var el)) continue;
+            if (el.ValueKind == JsonValueKind.Array)
+                result.AddRange(el.EnumerateArray().Select(e => e.GetString() ?? "").Where(s => !string.IsNullOrEmpty(s)));
+            else if (el.ValueKind == JsonValueKind.String)
+                result.AddRange((el.GetString() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        return result.Select(t => t.Trim()).Where(t => t.Length > 1)
+                     .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private string[] GetLocalFallbackRanking(string mood, string weather, Track[] candidateTracks, int maxResults)
@@ -674,13 +781,12 @@ public class LocalAIService : IDisposable
         try
         {
             using var doc = JsonDocument.Parse(cleanResponse);
-            
+
             if (doc.RootElement.TryGetProperty("indices", out var indicesProp) && indicesProp.ValueKind == JsonValueKind.Array)
             {
                 return indicesProp.EnumerateArray().Select(e => e.GetInt32()).ToArray();
             }
-            
-            // Fallback if model wraps it in an object differently or returns a raw array
+
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
                 return doc.RootElement.EnumerateArray().Select(e => e.GetInt32()).ToArray();
@@ -690,7 +796,7 @@ public class LocalAIService : IDisposable
         {
             // Invalid JSON, return empty
         }
-        
+
         return Array.Empty<int>();
     }
 }

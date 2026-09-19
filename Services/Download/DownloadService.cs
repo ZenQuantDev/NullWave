@@ -30,6 +30,36 @@ public class DownloadService
     private readonly PreferencesService _prefsService;
     private readonly AlbumArtService _albumArtService;
 
+    public ObservableCollection<DownloadJob> ActiveJobs { get; } = new();
+
+    private DownloadJob GetOrCreateJob(string trackId, string url, string title, string artist)
+    {
+        var existing = ActiveJobs.FirstOrDefault(j => j.Url == url && !j.IsCompleted && !j.IsFailed);
+        if (existing != null) return existing;
+
+        var job = new DownloadJob
+        {
+            Url = url,
+            Title = title,
+            Artist = artist,
+            RetryAction = () => _ = DownloadAsync(trackId, url)
+        };
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => ActiveJobs.Insert(0, job));
+        return job;
+    }
+
+    private void PruneCompletedJobs()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            while (ActiveJobs.Count > 25)
+            {
+                var victim = ActiveJobs.LastOrDefault(j => j.IsCompleted || j.IsFailed) ?? ActiveJobs[^1];
+                if (victim != null) ActiveJobs.Remove(victim);
+            }
+        });
+    }
+
     public event Action<string, float>? ProgressChanged;
     public event Action<string, string, bool>? DownloadCompleted;
     public event Action<string, string, bool>? DownloadFailed;
@@ -47,6 +77,7 @@ public class DownloadService
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly HashSet<string> _activeDownloads = new();
+    private int _activeDownloadCount; // NEW: Tracks in-flight downloads for fallback safety
     private CancellationTokenSource? _currentDownloadCts;
     private SemaphoreSlim _semaphore = new(2, 5);
     private int _currentLimit = 2;
@@ -110,9 +141,9 @@ public class DownloadService
             }
 
             if (!_aria2cAvailable.Value)
-                Log.Information("[DownloadService] aria2c not found on PATH — using yt-dlp's native downloader");
+                Log.Information("[DownloadService] aria2c not found on PATH - using yt-dlp's native downloader");
             else
-                Log.Information("[DownloadService] aria2c detected — enabling multi-connection downloads");
+                Log.Information("[DownloadService] aria2c detected - enabling multi-connection downloads");
 
             return _aria2cAvailable.Value;
         }
@@ -150,6 +181,8 @@ public class DownloadService
         string audioQuality = "best",
         bool allowPlaylist = false,
         bool isInteractive = true,
+        string? title = null,
+        string? artist = null,
         CancellationToken ct = default)
     {
         if (url.Contains("youtu.be") || url.Contains("youtube.com"))
@@ -246,17 +279,28 @@ public class DownloadService
             await _semaphore.WaitAsync(ct);
         }
 
+        Interlocked.Increment(ref _activeDownloadCount); // NEW: Track in-flight downloads
+
+        // FIX: Use passed-in title/artist instead of hardcoded "Track"/"Unknown"
+        var job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
+        job.Status = "Downloading...";
+        job.IsIndeterminate = false;
+
         try
         {
-            var psi = new ProcessStartInfo
+            // FIX: Use ArgumentList to prevent argument injection
+            var psi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
-                FileName               = PlatformHelper.ResolveExecutable("yt-dlp"),
-                Arguments              = string.Join(" ", args.Select(QuoteIfNeeded)),
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
                 CreateNoWindow         = true
             };
+
+            foreach (var arg in args)
+            {
+                psi.ArgumentList.Add(arg);
+            }
 
             using var process = new Process { StartInfo = psi };
             string? outputFilePath = null;
@@ -273,6 +317,7 @@ public class DownloadService
                         out var pct))
                 {
                     ProgressChanged?.Invoke(trackId, pct / 100f);
+                    job.Progress = pct;
                     return;
                 }
                 if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
@@ -288,12 +333,9 @@ public class DownloadService
                 if (!string.IsNullOrEmpty(e.Data))
                 {
                     Log.Debug("yt-dlp stderr: {Line}", e.Data);
-                    // Detect Rate Limiting / 429 Too Many Requests
-                    if (e.Data.Contains("429") || 
-                        e.Data.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase) || 
-                        e.Data.Contains("Rate limit", StringComparison.OrdinalIgnoreCase))
+                    if (e.Data.Contains("429") || e.Data.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
                     {
-                        _rateLimitTriggered = true;
+                        lock (_aria2cLock) { _rateLimitTriggered = true; }
                     }
                 }
             };
@@ -301,7 +343,7 @@ public class DownloadService
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            
+
             try
             {
                 await process.WaitForExitAsync(ct);
@@ -309,12 +351,12 @@ public class DownloadService
             }
             catch (OperationCanceledException)
             {
-                // FIX: Kill the zombie yt-dlp/ffmpeg process tree
+                // yt-dlp spawns ffmpeg as a child process, so kill the entire process tree.
                 if (!process.HasExited)
                 {
-                    try { process.Kill(true); } catch { /* Ignore */ }
+                    try { process.Kill(true); } catch { /* Ignore teardown errors */ }
                 }
-                
+
                 Log.Warning("Download cancelled: {TrackId}", trackId);
                 DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
                 return; // Exit early so we don't trigger success logic
@@ -323,50 +365,63 @@ public class DownloadService
             if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
                 Log.Debug("Download complete: {Path}", outputFilePath);
+                job.IsCompleted = true;
+                job.Status = "Completed";
+                job.Progress = 100;
                 DownloadCompleted?.Invoke(trackId, outputFilePath, isInteractive);
+                PruneCompletedJobs();
             }
             else if (process.ExitCode == 0)
             {
-                var recent = FindMostRecentUnlinkedDownload();
+                // FIX: Pass expected title to prevent cross-contamination during concurrent downloads
+                var recent = FindMostRecentUnlinkedDownload(title);
                 if (recent != null)
                 {
                     Log.Warning("[DownloadService] filepath not captured, using most recent: {Path}", recent);
+                    job.IsCompleted = true;
+                    job.Status = "Completed";
+                    job.Progress = 100;
                     DownloadCompleted?.Invoke(trackId, recent, isInteractive);
+                    PruneCompletedJobs();
                 }
                 else
                 {
                     Log.Error("[DownloadService] Download exited 0 but no output file found for {TrackId}", trackId);
                     DownloadFailed?.Invoke(trackId, "File not found after download", isInteractive);
+                    job.IsFailed = true;
+                    job.Status = "Failed";
+                    job.ErrorMessage = "File not found after download";
+                    PruneCompletedJobs();
                 }
             }
             else
             {
+                job.IsFailed = true;
+                job.Status = "Failed";
+                job.ErrorMessage = $"Exit code {process.ExitCode}";
                 DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {process.ExitCode}", isInteractive);
+                PruneCompletedJobs();
             }
         }
         catch (OperationCanceledException)
         {
             Log.Warning("Download cancelled: {TrackId}", trackId);
             DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
+            PruneCompletedJobs();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Download exception for {Url}", url);
             DownloadFailed?.Invoke(trackId, ex.Message, isInteractive);
+            PruneCompletedJobs();
         }
         finally
         {
+            Interlocked.Decrement(ref _activeDownloadCount); // NEW: Decrement in-flight counter
             _semaphore.Release();
             lock (_activeDownloads)
                 _activeDownloads.Remove(url);
         }
-    }
-
-    private static string QuoteIfNeeded(string arg)
-    {
-        if (arg.Contains(' ') && !arg.StartsWith("\""))
-            return $"\"{arg}\"";
-        return arg;
     }
 
     public async Task DownloadPlaylistAsync(
@@ -380,11 +435,19 @@ public class DownloadService
         Log.Information("Starting playlist download: {Url}", playlistUrl);
         try
         {
-            var metadataArgs = $"--flat-playlist --dump-json --ignore-errors --no-download --js-runtimes node --remote-components ejs:github \"{playlistUrl}\"";
-            var metadataPsi = new ProcessStartInfo
+            // FIX: Use ArgumentList to prevent argument injection
+            var metadataPsi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
-                FileName               = PlatformHelper.ResolveExecutable("yt-dlp"),
-                Arguments              = metadataArgs,
+                ArgumentList =
+                {
+                    "--flat-playlist",
+                    "--dump-json",
+                    "--ignore-errors",
+                    "--no-download",
+                    "--js-runtimes", "node",
+                    "--remote-components", "ejs:github",
+                    playlistUrl
+                },
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
@@ -460,11 +523,11 @@ public class DownloadService
                     }
 
                     // FIX: Fallback to channel name if artist is generic/unknown
-                    if (string.IsNullOrWhiteSpace(artist) || 
+                    if (string.IsNullOrWhiteSpace(artist) ||
                         artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
                         artist.Equals("Various Artists", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (root.TryGetProperty("channel", out var fallbackChannelProp) && 
+                        if (root.TryGetProperty("channel", out var fallbackChannelProp) &&
                             !string.IsNullOrWhiteSpace(fallbackChannelProp.GetString()))
                         {
                             var channelName = fallbackChannelProp.GetString()!.Trim();
@@ -562,7 +625,10 @@ public class DownloadService
                     DownloadCompleted += OnCompleted;
                     DownloadFailed    += OnFailed;
 
-                    await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "mp3", audioQuality: "best", allowPlaylist: false, isInteractive: false, ct: ct);
+                    // FIX: Pass real title/artist from playlist enumeration to DownloadAsync
+                    await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "mp3", audioQuality: "best", 
+                                        allowPlaylist: false, isInteractive: false, 
+                                        title: title, artist: artist, ct: ct);
 
                     DownloadCompleted -= OnCompleted;
                     DownloadFailed    -= OnFailed;
@@ -570,15 +636,18 @@ public class DownloadService
                     var success = await tcs.Task;
 
                     // Apply Exponential Backoff Logic
-                    if (_rateLimitTriggered)
+                    lock (_aria2cLock)
                     {
-                        _backoffMultiplier = Math.Min(_backoffMultiplier * 2, 8); // Cap at 8x base delay
-                        _rateLimitTriggered = false;
-                        Log.Warning("[DownloadService] Rate limit detected. Increasing backoff multiplier to {Mult}x.", _backoffMultiplier);
-                    }
-                    else
-                    {
-                        if (_backoffMultiplier > 1) _backoffMultiplier = Math.Max(1, _backoffMultiplier / 2);
+                        if (_rateLimitTriggered)
+                        {
+                            _backoffMultiplier = Math.Min(_backoffMultiplier * 2, 8);
+                            _rateLimitTriggered = false;
+                            Log.Warning("[DownloadService] Rate limit detected. Increasing backoff multiplier to {Mult}x.", _backoffMultiplier);
+                        }
+                        else if (_backoffMultiplier > 1)
+                        {
+                            _backoffMultiplier = Math.Max(1, _backoffMultiplier / 2);
+                        }
                     }
 
                     if (!success)
@@ -633,6 +702,15 @@ public class DownloadService
                             }
 
                             dbTrack.AlbumArtPath = await _albumArtService.GetArtPathAsync(dbTrack);
+                            
+                            // FIX: Square-crop the freshly cached thumbnail to eliminate YouTube's
+                            // baked-in 4:3 letterbox bars. Idempotent: already-square files are
+                            // left untouched by ThumbnailCropper.
+                            if (!string.IsNullOrEmpty(dbTrack.AlbumArtPath) && File.Exists(dbTrack.AlbumArtPath))
+                            {
+                                ThumbnailCropper.CropFileToSquare(dbTrack.AlbumArtPath);
+                            }
+                            
                             _libraryService.Update(dbTrack);
 
                             Log.Debug("[DownloadService] Track ready: '{Title}' by '{Artist}' → {Path}",
@@ -646,7 +724,9 @@ public class DownloadService
                     if (i < tracks.Count - 1)
                     {
                         var baseDelay = GetThrottleDelayMs();
-                        var delayMs = baseDelay * _backoffMultiplier;
+                        int backoffMultiplier;
+                        lock (_aria2cLock) backoffMultiplier = _backoffMultiplier;
+                        var delayMs = baseDelay * backoffMultiplier;
                         Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, _backoffMultiplier);
                         await Task.Delay(delayMs, ct);
                     }
@@ -683,7 +763,13 @@ public class DownloadService
         }
     }
 
-    private string? FindMostRecentUnlinkedDownload()
+    /// <summary>
+    /// Fallback for when yt-dlp exits 0 but the --print filepath line never arrived.
+    /// Prefers a file whose name matches the expected title; only falls back to
+    /// "newest unlinked file" when a single download is in flight, so two concurrent
+    /// playlist downloads can never mis-attribute each other's files.
+    /// </summary>
+    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null)
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
@@ -701,7 +787,26 @@ public class DownloadService
             if (newest == null || file.LastWriteTime > newest.LastWriteTime) newest = file;
         }
 
-        return newest?.FullName;
+        if (newest == null) return null;
+
+        // 1) Exact-ish title match wins (yt-dlp sanitizes quotes/punctuation, so compare alnum-only)
+        if (!string.IsNullOrWhiteSpace(expectedTitle))
+        {
+            static string Norm(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
+            var want = Norm(expectedTitle);
+            var match = dir.GetFiles()
+                .Where(f => !linkedPaths.Contains(f.FullName) &&
+                            new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(f.Extension.ToLowerInvariant()))
+                .FirstOrDefault(f => Norm(Path.GetFileNameWithoutExtension(f.Name)) == want);
+            if (match != null) return match.FullName;
+        }
+
+        // 2) "Newest unlinked" only when nothing else is downloading concurrently
+        if (Volatile.Read(ref _activeDownloadCount) <= 1)
+            return newest.FullName;
+
+        Log.Warning("[DownloadService] filepath not captured and multiple downloads in flight; refusing ambiguous fallback");
+        return null;
     }
 
     public string DownloadDirectory => _downloadDir;

@@ -47,12 +47,12 @@ public class YtDlpDownloadProvider : IDownloadProvider
         if (!IsYtDlpOnPath())
         {
             State = PluginState.Unavailable;
-            Log.Warning("[{Name}] yt-dlp not found on PATH — download features disabled", Name);
+            Log.Warning("[{Name}] yt-dlp not found on PATH - download features disabled", Name);
             return Task.FromResult(false);
         }
 
         State = PluginState.Available;
-        Log.Information("[{Name}] yt-dlp detected — download provider ready", Name);
+        Log.Information("[{Name}] yt-dlp detected - download provider ready", Name);
         return Task.FromResult(true);
     }
 

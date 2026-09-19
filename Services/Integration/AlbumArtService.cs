@@ -26,7 +26,7 @@ public class AlbumArtService
         if (!ActiveFetches.TryAdd(track.Id.ToString(), 0))
         {
             _logger.Verbose("Artwork translation already processing for track {TrackId}. Skipping duplicate request pipeline cycle.", track.Id);
-            return track.AlbumArtPath ?? PlaceholderPath;
+            return track.AlbumArtPath ?? string.Empty;
         }
 
         try
@@ -53,7 +53,7 @@ public class AlbumArtService
                     try
                     {
                         _logger.Debug("Intercepted remote artwork URL for '{Title}', caching locally...", track.Title);
-                        
+
                         var localPath = await ThumbnailDownloader.FetchAsync(pathOrUrl, $"yt_{track.Id:N}");
                         if (!string.IsNullOrEmpty(localPath))
                         {
@@ -73,7 +73,7 @@ public class AlbumArtService
                 }
             }
 
-            return PlaceholderPath;
+            return string.Empty;
         }
         finally
         {
@@ -93,7 +93,7 @@ public class AlbumArtService
     {
         if (string.IsNullOrEmpty(track.Url)) return null;
         var fetcher = new SoundCloudMetadataFetcher();
-        var (_, _, thumbPath) = await fetcher.FetchAsync(track.Url);
+        var (_, _, thumbPath, _) = await fetcher.FetchAsync(track.Url);
         return thumbPath;
     }
 

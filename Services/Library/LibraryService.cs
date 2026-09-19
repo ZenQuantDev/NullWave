@@ -1,25 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using NullWave.Helpers;
-using NullWave.Helpers.Logging;
-using NullWave.Services;
-using NullWave.Services.Integration;
-using NullWave.Services.Plugins;
-using NullWave.Services.SmartSorting;
-using NullWave.ViewModels.Base;
 using NullWave.Models;
-using SQLite;
+using NullWave.Services.Metadata;
 using Serilog;
 
 namespace NullWave.Services;
@@ -66,7 +54,7 @@ public class LibraryService : IDisposable
 
     private static readonly Regex YouTubeTopicArtistRegex = new(@"\s*-\s*Topic\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–—]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–-]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex BracketContentRegex = new(@"[\(\[](.*?)[\)\]]", RegexOptions.Compiled);
 
     public event EventHandler? LibraryChanged;
@@ -78,13 +66,16 @@ public class LibraryService : IDisposable
         _db = db;
         _metadata = metadata;
         _prefs = prefs;
-        _tracks = _db.LoadAll();
-        Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+        lock (_tracksLock)
+        {
+            _tracks = _db.LoadAll();
+        }
+        Log.Information("[LibraryService] Loaded {Count} tracks from DB", GetAll().Count);
 
-        CleanupBadUrls();
-        BackfillAlbumArt();
-        BackfillYouTubeThumbnails();
-        BackfillSoundCloudThumbnails();
+        _ = Task.Run(CleanupBadUrls);
+        _ = Task.Run(BackfillAlbumArt);
+        _ = Task.Run(BackfillYouTubeThumbnails);
+        _ = Task.Run(BackfillSoundCloudThumbnails);
     }
 
     public static string CleanYouTubeArtifacts(string input, bool isArtist = false)
@@ -107,136 +98,86 @@ public class LibraryService : IDisposable
 
     private void BackfillYouTubeThumbnails()
     {
-        var ytTracks = _tracks
-            .Where(t => t.Source == TrackSource.YouTube
-                     && string.IsNullOrEmpty(t.AlbumArtPath)
-                     && !string.IsNullOrEmpty(t.Url))
-            .ToList();
+        List<Track> ytTracks;
+        lock (_tracksLock)
+        {
+            ytTracks = _tracks.Where(t => t.Source == TrackSource.YouTube && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList();
+        }
         if (ytTracks.Count == 0) return;
 
         Log.Information("[LibraryService] Backfilling thumbnails for {Count} YouTube tracks", ytTracks.Count);
-        _ = Task.Run(async () =>
+        var updatedTracks = new List<Track>();
+        foreach (var track in ytTracks)
         {
-            var updatedTracks = new List<Track>();
-            foreach (var track in ytTracks)
+            try
             {
-                try
-                {
-                    var id = Metadata.YouTubeMetadataFetcher.ExtractYouTubeId(track.Url!);
-                    if (string.IsNullOrEmpty(id)) continue;
+                var id = YouTubeMetadataFetcher.ExtractYouTubeId(track.Url!);
+                if (string.IsNullOrEmpty(id)) continue;
 
-                    var thumbPath = await Metadata.YouTubeMetadataFetcher.FetchThumbnailAsync(id);
-                    if (string.IsNullOrEmpty(thumbPath)) continue;
+                var thumbPath = YouTubeMetadataFetcher.FetchThumbnailAsync(id).GetAwaiter().GetResult();
+                if (string.IsNullOrEmpty(thumbPath)) continue;
 
-                    track.AlbumArtPath = thumbPath;
-                    updatedTracks.Add(track);
-                    Log.Debug("[LibraryService] YouTube thumbnail backfilled for {Title}", track.Title);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[LibraryService] YouTube thumbnail backfill failed for {Title}", track.Title);
-                }
+                track.AlbumArtPath = thumbPath;
+                updatedTracks.Add(track);
             }
+            catch (Exception ex) { Log.Warning(ex, "[LibraryService] YouTube thumbnail backfill failed for {Title}", track.Title); }
+        }
 
-            if (updatedTracks.Count > 0)
-            {
-                _db.RunInTransaction(() =>
-                {
-                    foreach (var track in updatedTracks)
-                    {
-                        _db.Update(track);
-                    }
-                });
-                StateVersion++;
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-            }
-        });
+        if (updatedTracks.Count > 0)
+        {
+            _db.RunInTransaction(() => { foreach (var track in updatedTracks) _db.Update(track); });
+            StateVersion++;
+            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+        }
     }
 
     private void BackfillSoundCloudThumbnails()
     {
-        var scTracks = _tracks
-            .Where(t => t.Source == TrackSource.SoundCloud
-                     && string.IsNullOrEmpty(t.AlbumArtPath)
-                     && !string.IsNullOrEmpty(t.Url))
-            .ToList();
+        List<Track> scTracks;
+        lock (_tracksLock)
+        {
+            scTracks = _tracks.Where(t => t.Source == TrackSource.SoundCloud && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList();
+        }
         if (scTracks.Count == 0) return;
 
-        Log.Information("[LibraryService] Backfilling thumbnails for {Count} SoundCloud tracks", scTracks.Count);
-        _ = Task.Run(async () =>
+        var fetcher = new SoundCloudMetadataFetcher();
+        var updatedTracks = new List<Track>();
+        foreach (var track in scTracks)
         {
-            var fetcher = new Metadata.SoundCloudMetadataFetcher();
-            var updatedTracks = new List<Track>();
-
-            foreach (var track in scTracks)
+            try
             {
-                try
-                {
-                    var (title, artist, thumbPath) = await fetcher.FetchAsync(track.Url!);
-                    bool changed = false;
+                var (title, artist, thumbPath, _) = fetcher.FetchAsync(track.Url!).GetAwaiter().GetResult();
+                bool changed = false;
 
-                    if (!string.IsNullOrEmpty(thumbPath) && string.IsNullOrEmpty(track.AlbumArtPath))
-                    {
-                        track.AlbumArtPath = thumbPath;
-                        changed = true;
-                    }
+                if (!string.IsNullOrEmpty(thumbPath) && string.IsNullOrEmpty(track.AlbumArtPath)) { track.AlbumArtPath = thumbPath; changed = true; }
+                if ((track.Title == track.Url || string.IsNullOrWhiteSpace(track.Title)) && !string.IsNullOrWhiteSpace(title)) { track.Title = title; changed = true; }
+                if ((track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist)) && !string.IsNullOrWhiteSpace(artist)) { track.Artist = artist; changed = true; }
 
-                    if ((track.Title == track.Url || track.Title == "SoundCloud track"
-                        || string.IsNullOrWhiteSpace(track.Title))
-                        && !string.IsNullOrWhiteSpace(title))
-                    {
-                        track.Title = title;
-                        changed = true;
-                    }
-
-                    if ((track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist))
-                        && !string.IsNullOrWhiteSpace(artist))
-                    {
-                        track.Artist = artist;
-                        changed = true;
-                    }
-
-                    if (changed)
-                    {
-                        updatedTracks.Add(track);
-                        Log.Debug("[LibraryService] SoundCloud backfilled: {Title}", track.Title);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}", track.Title);
-                }
+                if (changed) updatedTracks.Add(track);
             }
+            catch (Exception ex) { Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}", track.Title); }
+        }
 
-            if (updatedTracks.Count > 0)
-            {
-                _db.RunInTransaction(() =>
-                {
-                    foreach (var track in updatedTracks)
-                    {
-                        _db.Update(track);
-                    }
-                });
-                StateVersion++;
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-            }
-        });
+        if (updatedTracks.Count > 0)
+        {
+            _db.RunInTransaction(() => { foreach (var track in updatedTracks) _db.Update(track); });
+            StateVersion++;
+            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+        }
     }
 
     private void CleanupBadUrls()
     {
-        var bad = _tracks
-            .Where(t => !string.IsNullOrEmpty(t.Url)
-                     && !SourceDetector.IsPlayableUrl(t.Url)
-                     && string.IsNullOrEmpty(t.FilePath))
-            .ToList();
+        List<Track> bad;
+        lock (_tracksLock)
+        {
+            bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) && !SourceDetector.IsPlayableUrl(t.Url) && string.IsNullOrEmpty(t.FilePath)).ToList();
+        }
         if (bad.Count == 0) return;
 
-        foreach (var track in bad)
+        lock (_tracksLock)
         {
-            _tracks.Remove(track);
-            _db.Delete(track.Id);
-            Log.Debug("[LibraryService] Removed track with bad URL: {Url}", track.Url);
+            foreach (var track in bad) { _tracks.Remove(track); _db.Delete(track.Id); }
         }
 
         StateVersion++;
@@ -248,17 +189,16 @@ public class LibraryService : IDisposable
         if (_metadata == null) return;
 
         var updatedTracks = new List<Track>();
-        foreach (var track in _tracks)
+        lock (_tracksLock)
         {
-            if (!string.IsNullOrEmpty(track.AlbumArtPath)) continue;
-            if (string.IsNullOrEmpty(track.FilePath)) continue;
-            if (!File.Exists(track.FilePath)) continue;
-
-            var art = _metadata.ExtractAlbumArt(track.FilePath);
-            if (art == null) continue;
-
-            track.AlbumArtPath = art;
-            updatedTracks.Add(track);
+            foreach (var track in _tracks)
+            {
+                if (!string.IsNullOrEmpty(track.AlbumArtPath) || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) continue;
+                var art = _metadata.ExtractAlbumArt(track.FilePath);
+                if (art == null) continue;
+                track.AlbumArtPath = art;
+                updatedTracks.Add(track);
+            }
         }
 
         if (updatedTracks.Count > 0)
@@ -276,7 +216,10 @@ public class LibraryService : IDisposable
         }
     }
 
-    public IReadOnlyList<Track> GetAll() => _tracks.AsReadOnly();
+    public IReadOnlyList<Track> GetAll()
+    {
+        lock (_tracksLock) return _tracks.ToList().AsReadOnly();
+    }
 
     public void Add(Track track)
     {
@@ -292,7 +235,7 @@ public class LibraryService : IDisposable
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
             var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
-            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(titleToParse);
+            var parsed = TrackTitleParser.TryParseArtistTitle(titleToParse);
             if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Artist) && !string.IsNullOrWhiteSpace(parsed.Value.Title))
             {
                 if (track.Artist == "Unknown" || track.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(track.Artist))
@@ -302,7 +245,7 @@ public class LibraryService : IDisposable
             }
         }
 
-        _tracks.Add(track);
+        lock (_tracksLock) _tracks.Add(track);
         _db.Insert(track);
         StateVersion++;
         OnLibraryChanged();
@@ -312,9 +255,10 @@ public class LibraryService : IDisposable
 
     public void Remove(Guid id)
     {
-        var track = _tracks.FirstOrDefault(t => t.Id == id);
+        Track? track;
+        lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
-        _tracks.Remove(track);
+        lock (_tracksLock) _tracks.Remove(track);
         _db.Delete(id);
         StateVersion++;
         OnLibraryChanged();
@@ -322,9 +266,17 @@ public class LibraryService : IDisposable
 
     public void Update(Track track)
     {
-        _db.Update(track);
-        var idx = _tracks.FindIndex(t => t.Id == track.Id);
-        if (idx >= 0) _tracks[idx] = track;
+        // Offload SQLite write to background thread to prevent 2s UI freezes on skip
+        Task.Run(() => {
+            try { _db.Update(track); }
+            catch (Exception ex) { Log.Error(ex, "DB Update failed for {Title}", track.Title); }
+        });
+
+        lock (_tracksLock)
+        {
+            var idx = _tracks.FindIndex(t => t.Id == track.Id);
+            if (idx >= 0) _tracks[idx] = track;
+        }
         StateVersion++;
         OnLibraryChanged();
     }
@@ -348,7 +300,9 @@ public class LibraryService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(query)) return GetSorted(field, ascending);
 
-        var results = _tracks
+        List<Track> snapshot;
+        lock (_tracksLock) snapshot = _tracks.ToList();
+        var results = snapshot
             .Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
                      || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
 
@@ -367,28 +321,29 @@ public class LibraryService : IDisposable
     }
 
     public IReadOnlyList<Track> FilterBySource(TrackSource source) =>
-        _tracks.Where(t => t.Source == source).ToList();
+        GetAll().Where(t => t.Source == source).ToList();
 
     public IReadOnlyList<Track> GetFavorites() =>
-        _tracks.Where(t => t.IsFavorite).ToList();
+        GetAll().Where(t => t.IsFavorite).ToList();
 
     public IReadOnlyList<Track> GetRecentlyAdded(int count = 20) =>
-        _tracks.OrderByDescending(t => t.DateAdded).Take(count).ToList();
+        GetAll().OrderByDescending(t => t.DateAdded).Take(count).ToList();
 
     public IReadOnlyList<Track> GetRecentlyPlayed(int count = 20) =>
         _history.TakeLast(count).Reverse().ToList();
 
     public IReadOnlyList<Track> GetSorted(SortField field, bool ascending = true)
     {
+        var snapshot = GetAll().ToList();
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title      => _tracks.OrderBy(t => t.Title),
-            SortField.Artist     => _tracks.OrderBy(t => t.Artist),
-            SortField.DateAdded  => _tracks.OrderBy(t => t.DateAdded),
-            SortField.Source     => _tracks.OrderBy(t => t.Source),
-            SortField.PlayCount  => _tracks.OrderBy(t => t.PlayCount),
-            SortField.LastPlayed => _tracks.OrderBy(t => t.LastPlayed),
-            _ => _tracks
+            SortField.Title      => snapshot.OrderBy(t => t.Title),
+            SortField.Artist     => snapshot.OrderBy(t => t.Artist),
+            SortField.DateAdded  => snapshot.OrderBy(t => t.DateAdded),
+            SortField.Source     => snapshot.OrderBy(t => t.Source),
+            SortField.PlayCount  => snapshot.OrderBy(t => t.PlayCount),
+            SortField.LastPlayed => snapshot.OrderBy(t => t.LastPlayed),
+            _ => snapshot
         };
 
         return (ascending ? sorted : sorted.Reverse()).ToList();
@@ -396,7 +351,8 @@ public class LibraryService : IDisposable
 
     public void ToggleFavorite(Guid id)
     {
-        var track = _tracks.FirstOrDefault(t => t.Id == id);
+        Track? track;
+        lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.IsFavorite = !track.IsFavorite;
         _db.Update(track);
@@ -405,7 +361,8 @@ public class LibraryService : IDisposable
 
     public void RecordPlay(Guid id)
     {
-        var track = _tracks.FirstOrDefault(t => t.Id == id);
+        Track? track;
+        lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.PlayCount++;
         track.LastPlayed = DateTime.Now;
@@ -421,7 +378,7 @@ public class LibraryService : IDisposable
 
     public bool IsDuplicate(Track newTrack)
     {
-        return _tracks.Any(t =>
+        lock (_tracksLock) return _tracks.Any(t =>
             (!string.IsNullOrWhiteSpace(newTrack.Url) &&
              string.Equals(t.Url, newTrack.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(newTrack.FilePath) &&
@@ -436,7 +393,8 @@ public class LibraryService : IDisposable
 
     public void AddToQueue(Guid id)
     {
-        var track = _tracks.FirstOrDefault(t => t.Id == id);
+        Track? track;
+        lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track != null && !_queue.Any(e => e.Track.Id == track.Id))
         {
             int insertIndex = _prefs?.Current.QueueManualInsertAtBlockEnd == true
@@ -459,7 +417,7 @@ public class LibraryService : IDisposable
             QueueChanged?.Invoke(this, EventArgs.Empty);
         }
     }
-    
+
     public void RestoreQueue(IEnumerable<QueueEntry> entries)
     {
         if (_queue.Count > 0) return;
@@ -520,7 +478,7 @@ public class LibraryService : IDisposable
     public int ClearAllArt()
     {
         int cleared = 0;
-        foreach (var track in _tracks)
+        foreach (var track in GetAll())
         {
             if (string.IsNullOrEmpty(track.AlbumArtPath)) continue;
             track.AlbumArtPath = null;
@@ -575,7 +533,7 @@ public class LibraryService : IDisposable
     {
         int scanned = 0, retagged = 0, renamed = 0, skipped = 0, failed = 0;
 
-        foreach (var track in _tracks.ToList())
+        foreach (var track in GetAll())
         {
             if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) continue;
             scanned++;
@@ -663,7 +621,7 @@ public class LibraryService : IDisposable
 
     public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
     {
-        var withPath = _tracks.Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
+        var withPath = GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
         int missing = 0;
         int removed = 0;
 
@@ -704,7 +662,7 @@ public class LibraryService : IDisposable
             .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
             .ToList();
 
-        var candidates = _tracks
+        var candidates = GetAll()
             .Where(t => string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath))
             .ToList();
 
@@ -777,7 +735,7 @@ public class LibraryService : IDisposable
             return (0, mismatches);
         }
 
-        var withFile = _tracks
+        var withFile = GetAll()
             .Where(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
             .ToList();
 
@@ -835,8 +793,8 @@ public class LibraryService : IDisposable
                 var leftNorm = NormalizeArtistKey(split[0]);
                 var storedArtistNorm = NormalizeArtistKey(storedArtist);
                 var embArtistNorm = NormalizeArtistKey(cleanEmbArtist);
-                
-                if (leftNorm == storedArtistNorm || leftNorm == embArtistNorm || 
+
+                if (leftNorm == storedArtistNorm || leftNorm == embArtistNorm ||
                     string.IsNullOrWhiteSpace(cleanEmbArtist) || cleanEmbArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                 {
                     cleanEmbArtist = string.IsNullOrWhiteSpace(cleanEmbArtist) ? split[0].Trim() : cleanEmbArtist;
@@ -887,7 +845,7 @@ public class LibraryService : IDisposable
     private static IEnumerable<string> ExtractContextTokens(string rawTitle)
     {
         var tokens = new List<string>();
-        
+
         var featureMatches = FeatureArtistRegex.Matches(rawTitle);
         foreach (Match match in featureMatches)
         {
@@ -931,7 +889,7 @@ public class LibraryService : IDisposable
 
     public List<ArtistMergeGroup> FindSimilarArtistGroups()
     {
-        var groups = _tracks
+        var groups = GetAll()
             .Where(t => !string.IsNullOrWhiteSpace(t.Artist))
             .GroupBy(t => NormalizeArtistKey(t.Artist))
             .Where(g => g.Select(t => t.Artist).Distinct(StringComparer.Ordinal).Count() > 1)
@@ -957,7 +915,7 @@ public class LibraryService : IDisposable
     public int MergeArtistGroup(ArtistMergeGroup group)
     {
         var variantSet = group.Variants.ToHashSet(StringComparer.Ordinal);
-        var toUpdate = _tracks.Where(t => variantSet.Contains(t.Artist)).ToList();
+        var toUpdate = GetAll().Where(t => variantSet.Contains(t.Artist)).ToList();
 
         foreach (var track in toUpdate)
         {
@@ -995,37 +953,30 @@ public class LibraryService : IDisposable
     public int ForceCleanTitles()
     {
         int cleaned = 0;
-        foreach (var track in _tracks)
+        var toUpdate = new List<Track>();
+
+        foreach (var track in GetAll())
         {
             // Skip already-cleaned tracks, EXCEPT titles carrying exotic separators
-            // (~, ∞, ·, •, ///) the OLD parser didn't understand — those get one
+            // (~, ∞, ·, •, ///) the OLD parser didn't understand - those get one
             // re-evaluation pass with the upgraded parser.
             if (track.TitleForceCleaned && !Metadata.TrackTitleParser.HasExoticSeparator(track.Title)) continue;
 
             var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
             var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(titleToParse);
 
-            if (parsed == null)
-            {
-                track.TitleForceCleaned = true;
-                _db.Update(track);
-                continue;
-            }
+            if (parsed == null) { track.TitleForceCleaned = true; toUpdate.Add(track); continue; }
 
             var (parsedArtist, parsedTitle) = parsed.Value;
 
             if (string.IsNullOrWhiteSpace(parsedArtist) || string.IsNullOrWhiteSpace(parsedTitle))
             {
-                track.TitleForceCleaned = true;
-                _db.Update(track);
-                continue;
+                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
             }
 
             if (parsedArtist == track.Artist && parsedTitle == track.Title)
             {
-                track.TitleForceCleaned = true;
-                _db.Update(track);
-                continue;
+                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
             }
 
             // Guard: never accept a swap
@@ -1036,9 +987,7 @@ public class LibraryService : IDisposable
             // Only trust the split when the parsed artist agrees with what we already know.
             if (!artistMatchesExisting && !existingArtistUnknown)
             {
-                track.TitleForceCleaned = true;
-                _db.Update(track);
-                continue;
+                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
             }
 
             Log.Debug("[LibraryService] Force-cleaned: '{OldTitle}' by '{OldArtist}' → '{NewTitle}' by '{NewArtist}'",
@@ -1047,24 +996,26 @@ public class LibraryService : IDisposable
             track.Title = parsedTitle;
             track.Artist = parsedArtist;
             track.TitleForceCleaned = true;
-            _db.Update(track);
-            
+            toUpdate.Add(track);
             UpdateFileTags(track);
-            
             cleaned++;
         }
 
-        if (cleaned > 0) StateVersion++;
+        if (toUpdate.Count > 0)
+        {
+            _db.RunInTransaction(() => { foreach (var track in toUpdate) _db.Update(track); });
+            StateVersion++;
+        }
 
         Log.Information("[LibraryService] ForceCleanTitles: {Count} of {Total} tracks cleaned",
-            cleaned, _tracks.Count);
+            cleaned, GetAll().Count);
         return cleaned;
     }
 
     public int ClearTagsForReSync()
     {
         int cleared = 0;
-        foreach (var track in _tracks)
+        foreach (var track in GetAll())
         {
             if (track.Tags.Count == 0) continue;
             track.Tags.Clear();
@@ -1123,7 +1074,7 @@ public class LibraryService : IDisposable
 
     public (int Scanned, int DuplicateGroups, int Removed) RemoveDuplicates(bool dryRun = true)
     {
-        var groups = _tracks
+        var groups = GetAll()
             .GroupBy(t => (Title: t.Title.Trim().ToLowerInvariant(), Artist: t.Artist.Trim().ToLowerInvariant()))
             .Where(g => g.Count() > 1)
             .ToList();
@@ -1149,7 +1100,7 @@ public class LibraryService : IDisposable
 
                 if (!dryRun)
                 {
-                    _tracks.Remove(dup);
+                    lock (_tracksLock) _tracks.Remove(dup);
                     _db.Delete(dup.Id);
                     removed++;
                 }
@@ -1159,8 +1110,8 @@ public class LibraryService : IDisposable
         if (removed > 0) StateVersion++;
 
         Log.Information("[LibraryService] RemoveDuplicates: {Scanned} tracks scanned, {Groups} duplicate group(s) found, {Removed} removed (dryRun={DryRun})",
-            _tracks.Count, groups.Count, removed, dryRun);
-        return (_tracks.Count, groups.Count, removed);
+            GetAll().Count, groups.Count, removed, dryRun);
+        return (GetAll().Count, groups.Count, removed);
     }
 
     public (long BeforeKB, long AfterKB) VacuumDatabase()
@@ -1179,6 +1130,35 @@ public class LibraryService : IDisposable
     private void OnLibraryChanged()
     {
         LibraryChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Scans the library for tracks with missing durations and attempts to
+    /// backfill them using local TagLib metadata.
+    /// </summary>
+    public int BackfillDurations()
+    {
+        var fetcher = new Metadata.LocalMetadataFetcher();
+        int updated = 0;
+
+        // Only target local files that exist on disk and currently have 0 duration
+        var targets = GetAll().Where(t =>
+            t.Duration == TimeSpan.Zero &&
+            !string.IsNullOrEmpty(t.FilePath) &&
+            System.IO.File.Exists(t.FilePath)).ToList();
+
+        foreach (var t in targets)
+        {
+            var (_, _, duration) = fetcher.Fetch(t.FilePath!);
+            if (duration > TimeSpan.Zero)
+            {
+                t.Duration = duration;
+                Update(t);
+                updated++;
+            }
+        }
+
+        return updated;
     }
 }
 

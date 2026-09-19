@@ -45,12 +45,12 @@ public class LastFmMetadataProvider : IMetadataProvider
         if (!_inner.IsConfiguredForRead)
         {
             State = PluginState.Unavailable;
-            Log.Information("[{Name}] API key not configured — metadata enrichment disabled", Name);
+            Log.Information("[{Name}] API key not configured - metadata enrichment disabled", Name);
             return Task.FromResult(false);
         }
 
         State = PluginState.Available;
-        Log.Information("[{Name}] Ready — read={Read}, scrobble={Scrobble}",
+        Log.Information("[{Name}] Ready - read={Read}, scrobble={Scrobble}",
             Name, _inner.IsConfiguredForRead, _inner.IsConfiguredForScrobbling);
         return Task.FromResult(true);
     }

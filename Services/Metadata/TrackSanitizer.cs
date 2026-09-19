@@ -8,7 +8,7 @@ public static class TitleSanitizer
 {
     // Captures ANY bracket set containing platform fluff words anywhere inside it
     private static readonly Regex BracketGarbageRegex = new Regex(
-        @"[\(\[\{「【][^\)\]\}「】]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|remastered|remaster|explicit|clean|version|hq|hd|4k|uncensored|edit|download|caption|captions|cc|unreleased|long|cut|mono|stereo|spatial|atmos|remix)s?\b[^\)\]\}「】]*?[\)\]\}」】]",
+        @"[\(\[\{«「『][^\)\]\}»」』]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|remastered|remaster|explicit|clean|version|hq|hd|4k|uncensored|edit|download|caption|captions|cc|unreleased|long|cut|mono|stereo|spatial|atmos|remix)s?\b[^\)\]\}»」』]*?[\)\]\}»」』]",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex LooseGarbageRegex = new Regex(
@@ -74,7 +74,7 @@ public static class TitleSanitizer
         input = BracketGarbageRegex.Replace(input, "");
         input = LooseGarbageRegex.Replace(input, "");
         input = Regex.Replace(input, @"\s+", " ");
-        input = Regex.Replace(input, @"[\s\-\|,\•\·]+$", "");
+        input = Regex.Replace(input, @"[\s\-\|,•·]+$", "");
         input = TrailingFeatureRegex.Replace(input, "");
         return input.Trim();
     }
