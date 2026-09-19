@@ -32,12 +32,25 @@
   <Thickness x:Key="RowMargin">8,5</Thickness>
   <Thickness x:Key="NavPadding">12,8</Thickness>
 
+  <!-- Panel specific density tokens -->
+  <x:Double x:Key="DetailArtHeight">220</x:Double>
+  <x:Double x:Key="QueueRowHeight">48</x:Double>
+  <x:Double x:Key="QueueArtSize">40</x:Double>
+
   <!-- Avatar sizes -->
   <x:Double x:Key="AvatarSm">32</x:Double>
   <x:Double x:Key="AvatarMd">44</x:Double>
   <x:Double x:Key="AvatarLg">64</x:Double>
 
-  <x:Double x:Key="DetailArtHeight">220</x:Double>
-  <x:Double x:Key="QueueRowHeight">48</x:Double>
-  <x:Double x:Key="QueueArtSize">40</x:Double>
+  <!-- Profile specific tokens -->
+  <x:Double x:Key="FontSizeProfileName">32</x:Double>
+  <x:Double x:Key="ProfileBannerHeight">220</x:Double>
+  <x:Double x:Key="ProfileAvatarSize">100</x:Double>
+
+  <!-- Settings card padding (shrinks in Compact mode) -->
+  <Thickness x:Key="CardPadding">20</Thickness>
+
+  <!-- Settings window: shared header height so rail header and page header align -->
+  <x:Double x:Key="SettingsHeaderHeight">84</x:Double>
+
 </ResourceDictionary>
