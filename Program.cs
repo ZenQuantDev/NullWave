@@ -8,6 +8,7 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
+using Velopack;
 
 namespace NullWave;
 
@@ -18,7 +19,24 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        VelopackApp.Build().Run();
+
         NullWavePaths.EnsureDirectories();
+
+        // Restrict data directory permissions on Linux (owner-only access)
+        if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                File.SetUnixFileMode(NullWavePaths.DataDir,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                Log.Debug("[Program] Set restrictive permissions on data directory");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[Program] Could not set restrictive permissions on data directory");
+            }
+        }
 
         if (!TryAcquireSingleInstanceLock())
         {
