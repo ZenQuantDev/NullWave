@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 16-Aug-2026
+> Last updated: 19-Sep-2026
 
 ---
 
@@ -18,12 +18,13 @@
 
 ## Release Plan
 
-| Version | Codename / Focus | Key Deliverables |
-| ------- | ---------------- | ---------------- |
-| **v0.5.1** | Stability | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding (mostly complete on `fix/metadata-and-playlist-downloads`). |
-| **v0.5.2** | QoL & Polish | Notification rework, multi-select, proxy support, onboarding wizard (Phase 16). |
-| **v0.6.0** | Major Features | Audiobooks, synced lyrics, dynamic smart playlists, EQ, Bandcamp (Phase 17). |
-| **v0.7.0+**| Ecosystem | Installers, i18n, Discord RPC, animations (Phase 18). |
+| Version     | Codename / Focus       | Key Deliverables                                                                                                                               |
+| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v0.5.1**  | Stability              | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding (mostly complete on `fix/metadata-and-playlist-downloads`). |
+| **v0.5.2**  | QoL & Polish           | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                      |
+| **v0.6.0**  | "Oxeye Daisy"          | Shipped 07-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges/banners, RU localization, backups, onboarding polish, AI fallback, download manager crash fix. |
+| **v0.6.1**  | Deferred v0.6 features | Synced lyrics (LRCLIB), 10-band EQ + ReplayGain, dynamic smart playlists, Bandcamp.                                                            |
+| **v0.7.0+** | Ecosystem              | Installers, Discord RPC, animation pass.                                                                                                       |
 
 ---
 
@@ -125,7 +126,7 @@
 - ✅ Logo placeholder in `SidebarView` - 32×32 accent square beside wordmark
 - 📋 Replace placeholder with real SVG logo (`Assets/Icons/logo.svg`)
 - 📋 `TrackListView` - apply theme token, larger row height, better typography
-- 📋 `TrackDetailView` - apply theme tokens
+- 📋 `TrackDetailView` - apply theme token
 
 ---
 
@@ -133,7 +134,7 @@
 
 **Branch:** `feature/6-now-playing`
 **Goal:** Spotify-inspired Now Playing panel with album art and blur background.
-*Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly.*
+_Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ### 6.1 Album Art Fetching
 
@@ -215,6 +216,7 @@
 - ✅ Smart Sorting settings tab (hardware info, model download, coordinates)
 - ✅ Auto-generate first mood playlist after enrichment backfill completes
 - ✅ "AI returns too few tracks" padding fix implemented
+- ✅ **Local AI Model Fallback** - auto-switches to safe installed models (e.g. `gemma3:4b`) if the configured model is missing
 
 ---
 
@@ -223,6 +225,7 @@
 **Goal:** Fix confirmed playback/data bugs, make every action give visible feedback, and replace vague descriptions with actual component names.
 
 ### 9.1 Confirmed bugs (this session)
+
 - ✅ `LibraryService.ReimportAssets` - fixed substring false-positive matching.
 - ✅ `LibraryService.VerifyLinks` - new: cross-checks stored track titles against embedded file tags.
 - ✅ `NullWaveLogConfig` - Default vs Advanced/Verbose logging modes, live-switchable.
@@ -231,6 +234,7 @@
 - 💡 `TitleSanitizer.cs` and `TrackTitleParser.cs` - candidate for consolidation under Phase 7.3 Code Splitting.
 
 ### 9.1b Confirmed bugs (17-Jul-2026 session)
+
 - ✅ `LibraryService.ForceCleanTitles` - fixed non-idempotency with `Track.TitleForceCleaned` bool.
 - ✅ `LibraryService.VerifyLinks` - `NormalizeForCompare` now decomposes Unicode diacritics.
 - ✅ `TrackDetailViewModel.RelinkFileCommand` - new: file picker to manually repoint a track's `FilePath`.
@@ -238,22 +242,26 @@
 - ✅ `LibraryService.RemoveDuplicates` - new maintenance tool (Preview/Remove).
 
 ### 9.1c Search, sort & add-track overhaul (19-Jul-2026 session)
+
 - ✅ `LibraryViewModel.FetchLibraryDataInternal` - fixed core search bug ignoring source filters.
 - ✅ `LibraryViewModel.ApplySmartSearch` - new smart query syntax (`artist:`, `title:`, `-word`, etc.).
 - ✅ `Views/Controls/TrackListView.axaml` - toolbar redesigned with clear button, help flyout, sort toggle, and clickable headers.
 - ✅ `Views/MainWindow.axaml.cs` - fixed hotkey bug intercepting keystrokes while typing in search box.
 
 ### 9.1d Windows Porting & Download Stability (13-Aug-2026 session)
+
 - ✅ `LibraryService.ForceCleanTitles` successfully stripping artist names and junk from raw YouTube download titles.
 - ✅ `DownloadService` rate-limit throttling implemented between bulk downloads.
 
 ### 9.1e Metadata, AI & Link Verification Stability (15-Aug-2026 session)
+
 - ✅ `LocalAIService.GenerateTagsForTrackAsync` / `GenerateTagsBulkAsync` - fixed `KeyNotFoundException` crashes with `TryGetProperty` guards and markdown stripping.
 - ✅ `YouTubeMetadataFetcher.FetchAsync` - replaced `EnsureSuccessStatusCode()` with manual HTTP status check.
 - ✅ `LibraryService.VerifyLinks` - drastically reduced false positives (27 → 6) with `FeatureArtistRegex` and `BracketContentRegex`.
 
 ### 9.2 Universal action feedback (16-Aug-2026 session)
-- ✅ Single-host toast routing (`SetActiveHost`) — fixes double-toast when Settings dialog is open.
+
+- ✅ Single-host toast routing (`SetActiveHost`) - fixes double-toast when Settings dialog is open.
 - ✅ Toast cap (max 4, oldest non-live dropped) to prevent stacking walls.
 - ✅ Undo pattern extended: playlists and folders.
 - ✅ Hover-pause, Dismiss-all, queue-clear Undo, "Added to playlist" Undo, mood-gen dedupe via scope.
@@ -262,15 +270,15 @@
 
 ### 9.3 Component naming reference (use these in future roadmap entries, not descriptions)
 
-| Informal description | Actual component |
-| -------------------- | ---------------- |
-| "left side bar" | `Views/Controls/SidebarView.axaml` |
-| "the profile thing" | `UserProfileViewModel.cs` + `Views/ProfileWindow.axaml` |
-| "top bar" / "add button" | The toolbar inside `Views/Controls/TrackListView.axaml` (search box + sort `ComboBox` + `+ Add` `SplitButton`) - **not** `MenuBarView.axaml`, the separate Alt-key-toggled File/Library/Settings/Help bar |
-| "search tab" | ❓ Unclear - `LibraryViewModel.SearchQuery`/`Search()` is already wired into `TrackListView`'s search box. Is this about that search box, or a separate dedicated Search page that was never built? |
-| "appearance tab is a placeholder" | `AppearanceTab.axaml` is built and saves via `PreferencesService` (Phase 5 ✅) - but "wire appearance settings to actual UI (live accent color, row height, font scale)" is still 📋. The tab works but doesn't re-skin the app live yet, which likely reads as "placeholder" |
-| "updates tab is useless" | `UpdatesTab.axaml` + `UpdateService`/`DependencyUpdateService` are real and wired (`CheckForUpdateAsync`, `UpdateYtDlpAsync`, `CheckDependenciesAsync`) - worth re-checking before assuming nothing works |
-| "sorting doesn't work as intended" | ❓ Needs repro steps - `LibraryViewModel.SortByTitle/Artist/Date/PlayCount` and `LibraryService.GetSorted()` appear wired |
+| Informal description               | Actual component                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "left side bar"                    | `Views/Controls/SidebarView.axaml`                                                                                                                                                                                                                                            |
+| "the profile thing"                | `UserProfileViewModel.cs` + `Views/ProfileWindow.axaml`                                                                                                                                                                                                                       |
+| "top bar" / "add button"           | The toolbar inside `Views/Controls/TrackListView.axaml` (search box + sort `ComboBox` + `+ Add` `SplitButton`) - **not** `MenuBarView.axaml`, the separate Alt-key-toggled File/Library/Settings/Help bar                                                                     |
+| "search tab"                       | ❓ Unclear - `LibraryViewModel.SearchQuery`/`Search()` is already wired into `TrackListView`'s search box. Is this about that search box, or a separate dedicated Search page that was never built?                                                                           |
+| "appearance tab is a placeholder"  | `AppearanceTab.axaml` is built and saves via `PreferencesService` (Phase 5 ✅) - but "wire appearance settings to actual UI (live accent color, row height, font scale)" is still 📋. The tab works but doesn't re-skin the app live yet, which likely reads as "placeholder" |
+| "updates tab is useless"           | `UpdatesTab.axaml` + `UpdateService`/`DependencyUpdateService` are real and wired (`CheckForUpdateAsync`, `UpdateYtDlpAsync`, `CheckDependenciesAsync`) - worth re-checking before assuming nothing works                                                                     |
+| "sorting doesn't work as intended" | ❓ Needs repro steps - `LibraryViewModel.SortByTitle/Artist/Date/PlayCount` and `LibraryService.GetSorted()` appear wired                                                                                                                                                     |
 
 ### 9.4 Deferred (explicitly, not forgotten)
 
@@ -413,32 +421,51 @@
 
 ### Known Limitations (deferred to v0.6+)
 
-- 📋 Ctrl+L keyboard shortcut for search focus
-- 📋 Hover preview flyouts on collapsed sidebar icons
-- 📋 Deduplicate mood generation double-toast
+- ✅ `Ctrl+L` keyboard shortcut for search focus
+- ✅ Hover preview flyouts on collapsed sidebar icons
+- ✅ Deduplicate mood generation double-toast
 
 ---
 
-## Phase 16 - v0.5.2 Quality of Life & Polish 🔜
+## Phase 16 - v0.5.2 Quality of Life & Polish ✅
 
 **Goal:** Immediate UX improvements, better network handling, and user onboarding.
 
-- 📋 **Notification Rework:** Grouped toasts with action buttons (Cancel download, View error, Undo) to replace static text notifications.
-- 📋 **Multi-select & Bulk Actions:** `SelectionMode.Multiple` (Ctrl/Shift) in track list with floating action bar (Add to playlist, Remove, Queue).
-- 📋 **Proxy Support:** HTTP/SOCKS5 proxy routing for yt-dlp (`--proxy socks5://...`) and `HttpClientHandler` (for metadata calls). SOCKS5 chosen over VPN for simplicity and lack of admin rights requirement.
-- 📋 **Help Tab & Onboarding:** Dedicated Help tab with API setup guides and feature documentation, plus a first-run onboarding wizard (Theme → API Keys → Download Dir).
+- ✅ **Notification Rework:** Grouped toasts with action buttons (Cancel download, View error, Undo) to replace static text notifications.
+- ✅ **Multi-select & Bulk Actions:** `SelectionMode.Multiple` (Ctrl/Shift) in track list with floating action bar (Add to playlist, Remove, Queue).
+- ✅ **Proxy Support:** HTTP/SOCKS5 proxy routing for yt-dlp and metadata calls.
+- ✅ **Help Tab & Onboarding:** Dedicated Help tab with API setup guides and a first-run onboarding wizard (Theme → API Keys → Download Dir).
 
 ---
 
-## Phase 17 - v0.6.0 Major Features 💡
+## Phase 17 - v0.6.0 "Oxeye Daisy" Major Features ✅
 
-**Goal:** The big feature drop for the next major version.
+**Goal:** The big feature drop for the next major version, focusing on media types, UI polish, and localization.
 
-- 📋 **Audiobook Mode:** LibVLC `SetRate(float)` for 0.5x-2.0x speed control, `ResumePositionMs` DB column for auto-remembering playback position, simple crop editor (start/end) via FFmpeg/yt-dlp `--download-sections`.
-- 📋 **Synced Lyrics:** LRCLIB integration (no API key required, FOSS-friendly) to fetch LRC files, highlight current line synced to playback position via DispatcherTimer.
+- ✅ **Audiobook Mode:** Playback speed, resume-from-position, chapter navigation, and sleep timer.
+- ✅ **Light Theme & Oxeye Daisy:** Dark/Light/System modes with theme-aware accent mixing; new signature accent.
+- ✅ **Live Radio Page:** Dedicated library page, SomaFM catalog + mood picker, and ICY now-playing metadata.
+- ✅ **Profile Window Overhaul:** Signed + computed badges, custom banner images, managed avatar assets, and Install ID.
+- ✅ **Crossfade & Sleep Timer:** Dual long-lived MediaPlayer engine with generation-guarded transitions; 15-60 min sleep timer.
+- ✅ **Multi-select & Bulk Actions:** Ctrl/Shift selection with floating bulk bar for queue, favorite, playlist, and remove.
+- ✅ **Localization:** Full English/Russian string tables with live language switching.
+- ✅ **Database Safety:** Rolling auto-backups with retention and restore-from-backup.
+- ✅ **Onboarding & Proxy:** First-run wizard for setup; yt-dlp proxy and geo-proxy fields.
+- ✅ **Download Manager:** UI for tracking active/failed downloads with retry actions.
+- ✅ **Onboarding & Help Polish:** Unified UI styles, hidden API keys (`PasswordChar`), Ollama dependency tracking, and installation guides. Fixed 5th step navigation skip and button spacing.
+- ✅ **Download Manager Stability:** Fixed fatal XAML resource crash (`BoolNegation`) and improved active/failed job tracking.
+- ✅ **Library Maintenance:** Force-clean titles, orphaned file sweeping, and duplicate removal tools.
+- ✅ **Local AI Fallback:** Auto-switches to safe installed models if configured Ollama model is missing.
+
+## Phase 17½ - v0.6.1 Deferred Features 📋
+
+**Goal:** Complete the v0.6 feature set deferred from the release.
+
+- 📋 **Synced Lyrics:** LRCLIB integration with playback-position line highlighting.
 - 📋 **Advanced Audio Controls:** 10-band EQ (LibVLC equalizer) and ReplayGain/volume normalization.
-- 📋 **Dynamic Smart Playlists:** SQL-driven auto-playlists: "Forgotten Gems" (not played in 6 months), "Heavy Rotation" (most played this week), "Fresh Drops" (added in last 7 days).
+- 📋 **Dynamic Smart Playlists:** SQL-driven playlists for forgotten, frequently played, and recently added tracks.
 - 📋 **More Sources:** Bandcamp import support to complement YouTube/SoundCloud/Spotify.
+- ✅ **Settings ViewModel refactor:** split `SettingsViewModel` into domain partial files (ApiKeys / Preferences / AI / Maintenance / Updates). Completed in v0.6.0 to enforce architecture limits and improve maintainability.
 
 ---
 
@@ -447,7 +474,7 @@
 **Goal:** Distribution, localization, and deep OS integration.
 
 - 📋 **Installers & Auto-Update:** Velopack or NSIS via GitHub Actions; wire `UpdateService` to silent/background updates.
-- 📋 **i18n:** Localization support (starting with English/Russian).
+- ✅ **i18n:** Localization support with English/Russian string tables and live language switching.
 - 📋 **Discord Rich Presence:** Show currently playing track and artist in Discord status.
 - 📋 **Animation Pass:** Page transitions, micro-interactions, menu-bar opacity transition (150ms fade).
 
