@@ -4,37 +4,32 @@
              xmlns:models="using:NullWave.Models"
              xmlns:converters="using:NullWave.Helpers.Converters"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Controls.QueueView"
              x:DataType="vm:MainViewModel"
              Background="{StaticResource BrushSurface}"
              BorderBrush="{StaticResource BrushBorder}"
-             BorderThickness="1,0,0,0"
-             Opacity="{Binding Queue.PanelOpacity}">
+             BorderThickness="1,0,0,0">
 
     <UserControl.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
     </UserControl.Resources>
 
-    <UserControl.Transitions>
-        <Transitions>
-            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-        </Transitions>
-    </UserControl.Transitions>
-
     <Grid RowDefinitions="Auto,*">
         <!-- Header -->
         <StackPanel Grid.Row="0" Classes="panel-header">
             <Grid ColumnDefinitions="*,Auto,Auto">
-                <TextBlock Grid.Column="0"
-                           Classes="panel-title"
-                           Text="{Binding Queue.Tracks.Count, StringFormat='Queue ({0})'}"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Classes="panel-title" Text="{loc:Loc Queue_Title}" Margin="0"/>
+                    <TextBlock Classes="panel-title" Text="{Binding Queue.Tracks.Count, StringFormat='({0})'}" Foreground="{StaticResource BrushTextMuted}" FontWeight="Normal" Margin="0"/>
+                </StackPanel>
                 <Button Grid.Column="1"
                         Classes="ghost"
-                        Content="Clear"
+                        Content="{loc:Loc Queue_Button_Clear}"
                         Command="{Binding Queue.ClearQueueCommand}"
                         Padding="10,4"
                         Margin="0,0,8,0"
-                        IsVisible="{Binding Queue.Tracks.Count}"/>
+                        IsVisible="{Binding Queue.HasTracks}"/>
                 <Button Grid.Column="2"
                         Classes="icon-btn"
                         Command="{Binding Queue.CloseCommand}">
@@ -47,19 +42,31 @@
         <!-- Content -->
         <Grid Grid.Row="1">
             <!-- Empty State -->
-            <TextBlock Text="Queue is empty"
+            <TextBlock Text="{loc:Loc Queue_Empty}"
                        Foreground="{StaticResource BrushTextMuted}"
                        FontSize="{DynamicResource FontSizeBody}"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
-                       IsVisible="{Binding !Queue.Tracks.Count}"/>
+                       IsVisible="{Binding !Queue.HasTracks}"/>
 
             <!-- Track List -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          IsVisible="{Binding Queue.Tracks.Count}">
-                <ItemsControl ItemsSource="{Binding Queue.Tracks}" Margin="8,8,8,16">
-                    <ItemsControl.ItemTemplate>
+            <ListBox ItemsSource="{Binding Queue.Tracks}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     IsVisible="{Binding Queue.HasTracks}"
+                     Margin="8,8,8,16">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                </ListBox.Styles>
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:QueueEntry">
                             <Grid Classes="draggable-row" ColumnDefinitions="24,8,40,8,*,Auto" Margin="4,4" MinHeight="{DynamicResource QueueRowHeight}"
                                   Tag="{Binding}"
@@ -68,7 +75,7 @@
                                   DragDrop.DragEnter="OnQueueItemDragEnter"
                                   DragDrop.DragLeave="OnQueueItemDragLeave"
                                   DragDrop.Drop="OnQueueItemDrop">
-                                
+
                                 <!-- Drag Handle -->
                                 <Border Grid.Column="0"
                                         Background="Transparent"
@@ -119,14 +126,13 @@
                                 <Button Grid.Column="5" Classes="icon-btn sm"
                                         Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).Queue.RemoveFromQueueCommand}"
                                         CommandParameter="{Binding Track}"
-                                        ToolTip.Tip="Remove from queue">
+                                        ToolTip.Tip="{loc:Loc Queue_Tooltip_Remove}">
                                     <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
                                 </Button>
                             </Grid>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                    </ListBox.ItemTemplate>
+            </ListBox>
         </Grid>
     </Grid>
 </UserControl>

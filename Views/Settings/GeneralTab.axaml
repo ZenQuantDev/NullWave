@@ -2,203 +2,195 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.GeneralTab"
              x:DataType="vm:SettingsViewModel">
 
-    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="0">
 
-            <!--  Behaviour  -->
-            <TextBlock Classes="section-label" Text="BEHAVIOUR" Margin="0,0,0,12"/>
+            <!-- LANGUAGE SELECTOR CARD -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Language}" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{loc:Loc Settings_General_Language_Title}"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{DynamicResource FontSizeBodyLarge}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="{loc:Loc Settings_General_Language_Desc}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{DynamicResource FontSizeSm}"/>
+                    </StackPanel>
 
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <ComboBox ItemsSource="{Binding SupportedLanguages}"
+                                  SelectedValue="{Binding SelectedLanguage, Mode=TwoWay}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  MinWidth="200"
+                                  VerticalAlignment="Center"/>
+
+                        <!-- CONFIRM / APPLY BUTTON -->
+                        <Button Classes="primary"
+                                Content="{loc:Loc Settings_General_Language_Confirm}"
+                                Command="{Binding ApplyLanguageCommand}"
+                                IsVisible="{Binding IsLanguageApplyVisible}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- BEHAVIOUR SECTION -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Behaviour}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
-
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Auto-fetch metadata"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <Button Classes="help-btn"
-                                        ToolTip.Tip="Fetches title and artist from Last.fm when a URL is pasted.">
+                                <TextBlock Text="{loc:Loc Settings_General_AutoFetchMetadata_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_AutoFetchMetadata_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Fetch title and artist when a URL is pasted"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_General_AutoFetchMetadata_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1"
-                                      IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}"
-                                      VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Auto-play next track"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Automatically play the next track when one finishes"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_General_AutoPlayNext_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_AutoPlayNext_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1"
-                                      IsChecked="{Binding AutoPlayNext, Mode=TwoWay}"
-                                      VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPlayNext, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Download when added"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Download audio immediately when a URL is added to the library"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_General_DownloadOnAdd_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_DownloadOnAdd_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1"
-                                      IsChecked="{Binding DownloadOnAdd, Mode=TwoWay}"
-                                      VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding DownloadOnAdd, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Scrobble to Last.fm"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <Button Classes="help-btn"
-                                        ToolTip.Tip="Submits plays to Last.fm when a track passes the threshold below. Requires a Last.fm API key.">
+                                <TextBlock Text="{loc:Loc Settings_General_Scrobble_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_Scrobble_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Submit plays to Last.fm (requires API key)"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_General_Scrobble_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1"
-                                      IsChecked="{Binding ScrobbleToLastFm, Mode=TwoWay}"
-                                      VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ScrobbleToLastFm, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
-
                 </StackPanel>
             </Border>
 
-            <!--  Scrobble Threshold  -->
-            <TextBlock Classes="section-label" Text="SCROBBLE THRESHOLD" Margin="0,0,0,12"/>
-
+            <!-- SCROBBLE THRESHOLD -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_ScrobbleThreshold}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ScrobbleThresholdDisplay}"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Last.fm's own rule is 50% or 4 minutes, whichever comes first"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{Binding ScrobbleThresholdDisplay}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_ScrobbleThreshold_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                     </Grid>
-                    <Slider Minimum="0.1" Maximum="0.9"
-                            TickFrequency="0.05"
-                            IsSnapToTickEnabled="True"
-                            Value="{Binding ScrobbleThreshold, Mode=TwoWay}"
-                            IsEnabled="{Binding ScrobbleToLastFm}"/>
+                    <Slider Minimum="0.1" Maximum="0.9" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                            Value="{Binding ScrobbleThreshold, Mode=TwoWay}" IsEnabled="{Binding ScrobbleToLastFm}"/>
                     <Grid ColumnDefinitions="*,*,*,*,*">
                         <TextBlock Grid.Column="0" Text="10%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Left"/>
                         <TextBlock Grid.Column="1" Text="30%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="50%" Foreground="{StaticResource BrushAccent}"    FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="2" Text="50%" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="3" Text="70%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
                         <TextBlock Grid.Column="4" Text="90%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Right"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Skip Penalty  -->
-            <TextBlock Classes="section-label" Text="SKIP PENALTY" Margin="0,0,0,12"/>
-
+            <!-- SKIP PENALTY -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_SkipPenalty}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
-
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Early-skip window"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <Button Classes="help-btn"
-                                        ToolTip.Tip="If you skip a track within this many seconds of it starting, it gets a skip penalty mark.">
+                                <TextBlock Text="{loc:Loc Settings_General_SkipWindow_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_SkipWindow_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Skipping within this window adds a penalty to the track"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_General_SkipWindow_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding SkipWindowOptions}"
-                                  SelectedItem="{Binding SkipPenaltyWindowSeconds, Mode=TwoWay}"
-                                  MinWidth="110"
-                                  VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding SkipWindowOptions}" SelectedItem="{Binding SkipPenaltyWindowSeconds, Mode=TwoWay}" MinWidth="110" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Penalty cap"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Tracks reaching this many penalties are excluded from Smart Shuffle"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_General_PenaltyCap_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_PenaltyCap_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding SkipPenaltyCapOptions}"
-                                  SelectedItem="{Binding SkipPenaltyCap, Mode=TwoWay}"
-                                  MinWidth="110"
-                                  VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding SkipPenaltyCapOptions}" SelectedItem="{Binding SkipPenaltyCap, Mode=TwoWay}" MinWidth="110" VerticalAlignment="Center"/>
                     </Grid>
-
                 </StackPanel>
             </Border>
 
-            <!--  Download Directory  -->
-            <TextBlock Classes="section-label" Text="DOWNLOAD DIRECTORY" Margin="0,0,0,12"/>
-
+            <!-- DOWNLOAD DIRECTORY -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_DownloadDir}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="Where downloaded audio files are saved"
-                               Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{DynamicResource FontSizeSm}"/>
+                    <TextBlock Text="{loc:Loc Settings_General_DownloadDir_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                     <Grid ColumnDefinitions="*,8,Auto">
-                        <TextBox Grid.Column="0"
-                                 Text="{Binding DownloadDirectory, Mode=TwoWay}"
-                                 PlaceholderText="~/.nullwave/downloads"
-                                 VerticalAlignment="Center"/>
-                        <Button Grid.Column="2"
-                                Classes="secondary"
-                                Content="Browse..."
-                                Command="{Binding BrowseDownloadDirCommand}"/>
+                        <TextBox Grid.Column="0" Text="{Binding DownloadDirectory, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_DownloadDir_Placeholder}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" Classes="secondary" Content="{loc:Loc Settings_General_Browse_Button}" Command="{Binding BrowseDownloadDirCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
+
+            <!-- DATABASE & BACKUPS -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Backups}" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_General_AutoBackups_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_AutoBackups_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableAutoBackups, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding EnableAutoBackups}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableAutoBackups}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_General_BackupRetention_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_BackupRetention_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding BackupRetentionOptions}" SelectedItem="{Binding BackupRetentionCount, Mode=TwoWay}" MinWidth="110" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- NETWORK & PROXY -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Proxy}" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{loc:Loc Settings_General_Proxy_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    <TextBox Text="{Binding YtDlpProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_Proxy_Placeholder}" VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding YtDlpGeoProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_GeoProxy_Placeholder}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>
-
 </UserControl>

@@ -2,13 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:settings="using:NullWave.Views.Settings"
+        xmlns:controls="using:NullWave.Views.Controls"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:services="using:NullWave.Services"
         xmlns:models="using:NullWave.Models"
         xmlns:material="using:Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="NullWave Configuration Desk"
+        Title="{loc:Loc Settings_Window_Title}"
         Width="950" Height="660"
         MinWidth="800" MinHeight="560"
         WindowStartupLocation="CenterOwner"
@@ -27,46 +29,139 @@
                 </Transitions>
             </Setter>
         </Style>
-        <Style Selector="Border.success">
-            <Setter Property="Background" Value="{DynamicResource BrushGreenDim}"/>
+        <Style Selector="Border.success"><Setter Property="Background" Value="{DynamicResource BrushGreenDim}"/></Style>
+        <Style Selector="Border.error"><Setter Property="Background" Value="{DynamicResource BrushRedDim}"/></Style>
+        <Style Selector="Border.warning"><Setter Property="Background" Value="{DynamicResource BrushAmberDim}"/></Style>
+        <Style Selector="Border.info"><Setter Property="Background" Value="{DynamicResource BrushBase}"/></Style>
+
+        <!-- SETTINGS NAV ROW -->
+        <Style Selector="Button.settings-nav">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.12"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
         </Style>
-        <Style Selector="Border.error">
-            <Setter Property="Background" Value="{DynamicResource BrushRedDim}"/>
+        <Style Selector="Button.settings-nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         </Style>
-        <Style Selector="Border.warning">
-            <Setter Property="Background" Value="{DynamicResource BrushAmberDim}"/>
+        <Style Selector="Button.settings-nav:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
         </Style>
-        <Style Selector="Border.info">
-            <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
+        <Style Selector="Button.settings-nav.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
+        </Style>
+        <Style Selector="Button.settings-nav TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+        </Style>
+        <Style Selector="Button.settings-nav:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        </Style>
+        <Style Selector="Button.settings-nav.active TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BrushAccent2}"/>
+        </Style>
+
+        <Style Selector="Border.nav-tile">
+            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style Selector="Border.nav-active-bar">
+            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="Background" Value="{DynamicResource BrushAccent}"/>
+            <Setter Property="CornerRadius" Value="0,2,2,0"/>
+            <Setter Property="Width" Value="3"/>
+        </Style>
+        <Style Selector="Button.settings-nav.active Border.nav-active-bar">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
+
+        <Style Selector="Border.settings-navrail.collapsed Border.rail-header">
+            <Setter Property="Padding" Value="0,16"/>
+        </Style>
+        <Style Selector="Border.settings-navrail.collapsed Button.settings-nav">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="6,2"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.settings-navrail.collapsed Border.nav-tile">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+        </Style>
+        <Style Selector="Border.settings-navrail.collapsed Border.nav-active-bar">
+            <Setter Property="IsVisible" Value="False"/>
         </Style>
     </Window.Styles>
 
     <Panel>
-        <Grid ColumnDefinitions="220,*">
+        <Grid ColumnDefinitions="Auto,*">
             <Border Grid.Column="0"
+                    Classes="settings-navrail"
+                    Classes.collapsed="{Binding IsSettingsSidebarCollapsed}"
+                    Width="{Binding SettingsSidebarWidth}"
                     Background="{StaticResource BrushSurface}"
                     BorderBrush="{StaticResource BrushBorder}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
                     <Border DockPanel.Dock="Top"
-                            Padding="20,24,20,20"
+                            Classes="rail-header"
+                            Height="{StaticResource SettingsHeaderHeight}"
+                            Padding="20,0"
                             BorderBrush="{StaticResource BrushBorder}"
                             BorderThickness="0,0,0,1">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <material:MaterialIcon Kind="Waveform"
-                                                   Width="28" Height="28"
-                                                   Foreground="{StaticResource BrushAccent}"
-                                                   VerticalAlignment="Center"/>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="NullWave"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="Bold"/>
-                                <TextBlock Text="Settings"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"/>
-                            </StackPanel>
-                        </StackPanel>
+                        <Panel>
+                            <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsSettingsSidebarExpanded}">
+                                <Border Grid.Column="0" Width="28" Height="28"
+                                        CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True"
+                                        Background="{StaticResource BrushAccentGradient}">
+                                    <material:MaterialIcon Kind="Waveform" Width="16" Height="16" Foreground="White"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                                    <TextBlock Text="NullWave"
+                                               Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{DynamicResource FontSizeBodyLarge}"
+                                               FontWeight="Bold"/>
+                                    <TextBlock Text="{loc:Loc Settings_Header_Settings}"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{DynamicResource FontSizeXs}"/>
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="icon-btn"
+                                        Command="{Binding ToggleSettingsSidebarCommand}"
+                                        ToolTip.Tip="Collapse sidebar" VerticalAlignment="Center">
+                                    <material:MaterialIcon Kind="{Binding SettingsSidebarCollapseIconKind}" Width="18" Height="18"/>
+                                </Button>
+                            </Grid>
+                            <Button HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                    Command="{Binding ToggleSettingsSidebarCommand}"
+                                    ToolTip.Tip="Expand sidebar"
+                                    IsVisible="{Binding IsSettingsSidebarCollapsed}">
+                                <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True"
+                                        Background="{StaticResource BrushAccentGradient}">
+                                    <material:MaterialIcon Kind="Waveform" Width="16" Height="16" Foreground="White"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </Button>
+                        </Panel>
                     </Border>
 
                     <TextBlock DockPanel.Dock="Bottom"
@@ -74,78 +169,97 @@
                                Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{DynamicResource FontSizeXs}"
                                HorizontalAlignment="Center"
-                               Margin="0,0,0,16"/>
+                               Margin="0,0,0,16"
+                               IsVisible="{Binding IsSettingsSidebarExpanded}"/>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
                         <StackPanel Margin="8,4,8,0" Spacing="3">
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="General"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_General}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="TuneVariant" Width="16" Height="16"/>
-                                    <TextBlock Text="General"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="TuneVariant" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_General}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Appearance"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Appearance}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Palette" Width="16" Height="16"/>
-                                    <TextBlock Text="Appearance"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Palette" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Appearance}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="ApiKeys"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_ApiKeys}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Key" Width="16" Height="16"/>
-                                    <TextBlock Text="API Keys"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Key" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_ApiKeys}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Plugins"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Plugins}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Puzzle" Width="16" Height="16"/>
-                                    <TextBlock Text="Plugins"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Puzzle" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Plugins}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Audio"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Audio}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="MusicNote" Width="16" Height="16"/>
-                                    <TextBlock Text="Audio"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="MusicNote" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Audio}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="SmartFeatures"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_SmartFeatures}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16"/>
-                                    <TextBlock Text="Smart Features"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="AutoFixHigh" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_SmartFeatures}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Maintenance"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Maintenance}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Tools" Width="16" Height="16"/>
-                                    <TextBlock Text="Maintenance"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Tools" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Maintenance}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Updates"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Updates}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Update" Width="16" Height="16"/>
-                                    <TextBlock Text="Updates"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Update" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Updates}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Advanced"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Advanced}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="Cog" Width="16" Height="16"/>
-                                    <TextBlock Text="Advanced"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="Cog" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Advanced}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="About"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_About}"
                                     Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"/>
-                                    <TextBlock Text="About"/>
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="InformationOutline" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_About}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Help"
+                                    ToolTip.Tip="{loc:Loc Settings_Nav_Help}"
+                                    Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Help}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="HelpCircle" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Help}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -153,108 +267,41 @@
                 </DockPanel>
             </Border>
 
-            <Grid Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
-                <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
-                <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
-                <settings:PluginsTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}"/>
-                <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
-                <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
-                <settings:MaintenanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}"/>
-                <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
-                <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
-                <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="0,0,0,1"
+                        Height="{StaticResource SettingsHeaderHeight}"
+                        Padding="24,0">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentSettingsPageTitle}"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="{DynamicResource FontSizeXl}"
+                                   FontWeight="Bold"/>
+                        <TextBlock Text="{Binding CurrentSettingsPageDescription}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{DynamicResource FontSizeSm}"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <settings:GeneralTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}"/>
+                    <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
+                    <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
+                    <settings:PluginsTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}"/>
+                    <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
+                    <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
+                    <settings:MaintenanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}"/>
+                    <settings:UpdatesTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Updates}"/>
+                    <settings:AdvancedTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Advanced}"/>
+                    <settings:AboutTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}"/>
+                    <settings:HelpTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Help}"/>
+                </Grid>
             </Grid>
         </Grid>
 
-        <!-- THE TOAST OVERLAY LAYER (visible only while Settings IS the active host) -->
-        <StackPanel DataContext="{x:Static services:ToastService.Instance}"
-                    x:DataType="services:ToastService"
-                    IsVisible="{Binding SettingsHostActive}"
-                    VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,30">
-            <Button Content="Dismiss all" Classes="ghost" Padding="8,4"
-                    HorizontalAlignment="Center" Margin="0,0,0,6"
-                    IsVisible="{Binding ShowDismissAll}"
-                    Command="{Binding DismissAllCommand}"/>
-            <ItemsControl ItemsSource="{Binding ActiveNotifications}" IsHitTestVisible="True">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:LiveNotification">
-                        <Border Width="360" Margin="0,2"
-                                Background="{StaticResource BrushSurface}"
-                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
-                                CornerRadius="12" BoxShadow="0 4 20 0 #55000000" ClipToBounds="True"
-                                PointerEntered="OnToastPointerEntered"
-                                PointerExited="OnToastPointerExited">
-                            <Grid ColumnDefinitions="Auto, *">
-                                <Border Width="5" VerticalAlignment="Stretch" Background="{Binding NotificationColor}"/>
-                                <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                    <Grid ColumnDefinitions="Auto, *, Auto">
-                                        <Path Grid.Column="0" Width="15" Height="15" Margin="0,0,8,0"
-                                            Fill="{Binding NotificationColor}" Data="{Binding IconData}"
-                                            Stretch="Uniform" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
-                                                Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"
-                                                TextTrimming="CharacterEllipsis"/>
-                                        <Button Grid.Column="2" Command="{Binding CloseCommand}"
-                                                Background="Transparent" BorderThickness="0" Padding="4"
-                                                MinWidth="0" MinHeight="0" Cursor="Hand">
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                    <Setter Property="Opacity" Value="0.7"/>
-                                                </Style>
-                                            </Button.Styles>
-                                            <material:MaterialIcon Kind="Close" Width="14" Height="14"
-                                                                Foreground="{StaticResource BrushTextMuted}"/>
-                                        </Button>
-                                    </Grid>
-                                    <TextBlock Text="{Binding Message}" FontSize="12"
-                                            Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"
-                                            Margin="23,0,0,2"/>
-                                    <ProgressBar IsVisible="{Binding ShowProgressBar}" Value="{Binding ProgressValue}"
-                                                IsIndeterminate="{Binding IsIndeterminate}" Height="4" Margin="23,2,0,2"
-                                                CornerRadius="2" Background="{StaticResource BrushBorder}"
-                                                Foreground="{Binding NotificationColor}"/>
-                                    <Button IsVisible="{Binding ShowActionButton}" Command="{Binding ActionCommand}"
-                                            Content="{Binding ActionButtonText}" HorizontalAlignment="Right"
-                                            FontSize="{DynamicResource FontSizeXs}" Padding="10,4"
-                                            Background="{StaticResource BrushSurface2}"
-                                            Foreground="{StaticResource BrushTextPrimary}" CornerRadius="6"/>
-                                    <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
-                                        <Button Command="{Binding ToggleExpandCommand}"
-                                                Background="Transparent" BorderThickness="0" Padding="0"
-                                                HorizontalAlignment="Left" Cursor="Hand">
-                                            <Panel>
-                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
-                                                    <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
-                                                    <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Panel>
-                                        </Button>
-                                        <Border IsVisible="{Binding IsExpanded}" Margin="0,6,0,0" Padding="8"
-                                                Background="{StaticResource BrushBase}" CornerRadius="6"
-                                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
-                                            <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
-                                                <TextBlock Text="{Binding DetailedMessage}" FontSize="11"
-                                                        Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
-                                            </ScrollViewer>
-                                        </Border>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
+        <controls:ToastOverlayView VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,30"
+                                   IsVisible="{Binding Source={x:Static services:ToastService.Instance}, Path=SettingsHostActive}"/>
     </Panel>
 </Window>

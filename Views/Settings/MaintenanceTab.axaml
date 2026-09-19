@@ -2,184 +2,231 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.MaintenanceTab"
              x:DataType="vm:SettingsViewModel">
-    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="0">
-            <!--  Metadata Engine  -->
-            <TextBlock Classes="section-label" Text="METADATA ENGINE" Margin="0,0,0,12"/>
+
+            <!-- METADATA ENGINE -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Metadata}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="AI Metadata Cleaning" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Automatically remove clutter like 'ft.', '(Official)', or '- Topic' from track data." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_AutoClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_AutoClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCleanMetadata}" VerticalAlignment="Center"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Force clean titles" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Re-parses every track's title for an embedded 'Artist - Title' pattern and overwrites both fields when found.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_ForceClean_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                             </StackPanel>
-                            <TextBlock Text="Retroactively fix wrong artist names caused by compilation/repost channels" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Force Clean" Command="{Binding ForceCleanTitlesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_ForceClean_Button}" Command="{Binding ForceCleanTitlesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Library Maintenance  -->
-            <TextBlock Classes="section-label" Text="LIBRARY MAINTENANCE" Margin="0,0,0,12"/>
+            <!-- LIBRARY HEALTH -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Health}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Repair file paths" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Scans all tracks with a saved file path and checks if the file still exists on disk.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Repair_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Repair_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                             </StackPanel>
-                            <TextBlock Text="Scan library for tracks whose audio file no longer exists on disk" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Repair_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Repair Paths" Command="{Binding RepairPathsCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Repair_Button}" Command="{Binding RepairPathsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Reimport assets" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Scans your download folder for audio files and re-links them to matching library tracks.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Verify_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                             </StackPanel>
-                            <TextBlock Text="Scan download folder and re-link audio files to existing tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Reimport Assets" Command="{Binding ReimportAssetsCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Verify_Button}" Command="{Binding VerifyLinksCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Force metadata re-sync" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Clears all cached tags from every track and re-runs the Last.fm enrichment pipeline.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Reimport_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                             </StackPanel>
-                            <TextBlock Text="Clear cached tags and re-fetch from Last.fm for all tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Re-sync Metadata" Command="{Binding ForceMetaResyncCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Sweep orphaned files" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Deletes audio files in your downloads folder that no library track points to.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="Delete .mp3/.m4a files with no matching library entry" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Classes="secondary" Content="Preview" Command="{Binding PreviewOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                            <Button Classes="danger" Content="Sweep" Command="{Binding SweepOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                        </StackPanel>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Verify links" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Reads the embedded title tag from every linked audio file and compares it against the track's stored title.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="Cross-check linked files' embedded tags against stored track titles" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Verify Links" Command="{Binding VerifyLinksCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Merge similar artist names" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Auto-merge artist names that differ only by whitespace, invisible characters, or Unicode variants">
-                                    <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14"/>
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="Normalize artist naming variations across the library" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Classes="danger" Content="Merge Similar Artist Names" Command="{Binding MergeSimilarArtistsCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Remove duplicate tracks" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Find tracks with matching title and artist, keep the best copy" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Classes="secondary" Content="Preview" Command="{Binding PreviewDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                            <Button Classes="danger" Content="Remove" Command="{Binding RemoveDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                        </StackPanel>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    
-                    <!-- NEW: Sync files with library -->
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Sync files with library" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Rewrites embedded ID3 tags and renames local files to 'Artist - Title' so they match your cleaned library metadata.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="Retro-fix for files downloaded before cleaning existed" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Classes="secondary" Content="Preview" Command="{Binding PreviewSyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                            <Button Classes="primary" Content="Sync" Command="{Binding SyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
-                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Reimport_Button}" Command="{Binding ReimportAssetsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Cache  -->
-            <TextBlock Classes="section-label" Text="CACHE" Margin="0,0,0,12"/>
+            <!-- DATA CLEANUP -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Cleanup}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Clear cached thumbnails" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Deletes all cached album art and re-fetches it automatically" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Clear thumbnails" Command="{Binding ClearThumbnailsCommand}"/>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Clear yt-dlp cache" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Purges yt-dlp download caches to fix stale streams and extractor errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Clear cache" Command="{Binding ClearYtDlpCacheCommand}"/>
-                    </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Optimize database" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Runs SQLite's VACUUM command to shrink the database file and speed up queries after many inserts and deletes.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Sweep_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Sweep_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                             </StackPanel>
-                            <TextBlock Text="Shrinks the database file and speeds up queries" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Sweep_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Optimize" Command="{Binding VacuumDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Maintenance_Preview}" Command="{Binding PreviewOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="danger" Content="{loc:Loc Settings_Maintenance_Sweep_Button}" Command="{Binding SweepOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Dedupe_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Dedupe_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Dedupe_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Maintenance_Preview}" Command="{Binding PreviewDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="danger" Content="{loc:Loc Settings_Maintenance_Remove_Button}" Command="{Binding RemoveDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Merge_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Merge_Button}" Command="{Binding MergeSimilarArtistsCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- METADATA & FILE SYNC -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Sync}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Resync_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Resync_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Resync_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Resync_Button}" Command="{Binding ForceMetaResyncCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_SyncFiles_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Maintenance_Preview}" Command="{Binding PreviewSyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Maintenance_Sync_Button}" Command="{Binding SyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Backfill_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Backfill_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Backfill_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Backfill_Button}" Command="{Binding RequestBackfillDurationsCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- DATA SAFETY & BACKUPS -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Safety}" Margin="0,24,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_AutoBackup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_AutoBackup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableAutoBackups}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding EnableAutoBackups}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableAutoBackups}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_BackupRetention_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_BackupRetention_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding BackupRetentionOptions}" SelectedItem="{Binding BackupRetentionCount}" VerticalAlignment="Center" MinWidth="80"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Restore_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Restore_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Restore_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Restore_Button}" Command="{Binding RestoreDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- CACHE & DATABASE -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Cache}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Thumbs_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Thumbs_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Thumbs_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Thumbs_Button}" Command="{Binding ClearThumbnailsCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Cache_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Cache_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Cache_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Cache_Button}" Command="{Binding ClearYtDlpCacheCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_Optimize_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Optimize_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Optimize_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Optimize_Button}" Command="{Binding VacuumDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                 </StackPanel>
             </Border>

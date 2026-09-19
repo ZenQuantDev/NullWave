@@ -2,122 +2,169 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.AdvancedTab"
              x:DataType="vm:SettingsViewModel">
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0">
 
-            <!--  Logging  -->
-            <TextBlock Classes="section-label" Text="LOGGING" Margin="0,0,0,12"/>
+            <!-- LOGGING -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Logging}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Advanced / Verbose logging" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <Button Classes="help-btn" ToolTip.Tip="Default mode logs summaries only. Advanced mode also logs every individual item. Takes effect immediately.">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Verbose_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Advanced_Verbose_Tooltip}">
                                 <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                             </Button>
                         </StackPanel>
-                        <TextBlock Text="{Binding LoggingModeLabel, StringFormat='Current mode: {0}'}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        <TextBlock Text="{Binding LoggingModeLabel}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding VerboseLogging}" VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 
-            <!--  Data Folders  -->
-            <TextBlock Classes="section-label" Text="DATA" Margin="0,0,0,12"/>
+            <!-- DATA -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Data}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Open data folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave - keys, db, downloads, art, logs" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenData}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenData_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Open folder" Command="{Binding OpenDataFolderCommand}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_OpenData}" Command="{Binding OpenDataFolderCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Open logs folder" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="~/.nullwave/logs - system, user actions, errors" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenLogs}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenLogs_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Open folder" Command="{Binding OpenLogsFolderCommand}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_OpenLogs}" Command="{Binding OpenLogsFolderCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Backup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Backup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_Backup_Button}" Command="{Binding BackupDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Download Behavior  -->
-            <TextBlock Classes="section-label" Text="DOWNLOAD BEHAVIOR" Margin="0,0,0,12"/>
+            <!-- DOWNLOAD BEHAVIOR -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Behavior}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="Block Duplicate Downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                        <TextBlock Text="Quickly scan the database to skip incoming tracks that already exist in the library." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                    </StackPanel>
-                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding PreventDuplicateDownloads}" VerticalAlignment="Center"/>
-                </Grid>
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_BlockDup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_BlockDup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding PreventDuplicateDownloads}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ConcurrentDownloadOptions}" SelectedItem="{Binding MaxConcurrentDownloads}" MinWidth="80" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
             </Border>
 
-            <!--  Download Speed & Auth  -->
-            <TextBlock Classes="section-label" Text="DOWNLOAD SPEED &amp; AUTH" Margin="0,0,0,12"/>
+            <!-- DOWNLOAD SPEED & AUTH -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Speed}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Use aria2c for downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Delegates the download itself to aria2c, opening 16 concurrent connections per track for much faster transfers.">
+                                <TextBlock Text="{loc:Loc Settings_Advanced_Aria2_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Advanced_Aria2_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Multi-connection downloads via aria2c (falls back silently if not installed)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Aria2_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseAria2c}" VerticalAlignment="Center"/>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Browser cookies" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Passes --cookies-from-browser to yt-dlp so requests look like they come from a logged-in browser session.">
+                                <TextBlock Text="{loc:Loc Settings_Advanced_Cookies_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Advanced_Cookies_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Bypasses aggressive rate limiting and shortens inter-track delay" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Cookies_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" ItemsSource="{Binding BrowserCookieOptions}" SelectedItem="{Binding YtDlpBrowserCookies, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Danger Zone  -->
-            <TextBlock Classes="section-label" Text="DANGER ZONE" Foreground="{StaticResource BrushRed}" Margin="0,0,0,12"/>
+            <!-- NETWORK & PROXY -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Network}" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Proxy_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Proxy_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBox Text="{Binding YtDlpProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Advanced_Proxy_Placeholder}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Geo_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Geo_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBox Text="{Binding YtDlpGeoProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Advanced_Geo_Placeholder}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- DANGER ZONE -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Danger}" Foreground="{StaticResource BrushRed}" Margin="0,0,0,12"/>
             <Border Classes="settings-card" BorderBrush="{StaticResource BrushRed}">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Delete API keys" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Securely wipes all stored API keys from keys.enc" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteKeys_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteKeys_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="danger" Content="Delete keys" Command="{Binding DeleteApiKeysCommand}"/>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_DeleteKeys_Button}" Command="{Binding DeleteApiKeysCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Delete logs" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Securely wipes all log files" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteLogs_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteLogs_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="danger" Content="Delete logs" Command="{Binding DeleteLogsCommand}"/>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_DeleteLogs_Button}" Command="{Binding DeleteLogsCommand}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Wipe everything" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Bold"/>
-                            <TextBlock Text="Permanently deletes all keys, logs, downloads, and NullWave data. Cannot be undone." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Reset_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Reset_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="danger" Content="Wipe everything" Command="{Binding DeleteEverythingCommand}" Margin="16,0,0,0"/>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_Reset_Button}" Command="{Binding ResetPreferencesCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Wipe_Title}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Bold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Wipe_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_Wipe_Button}" Command="{Binding DeleteEverythingCommand}" Margin="16,0,0,0"/>
                     </Grid>
                 </StackPanel>
             </Border>

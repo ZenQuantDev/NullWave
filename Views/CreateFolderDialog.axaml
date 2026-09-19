@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.CreateFolderDialog"
-        Title="NullWave - New Folder"
+        Title="{loc:Loc Dialog_CreateFolder_Title}"
         Width="360" Height="180"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
@@ -12,22 +13,22 @@
                     HorizontalAlignment="Right"
                     Spacing="8"
                     Margin="0,16,0,0">
-            <Button Content="Cancel"
+            <Button Content="{loc:Loc Dialog_Cancel}"
                     Click="OnCancel"
                     Classes="secondary"
                     Padding="16,8"/>
-            <Button Content="Create"
+            <Button Content="{loc:Loc Dialog_Create}"
                     Click="OnCreate"
                     Classes="primary"
                     Padding="16,8"/>
         </StackPanel>
 
         <StackPanel Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="Folder name"
+            <TextBlock Text="{loc:Loc Dialog_CreateFolder_NameLabel}"
                        Foreground="{StaticResource BrushTextPrimary}"
                        FontSize="{DynamicResource FontSizeBody}"/>
             <TextBox Name="NameInput"
-                     PlaceholderText="My Folder"
+                     PlaceholderText="{loc:Loc Dialog_CreateFolder_NamePlaceholder}"
                      KeyDown="OnNameInputKeyDown"/>
         </StackPanel>
     </DockPanel>

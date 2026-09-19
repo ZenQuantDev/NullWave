@@ -1,29 +1,32 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
-        xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:material="using:Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.TrackDetailView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="1,0,0,0"
-        Opacity="{Binding Detail.PanelOpacity}"
         ClipToBounds="True">
     <Border.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </Border.Resources>
-    <Border.Transitions>
-        <Transitions>
-            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-        </Transitions>
-    </Border.Transitions>
-    
-    <!-- Switched to a Grid layout to pin the top sections fixed in place -->
+
+    <!-- LOCAL STYLE OVERRIDES: Boost section-label contrast within this inspector.
+         The global section-label uses BrushTextMuted (faint gray) which fails
+         WCAG AA contrast on BrushSurface. Override to BrushTextSecondary + SemiBold
+         for better readability without affecting the rest of the app. -->
+    <Border.Styles>
+        <Style Selector="TextBlock.section-label">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Border.Styles>
+
     <Grid RowDefinitions="Auto,Auto,*">
         <!-- ROW 0: Fixed Album Art -->
         <Border Grid.Row="0" Height="{DynamicResource DetailArtHeight}"
@@ -44,14 +47,14 @@
                                            Width="52" Height="52"
                                            Foreground="{StaticResource BrushTextMuted}"
                                            HorizontalAlignment="Center"/>
-                    <TextBlock Text="No artwork"
+                    <TextBlock Text="{loc:Loc Detail_NoArtwork}"
                                FontSize="{DynamicResource FontSizeSm}"
                                Foreground="{StaticResource BrushTextMuted}"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
             </Panel>
         </Border>
-        
+
         <!-- ROW 1: Fixed Header -->
         <StackPanel Grid.Row="1" Spacing="0" Margin="16,16,16,0">
             <Grid ColumnDefinitions="*,Auto">
@@ -70,7 +73,7 @@
             </Grid>
             <Separator Background="{StaticResource BrushBorder}" Margin="0,12,0,0"/>
         </StackPanel>
-        
+
         <!-- ROW 2: Scrollable Content Area -->
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
@@ -78,20 +81,20 @@
             <StackPanel Spacing="16" Margin="16,12,16,20">
                 <!-- Title -->
                 <StackPanel Spacing="5">
-                    <TextBlock Classes="section-label" Text="TITLE" Margin="0"/>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Title}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
                 </StackPanel>
-                
+
                 <!-- Artist -->
                 <StackPanel Spacing="5">
-                    <TextBlock Classes="section-label" Text="ARTIST" Margin="0"/>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Artist}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                 </StackPanel>
-                
+
                 <!-- Source + Favorite -->
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Classes="section-label" Text="SOURCE" Margin="0"/>
+                        <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Source}" Margin="0"/>
                         <Border CornerRadius="{StaticResource RadiusFull}"
                                 Padding="10,4"
                                 HorizontalAlignment="Left">
@@ -108,7 +111,7 @@
                     <Button Grid.Column="1"
                             Classes="icon-btn"
                             Command="{Binding Detail.ToggleFavoriteCommand}"
-                            ToolTip.Tip="Toggle Favorite"
+                            ToolTip.Tip="{loc:Loc Detail_Tooltip_Favorite}"
                             VerticalAlignment="Bottom">
                         <material:MaterialIcon Kind="{Binding Detail.IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}"
                                                Width="22" Height="22"
@@ -116,71 +119,93 @@
                                                Opacity="{Binding Detail.IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
                     </Button>
                 </Grid>
-                
+
                 <!-- Stats -->
-                <Grid ColumnDefinitions="*,*">
+                <Grid ColumnDefinitions="*,*,*">
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Classes="section-label" Text="PLAYS" Margin="0"/>
+                        <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Plays}" Margin="0"/>
                         <TextBlock Text="{Binding Detail.DisplayPlayCount}"
                                    Foreground="{StaticResource BrushBlue}"
                                    FontSize="{DynamicResource FontSizeLg}"
                                    FontWeight="Bold"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4">
-                        <TextBlock Classes="section-label" Text="LAST PLAYED" Margin="0"/>
+                        <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_LastPlayed}" Margin="0"/>
                         <TextBlock Text="{Binding Detail.DisplayLastPlayed}"
                                    Foreground="{StaticResource BrushTextSecondary}"
                                    FontSize="{DynamicResource FontSizeSm}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Length}" Margin="0"/>
+                        <TextBlock Text="{Binding Detail.DisplayDuration}"
+                                   Foreground="{StaticResource BrushBlue}"
+                                   FontSize="{DynamicResource FontSizeLg}"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
                 </Grid>
-                
+
                 <!-- Date added -->
                 <StackPanel Spacing="4">
-                    <TextBlock Classes="section-label" Text="DATE ADDED" Margin="0"/>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_DateAdded}" Margin="0"/>
                     <TextBlock Text="{Binding Detail.DisplayDateAdded}"
                                Foreground="{StaticResource BrushTextSecondary}"
                                FontSize="{DynamicResource FontSizeBody}"/>
                 </StackPanel>
-                
-                <!-- URL / Path -->
+
+                <!-- URL / Path: monospace code-chip with inline copy button -->
                 <StackPanel Spacing="6">
-                    <TextBlock Classes="section-label" Text="URL / PATH" Margin="0"/>
-                    <TextBlock Text="{Binding Detail.DisplayUrl}"
-                               Foreground="{StaticResource BrushBlue}"
-                               FontSize="{DynamicResource FontSizeXs}"
-                               TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Classes="ghost"
-                                Content="{Binding Detail.CopyStatus}"
-                                Command="{Binding Detail.CopyUrlCommand}"
-                                Padding="12,5"/>
-                        <Button Classes="ghost"
-                                Content="Relink File..."
-                                Command="{Binding Detail.RelinkFileCommand}"
-                                ToolTip.Tip="Point this track at a different audio file on disk — use when Verify Links flags a mis-linked file."
-                                Padding="12,5"/>
-                    </StackPanel>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_UrlPath}" Margin="0"/>
+                    <Border Background="{StaticResource BrushSurface2}"
+                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding Detail.DisplayUrl}"
+                                       FontFamily="Consolas, monospace"
+                                       FontSize="11"
+                                       Foreground="{StaticResource BrushTextSecondary}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="3"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Classes="icon-btn sm"
+                                    Command="{Binding Detail.CopyUrlCommand}"
+                                    ToolTip.Tip="{Binding Detail.CopyStatus}"
+                                    VerticalAlignment="Top">
+                                <material:MaterialIcon Kind="ContentCopy" Width="14" Height="14"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Button Classes="ghost"
+                            Content="{loc:Loc Detail_Button_Relink}"
+                            Command="{Binding Detail.RelinkFileCommand}"
+                            ToolTip.Tip="{loc:Loc Detail_Tooltip_Relink}"
+                            Padding="12,5"
+                            HorizontalAlignment="Left"/>
                 </StackPanel>
 
                 <StackPanel Spacing="12">
-                    <TextBlock Classes="section-label" Text="ARTIST INFO" Margin="0"/>
-                    
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_ArtistInfo}" Margin="0"/>
+
                     <!-- Spotify-style Artist Hero -->
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
                         <Border Width="100" Height="100" CornerRadius="50" ClipToBounds="True" Background="{StaticResource BrushSurface2}">
                             <Panel>
-                                <Image Source="{Binding Detail.ArtistImagePath, Converter={StaticResource PathToBitmap}}" 
+                                <Image Source="{Binding Detail.ArtistImagePath, Converter={StaticResource PathToBitmap}}"
                                        Stretch="UniformToFill"
                                        IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                <material:MaterialIcon Kind="AccountMusic" 
+                                <material:MaterialIcon Kind="AccountMusic"
                                        IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNull}}"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        Width="40" Height="40"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Panel>
                         </Border>
-                        <TextBlock Text="{Binding Detail.EditArtist}" 
+                        <TextBlock Text="{Binding Detail.EditArtist}"
                                    Foreground="{StaticResource BrushTextPrimary}"
                                    FontSize="{DynamicResource FontSizeMd}"
                                    FontWeight="Bold"
@@ -201,29 +226,31 @@
                                        FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding Detail.HasArtistBio}"/>
-                            <TextBlock Text="No artist biography available yet."
+                            <TextBlock Text="{loc:Loc Detail_ArtistBio_Empty}"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{DynamicResource FontSizeSm}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding Detail.ShowLibraryFallback}"/>
-                            <TextBlock Text="Loading artist info..."
+                            <TextBlock Text="{loc:Loc Detail_ArtistBio_Loading}"
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{DynamicResource FontSizeSm}"
                                        IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
-                            <TextBlock Text="{Binding Detail.ArtistListeners, StringFormat='Monthly listeners: {0}'}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeXs}"
-                                       IsVisible="{Binding Detail.HasArtistBio}"/>
-                            <TextBlock Text="{Binding Detail.LibraryArtistTrackCount, StringFormat='Library matches: {0}'}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeXs}"
-                                       IsVisible="{Binding Detail.ShowLibraryFallback}"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding Detail.HasArtistBio}">
+                                <TextBlock Text="{loc:Loc Detail_Artist_MonthlyListeners}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                <TextBlock Text="{Binding Detail.ArtistListeners}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding Detail.ShowLibraryFallback}">
+                                <TextBlock Text="{loc:Loc Detail_Artist_LibraryMatches}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                <TextBlock Text="{Binding Detail.LibraryArtistTrackCount}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Similar Artists (Spotify "Fans Also Like") -->
+                    <!-- Similar Artists -->
                     <StackPanel Spacing="8" IsVisible="{Binding Detail.HasSimilarArtists}">
-                        <TextBlock Classes="section-label" Text="FANS ALSO LIKE" Margin="0"/>
+                        <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_FansAlsoLike}" Margin="0"/>
                         <ItemsControl ItemsSource="{Binding Detail.SimilarArtists}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -249,12 +276,12 @@
                         </ItemsControl>
                     </StackPanel>
                 </StackPanel>
-                
+
                 <Separator Background="{StaticResource BrushBorder}"/>
-                
-                <!-- Redesigned High-Density Tag Cloud -->
+
+                <!-- Tags -->
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="section-label" Text="TAGS" Margin="0"/>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Tags}" Margin="0"/>
                     <ItemsControl ItemsSource="{Binding Detail.Tags}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -305,7 +332,7 @@
                     <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
                         <TextBox Grid.Column="0"
                                  Text="{Binding Detail.NewTag, Mode=TwoWay}"
-                                 PlaceholderText="Add tag..."
+                                 PlaceholderText="{loc:Loc Detail_Placeholder_AddTag}"
                                  Margin="0,0,8,0"/>
                         <Button Grid.Column="1"
                                 Classes="primary"
@@ -315,21 +342,21 @@
                         </Button>
                     </Grid>
                 </StackPanel>
-                
+
                 <Separator Background="{StaticResource BrushBorder}"/>
-                
+
                 <!-- Notes -->
                 <StackPanel Spacing="6">
-                    <TextBlock Classes="section-label" Text="NOTES" Margin="0"/>
+                    <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Notes}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditNotes, Mode=TwoWay}"
-                             PlaceholderText="Add notes..."
+                             PlaceholderText="{loc:Loc Detail_Placeholder_AddNotes}"
                              AcceptsReturn="True"
                              Height="80"/>
                 </StackPanel>
-                
+
                 <!-- Save -->
                 <Button Classes="primary"
-                        Content="Save Changes"
+                        Content="{loc:Loc Detail_Button_Save}"
                         Command="{Binding Detail.SaveCommand}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"/>

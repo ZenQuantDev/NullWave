@@ -2,444 +2,242 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.SmartSortingTab"
              x:DataType="vm:SettingsViewModel">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="0">
 
-    <!-- Explicitly disable horizontal scrolling to force elements to dynamically wrap and fit inside the view boundaries -->
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="0" Margin="24,20">
-
-            <!--  Master AI Toggle Flagship Card  -->
-            <Border Classes="settings-card"
-                    BorderBrush="{StaticResource BrushAccent}"
-                    BorderThickness="1">
+            <!-- Master AI switch -->
+            <Border Classes="settings-card" BorderBrush="{StaticResource BrushAccent}" BorderThickness="1">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center" Margin="0,0,16,0">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="Brain" Width="20" Height="20"
-                                                   Foreground="{StaticResource BrushAccent}"
-                                                   VerticalAlignment="Center"/>
-                            <TextBlock Text="AI Features"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="Bold"
-                                       VerticalAlignment="Center"/>
+                            <material:MaterialIcon Kind="Brain" Width="20" Height="20" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Loc Settings_Smart_Master_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="Master switch for all Ollama-powered features: Smart Shuffle, mood playlists, and local AI tagging. Disabling stops all model activity and frees VRAM."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeSm}"
-                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{loc:Loc Settings_Smart_Master_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <ToggleSwitch Grid.Column="1"
-                                  IsChecked="{Binding AIFeaturesEnabled, Mode=TwoWay}"
-                                  VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AIFeaturesEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 
-            <!-- Adaptive Dimming Wrapper when Master AI Switch is False -->
+            <!-- Dimmed wrapper when AI is off -->
             <StackPanel Spacing="0" IsEnabled="{Binding AIFeaturesEnabled}">
                 <StackPanel.Styles>
-                    <Style Selector="StackPanel:disabled">
-                        <Setter Property="Opacity" Value="0.4"/>
-                    </Style>
+                    <Style Selector="StackPanel:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
                 </StackPanel.Styles>
 
-                <!--  AI Service Status  -->
-                <TextBlock Classes="section-label" Text="AI SERVICE STATUS"/>
+                <!-- Local AI -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_LocalAI}" Margin="0,0,0,12"/>
                 <Border Classes="settings-card">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <Border Width="10" Height="10" CornerRadius="5"
-                                        VerticalAlignment="Center"
-                                        Background="{Binding AIStatusDotColor}"/>
-                                <TextBlock Text="{Binding AIStatusLabel}"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
+                                <Border Width="10" Height="10" CornerRadius="5" VerticalAlignment="Center" Background="{Binding AIStatusDotBrush}"/>
+                                <TextBlock Text="{Binding AIStatusLabel}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding AIStatusDescription}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"
-                                       TextWrapping="Wrap"/>
-                            
+                            <TextBlock Text="{Binding AIStatusDescription}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             <StackPanel Spacing="6" IsVisible="{Binding IsDownloadingModel}" Margin="0,4,0,0">
                                 <ProgressBar Value="{Binding ModelDownloadProgress}" Maximum="100" Height="4"/>
-                                <TextBlock Text="{Binding ModelDownloadStatus}"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"/>
+                                <TextBlock Text="{Binding ModelDownloadStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                            <Button Classes="primary"
-                                    Content="{Binding AIToggleButtonLabel}"
-                                    Command="{Binding ToggleAIServiceCommand}"
-                                    IsEnabled="{Binding !IsDownloadingModel}"
-                                    MinWidth="130"
-                                    HorizontalContentAlignment="Center"/>
-                            <Button Classes="secondary"
-                                    Content="Download Model"
-                                    Command="{Binding DownloadModelCommand}"
-                                    IsEnabled="{Binding !IsDownloadingModel}"
-                                    MinWidth="130"
-                                    HorizontalContentAlignment="Center"/>
+                            <Button Classes="primary" Content="{Binding AIToggleButtonLabel}" Command="{Binding ToggleAIServiceCommand}" IsEnabled="{Binding !IsDownloadingModel}" MinWidth="130" HorizontalContentAlignment="Center"/>
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Smart_DownloadModel}" Command="{Binding DownloadModelCommand}" IsEnabled="{Binding !IsDownloadingModel}" MinWidth="130" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>
-
-                <!--  Hardware Infrastructure  -->
-                <TextBlock Classes="section-label" Text="HARDWARE DETECTION"/>
                 <Border Classes="settings-card">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="{Binding HardwareInfo}"
-                                   Foreground="{StaticResource BrushTextSecondary}"
-                                   FontSize="{DynamicResource FontSizeSm}"
-                                   TextWrapping="Wrap"
-                                   FontFamily="monospace"/>
+                        <TextBlock Text="{Binding HardwareInfo}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" FontFamily="Consolas, monospace"/>
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Classes="secondary"
-                                    Content="Re-detect Hardware"
-                                    Command="{Binding DetectHardwareCommand}"
-                                    IsEnabled="{Binding !IsDetectingHardware}"/>
-                            
-                            <Border Background="{StaticResource BrushElevated}"
-                                    CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="10,7"
-                                    VerticalAlignment="Center">
+                            <Button Classes="secondary" Content="{loc:Loc Settings_Smart_Redetect}" Command="{Binding DetectHardwareCommand}" IsEnabled="{Binding !IsDetectingHardware}"/>
+                            <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="10,7" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="Flash" Width="14" Height="14"
-                                                           Foreground="{StaticResource BrushAmber}"/>
-                                    <TextBlock Text="{Binding PowerStateLabel}"
-                                               Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{DynamicResource FontSizeXs}"
-                                               VerticalAlignment="Center"/>
+                                    <material:MaterialIcon Kind="Flash" Width="14" Height="14" Foreground="{StaticResource BrushAmber}"/>
+                                    <TextBlock Text="{Binding PowerStateLabel}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!--  Model Selector Suite  -->
-                <TextBlock Classes="section-label" Text="AI MODEL INTERACTION"/>
+                <!-- Model -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_Model}"/>
                 <Border Classes="settings-card">
                     <StackPanel Spacing="0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Text="Active LLM Context"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="Used for mood target analysis, local tagging, and smart sequencing arrays."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_ActiveModel_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_ActiveModel_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding AIModelOptions}"
-                                      SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
-                                      MinWidth="180" MaxWidth="240"
-                                      VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding AIModelOptions}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" MinWidth="180" MaxWidth="240" VerticalAlignment="Center"/>
                         </Grid>
-
                         <Border Classes="separator"/>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Text="Use Local Inference"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="Fallback to string matching/tag metrics if disabled (zero execution latency)."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_LocalInference_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_LocalInference_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding UseLocalAI, Mode=TwoWay}"
-                                          VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseLocalAI, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Clean Model Parameter Guide Banner -->
                 <Border Classes="settings-banner">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Local Deployment Profile Guidelines"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{DynamicResource FontSizeBody}"
-                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="{loc:Loc Settings_Smart_Guide_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Tiny (≤1B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~2GB Shared RAM · Fast execution, simple classification tasks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="{loc:Loc Settings_Smart_Guide_Tiny}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Smart_Guide_Tiny_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Small (3-4B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~4GB VRAM/RAM · Balanced context comprehension, excellent for mobile systems" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="{loc:Loc Settings_Smart_Guide_Small}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Smart_Guide_Small_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Medium (7-9B)" Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~8GB VRAM · Best categorical accuracy · Recommended execution configuration" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="{loc:Loc Settings_Smart_Guide_Medium}" Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Smart_Guide_Medium_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                         <Grid ColumnDefinitions="100,*">
-                            <TextBlock Grid.Column="0" Text="Large (12-14B)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="~16GB Memory allocation · Complex semantic parsing matrices" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Column="0" Text="{loc:Loc Settings_Smart_Guide_Large}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Smart_Guide_Large_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!--  Power-Aware Automated Framework  -->
-                <TextBlock Classes="section-label" Text="POWER-AWARE SWITCHING ENGINE"/>
+                <!-- Power-aware switching -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_Power}"/>
                 <Border Classes="settings-card">
                     <StackPanel Spacing="0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="Dynamic Model Topology Switching"
-                                               Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{DynamicResource FontSizeBodyLarge}"
-                                               FontWeight="SemiBold"/>
-                                    <Button Classes="help-btn"
-                                            ToolTip.Tip="Swaps loaded model definitions automatically on hardware power changes to maximize battery endurance.">
-                                        <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                    </Button>
+                                    <TextBlock Text="{loc:Loc Settings_Smart_PowerSwitch_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Smart_PowerSwitch_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
                                 </StackPanel>
-                                <TextBlock Text="Loads power conservation profile on DC battery, full context engine on AC power lines."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_PowerSwitch_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding AutoPowerModelSwitch, Mode=TwoWay}"
-                                          VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPowerModelSwitch, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </Grid>
-
                         <Border Classes="separator"/>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="BatteryMedium" Width="16" Height="16" Foreground="{StaticResource BrushAmber}"/>
-                                    <TextBlock Text="Battery Profile Context"
-                                               Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{DynamicResource FontSizeBodyLarge}"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Settings_Smart_Battery_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 </StackPanel>
-                                <TextBlock Text="Target model configuration for low power extraction states."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_Battery_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding AIModelOptions}"
-                                      SelectedItem="{Binding BatteryModel, Mode=TwoWay}"
-                                      MinWidth="180" MaxWidth="240"
-                                      VerticalAlignment="Center"
-                                      IsEnabled="{Binding AutoPowerModelSwitch}"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding AIModelOptions}" SelectedItem="{Binding BatteryModel, Mode=TwoWay}" MinWidth="180" MaxWidth="240" VerticalAlignment="Center" IsEnabled="{Binding AutoPowerModelSwitch}"/>
                         </Grid>
-
                         <Border Classes="separator"/>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="Flash" Width="16" Height="16" Foreground="{StaticResource BrushGreen}"/>
-                                    <TextBlock Text="Performance Station Profile"
-                                               Foreground="{StaticResource BrushTextPrimary}"
-                                               FontSize="{DynamicResource FontSizeBodyLarge}"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Settings_Smart_Plugged_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 </StackPanel>
-                                <TextBlock Text="Target model for maximum fidelity processing when tied to unmetered hardware power."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_Plugged_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding AIModelOptions}"
-                                      SelectedItem="{Binding PerformanceModel, Mode=TwoWay}"
-                                      MinWidth="180" MaxWidth="240"
-                                      VerticalAlignment="Center"
-                                      IsEnabled="{Binding AutoPowerModelSwitch}"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding AIModelOptions}" SelectedItem="{Binding PerformanceModel, Mode=TwoWay}" MinWidth="180" MaxWidth="240" VerticalAlignment="Center" IsEnabled="{Binding AutoPowerModelSwitch}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!--  External AI Bridge Pipeline  -->
-                <TextBlock Classes="section-label" Text="EXTERNAL MODEL TUNNEL / COLD FRAME BRIDGE"/>
+                <!-- External AI tagging -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_External}"/>
                 <Border Classes="settings-card">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Asynchronous Client Processing (Zero Local Compute)"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Export cold untagged audio metadata sheets to cloud chatbots (ChatGPT, Claude), and map structured response tags directly back inside your database arrays."
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"
-                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="{loc:Loc Settings_Smart_External_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Smart_External_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" Margin="0,0,16,0">
-                                <TextBlock Text="Payload Serialization Export Format"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBody}"/>
-                                <TextBlock Text="TXT Structure (Universal Paste)  ·  MD Sheets  ·  JSON Schema Objects"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_ExportFormat}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_ExportFormat_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding ExportFormatOptions}"
-                                      SelectedItem="{Binding ExportFormat, Mode=TwoWay}"
-                                      MinWidth="140"
-                                      VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding ExportFormatOptions}" SelectedItem="{Binding ExportFormat, Mode=TwoWay}" MinWidth="140" VerticalAlignment="Center"/>
                         </Grid>
-
                         <Grid ColumnDefinitions="*,16,*">
-                            <Button Grid.Column="0" Classes="secondary"
-                                    Command="{Binding ExportUntaggedTracksCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center">
+                            <Button Grid.Column="0" Classes="secondary" Command="{Binding ExportUntaggedTracksCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <material:MaterialIcon Kind="Export" Width="16" Height="16"/>
-                                    <TextBlock Text="1. Export Metadata Block"/>
+                                    <TextBlock Text="{loc:Loc Settings_Smart_ExportBtn}"/>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Column="2" Classes="secondary"
-                                    Command="{Binding ImportAiTagsCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center">
+                            <Button Grid.Column="2" Classes="secondary" Command="{Binding ImportAiTagsCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
-                                    <TextBlock Text="2. Map JSON Payload"/>
+                                    <TextBlock Text="{loc:Loc Settings_Smart_ImportBtn}"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
-
-                        <TextBlock Text="{Binding ExternalAIStatus}"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   TextWrapping="Wrap"
-                                   IsVisible="{Binding ExternalAIStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding ExternalAIStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding ExternalAIStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>
                 </Border>
 
-                <!--  Smart Shuffle  -->
-                <TextBlock Classes="section-label" Text="PROBABILITY SEQUENCING CRITERIA"/>
+                <!-- Smart Shuffle -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_Shuffle}"/>
                 <Border Classes="settings-card">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="Smart Shuffle Confidence Threshold"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="The minimal filter bounds required for local models to forcefully restructure track order."
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"
-                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="{loc:Loc Settings_Smart_Confidence_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Smart_Confidence_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AIConfidenceOptions}"
-                                  SelectedItem="{Binding AIConfidenceThreshold, Mode=TwoWay}"
-                                  MinWidth="140"
-                                  VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding AIConfidenceOptions}" SelectedItem="{Binding AIConfidenceThreshold, Mode=TwoWay}" MinWidth="140" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
-                <!--  Weather Integration Matrix  -->
-                <TextBlock Classes="section-label" Text="METEOROLOGICAL TELEMETRY INTEGRATION"/>
-                <Border Classes="settings-banner">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="Configure active weather coordination arrays via API settings tab."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="NullWave communicates against standard asynchronous OpenWeather schemas."
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
-
+                <!-- Weather & Mood Mix -->
+                <TextBlock Classes="section-label" Text="{loc:Loc Settings_Smart_Section_Weather}"/>
                 <Border Classes="settings-card">
                     <StackPanel Spacing="0">
                         <Grid ColumnDefinitions="*,16,*">
                             <StackPanel Grid.Column="0" Spacing="6">
-                                <TextBlock Text="Station Latitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
-                                <TextBox Text="{Binding Latitude, Mode=TwoWay}" PlaceholderText="e.g. 41.7151"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_Lat}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                                <TextBox Text="{Binding Latitude, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Smart_Lat_Placeholder}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="6">
-                                <TextBlock Text="Station Longitude Coordinate" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
-                                <TextBox Text="{Binding Longitude, Mode=TwoWay}" PlaceholderText="e.g. 44.8271"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_Lon}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+                                <TextBox Text="{Binding Longitude, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Smart_Lon_Placeholder}"/>
                             </StackPanel>
                         </Grid>
-
                         <Border Classes="separator"/>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Text="Automated Startup Generation Sequence"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="Forces active local weather evaluation and updates mood targets on terminal load."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_AutoMood_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_AutoMood_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding AutoGenerateMoodPlaylist, Mode=TwoWay}"
-                                          VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoGenerateMoodPlaylist, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </Grid>
-
                         <Border Classes="separator"/>
-
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Text="Evaluation Refresh Frequency"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="Frequency bounds before polling external meteorology indices for ambient track realignment."
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeSm}"
-                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_RefreshInterval_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_Smart_RefreshInterval_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding MoodRefreshOptions}"
-                                      SelectedItem="{Binding MoodRefreshInterval, Mode=TwoWay}"
-                                      MinWidth="140"
-                                      VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding MoodRefreshOptions}" SelectedItem="{Binding MoodRefreshInterval, Mode=TwoWay}" MinWidth="140" VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Action Button Matrix Footer -->
+                <Border Classes="settings-banner">
+                    <TextBlock Text="{loc:Loc Settings_Smart_Weather_Banner}" Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                </Border>
+
                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
-                    <Button Classes="primary"
-                            Content="Generate Mood Playlist Now"
-                            Command="{Binding GenerateMoodPlaylistCommand}"/>
-
-                    <Button Classes="secondary"
-                            Content="Generate from Tags (no AI)"
-                            Command="{Binding GenerateTagMoodPlaylistCommand}"/>
-
-                    <Button Classes="secondary"
-                            Content="Refresh Station Weather Data"
-                            Command="{Binding RefreshWeatherCommand}"/>
+                    <Button Classes="primary" Content="{loc:Loc Settings_Smart_GenNow}" Command="{Binding GenerateMoodPlaylistCommand}"/>
+                    <Button Classes="secondary" Content="{loc:Loc Settings_Smart_GenTags}" Command="{Binding GenerateTagMoodPlaylistCommand}"/>
+                    <Button Classes="secondary" Content="{loc:Loc Settings_Smart_RefreshWeather}" Command="{Binding RefreshWeatherCommand}"/>
                 </StackPanel>
 
-                <TextBlock Text="{Binding MoodPlaylistStatus}"
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{DynamicResource FontSizeXs}"
-                           Margin="4,12,0,0"
-                           TextWrapping="Wrap"
-                           IsVisible="{Binding MoodPlaylistStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                
+                <TextBlock Text="{Binding MoodPlaylistStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" Margin="0,12,0,0" TextWrapping="Wrap" IsVisible="{Binding MoodPlaylistStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 <Border Classes="BottomSpacer"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
-
 </UserControl>

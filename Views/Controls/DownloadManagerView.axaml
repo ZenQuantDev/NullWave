@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:models="using:NullWave.Models"
+             xmlns:material="using:Material.Icons.Avalonia"
+             x:Class="NullWave.Views.Controls.DownloadManagerView"
+             x:DataType="vm:DownloadManagerViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.job-row">
+            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="RenderTransform" Value="translate(0,0)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame KeyTime="0:0:0">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="10"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:0.25">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.job-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+            <Setter Property="RenderTransform" Value="translate(0,-1px)"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+        <StackPanel Spacing="8" Margin="4">
+            <TextBlock Text="Download Queue" FontWeight="Bold" FontSize="16" Margin="4,0,0,8"/>
+            
+            <ItemsControl ItemsSource="{Binding Jobs}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:DownloadJob">
+                        <Border Classes="job-row">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Artist}" Foreground="{StaticResource BrushTextMuted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Classes="icon-btn sm" IsVisible="{Binding IsFailed}"
+                                        Command="{Binding $parent[UserControl].DataContext.RetryCommand}" CommandParameter="{Binding}">
+                                        <material:MaterialIcon Kind="Refresh" Width="14" Height="14" Foreground="{StaticResource BrushAccent}"/>
+                                    </Button>
+                                </Grid>
+                                
+                                <ProgressBar Value="{Binding Progress}" Maximum="100" IsIndeterminate="{Binding IsIndeterminate}" Height="4"/>
+                                
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                    <material:MaterialIcon Kind="CheckCircle" Foreground="{StaticResource BrushGreen}" IsVisible="{Binding IsCompleted}" Width="14" Height="14"/>
+                                    <material:MaterialIcon Kind="AlertCircle" Foreground="{StaticResource BrushRed}" IsVisible="{Binding IsFailed}" Width="14" Height="14"/>
+                                    
+                                    <!-- Using Avalonia 11 Compiled Binding negation '!' -->
+                                    <material:MaterialIcon Kind="Download" Foreground="{StaticResource BrushAccent}" IsVisible="{Binding !IsCompleted}" Width="14" Height="14"/>
+                                    
+                                    <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            
+            <TextBlock Text="No active downloads." Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !HasJobs}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
