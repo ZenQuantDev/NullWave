@@ -1,7 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!-- ═══ DANGER BUTTON ═══ -->
+  <!--  DANGER BUTTON  -->
   <Style Selector="Button.danger">
     <Setter Property="Background"   Value="{StaticResource BrushRedDim}"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushRed}"/>
@@ -18,22 +18,32 @@
     <Setter Property="Foreground" Value="White"/>
   </Style>
 
-  <!-- ═══ GLOBAL TEXT DEFAULTS ═══ -->
+  <!--  DANGER ZONE CARD  -->
+  <Style Selector="Border.settings-card-danger">
+    <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushRed}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Padding" Value="20"/>
+    <Setter Property="Margin" Value="0,0,0,16"/>
+  </Style>
+
+  <!--  GLOBAL TEXT DEFAULTS  -->
   <Style Selector="TextBlock">
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
     <Setter Property="FontSize"   Value="{DynamicResource FontSizeBody}"/>
   </Style>
 
-  <!-- ═══ SECTION LABEL ═══ -->
+  <!--  SECTION LABEL  -->
   <Style Selector="TextBlock.section-label">
     <Setter Property="Foreground"     Value="{StaticResource BrushTextMuted}"/>
     <Setter Property="FontSize"       Value="{DynamicResource FontSizeLabel}"/>
     <Setter Property="FontWeight"     Value="SemiBold"/>
     <Setter Property="LetterSpacing" Value="2"/>
-    <Setter Property="Margin"         Value="4,24,0,12"/>
+    <Setter Property="Margin"         Value="0,24,0,12"/>
   </Style>
 
-  <!-- ═══ NAV BUTTON (active text uses duo secondary) ═══ -->
+  <!--  NAV BUTTON  -->
   <Style Selector="Button.nav">
     <Setter Property="Background"                 Value="Transparent"/>
     <Setter Property="Foreground"                 Value="{StaticResource BrushTextSecondary}"/>
@@ -56,8 +66,13 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
     <Setter Property="Foreground" Value="{StaticResource BrushAccent2}"/>
   </Style>
+  <Style Selector="Button.nav.sidebar-nav">
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="FontSize"   Value="{DynamicResource FontSizeBody}"/>
+    <Setter Property="Margin"     Value="0,1"/>
+  </Style>
 
-  <!-- ═══ ICON BUTTON ═══ -->
+  <!--  ICON BUTTON  -->
   <Style Selector="Button.icon-btn">
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushTextSecondary}"/>
@@ -84,10 +99,10 @@
     <Setter Property="FontSize"     Value="12"/>
   </Style>
 
-  <!-- ═══ PLAYER BUTTON ═══ -->
+  <!--  PLAYER BUTTON  -->
   <Style Selector="Button.player-btn">
     <Setter Property="Background"              Value="Transparent"/>
-    <Setter Property="Foreground"              Value="{StaticResource BrushTextSecondary}"/>
+    <Setter Property="Foreground"              Value="{StaticResource BrushPlayerIcon}"/>
     <Setter Property="BorderThickness"         Value="0"/>
     <Setter Property="Padding"                 Value="0"/>
     <Setter Property="Width"                   Value="32"/>
@@ -107,16 +122,16 @@
     <Setter Property="Foreground"  Value="{StaticResource BrushAccentHover}"/>
   </Style>
   <Style Selector="Button.player-btn.play">
-    <Setter Property="Background"  Value="{StaticResource BrushTextPrimary}"/>
-    <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
+    <Setter Property="Background"  Value="{StaticResource BrushAccent}"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushTextOnAccent}"/>
     <Setter Property="Width"       Value="40"/>
     <Setter Property="Height"      Value="40"/>
     <Setter Property="FontSize"    Value="18"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
   </Style>
   <Style Selector="Button.player-btn.play:pointerover /template/ ContentPresenter">
-    <Setter Property="Background"  Value="{StaticResource BrushTextPrimary}"/>
-    <Setter Property="Foreground"  Value="{StaticResource BrushBase}"/>
+    <Setter Property="Background"  Value="{StaticResource BrushAccentHover}"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrushTextOnAccent}"/>
   </Style>
   <Style Selector="Button.player-btn.active">
     <Setter Property="Foreground"  Value="{StaticResource BrushAccent}"/>
@@ -124,8 +139,20 @@
   <Style Selector="Button.player-btn.active:pointerover /template/ ContentPresenter">
     <Setter Property="Foreground"  Value="{StaticResource BrushAccentHover}"/>
   </Style>
+  <Style Selector="Button.player-btn.shuffle-on">
+    <Setter Property="Foreground" Value="{StaticResource BrushShuffle}"/>
+  </Style>
+  <Style Selector="Button.player-btn.shuffle-smart">
+    <Setter Property="Foreground" Value="{StaticResource BrushShuffleSmart}"/>
+  </Style>
+  <Style Selector="Button.player-btn.repeat-on">
+    <Setter Property="Foreground" Value="{StaticResource BrushShuffle}"/>
+  </Style>
+  <Style Selector="TextBlock.rate-on">
+    <Setter Property="Foreground" Value="{StaticResource BrushAccent}"/>
+  </Style>
 
-  <!-- ═══ PRIMARY BUTTON ═══ -->
+  <!--  PRIMARY BUTTON  -->
   <Style Selector="Button.primary">
     <Setter Property="Background"   Value="{StaticResource BrushAccent}"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushTextOnAccent}"/>
@@ -139,7 +166,7 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
-  <!-- ═══ SPLIT BUTTON PRIMARY ═══ -->
+  <!--  SPLIT BUTTON PRIMARY  -->
   <Style Selector="SplitButton.primary">
     <Setter Property="Background" Value="{DynamicResource BrushAccent}"/>
     <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}"/>
@@ -150,7 +177,7 @@
     <Setter Property="Background" Value="{DynamicResource BrushAccentHover}"/>
   </Style>
 
-  <!-- ═══ SEGMENTED CHIP ═══ -->
+  <!--  SEGMENTED CHIP  -->
   <Style Selector="Button.chip">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
     <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
@@ -167,7 +194,7 @@
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
 
-  <!-- ═══ SWATCH v2 (base color circles) ═══ -->
+  <!--  SWATCH v2 (base color circles)  -->
   <Style Selector="Button.swatch">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
@@ -190,7 +217,7 @@
     <Setter Property="BorderBrush" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
-  <!-- ═══ FLAT FULL-WIDTH ROW BUTTON (Signature Edition card) ═══ -->
+  <!--  FLAT FULL-WIDTH ROW BUTTON (Signature Edition card)  -->
   <Style Selector="Button.flat">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
@@ -209,7 +236,7 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
   </Style>
 
-  <!-- ═══ NAMED DUOTONE CHIPS ═══ -->
+  <!--  NAMED DUOTONE CHIPS  -->
   <Style Selector="Button.duo-chip">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
@@ -236,7 +263,7 @@
     <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
-  <!-- ═══ SELECTABLE PREVIEW CARDS (stretched) ═══ -->
+  <!--  SELECTABLE PREVIEW CARDS (stretched)  -->
   <Style Selector="Button.card-select">
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
@@ -253,7 +280,7 @@
     <Setter Property="BorderThickness" Value="2"/>
   </Style>
 
-  <!-- ═══ SECONDARY BUTTON ═══ -->
+  <!--  SECONDARY BUTTON  -->
   <Style Selector="Button.secondary">
     <Setter Property="Background"   Value="{StaticResource BrushSurface2}"/>
     <Setter Property="Foreground"   Value="{StaticResource BrushTextPrimary}"/>
@@ -270,7 +297,7 @@
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSub}"/>
   </Style>
 
-  <!-- ═══ GHOST BUTTON ═══ -->
+  <!--  GHOST BUTTON  -->
   <Style Selector="Button.ghost">
     <Setter Property="Background"        Value="Transparent"/>
     <Setter Property="Foreground"        Value="{StaticResource BrushTextSecondary}"/>
@@ -286,7 +313,7 @@
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
-  <!-- ═══ LISTBOX + LISTBOXITEM ═══ -->
+  <!--  LISTBOX + LISTBOXITEM  -->
   <Style Selector="ListBox">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Padding"    Value="0"/>
@@ -310,7 +337,7 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
   </Style>
 
-  <!-- ═══ DRAG-AND-DROP LIST ROW ═══ -->
+  <!--  DRAG-AND-DROP LIST ROW  -->
   <Style Selector="Border.draggable-row">
     <Setter Property="Transitions">
       <Transitions>
@@ -337,7 +364,7 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
   </Style>
 
-  <!-- ═══ SLIDE-IN PANEL HEADER ═══ -->
+  <!--  SLIDE-IN PANEL HEADER  -->
   <Style Selector="StackPanel.panel-header">
     <Setter Property="Spacing" Value="0"/>
     <Setter Property="Margin" Value="16,16,16,0"/>
@@ -353,7 +380,7 @@
     <Setter Property="Margin" Value="0,12,0,0"/>
   </Style>
 
-  <!-- ═══ TEXT INPUT ═══ -->
+  <!--  TEXT INPUT  -->
   <Style Selector="TextBox">
     <Setter Property="Background"        Value="{StaticResource BrushSurface2}"/>
     <Setter Property="Foreground"        Value="{StaticResource BrushTextPrimary}"/>
@@ -367,19 +394,19 @@
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
 
-  <!-- ═══ PROGRESS BAR (duo gradient) ═══ -->
+  <!--  PROGRESS BAR (duo gradient)  -->
   <Style Selector="ProgressBar">
     <Setter Property="Foreground"    Value="{StaticResource BrushAccentGradient}"/>
     <Setter Property="Background"    Value="{StaticResource BrushBorder}"/>
     <Setter Property="CornerRadius"  Value="{StaticResource RadiusFull}"/>
   </Style>
 
-  <!-- ═══ SLIDER (base track only; Fluent fill handled by ThemeService) ═══ -->
+  <!--  SLIDER (base track only; Fluent fill handled by ThemeService)  -->
   <Style Selector="Slider /template/ Track /template/ Border#TrackBackground">
-    <Setter Property="Background" Value="{StaticResource BrushBorder}"/>
+    <Setter Property="Background" Value="{StaticResource BrushSliderGroove}"/>
   </Style>
 
-  <!-- ═══ COMBOBOX ═══ -->
+  <!--  COMBOBOX  -->
   <Style Selector="ComboBox">
     <Setter Property="Background"      Value="{StaticResource BrushSurface2}"/>
     <Setter Property="Foreground"      Value="{StaticResource BrushTextPrimary}"/>
@@ -405,7 +432,7 @@
     <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
   </Style>
 
-  <!-- ═══ TAB CONTROL ═══ -->
+  <!--  TAB CONTROL  -->
   <Style Selector="TabItem">
     <Setter Property="Background"        Value="Transparent"/>
     <Setter Property="Foreground"        Value="{StaticResource BrushTextMuted}"/>
@@ -422,67 +449,84 @@
     <Setter Property="Background"        Value="{StaticResource BrushElevated}"/>
   </Style>
 
-  <!-- ═══ TOGGLE SWITCH (checked = duo gradient) ═══ -->
+  <!--  TOGGLE SWITCH - STANDARD LOOK  -->
+  <!-- Label left (inherited Foreground/FontSize flow into the generated label),
+       40x20 track with 12px knob, SOLID accent when checked (no duo gradient),
+       platform-standard margins (3px off / 23px on). -->
   <Style Selector="ToggleSwitch">
     <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}"/>
     <Setter Property="Template">
       <ControlTemplate>
-        <Border x:Name="SwitchTrack"
-                Width="44" Height="24"
-                CornerRadius="12"
-                Background="{StaticResource BrushSurface2}"
-                BorderBrush="{StaticResource BrushBorder}"
-                BorderThickness="1">
-          <Border.Transitions>
-            <Transitions>
-              <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-              <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-            </Transitions>
-          </Border.Transitions>
-          <Panel>
-            <Panel x:Name="PART_MovingKnobs"/>
-            <Border x:Name="SwitchKnob"
-                    Width="14" Height="14"
-                    CornerRadius="7"
-                    Background="{StaticResource BrushTextSecondary}"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    Margin="4,0,0,0">
-              <Border.Transitions>
-                <Transitions>
-                  <ThicknessTransition Property="Margin" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-                  <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-                </Transitions>
-              </Border.Transitions>
-            </Border>
-          </Panel>
-        </Border>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Background="Transparent">
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Grid.Column="0"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            VerticalAlignment="Center"/>
+          <Border x:Name="SwitchTrack"
+                  Grid.Column="1"
+                  Width="40" Height="20"
+                  CornerRadius="10"
+                  Background="{StaticResource BrushSurface2}"
+                  BorderBrush="{StaticResource BrushBorderSub}"
+                  BorderThickness="1">
+            <Border.Transitions>
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+              </Transitions>
+            </Border.Transitions>
+            <Panel>
+              <!-- Required by Avalonia's ToggleSwitch internal logic -->
+              <Panel x:Name="PART_MovingKnobs" />
+              <Border x:Name="SwitchKnob"
+                      Width="12" Height="12"
+                      CornerRadius="6"
+                      Background="{StaticResource BrushTextSecondary}"
+                      HorizontalAlignment="Left"
+                      VerticalAlignment="Center"
+                      Margin="3,0,0,0">
+                <Border.Transitions>
+                  <Transitions>
+                    <ThicknessTransition Property="Margin" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                  </Transitions>
+                </Border.Transitions>
+              </Border>
+            </Panel>
+          </Border>
+        </Grid>
       </ControlTemplate>
     </Setter>
   </Style>
   <Style Selector="ToggleSwitch:pointerover /template/ Border#SwitchTrack">
-    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
   <Style Selector="ToggleSwitch:checked /template/ Border#SwitchTrack">
-    <Setter Property="Background" Value="{StaticResource BrushAccentGradient}"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Background" Value="{StaticResource BrushAccent}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
   <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnob">
-    <Setter Property="Margin" Value="26,0,0,0"/>
-    <Setter Property="Background" Value="{StaticResource BrushBase}"/>
+    <Setter Property="Margin" Value="23,0,0,0"/>
+    <Setter Property="Background" Value="{StaticResource BrushTextOnAccent}"/>
   </Style>
   <Style Selector="ToggleSwitch:checked:pointerover /template/ Border#SwitchTrack">
     <Setter Property="Background" Value="{StaticResource BrushAccentHover}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushAccentHover}"/>
+  </Style>
+  <Style Selector="ToggleSwitch:disabled">
+    <Setter Property="Opacity" Value="0.5"/>
   </Style>
 
-  <!-- ═══ SETTINGS CARD / BANNERS / MISC ═══ -->
+  <!--  SETTINGS CARD / BANNERS / MISC  -->
   <Style Selector="Border.settings-card">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
-    <Setter Property="Padding" Value="20"/>
+    <Setter Property="Padding" Value="{DynamicResource CardPadding}"/>
     <Setter Property="Margin" Value="0,0,0,16"/>
   </Style>
   <Style Selector="Border.settings-banner">
@@ -551,7 +595,7 @@
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
-  <!-- ═══ SLIM SCROLLBARS: subtle, revealed on hover ═══ -->
+  <!--  SLIM SCROLLBARS: subtle, revealed on hover  -->
   <Style Selector="ScrollBar">
     <Setter Property="Opacity" Value="0.3"/>
     <Setter Property="Background" Value="Transparent"/>
@@ -565,7 +609,7 @@
     <Setter Property="Opacity" Value="1"/>
   </Style>
 
-  <!-- ═══ CONTEXT MENUS ═══ -->
+  <!--  CONTEXT MENUS  -->
   <Style Selector="ContextMenu">
     <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
@@ -591,4 +635,29 @@
     <Setter Property="Margin" Value="8,4"/>
   </Style>
 
+  <!--  KEYBOARD KEY CAP (fixed to use Border wrapper)  -->
+  <Style Selector="Border.kbd">
+    <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
+    <Setter Property="Padding" Value="8,3"/>
+  </Style>
+  <Style Selector="Border.kbd TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeXs}"/>
+    <Setter Property="FontFamily" Value="Consolas, monospace"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Text inside accent buttons must ignore the global TextBlock foreground -->
+  <Style Selector="Button.primary TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}"/>
+  </Style>
+  <Style Selector="Button.danger TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource BrushRed}"/>
+  </Style>
+  <Style Selector="Button.danger:pointerover TextBlock">
+    <Setter Property="Foreground" Value="White"/>
+  </Style>
 </Styles>

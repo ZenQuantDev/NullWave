@@ -1,74 +1,165 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!-- Surface layers (dark-only for v0.5; light set arrives in v0.6) -->
-  <Color x:Key="ColorBase">      #FF111827</Color>
-  <Color x:Key="ColorSurface">   #FF1C2333</Color>
-  <Color x:Key="ColorSurface2">  #FF243047</Color>
-  <Color x:Key="ColorElevated">  #FF2D3A52</Color>
-  <Color x:Key="ColorHover">     #FF344260</Color>
-  <Color x:Key="ColorBorder">    #FF2E3D5C</Color>
-  <Color x:Key="ColorBorderSub"> #FF38486E</Color>
+  <!-- THEME DICTIONARIES (Adapts automatically to Light/Dark mode) -->
+  <ResourceDictionary.ThemeDictionaries>
 
-  <!-- Accent family (runtime-swappable; defaults = Blue Orchid v2) -->
-  <Color x:Key="ColorAccent">      #FF4E9BFF</Color>
-  <Color x:Key="ColorAccentHover"> #FF75B1FF</Color>
-  <Color x:Key="ColorAccentDim">   #FF223D63</Color>
-  <Color x:Key="ColorAccentGlow">  #FF2C5388</Color>
-  <Color x:Key="ColorAccent2">     #FFB08CFF</Color>
-  <Color x:Key="ColorTextOnAccent">#FFFFFFFF</Color>
+    <!-- DARK MODE (Current palette) -->
+    <ResourceDictionary x:Key="Dark">
+      <Color x:Key="ColorBase">#111827</Color>
+      <Color x:Key="ColorSurface">#1C2333</Color>
+      <Color x:Key="ColorSurface2">#243047</Color>
+      <Color x:Key="ColorElevated">#2D3A52</Color>
+      <Color x:Key="ColorHover">#344260</Color>
+      <Color x:Key="ColorBorder">#2E3D5C</Color>
+      <Color x:Key="ColorBorderSub">#38486E</Color>
+      <Color x:Key="ColorSliderGroove">#2E3D5C</Color>
+      <Color x:Key="ColorPlayerIcon">#A8B4CC</Color>
 
-  <!-- Secondary accents -->
-  <Color x:Key="ColorBlue">        #FF60A5FA</Color>
-  <Color x:Key="ColorBlueDark">    #FF2563EB</Color>
-  <Color x:Key="ColorBlueDim">     #FF1E3A5F</Color>
-  <Color x:Key="ColorAmber">       #FFFCD34D</Color>
-  <Color x:Key="ColorAmberDark">   #FFF59E0B</Color>
-  <Color x:Key="ColorAmberDim">    #FF451A03</Color>
+      <Color x:Key="ColorTextPrimary">#F0F4FF</Color>
+      <Color x:Key="ColorTextSecondary">#A8B4CC</Color>
+      <Color x:Key="ColorTextMuted">#6B7A99</Color>
+      <Color x:Key="ColorStarOn">#F59E0B</Color>
+      <Color x:Key="ColorStarOff">#6B7280</Color>
+      <Color x:Key="ColorAmberDark">#FCD34D</Color>
 
-  <!-- Text -->
-  <Color x:Key="ColorTextPrimary">   #FFF0F4FF</Color>
-  <Color x:Key="ColorTextSecondary"> #FFA8B4CC</Color>
-  <Color x:Key="ColorTextMuted">     #FF6B7A99</Color>
+      <!-- Dim/Glow colors need to be dark shades in Dark Mode -->
+      <Color x:Key="ColorAccentDim">#223D63</Color>
+      <Color x:Key="ColorAccentGlow">#2C5388</Color>
+      <Color x:Key="ColorBlueDim">#1E3A5F</Color>
+      <Color x:Key="ColorAmberDim">#451A03</Color>
+      <Color x:Key="ColorGreenDim">#064E3B</Color>
+      <Color x:Key="ColorRedDim">#450A0A</Color>
+      <Color x:Key="ColorShuffle">#A78BFA</Color>
+      <Color x:Key="ColorShuffleSmart">#FCD34D</Color>
+    </ResourceDictionary>
 
-  <!-- Status -->
-  <Color x:Key="ColorGreen">    #FF34D399</Color>
-  <Color x:Key="ColorGreenDim"> #FF064E3B</Color>
-  <Color x:Key="ColorRed">      #FFF87171</Color>
-  <Color x:Key="ColorRedDim">   #FF450A0A</Color>
+    <!-- LIGHT MODE (New palette) -->
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="ColorBase">#FFFFFF</Color>
+      <Color x:Key="ColorSurface">#F9FAFB</Color>
+      <Color x:Key="ColorSurface2">#F3F4F6</Color>
+      <Color x:Key="ColorElevated">#FFFFFF</Color>
+      <Color x:Key="ColorHover">#E5E7EB</Color>
+      <Color x:Key="ColorBorder">#E5E7EB</Color>
+      <Color x:Key="ColorBorderSub">#D1D5DB</Color>
+      <Color x:Key="ColorSliderGroove">#D1D5DB</Color>
+      <Color x:Key="ColorPlayerIcon">#4B5563</Color>
 
-  <!-- ═══ BRUSHES ═══ -->
-  <SolidColorBrush x:Key="BrushBase"          Color="{DynamicResource ColorBase}"/>
-  <SolidColorBrush x:Key="BrushSurface"       Color="{DynamicResource ColorSurface}"/>
-  <SolidColorBrush x:Key="BrushSurface2"      Color="{DynamicResource ColorSurface2}"/>
-  <SolidColorBrush x:Key="BrushElevated"      Color="{DynamicResource ColorElevated}"/>
-  <SolidColorBrush x:Key="BrushHover"         Color="{DynamicResource ColorHover}"/>
-  <SolidColorBrush x:Key="BrushBorder"        Color="{DynamicResource ColorBorder}"/>
-  <SolidColorBrush x:Key="BrushBorderSub"     Color="{DynamicResource ColorBorderSub}"/>
-  <SolidColorBrush x:Key="BrushAccent"        Color="{DynamicResource ColorAccent}"/>
-  <SolidColorBrush x:Key="BrushAccentHover"   Color="{DynamicResource ColorAccentHover}"/>
-  <SolidColorBrush x:Key="BrushAccentDim"     Color="{DynamicResource ColorAccentDim}"/>
-  <SolidColorBrush x:Key="BrushAccentGlow"    Color="{DynamicResource ColorAccentGlow}"/>
-  <SolidColorBrush x:Key="BrushAccent2"       Color="{DynamicResource ColorAccent2}"/>
-  <SolidColorBrush x:Key="BrushTextOnAccent"  Color="{DynamicResource ColorTextOnAccent}"/>
+      <Color x:Key="ColorTextPrimary">#111827</Color>
+      <Color x:Key="ColorTextSecondary">#4B5563</Color>
+      <Color x:Key="ColorTextMuted">#6B7280</Color>
 
-  <!-- Live duo gradient: stops follow ColorAccent/ColorAccent2 automatically -->
+      <!-- Dim/Glow colors need to be light pastel tints in Light Mode -->
+      <Color x:Key="ColorAccentDim">#DBEAFE</Color>
+      <Color x:Key="ColorAccentGlow">#BFDBFE</Color>
+      <Color x:Key="ColorBlueDim">#DBEAFE</Color>
+      <Color x:Key="ColorAmberDim">#FEF3C7</Color>
+      <Color x:Key="ColorGreenDim">#D1FAE5</Color>
+      <Color x:Key="ColorRedDim">#FEE2E2</Color>
+      <Color x:Key="ColorShuffle">#6D28D9</Color>
+      <Color x:Key="ColorShuffleSmart">#A16207</Color>
+
+      <Color x:Key="ColorStarOn">#F59E0B</Color>
+      <Color x:Key="ColorStarOff">#6B7280</Color>
+      <Color x:Key="ColorAmberDark">#F59E0B</Color>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- SHARED COLORS (Remain identical in both themes) -->
+  <Color x:Key="ColorAccent">#4E9BFF</Color>
+  <Color x:Key="ColorAccentHover">#75B1FF</Color>
+  <Color x:Key="ColorAccent2">#B08CFF</Color>
+  <Color x:Key="ColorTextOnAccent">#FFFFFF</Color>
+
+  <Color x:Key="ColorBlue">#60A5FA</Color>
+  <Color x:Key="ColorBlueDark">#2563EB</Color>
+  <Color x:Key="ColorAmber">#FCD34D</Color>
+  <Color x:Key="ColorGreen">#34D399</Color>
+  <Color x:Key="ColorRed">#F87171</Color>
+
+  <!-- Status Colors -->
+  <Color x:Key="ColorStatusSuccess">#34D399</Color>
+  <Color x:Key="ColorStatusWarning">#FCD34D</Color>
+  <Color x:Key="ColorStatusError">#F87171</Color>
+  <Color x:Key="ColorStatusInfo">#60A5FA</Color>
+  <Color x:Key="ColorStatusNeutral">#6B7A99</Color>
+
+  <!-- Source Brand Colors -->
+  <Color x:Key="ColorSourceYouTube">#CC0000</Color>
+  <Color x:Key="ColorSourceSoundCloud">#E85A00</Color>
+  <Color x:Key="ColorSourceSpotify">#1DB954</Color>
+  <Color x:Key="ColorSourceLastFm">#D51007</Color>
+  <Color x:Key="ColorSourceLocal">#1A5276</Color>
+
+  <!-- Mood Chart Colors -->
+  <Color x:Key="ColorMoodEnergetic">#F59E0B</Color>
+  <Color x:Key="ColorMoodMelancholy">#3B82F6</Color>
+  <Color x:Key="ColorMoodChill">#14B8A6</Color>
+  <Color x:Key="ColorMoodDark">#8B5CF6</Color>
+  <Color x:Key="ColorMoodHappy">#EC4899</Color>
+  <Color x:Key="ColorMoodFocus">#10B981</Color>
+
+  <!-- BRUSHES (These automatically adapt because they use DynamicResource to the Colors above) -->
+  <SolidColorBrush x:Key="BrushBase" Color="{DynamicResource ColorBase}"/>
+  <SolidColorBrush x:Key="BrushSurface" Color="{DynamicResource ColorSurface}"/>
+  <SolidColorBrush x:Key="BrushSurface2" Color="{DynamicResource ColorSurface2}"/>
+  <SolidColorBrush x:Key="BrushElevated" Color="{DynamicResource ColorElevated}"/>
+  <SolidColorBrush x:Key="BrushHover" Color="{DynamicResource ColorHover}"/>
+  <SolidColorBrush x:Key="BrushBorder" Color="{DynamicResource ColorBorder}"/>
+  <SolidColorBrush x:Key="BrushBorderSub" Color="{DynamicResource ColorBorderSub}"/>
+  <SolidColorBrush x:Key="BrushSliderGroove" Color="{DynamicResource ColorSliderGroove}"/>
+  <SolidColorBrush x:Key="BrushPlayerIcon" Color="{DynamicResource ColorPlayerIcon}"/>
+
+  <SolidColorBrush x:Key="BrushAccent" Color="{DynamicResource ColorAccent}"/>
+  <SolidColorBrush x:Key="BrushAccentHover" Color="{DynamicResource ColorAccentHover}"/>
+  <SolidColorBrush x:Key="BrushAccentDim" Color="{DynamicResource ColorAccentDim}"/>
+  <SolidColorBrush x:Key="BrushAccentGlow" Color="{DynamicResource ColorAccentGlow}"/>
+  <SolidColorBrush x:Key="BrushAccent2" Color="{DynamicResource ColorAccent2}"/>
+  <SolidColorBrush x:Key="BrushTextOnAccent" Color="{DynamicResource ColorTextOnAccent}"/>
+
   <LinearGradientBrush x:Key="BrushAccentGradient" StartPoint="0,0.5" EndPoint="1,0.5">
-    <GradientStop Color="{DynamicResource ColorAccent}"  Offset="0"/>
+    <GradientStop Color="{DynamicResource ColorAccent}" Offset="0"/>
     <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
   </LinearGradientBrush>
 
-  <SolidColorBrush x:Key="BrushBlue"          Color="{DynamicResource ColorBlue}"/>
-  <SolidColorBrush x:Key="BrushBlueDark"      Color="{DynamicResource ColorBlueDark}"/>
-  <SolidColorBrush x:Key="BrushBlueDim"       Color="{DynamicResource ColorBlueDim}"/>
-  <SolidColorBrush x:Key="BrushAmber"         Color="{DynamicResource ColorAmber}"/>
-  <SolidColorBrush x:Key="BrushAmberDark"     Color="{DynamicResource ColorAmberDark}"/>
-  <SolidColorBrush x:Key="BrushAmberDim"      Color="{DynamicResource ColorAmberDim}"/>
-  <SolidColorBrush x:Key="BrushTextPrimary"   Color="{DynamicResource ColorTextPrimary}"/>
+  <SolidColorBrush x:Key="BrushBlue" Color="{DynamicResource ColorBlue}"/>
+  <SolidColorBrush x:Key="BrushBlueDark" Color="{DynamicResource ColorBlueDark}"/>
+  <SolidColorBrush x:Key="BrushBlueDim" Color="{DynamicResource ColorBlueDim}"/>
+  <SolidColorBrush x:Key="BrushAmber" Color="{DynamicResource ColorAmber}"/>
+  <SolidColorBrush x:Key="BrushAmberDark" Color="{DynamicResource ColorAmberDark}"/>
+  <SolidColorBrush x:Key="BrushAmberDim" Color="{DynamicResource ColorAmberDim}"/>
+
+  <SolidColorBrush x:Key="BrushTextPrimary" Color="{DynamicResource ColorTextPrimary}"/>
   <SolidColorBrush x:Key="BrushTextSecondary" Color="{DynamicResource ColorTextSecondary}"/>
-  <SolidColorBrush x:Key="BrushTextMuted"     Color="{DynamicResource ColorTextMuted}"/>
-  <SolidColorBrush x:Key="BrushGreen"         Color="{DynamicResource ColorGreen}"/>
-  <SolidColorBrush x:Key="BrushGreenDim"      Color="{DynamicResource ColorGreenDim}"/>
-  <SolidColorBrush x:Key="BrushRed"           Color="{DynamicResource ColorRed}"/>
-  <SolidColorBrush x:Key="BrushRedDim"        Color="{DynamicResource ColorRedDim}"/>
+  <SolidColorBrush x:Key="BrushTextMuted" Color="{DynamicResource ColorTextMuted}"/>
+  <SolidColorBrush x:Key="BrushStarOn" Color="{DynamicResource ColorStarOn}"/>
+  <SolidColorBrush x:Key="BrushStarOff" Color="{DynamicResource ColorStarOff}"/>
+
+  <SolidColorBrush x:Key="BrushGreen" Color="{DynamicResource ColorGreen}"/>
+  <SolidColorBrush x:Key="BrushGreenDim" Color="{DynamicResource ColorGreenDim}"/>
+  <SolidColorBrush x:Key="BrushRed" Color="{DynamicResource ColorRed}"/>
+  <SolidColorBrush x:Key="BrushRedDim" Color="{DynamicResource ColorRedDim}"/>
+  <SolidColorBrush x:Key="BrushShuffle"      Color="{DynamicResource ColorShuffle}"/>
+  <SolidColorBrush x:Key="BrushShuffleSmart" Color="{DynamicResource ColorShuffleSmart}"/>
+
+  <!-- Track source colors -->
+  <SolidColorBrush x:Key="BrushSourceYouTube" Color="#CC0000"/>
+  <SolidColorBrush x:Key="BrushSourceSoundCloud" Color="#E85A00"/>
+  <SolidColorBrush x:Key="BrushSourceLocal" Color="{DynamicResource ColorAccent}"/>
+
+  <!-- Profile banner presets -->
+  <SolidColorBrush x:Key="BrushBannerPurple" Color="#7C3AED"/>
+  <SolidColorBrush x:Key="BrushBannerBlue" Color="#2563EB"/>
+  <SolidColorBrush x:Key="BrushBannerGreen" Color="#059669"/>
+  <SolidColorBrush x:Key="BrushBannerAmber" Color="#D97706"/>
+  <SolidColorBrush x:Key="BrushBannerRed" Color="#DC2626"/>
+
+  <!-- Status Brushes -->
+  <SolidColorBrush x:Key="BrushStatusSuccess" Color="{DynamicResource ColorStatusSuccess}"/>
+  <SolidColorBrush x:Key="BrushStatusWarning" Color="{DynamicResource ColorStatusWarning}"/>
+  <SolidColorBrush x:Key="BrushStatusError" Color="{DynamicResource ColorStatusError}"/>
+  <SolidColorBrush x:Key="BrushStatusInfo" Color="{DynamicResource ColorStatusInfo}"/>
+  <SolidColorBrush x:Key="BrushStatusNeutral" Color="{DynamicResource ColorStatusNeutral}"/>
 </ResourceDictionary>
