@@ -1,10 +1,7 @@
 ﻿# 🎵 NullWave
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="Assets/Art/oxeye_daisy_dark.png">
-    <img alt="NullWave — Oxeye Daisy" src="Assets/Art/oxeye_daisy_light.png" width="100%">
-  </picture>
+  <img alt="NullWave — Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
 </p>
 
 A personal music organizer with download, playback, and AI-powered smart sorting capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
