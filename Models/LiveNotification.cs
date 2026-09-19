@@ -1,10 +1,23 @@
 using System;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Material.Icons;
 using NullWave.Services;
 
 namespace NullWave.Models;
+
+public enum ToastType
+{
+    Info,
+    Success,
+    Warning,
+    Error
+}
 
 public partial class LiveNotification : ObservableObject
 {
@@ -14,12 +27,13 @@ public partial class LiveNotification : ObservableObject
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private string _detailedMessage = string.Empty;
     [ObservableProperty] private string _scope = "Main";
-    
+
     // Distinguishes between a quick fading toast and an ongoing live activity task
-    [ObservableProperty] private bool _isLiveActivity; 
-    
+    [ObservableProperty] private bool _isLiveActivity;
+
     // Tracks the open/closed state of the "More" expander drawer
     [ObservableProperty] private bool _isExpanded;
+    [ObservableProperty] private bool _isDismissing;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSuccess))]
@@ -27,7 +41,9 @@ public partial class LiveNotification : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsWarning))]
     [NotifyPropertyChangedFor(nameof(IsInfo))]
     [NotifyPropertyChangedFor(nameof(IconData))]
-    [NotifyPropertyChangedFor(nameof(NotificationColor))]
+    [NotifyPropertyChangedFor(nameof(IconKind))]
+    [NotifyPropertyChangedFor(nameof(NotificationTint))]
+    [NotifyPropertyChangedFor(nameof(NotificationBrush))]
     private ToastType _type = ToastType.Info;
 
     [ObservableProperty] private double _progressValue;
@@ -69,12 +85,42 @@ public partial class LiveNotification : ObservableObject
         _                 => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
     };
 
-    // Unified Accent Colors matching the notification types
-    public string NotificationColor => Type switch
+    public MaterialIconKind IconKind => Type switch
     {
-        ToastType.Success => "#2ecc71", // Green
-        ToastType.Error   => "#e74c3c", // Red
-        ToastType.Warning => "#f39c12", // Orange
-        _                 => "#3498db"  // Blue (Info)
+        ToastType.Success => MaterialIconKind.CheckCircle,
+        ToastType.Error   => MaterialIconKind.AlertCircle,
+        ToastType.Warning => MaterialIconKind.Alert,
+        _                 => MaterialIconKind.InformationOutline
+    };
+
+    /// <summary>
+    /// Traverses application theme resources to resolve dynamic brushes correctly.
+    /// Falls back to a default solid color brush if resource key resolution fails.
+    /// </summary>
+    private static IBrush GetThemeBrush(string resourceKey, string fallbackHex)
+    {
+        if (Application.Current != null &&
+            Application.Current.TryGetResource(resourceKey, Application.Current.ActualThemeVariant, out var res) &&
+            res is IBrush brush)
+        {
+            return brush;
+        }
+        return new SolidColorBrush(Color.Parse(fallbackHex));
+    }
+
+    public IBrush NotificationTint => Type switch
+    {
+        ToastType.Success => GetThemeBrush("BrushGreenDim", "#2010B981"),
+        ToastType.Error   => GetThemeBrush("BrushRedDim",   "#20EF4444"),
+        ToastType.Warning => GetThemeBrush("BrushAmberDim", "#20F59E0B"),
+        _                 => GetThemeBrush("BrushBlueDim",  "#203B82F6")
+    };
+
+    public IBrush NotificationBrush => Type switch
+    {
+        ToastType.Success => GetThemeBrush("BrushGreen", "#10B981"),
+        ToastType.Error   => GetThemeBrush("BrushRed",   "#EF4444"),
+        ToastType.Warning => GetThemeBrush("BrushAmber", "#F59E0B"),
+        _                 => GetThemeBrush("BrushBlue",  "#3B82F6")
     };
 }

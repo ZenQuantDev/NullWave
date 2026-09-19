@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -13,7 +14,6 @@ public class Playlist : INotifyPropertyChanged
     private string? _customArtPath;
 
     public event PropertyChangedEventHandler? PropertyChanged;
-
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -21,16 +21,22 @@ public class Playlist : INotifyPropertyChanged
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
-    public List<Track> Tracks { get; set; } = new();
+    
+    // CHANGED: List<Track> -> ObservableCollection<Track>
+    public ObservableCollection<Track> Tracks { get; set; } = new();
 
-    /// <summary>User-chosen cover image path (null = auto from first track).</summary>
+    // NEW: Per-playlist DateAdded tracking
+    public Dictionary<Guid, DateTime> TrackDateAdded { get; set; } = new();
+
+    public DateTime GetDateAdded(Guid trackId) =>
+        TrackDateAdded.TryGetValue(trackId, out var d) && d != default ? d : DateCreated;
+
     public string? CustomArtPath
     {
         get => _customArtPath;
         set { if (_customArtPath != value) { _customArtPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(ArtPath)); } }
     }
 
-    /// <summary>Resolved sidebar art: custom cover first, else first track's album art.</summary>
     public string? ArtPath => CustomArtPath ?? Tracks.FirstOrDefault()?.AlbumArtPath;
 
     public bool IsPinned
@@ -56,13 +62,15 @@ public class PlaylistFolder : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     public Guid Id { get; set; } = Guid.NewGuid();
+    
     public string Name
     {
         get => _name;
         set { if (_name != value) { _name = value; OnPropertyChanged(); } }
     }
+    
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
-
+    
     public bool IsExpanded
     {
         get => _isExpanded;

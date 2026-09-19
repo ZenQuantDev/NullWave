@@ -1,4 +1,5 @@
 using System;
+using NullWave.Helpers;
 using SQLite;
 
 namespace NullWave.Models;
@@ -13,6 +14,7 @@ public class PlaylistRecord
     public string? FolderId { get; set; }
     public string? CustomArtPath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime DateAdded { get; set; }
 
     public static PlaylistRecord FromPlaylist(Playlist p) => new()
     {
@@ -20,7 +22,7 @@ public class PlaylistRecord
         Name = p.Name,
         Description = p.Description,
         FolderId = p.FolderId?.ToString(),
-        CustomArtPath = p.CustomArtPath,
+        CustomArtPath = PathHelper.Tokenize(p.CustomArtPath),     // <--- TOKENIZE
         CreatedAt = p.DateCreated
     };
 
@@ -30,7 +32,7 @@ public class PlaylistRecord
         Name = Name,
         Description = Description,
         FolderId = string.IsNullOrWhiteSpace(FolderId) ? null : Guid.TryParse(FolderId, out var folderId) ? folderId : null,
-        CustomArtPath = CustomArtPath,
+        CustomArtPath = PathHelper.Resolve(CustomArtPath),        // <--- RESOLVE
         DateCreated = CreatedAt
     };
 }

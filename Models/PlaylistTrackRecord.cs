@@ -8,12 +8,15 @@ public class PlaylistTrackRecord
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
-    
+
     [Indexed]
     public string PlaylistId { get; set; } = string.Empty;
-    
-    [Indexed] // Prevents full table scans when updating/deleting a track
+
+    [Indexed] 
     public string TrackId { get; set; } = string.Empty;
-    
+
     public int SortOrder { get; set; }
+
+    // Per-playlist DateAdded tracking
+    public DateTime DateAdded { get; set; } = DateTime.UtcNow;
 }
