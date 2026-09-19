@@ -1,25 +1,34 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
-        xmlns:helpers="using:NullWave.Helpers"
+        xmlns:controls="using:NullWave.Views.Controls"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:services="using:NullWave.Services"
         xmlns:models="using:NullWave.Models"
         xmlns:material="using:Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
+        xmlns:attached="using:NullWave.Helpers.Attached"
         x:Class="NullWave.Views.ProfileWindow"
         x:DataType="vm:UserProfileViewModel"
         Title="NullWave - Profile"
-        Width="520" Height="820"
+        Width="820" Height="720"
+        MinWidth="700" MinHeight="600"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="{StaticResource BrushBase}"
-        MinWidth="520"
         KeyDown="OnWindowKeyDown">
-
     <Window.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
+        <converters:HexToBrushConverter x:Key="HexToBrush"/>
+        <converters:StringEqualsConverter x:Key="StrEq"/>
+        <converters:ProfileIdentityMarginConverter x:Key="ProfileIdentityMargin"/>
+        <converters:FrameGlowConverter x:Key="FrameGlow"/>
+        <converters:FrameBorderBrushConverter x:Key="FrameBrush"/>
+        <converters:FrameBorderThicknessConverter x:Key="FrameThickness"/>
+        <converters:RelativeTimeConverter x:Key="RelTime"/>
+        <x:Double x:Key="ProfileBannerHeight">240</x:Double>
+        <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent"/>
     </Window.Resources>
-
     <Window.Styles>
         <Style Selector="Button.avatar-overlay">
             <Setter Property="Opacity" Value="0"/>
@@ -32,521 +41,713 @@
         <Style Selector="Button.avatar-overlay:pointerover">
             <Setter Property="Opacity" Value="1"/>
         </Style>
-
-        <!-- Base layout styles for all toasts -->
-        <Style Selector="Border.success, Border.error, Border.warning, Border.info">
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <!-- Theme-mapped colors using shared resources -->
-        <Style Selector="Border.success">
-            <Setter Property="Background" Value="{DynamicResource BrushGreenDim}"/>
-        </Style>
-        <Style Selector="Border.error">
-            <Setter Property="Background" Value="{DynamicResource BrushRedDim}"/>
-        </Style>
-        <Style Selector="Border.warning">
-            <Setter Property="Background" Value="{DynamicResource BrushAmberDim}"/>
-        </Style>
-        <Style Selector="Border.info">
-            <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
+        <Style Selector="Border.badge-chip">
+            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+            <Setter Property="Padding" Value="10,5"/>
         </Style>
     </Window.Styles>
-
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding ManualSaveCommand}"/>
+        <KeyBinding Gesture="Ctrl+E" Command="{Binding CopyShareStringCommand}"/>
     </Window.KeyBindings>
 
-    <Panel>
-        <DockPanel LastChildFill="True" x:Name="ProfileCard">
-
-            <!-- Header -->
-            <Border DockPanel.Dock="Top"
-                    Background="{StaticResource BrushSurface}"
-                    BorderBrush="{StaticResource BrushBorder}"
-                    BorderThickness="0,0,0,1"
-                    Padding="20,16">
-                <Grid ColumnDefinitions="*,Auto">
-                    <Grid ColumnDefinitions="Auto,12,*">
-                        <!-- Avatar with hover overlay -->
-                        <Grid Grid.Column="0" Width="100" Height="100">
-                            <Border Width="100" Height="100"
-                                    CornerRadius="{StaticResource RadiusFull}"
-                                    Background="{StaticResource BrushAccentDim}"
-                                    ClipToBounds="True">
-                                <Panel>
-                                    <Image Source="{Binding Avatar}"
-                                           IsVisible="{Binding HasAvatar}"
-                                           Stretch="UniformToFill"/>
-                                    <material:MaterialIcon Kind="MusicNote"
-                                               IsVisible="{Binding !HasAvatar}"
-                                               Foreground="{StaticResource BrushAccent}"
-                                               Width="42" Height="42"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Panel>
-                            </Border>
-
-                            <!-- Hover overlay button -->
-                            <Button Classes="avatar-overlay"
-                                    Command="{Binding PickAvatarCommand}"
-                                    Width="100" Height="100"
-                                    CornerRadius="{StaticResource RadiusFull}"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Cursor="Hand"
-                                    ToolTip.Tip="Change avatar">
-                                <Border Background="#B0000000"
-                                        CornerRadius="{StaticResource RadiusFull}">
-                                    <StackPanel HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Spacing="4">
-                                        <material:MaterialIcon Kind="Pencil"
-                                                   Width="24" Height="24"
-                                                   Foreground="White"
-                                                   HorizontalAlignment="Center"/>
-                                        <TextBlock Text="Change"
-                                                   Foreground="White"
-                                                   FontSize="{DynamicResource FontSizeXs}"
-                                                   HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
+    <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+        <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"
+                   DisplayMode="Overlay"
+                   OpenPaneLength="320"
+                   PanePlacement="Left"
+                   PaneBackground="{StaticResource BrushSurface}">
+            <SplitView.Pane>
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Padding="16,14"
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Text="{loc:Loc Profile_Editor_Header}" Classes="section-label" Margin="0" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <ProgressBar IsIndeterminate="True" Width="14" Height="14"
+                                             IsVisible="{Binding IsSavingChanges}" VerticalAlignment="Center"/>
+                                <material:MaterialIcon Kind="CheckCircleOutline" Width="14" Height="14"
+                                                       Foreground="{StaticResource BrushGreen}"
+                                                       IsVisible="{Binding !IsSavingChanges}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{loc:Loc Profile_SaveState_Saving}" Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsSavingChanges}"/>
+                                <TextBlock Text="{loc:Loc Profile_SaveState_Saved}" Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"
+                                           IsVisible="{Binding !IsSavingChanges}"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Classes="icon-btn" ToolTip.Tip="{loc:Loc Profile_Close}" Command="{Binding CloseEditorCommand}">
+                                <material:MaterialIcon Kind="Close" Width="16" Height="16"/>
                             </Button>
                         </Grid>
+                    </Border>
 
-                        <!-- Username + bio + Member Since -->
-                        <StackPanel Grid.Column="2"
-                                    VerticalAlignment="Center"
-                                    Spacing="4">
-                            <TextBlock Text="Profile"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                            <TextBlock Text="{Binding Username}"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="32"
-                                       FontWeight="Bold"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Bio}"
-                                       Foreground="{StaticResource BrushTextSecondary}"
-                                       FontSize="{DynamicResource FontSizeBody}"
-                                       TextTrimming="CharacterEllipsis"
-                                       TextWrapping="Wrap"
-                                       MaxLines="2"/>
-                            <TextBlock Text="{Binding MemberSince, StringFormat='Member since {0}'}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeXs}"
-                                       Margin="0,2,0,0"/>
+                    <Border DockPanel.Dock="Bottom" Padding="16,14"
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{loc:Loc Profile_Save_Hint}"
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
+                                       TextWrapping="Wrap"/>
+                            <Button Classes="primary" Click="OnExportProfileClicked"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="Export" Width="16" Height="16"/>
+                                    <TextBlock Text="{loc:Loc Profile_Export_Button}"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
-                    </Grid>
+                    </Border>
 
-                    <!-- More options button -->
-                    <Button Grid.Column="1"
-                            Classes="icon-btn"
-                            VerticalAlignment="Center"
-                            ToolTip.Tip="More options">
-                        <material:MaterialIcon Kind="DotsVertical" Width="20" Height="20"/>
-                        <Button.Flyout>
-                            <MenuFlyout>
-                                <MenuItem Header="Export Profile Card (Ctrl+E)"
-                                          Click="OnExportProfileClicked"/>
-                                <MenuItem Header="Reset Avatar"
-                                          Command="{Binding ResetAvatarCommand}"
-                                          IsVisible="{Binding HasAvatar}"/>
-                                <MenuItem Header="Save Changes (Ctrl+S)"
-                                          Command="{Binding ManualSaveCommand}"/>
-                            </MenuFlyout>
-                        </Button.Flyout>
-                    </Button>
-                </Grid>
-            </Border>
-
-            <!-- Save Toast -->
-            <Border DockPanel.Dock="Bottom"
-                    HorizontalAlignment="Center"
-                    Margin="0,0,0,16"
-                    Background="{StaticResource BrushGreen}"
-                    CornerRadius="{StaticResource RadiusFull}"
-                    Padding="12,6"
-                    IsVisible="{Binding ShowSaveToast}"
-                    IsHitTestVisible="False">
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                    <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding ToastMessage}"
-                               Foreground="White"
-                               FontSize="{DynamicResource FontSizeBody}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Scrollable Content -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16" Margin="20,20,12,24">
-
-                    <!-- Edit Username -->
-                    <StackPanel Spacing="4">
-                        <TextBlock Classes="section-label" Text="DISPLAY NAME" Margin="0"/>
-                        <TextBox Text="{Binding Username, Mode=TwoWay}"
-                                 PlaceholderText="Your display name"
-                                 MaxLength="32"
-                                 Height="36"/>
-                    </StackPanel>
-
-                    <Separator Background="{StaticResource BrushBorder}"/>
-
-                    <!-- About You (Bio) -->
-                    <StackPanel Spacing="4">
-                        <TextBlock Classes="section-label" Text="ABOUT YOU" Margin="0"/>
-                        <TextBox Text="{Binding Bio, Mode=TwoWay}"
-                                 PlaceholderText="Tell people about your music taste..."
-                                 AcceptsReturn="True"
-                                 Height="70"
-                                 MaxLength="160"
-                                 TextWrapping="Wrap"/>
-                        <TextBlock Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   HorizontalAlignment="Right">
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}/160">
-                                    <Binding Path="BioLength"/>
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                    </StackPanel>
-
-                    <Separator Background="{StaticResource BrushBorder}"/>
-
-                    <!-- Listening Stats (4 columns) -->
-                    <StackPanel Spacing="10">
-                        <TextBlock Classes="section-label" Text="LISTENING STATS" Margin="0"/>
-                        <Grid ColumnDefinitions="*,6,*,6,*,6,*">
-                            <Border Grid.Column="0" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
-                                <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Tracks" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Grid.Column="2" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
-                                <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushAmber}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Favorites" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Grid.Column="4" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
-                                <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushBlue}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Plays" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Grid.Column="6" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
-                                <StackPanel HorizontalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding TotalSkips}" Foreground="{StaticResource BrushRedDim}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Skips" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- Top Track -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Classes="section-label" Text="TOP TRACK" Margin="0"/>
-                        <Border Classes="settings-card" Margin="0">
-                            <Grid ColumnDefinitions="56,16,*">
-                                <Border Grid.Column="0"
-                                        Width="56" Height="56"
-                                        CornerRadius="{StaticResource RadiusSm}"
-                                        Background="{StaticResource BrushSurface}"
-                                        ClipToBounds="True">
-                                    <Panel>
-                                        <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
-                                               IsVisible="{Binding HasMostPlayedTrackArt}"
-                                               Stretch="UniformToFill"/>
-                                        <material:MaterialIcon Kind="MusicNote"
-                                                   IsVisible="{Binding !HasMostPlayedTrackArt}"
-                                                   Foreground="{StaticResource BrushTextMuted}"
-                                                   Width="20" Height="20"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
-                                    </Panel>
-                                </Border>
-                                <TextBlock Grid.Column="2"
-                                           Text="{Binding MostPlayedTrack}"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBody}"
-                                           FontWeight="Medium"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           TextWrapping="Wrap"/>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Top Artist -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Classes="section-label" Text="TOP ARTIST" Margin="0"/>
-                        <Border Classes="settings-card" Margin="0">
-                            <Grid ColumnDefinitions="56,10,*">
-                                <Border Grid.Column="0"
-                                        Width="56" Height="56"
-                                        CornerRadius="{StaticResource RadiusSm}"
-                                        Background="{StaticResource BrushAccentDim}">
-                                    <material:MaterialIcon Kind="MusicNote"
-                                               Width="22" Height="22"
-                                               Foreground="{StaticResource BrushAccent}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="2"
-                                           Text="{Binding MostPlayedArtist}"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBody}"
-                                           FontWeight="Medium"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           TextWrapping="Wrap"/>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <Separator Background="{StaticResource BrushBorder}"/>
-
-                    <!-- Library Breakdown -->
-                    <StackPanel Spacing="8">
-                        <TextBlock Classes="section-label" Text="LIBRARY BREAKDOWN" Margin="0"/>
-                        <Border Classes="settings-card" Margin="0">
-                            <StackPanel Spacing="16">
-                                <!-- YouTube -->
-                                <StackPanel Spacing="3">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Border Width="6" Height="6"
-                                                    CornerRadius="{StaticResource RadiusFull}"
-                                                    Background="#CC0000"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Text="YouTube"
-                                                       Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{DynamicResource FontSizeBody}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding YouTubePercentageText}"
-                                                   Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{DynamicResource FontSizeBody}"
-                                                   FontWeight="SemiBold"/>
-                                    </Grid>
-                                    <ProgressBar Value="{Binding YouTubePercentage}"
-                                                 Maximum="100"
-                                                 Height="5"
-                                                 Foreground="{StaticResource BrushRed}"/>
-                                </StackPanel>
-
-                                <!-- SoundCloud -->
-                                <StackPanel Spacing="3">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Border Width="6" Height="6"
-                                                    CornerRadius="{StaticResource RadiusFull}"
-                                                    Background="#E85A00"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Text="SoundCloud"
-                                                       Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{DynamicResource FontSizeBody}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding SoundCloudPercentageText}"
-                                                   Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{DynamicResource FontSizeBody}"
-                                                   FontWeight="SemiBold"/>
-                                    </Grid>
-                                    <ProgressBar Value="{Binding SoundCloudPercentage}"
-                                                 Maximum="100"
-                                                 Height="5"
-                                                 Foreground="#E85A00"/>
-                                </StackPanel>
-
-                                <!-- Local Storage -->
-                                <StackPanel Spacing="3">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Border Width="6" Height="6"
-                                                    CornerRadius="{StaticResource RadiusFull}"
-                                                    Background="{StaticResource BrushAccent}"
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Text="Local Storage"
-                                                       Foreground="{StaticResource BrushTextSecondary}"
-                                                       FontSize="{DynamicResource FontSizeBody}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding LocalPercentageText}"
-                                                   Foreground="{StaticResource BrushTextPrimary}"
-                                                   FontSize="{DynamicResource FontSizeBody}"
-                                                   FontWeight="SemiBold"/>
-                                    </Grid>
-                                    <ProgressBar Value="{Binding LocalPercentage}"
-                                                 Maximum="100"
-                                                 Height="5"
-                                                 Foreground="{StaticResource BrushAccent}"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <Separator Background="{StaticResource BrushBorder}"/>
-
-                    <!-- Account Info -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Classes="section-label" Text="ACCOUNT" Margin="0"/>
-                        <Border Classes="settings-card" Margin="0">
-                            <StackPanel Spacing="10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+                        <StackPanel Spacing="18" Margin="16,14,16,16">
+                            <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0"
-                                               Text="Data location"
-                                               Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{DynamicResource FontSizeBody}"/>
-                                    <TextBlock Grid.Column="1"
-                                               Text="~/.nullwave/"
-                                               Foreground="{StaticResource BrushTextMuted}"
-                                               FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Classes="section-label" Text="{loc:Loc Profile_Section_Nameplate}" Margin="0" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Username.Length, StringFormat='{}{0}/32'}"
+                                               Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                 </Grid>
+                                <TextBox Text="{Binding Username, Mode=TwoWay}"
+                                         PlaceholderText="{loc:Loc Profile_Placeholder_DisplayName}" MaxLength="32" Height="36"/>
                             </StackPanel>
-                        </Border>
-                    </StackPanel>
-                    <Border Classes="BottomSpacer"/>
-                </StackPanel>
-            </ScrollViewer>
 
-        </DockPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="section-label" Text="{loc:Loc Profile_Section_Avatar}" Margin="0"/>
+                                <Button Classes="card-select" Command="{Binding PickAvatarCommand}"
+                                        ToolTip.Tip="{loc:Loc Profile_Tooltip_ChangeAvatar}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="{StaticResource RadiusFull}"
+                                                ClipToBounds="True" Background="{StaticResource BrushSurface2}">
+                                            <Panel>
+                                                <Image Source="{Binding Avatar}" IsVisible="{Binding HasAvatar}" Stretch="UniformToFill"
+                                                       RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                <material:MaterialIcon Kind="Account" IsVisible="{Binding !HasAvatar}"
+                                                                       Foreground="{StaticResource BrushAccent}" Width="22" Height="22"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Panel>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{loc:Loc Profile_Tooltip_ChangeAvatar}"
+                                                   VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSm}"/>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
 
-        <!-- THE TOAST OVERLAY LAYER - ADDED FOR PROFILE WINDOW -->
-        <ItemsControl DataContext="{x:Static services:ToastService.Instance}"
-                      ItemsSource="{Binding ActiveNotifications}"
-                      x:DataType="services:ToastService"
-                      VerticalAlignment="Bottom"
-                      HorizontalAlignment="Right"
-                      Margin="0,0,24,24"
-                      IsHitTestVisible="True">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="models:LiveNotification">
-                    <Border Width="360"
-                            Margin="0,2"
-                            Background="{StaticResource BrushSurface}"
-                            BorderBrush="{StaticResource BrushBorder}"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            BoxShadow="0 4 20 0 #55000000"
-                            ClipToBounds="True">
-                        <Grid ColumnDefinitions="Auto, *">
-                            <Border Width="5"
-                                    VerticalAlignment="Stretch"
-                                    Background="{Binding NotificationColor}"/>
-                            
-                            <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                <Grid ColumnDefinitions="Auto, *, Auto">
-                                    <Path Grid.Column="0"
-                                          Width="15" Height="15"
-                                          Margin="0,0,8,0"
-                                          Fill="{Binding NotificationColor}"
-                                          Data="{Binding IconData}"
-                                          Stretch="Uniform"
-                                          VerticalAlignment="Center"/>
-                                    
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Title}"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Foreground="{StaticResource BrushTextPrimary}"
-                                               VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"/>
-                                    
-                                    <Button Grid.Column="2"
-                                            Command="{Binding CloseCommand}"
-                                            Background="Transparent" BorderThickness="0"
-                                            Padding="4" MinWidth="0" MinHeight="0"
-                                            Cursor="Hand">
-                                        <Button.Styles>
-                                            <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="Transparent"/>
-                                                <Setter Property="Opacity" Value="0.7"/>
-                                            </Style>
-                                        </Button.Styles>
-                                        <material:MaterialIcon Kind="Close" Width="14" Height="14"
-                                                               Foreground="{StaticResource BrushTextMuted}"/>
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="section-label" Text="{loc:Loc Profile_Section_Banner}" Margin="0" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <Button Classes="ghost" Padding="8,4" Command="{Binding PickBannerImageCommand}">
+                                            <TextBlock Text="{loc:Loc Profile_Banner_UploadImage}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        </Button>
+                                        <Button Classes="ghost" Padding="8,4" Command="{Binding ClearBannerImageCommand}" IsVisible="{Binding HasBannerImage}">
+                                            <TextBlock Text="{loc:Loc Profile_Banner_UseColor}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <Border Classes="settings-card" Margin="0">
+                                    <WrapPanel>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="accent" ToolTip.Tip="{loc:Loc Profile_Banner_Accent}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentGradient}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='accent'}"/>
+                                            </Panel>
+                                        </Button>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="#7C3AED" ToolTip.Tip="{loc:Loc Profile_Banner_Purple}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushBannerPurple}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='#7C3AED'}"/>
+                                            </Panel>
+                                        </Button>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="#2563EB" ToolTip.Tip="{loc:Loc Profile_Banner_Blue}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushBannerBlue}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='#2563EB'}"/>
+                                            </Panel>
+                                        </Button>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="#059669" ToolTip.Tip="{loc:Loc Profile_Banner_Green}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushBannerGreen}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='#059669'}"/>
+                                            </Panel>
+                                        </Button>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="#D97706" ToolTip.Tip="{loc:Loc Profile_Banner_Amber}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushBannerAmber}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='#D97706'}"/>
+                                            </Panel>
+                                        </Button>
+                                        <Button Classes="swatch" Command="{Binding SetBannerColorCommand}" CommandParameter="#DC2626" ToolTip.Tip="{loc:Loc Profile_Banner_Red}">
+                                            <Panel>
+                                                <Border Width="34" Height="34" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushBannerRed}"/>
+                                                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       IsVisible="{Binding BannerColor, Converter={StaticResource StrEq}, ConverterParameter='#DC2626'}"/>
+                                            </Panel>
+                                        </Button>
+                                    </WrapPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="section-label" Text="{loc:Loc Profile_Section_Frame}" Margin="0"/>
+                                <UniformGrid Columns="3">
+                                    <Button Classes="card-select" Command="{Binding SetProfileFrameCommand}" CommandParameter="None" Margin="0,0,8,0" Padding="8,10">
+                                        <attached:PseudoClass.Active>
+                                            <Binding Path="ProfileFrameStyle" Converter="{StaticResource StrEq}" ConverterParameter="None"/>
+                                        </attached:PseudoClass.Active>
+                                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                            <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSurface2}"/>
+                                            <TextBlock Text="{loc:Loc Settings_Appearance_Frame_None}" HorizontalAlignment="Center"
+                                                       FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" TextAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="card-select" Command="{Binding SetProfileFrameCommand}" CommandParameter="Ring" Margin="0,0,8,0" Padding="8,10">
+                                        <attached:PseudoClass.Active>
+                                            <Binding Path="ProfileFrameStyle" Converter="{StaticResource StrEq}" ConverterParameter="Ring"/>
+                                        </attached:PseudoClass.Active>
+                                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                            <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSurface2}"
+                                                    BorderBrush="{StaticResource BrushAccentGradient}" BorderThickness="3"/>
+                                            <TextBlock Text="{loc:Loc Settings_Appearance_Frame_Ring}" HorizontalAlignment="Center"
+                                                       FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" TextAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="card-select" Command="{Binding SetProfileFrameCommand}" CommandParameter="Glow" Padding="8,10">
+                                        <attached:PseudoClass.Active>
+                                            <Binding Path="ProfileFrameStyle" Converter="{StaticResource StrEq}" ConverterParameter="Glow"/>
+                                        </attached:PseudoClass.Active>
+                                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                            <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSurface2}"
+                                                    BorderBrush="{StaticResource BrushAccentGradient}" BorderThickness="3"/>
+                                            <TextBlock Text="{loc:Loc Settings_Appearance_Frame_Glow}" HorizontalAlignment="Center"
+                                                       FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" TextAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </UniformGrid>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="section-label" Text="{loc:Loc Profile_Section_AboutYou}" Margin="0" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding BioLength, StringFormat='{}{0}/160'}"
+                                               Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <TextBox Text="{Binding Bio, Mode=TwoWay}" PlaceholderText="{loc:Loc Profile_Placeholder_Bio}"
+                                         AcceptsReturn="True" MinHeight="70" MaxHeight="120" MaxLength="160" TextWrapping="Wrap"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </SplitView.Pane>
+
+            <Grid ColumnDefinitions="360,*">
+                <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
+                        DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+                    <Border Classes="settings-card" Margin="0" Padding="0" ClipToBounds="True">
+                        <Grid>
+                            <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top" ClipToBounds="True"
+                                    IsVisible="{Binding HasBannerImage}">
+                                <Image Source="{Binding BannerImagePath, Converter={StaticResource PathToBitmap}}"
+                                       Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                            </Border>
+                            <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top"
+                                    Background="{Binding BannerColor, Converter={StaticResource HexToBrush}}" IsVisible="{Binding IsCustomBanner}"/>
+                            <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top"
+                                    Background="{StaticResource BrushAccentGradient}" IsVisible="{Binding IsDefaultBanner}"/>
+
+                            <Button Classes="icon-btn" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,12,12,0"
+                                    Background="#40000000" CornerRadius="{StaticResource RadiusFull}"
+                                    ToolTip.Tip="{loc:Loc Profile_Tooltip_MoreOptions}">
+                                <material:MaterialIcon Kind="DotsVertical" Width="20" Height="20" Foreground="White"/>
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="{loc:Loc Profile_Menu_Edit}" Command="{Binding OpenEditorCommand}"/>
+                                        <MenuItem Header="{loc:Loc Profile_Menu_Export}" Click="OnExportProfileClicked"/>
+                                        <MenuItem Header="Copy Share String" Command="{Binding CopyShareStringCommand}"/>
+                                        <MenuItem Header="{loc:Loc Profile_Menu_ResetAvatar}" Command="{Binding ResetAvatarCommand}" IsVisible="{Binding HasAvatar}"/>
+                                        <MenuItem Header="{loc:Loc Profile_Menu_Save}" Command="{Binding ManualSaveCommand}"/>
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+
+                            <StackPanel VerticalAlignment="Top">
+                                <StackPanel.Margin>
+                                    <MultiBinding Converter="{StaticResource ProfileIdentityMargin}">
+                                        <Binding Source="{StaticResource ProfileBannerHeight}"/>
+                                        <Binding Source="{StaticResource ProfileAvatarSize}"/>
+                                    </MultiBinding>
+                                </StackPanel.Margin>
+
+                                <Grid Width="{DynamicResource ProfileAvatarSize}" Height="{DynamicResource ProfileAvatarSize}"
+                                      HorizontalAlignment="Left" Margin="0,0,0,12">
+                                    <Border CornerRadius="{StaticResource RadiusFull}"
+                                            BoxShadow="{Binding ProfileFrameStyle, Converter={StaticResource FrameGlow}}">
+                                        <Border Width="{DynamicResource ProfileAvatarSize}" Height="{DynamicResource ProfileAvatarSize}"
+                                                CornerRadius="{StaticResource RadiusFull}"
+                                                Background="{StaticResource BrushBase}"
+                                                BorderBrush="{Binding ProfileFrameStyle, Converter={StaticResource FrameBrush}}"
+                                                BorderThickness="{Binding ProfileFrameStyle, Converter={StaticResource FrameThickness}}"
+                                                ClipToBounds="True" BoxShadow="0 4 12 0 #55000000">
+                                            <Panel>
+                                                <Image Source="{Binding Avatar}" IsVisible="{Binding HasAvatar}" Stretch="UniformToFill"
+                                                       RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                <material:MaterialIcon Kind="Account" IsVisible="{Binding !HasAvatar}"
+                                                                       Foreground="{StaticResource BrushAccent}" Width="42" Height="42"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Panel>
+                                        </Border>
+                                    </Border>
+                                    <Button Classes="avatar-overlay" Command="{Binding PickAvatarCommand}"
+                                            Width="{DynamicResource ProfileAvatarSize}" Height="{DynamicResource ProfileAvatarSize}"
+                                            CornerRadius="{StaticResource RadiusFull}" Background="Transparent" BorderThickness="0"
+                                            Cursor="Hand" ToolTip.Tip="{loc:Loc Profile_Tooltip_ChangeAvatar}">
+                                        <Border Background="#B0000000" CornerRadius="{StaticResource RadiusFull}">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                                                <material:MaterialIcon Kind="Pencil" Width="24" Height="24" Foreground="White" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Overlay_Change}" Foreground="White" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
                                     </Button>
                                 </Grid>
 
-                                <TextBlock Text="{Binding Message}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource BrushTextSecondary}"
-                                           TextWrapping="Wrap"
-                                           Margin="23,0,0,2"/>
+                                <TextBlock Text="{loc:Loc Profile_Label_Profile}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                <TextBlock Text="{Binding Username}" Foreground="{StaticResource BrushTextPrimary}"
+                                           FontSize="{DynamicResource FontSizeProfileName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Bio}" Foreground="{StaticResource BrushTextSecondary}"
+                                           FontSize="{DynamicResource FontSizeBody}" TextWrapping="Wrap" Margin="0,4,0,0"/>
 
-                                <ProgressBar IsVisible="{Binding ShowProgressBar}"
-                                             Value="{Binding ProgressValue}"
-                                             IsIndeterminate="{Binding IsIndeterminate}"
-                                             Height="4"
-                                             Margin="23,2,0,2"
-                                             CornerRadius="2"
-                                             Background="{StaticResource BrushBorder}"
-                                             Foreground="{Binding NotificationColor}"/>
-
-                                <Button IsVisible="{Binding ShowActionButton}"
-                                        Command="{Binding ActionCommand}"
-                                        Content="{Binding ActionButtonText}"
-                                        HorizontalAlignment="Right"
-                                        FontSize="{DynamicResource FontSizeXs}" 
-                                        Padding="10,4"
-                                        Background="{StaticResource BrushSurface2}"
-                                        Foreground="{StaticResource BrushTextPrimary}"
-                                        CornerRadius="6"/>
-
-                                <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
-                                    <Button Command="{Binding ToggleExpandCommand}"
-                                            Background="Transparent" BorderThickness="0" Padding="0"
-                                            HorizontalAlignment="Left" Cursor="Hand">
-                                        <Panel>
-                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
-                                                <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
-                                                <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Panel>
-                                    </Button>
-                                    
-                                    <Border IsVisible="{Binding IsExpanded}"
-                                            Margin="0,6,0,0" Padding="8"
-                                            Background="{StaticResource BrushBase}"
-                                            CornerRadius="6"
-                                            BorderBrush="{StaticResource BrushBorder}"
-                                            BorderThickness="1">
-                                        <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding DetailedMessage}"
-                                                       FontSize="11"
-                                                       Foreground="{StaticResource BrushTextMuted}"
-                                                       TextWrapping="Wrap"/>
-                                        </ScrollViewer>
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,10,0,0">
+                                    <Border Classes="badge-chip">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <material:MaterialIcon Kind="LibraryMusic" Width="14" Height="14" Foreground="{StaticResource BrushAccent}"/>
+                                            <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+                                        </StackPanel>
                                     </Border>
+                                    <Border Classes="badge-chip">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <material:MaterialIcon Kind="Play" Width="14" Height="14" Foreground="{StaticResource BrushBlue}"/>
+                                            <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Classes="badge-chip">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <material:MaterialIcon Kind="Star" Width="14" Height="14" Foreground="{StaticResource BrushAmber}"/>
+                                            <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <ItemsControl ItemsSource="{Binding Badges}" IsVisible="{Binding HasBadges}" Margin="0,6,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:UserProfileViewModel+ProfileBadge">
+                                            <Border Classes="badge-chip" Margin="0,0,6,6" ToolTip.Tip="{Binding Description}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <material:MaterialIcon Kind="{Binding Icon}" Width="14" Height="14"
+                                                                           Foreground="{Binding ColorHex}"/>
+                                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource BrushTextSecondary}"
+                                                               FontSize="{DynamicResource FontSizeSm}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,12,0,0">
+                                    <TextBlock Text="{loc:Loc Profile_Label_MemberSince}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{Binding MemberSince}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                </StackPanel>
+
+                                <!-- QR / share footer. FIX: now flows INSIDE the identity stack
+                                     (was Bottom-aligned in the Grid, which overlapped the stat
+                                     chips whenever the card height was constrained). -->
+                                <StackPanel Spacing="10" Margin="0,16,0,4"
+                                            IsVisible="{Binding TrackSharingEnabled}">
+                                    <Border Height="1" Background="{StaticResource BrushBorder}"/>
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="6"
+                                                HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <Image x:Name="QrImage" Source="{Binding ShareQrBitmap}"
+                                                   Width="92" Height="92" Stretch="Uniform"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                            <TextBlock Text="SCAN TO CONNECT IN NULLWAVE" Foreground="{StaticResource BrushTextMuted}"
+                                                       FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding ShareCode}" Foreground="{StaticResource BrushAccent}"
+                                                       FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeSm}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding ShareString}" Foreground="{StaticResource BrushTextMuted}"
+                                                       FontSize="9" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ShareString}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                                                <Button Classes="ghost" Padding="6,2" Command="{Binding CopyShareStringCommand}"
+                                                        ToolTip.Tip="Copy share string (Ctrl+E)">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <material:MaterialIcon Kind="ContentCopy" Width="12" Height="12"/>
+                                                        <TextBlock Text="Copy" FontSize="{DynamicResource FontSizeXs}"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <TextBlock Text="Powered by NullWave" Foreground="{StaticResource BrushTextMuted}"
+                                                           FontSize="9" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                </Border>
+
+                <Border Grid.Column="1" Background="{StaticResource BrushBase}" Padding="0,20,20,20">
+                    <TabControl Background="Transparent" BorderThickness="0">
+                        <TabItem Header="{loc:Loc Profile_Tab_Board}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+                                <StackPanel Spacing="16">
+                                    <Button Classes="flat" Command="{Binding PlayTopTrackCommand}"
+                                            IsEnabled="{Binding HasTopTrack}"
+                                            ToolTip.Tip="{loc:Loc Profile_TopTrack_Play_Tooltip}"
+                                            HorizontalContentAlignment="Stretch">
+                                        <Border Classes="settings-card" Margin="0">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="{loc:Loc Profile_Section_TopTrack}" Classes="section-label" Margin="0"/>
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                                    <Border Grid.Column="0" Width="56" Height="56" CornerRadius="{StaticResource RadiusArt}"
+                                                            Background="{StaticResource BrushSurface}" ClipToBounds="True">
+                                                        <Panel>
+                                                            <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                   IsVisible="{Binding HasMostPlayedTrackArt}" Stretch="UniformToFill"
+                                                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                            <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding !HasMostPlayedTrackArt}"
+                                                                                   Foreground="{StaticResource BrushTextMuted}" Width="20" Height="20"
+                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Panel>
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="{Binding MostPlayedTrack}" Foreground="{StaticResource BrushTextPrimary}"
+                                                               FontSize="{DynamicResource FontSizeBody}" FontWeight="Medium"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <Border Classes="settings-card" IsVisible="{Binding HasTopArtists}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{loc:Loc Profile_Section_TopArtists}" Classes="section-label" Margin="0"/>
+                                            <ItemsControl ItemsSource="{Binding TopArtists}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <UniformGrid Columns="3" ColumnSpacing="12"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:UserProfileViewModel+ArtistStat">
+                                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                                            <Border Width="48" Height="48" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
+                                                                <material:MaterialIcon Kind="AccountMusic" Width="24" Height="24" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Name}" FontSize="{DynamicResource FontSizeSm}" FontWeight="Medium" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding PlayCount, StringFormat='{}{0} plays'}" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Insights}" Classes="section-label" Margin="0"/>
+                                            <UniformGrid Columns="3">
+                                                <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,8">
+                                                    <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                        <material:MaterialIcon Kind="TimerOutline" Width="24" Height="24" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding LongestTrack}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" FontWeight="SemiBold" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LongestTrack}"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Stat_Longest}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,8">
+                                                    <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                        <material:MaterialIcon Kind="ClockOutline" Width="24" Height="24" Foreground="{StaticResource BrushAmber}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ShortestTrack}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" FontWeight="SemiBold" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ShortestTrack}"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Stat_Shortest}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,0,8">
+                                                    <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                        <material:MaterialIcon Kind="TimerOutline" Width="24" Height="24" Foreground="{StaticResource BrushBlue}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding AverageTrackLength}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Stat_AvgLength}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="16">
+                                            <TextBlock Text="{loc:Loc Profile_Section_LibraryBreakdown}" Classes="section-label" Margin="0"/>
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Border Width="6" Height="6" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSourceYouTube}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Source_YouTube}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding YouTubePercentageText}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                                                </Grid>
+                                                <ProgressBar Value="{Binding YouTubePercentage}" Maximum="100" Height="8" Foreground="{StaticResource BrushSourceYouTube}"/>
+                                            </StackPanel>
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Border Width="6" Height="6" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSourceSoundCloud}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Source_SoundCloud}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding SoundCloudPercentageText}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                                                </Grid>
+                                                <ProgressBar Value="{Binding SoundCloudPercentage}" Maximum="100" Height="8" Foreground="{StaticResource BrushSourceSoundCloud}"/>
+                                            </StackPanel>
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Border Width="6" Height="6" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushSourceLocal}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Source_Local}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding LocalPercentageText}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                                                </Grid>
+                                                <ProgressBar Value="{Binding LocalPercentage}" Maximum="100" Height="8" Foreground="{StaticResource BrushSourceLocal}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card" IsVisible="{Binding HasTopTags}">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="{loc:Loc Profile_Section_TopTags}" Classes="section-label" Margin="0"/>
+                                            <ItemsControl ItemsSource="{Binding TopTags}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:UserProfileViewModel+TrackTag">
+                                                        <Button Classes="duo-chip"
+                                                                Command="{Binding $parent[ItemsControl].((vm:UserProfileViewModel)DataContext).FilterByTagCommand}"
+                                                                CommandParameter="{Binding Tag}"
+                                                                ToolTip.Tip="{loc:Loc Profile_Tag_FilterHint}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <material:MaterialIcon Kind="Tag" Width="12" Height="12"
+                                                                                       Foreground="{StaticResource BrushAccent2}" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Tag}" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Count, StringFormat='×{0}'}"
+                                                                           Foreground="{StaticResource BrushTextMuted}"
+                                                                           FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card" IsVisible="{Binding HasRecentlyPlayed}">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Recent}" Classes="section-label" Margin="0"/>
+                                            <ItemsControl ItemsSource="{Binding RecentlyPlayed}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:Track">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusArt}"
+                                                                    Background="{StaticResource BrushSurface}" ClipToBounds="True">
+                                                                <Panel>
+                                                                    <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                           IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                                           Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                                    <material:MaterialIcon Kind="MusicNote"
+                                                                                           IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                                                                           Foreground="{StaticResource BrushTextMuted}" Width="20" Height="20"
+                                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Panel>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Title}" FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Artist}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding LastPlayed, Converter={StaticResource RelTime}}"
+                                                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="{loc:Loc Profile_Tab_Activity}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+                                <StackPanel Spacing="16">
+                                    <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
+                                        <Grid ColumnDefinitions="Auto,12,*">
+                                            <material:MaterialIcon Kind="ClockOutline" Width="22" Height="22" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="{Binding TotalListeningTimeDisplay}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_ListeningTime_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <UniformGrid Columns="3">
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,8">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding TotalTracks}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_Tracks}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,8">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding TotalFavorites}" Foreground="{StaticResource BrushAmber}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_Favorites}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,0,8">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding TotalPlays}" Foreground="{StaticResource BrushBlue}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_Plays}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,0">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding TotalSkips}" Foreground="{StaticResource BrushRedDim}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_Skips}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14" Margin="0,0,8,0">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding CurrentStreak}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_CurrentStreak}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14">
+                                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                <TextBlock Text="{Binding LongestStreak}" Foreground="{StaticResource BrushAmber}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Profile_Stat_LongestStreak}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Taste}" Classes="section-label" Margin="0"/>
+                                            <controls:RadarChartControl Data="{Binding TasteDistribution}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Mood}" Classes="section-label" Margin="0"/>
+                                            <controls:DonutChartControl Data="{Binding MoodDistribution}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="{loc:Loc Profile_Tab_Account}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+                                <StackPanel Spacing="16">
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Account}" Classes="section-label" Margin="0"/>
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_DataLocation}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
+                                                <TextBlock Grid.Column="1" Text="~/.nullwave/" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_Uuid}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding InstallId}" FontFamily="Consolas, monospace"
+                                                           FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushTextMuted}"/>
+                                                <Button Grid.Column="2" Classes="icon-btn" Width="24" Height="24"
+                                                        Command="{Binding CopyInstallIdCommand}"
+                                                        ToolTip.Tip="{loc:Loc Profile_Account_CopyId_Tooltip}">
+                                                    <material:MaterialIcon Kind="ContentCopy" Width="14" Height="14"/>
+                                                </Button>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="settings-card">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="{loc:Loc Profile_Section_Sharing}" Classes="section-label" Margin="0"/>
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                                                    <TextBlock Text="{loc:Loc Profile_Sharing_Toggle}" Foreground="{StaticResource BrushTextPrimary}"
+                                                               FontSize="{DynamicResource FontSizeBody}" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{loc:Loc Profile_Sharing_ToggleDesc}" Foreground="{StaticResource BrushTextMuted}"
+                                                               FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding TrackSharingEnabled}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Connect / import a friend's share string -->
+                                    <Border Classes="settings-card" IsVisible="{Binding TrackSharingEnabled}">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="Connect With A Code" Classes="section-label" Margin="0"/>
+                                            <TextBlock Text="Paste a friend's NullWave share string (nullwave://p/... or NW1....) to load their taste profile and see your overlap."
+                                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBox x:Name="ImportShareBox" PlaceholderText="nullwave://p/NW1...."
+                                                         FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}"/>
+                                                <Button Grid.Column="1" Classes="primary" Content="Import" Click="OnImportShareClicked"
+                                                        VerticalAlignment="Stretch"/>
+                                            </Grid>
+                                            <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="12,14"
+                                                    IsVisible="{Binding LastGuest, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="{Binding GuestOverlapText}" Foreground="{StaticResource BrushTextPrimary}"
+                                                               FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                                                    <Button Classes="primary" Command="{Binding QueueMatchingTracksCommand}" HorizontalAlignment="Left">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <material:MaterialIcon Kind="PlaylistPlus" Width="16" Height="16"/>
+                                                            <TextBlock Text="Queue Matching Tracks"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Button Classes="primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnExportProfileClicked">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="Export" Width="16" Height="16"/>
+                                            <TextBlock Text="{loc:Loc Profile_Export_Button}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Border>
+            </Grid>
+        </SplitView>
+
+        <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16" ZIndex="99"
+                Background="{StaticResource BrushGreen}" CornerRadius="{StaticResource RadiusFull}"
+                Padding="12,6" IsVisible="{Binding ShowSaveToast}" IsHitTestVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <material:MaterialIcon Kind="Check" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ToastMessage}" Foreground="White" FontSize="{DynamicResource FontSizeBody}"/>
+            </StackPanel>
+        </Border>
+
+        <controls:ToastOverlayView VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,24" ZIndex="99"/>
     </Panel>
 </Window>

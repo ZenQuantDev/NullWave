@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:NullWave.Views.Controls"
+             x:Class="NullWave.Views.Controls.DonutChartControl"
+             x:DataType="local:DonutChartControl">
+    <Grid Width="260" Height="260">
+        <Canvas x:Name="ChartCanvas" Width="260" Height="260"/>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+            <TextBlock Text="{Binding DominantMood}" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{DynamicResource BrushTextPrimary}"/>
+            <TextBlock Text="Dominant" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

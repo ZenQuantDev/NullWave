@@ -6,6 +6,7 @@
         xmlns:services="using:NullWave.Services"
         xmlns:models="using:NullWave.Models"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
@@ -21,6 +22,7 @@
         <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
         <converters:BoolNegationConverter x:Key="BoolNegation"/>
     </Window.Resources>
+
     <Window.Styles>
         <Style Selector="Border.success, Border.error, Border.warning, Border.info">
             <Setter Property="Transitions">
@@ -42,25 +44,31 @@
             <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
         </Style>
     </Window.Styles>
+
     <Panel>
         <DockPanel>
             <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
             <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
+            
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{Binding SidebarWidth}" MaxWidth="350"/>
+                    <ColumnDefinition Width="Auto" MaxWidth="350"/>
                     <ColumnDefinition Width="*" MinWidth="700"/>
-                    <ColumnDefinition Width="{Binding ActiveRightPanelWidth}"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
+
+                <!-- LEFT: Sidebar -->
                 <controls:SidebarView Grid.Column="0"/>
-                              
+
+                <!-- CENTER: Main Content -->
                 <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                    <!-- Top Toolbar -->
                     <Border Grid.Row="0" Background="{StaticResource BrushSurface}"
                             BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8">
                         <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
-                            <TextBox Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
-                                     PlaceholderText="Search (e.g., 'artist:tame impala', 'is:favorite', or 'ai:chill hip-hop')..."
+                            <!-- FIX: Added x:Name="GlobalSearchBox" for Ctrl+L focus targeting -->
+                            <TextBox x:Name="GlobalSearchBox" Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
+                                     PlaceholderText="{loc:Loc MainWindow_Search_Placeholder}"
                                      VerticalAlignment="Center">
                                 <TextBox.InnerLeftContent>
                                     <materialIcons:MaterialIcon Kind="Magnify" Width="16" Height="16" Margin="8,0,0,0"
@@ -68,20 +76,20 @@
                                 </TextBox.InnerLeftContent>
                                 <TextBox.InnerRightContent>
                                     <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,4,0">
-                                        <Button Classes="icon-btn sm" ToolTip.Tip="Search syntax help">
+                                        <Button Classes="icon-btn sm" ToolTip.Tip="{loc:Loc MainWindow_Search_HelpTooltip}">
                                             <materialIcons:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                             <Button.Flyout>
                                                 <Flyout Placement="BottomEdgeAlignedRight">
                                                     <StackPanel Spacing="4" MaxWidth="340">
-                                                        <TextBlock FontWeight="SemiBold" Text="Smart search"/>
+                                                        <TextBlock FontWeight="SemiBold" Text="{loc:Loc MainWindow_Search_FlyoutTitle}"/>
                                                         <TextBlock TextWrapping="Wrap" FontSize="12"
-                                                                   Text="artist:/a: · title:/t: · source:/s: · tag:/genre: · is:favorite · prefix with - to exclude"/>
+                                                                   Text="{loc:Loc MainWindow_Search_FlyoutDesc}"/>
                                                     </StackPanel>
                                                 </Flyout>
                                             </Button.Flyout>
                                         </Button>
                                         <Button Classes="icon-btn sm" Command="{Binding ClearGlobalSearchCommand}"
-                                                IsVisible="{Binding HasGlobalSearchQuery}" ToolTip.Tip="Clear search">
+                                                IsVisible="{Binding HasGlobalSearchQuery}" ToolTip.Tip="{loc:Loc MainWindow_Search_ClearTooltip}">
                                             <materialIcons:MaterialIcon Kind="Close" Width="14" Height="14"/>
                                         </Button>
                                     </StackPanel>
@@ -97,152 +105,68 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
+
                             <Button Grid.Column="4" Classes="icon-btn" Command="{Binding ToolbarToggleSortDirectionCommand}"
-                                    ToolTip.Tip="Toggle sort direction" VerticalAlignment="Center">
+                                    ToolTip.Tip="{loc:Loc MainWindow_SortDirection_Tooltip}" VerticalAlignment="Center">
                                 <materialIcons:MaterialIcon Kind="{Binding ToolbarSortAscending, Converter={StaticResource BoolToSortIcon}}"
                                                             Width="18" Height="18"/>
                             </Button>
-                            <SplitButton Grid.Column="6" Classes="primary" ToolTip.Tip="Add a track"
-                                         VerticalAlignment="Center">
+
+                            <Button Grid.Column="6" Classes="primary" ToolTip.Tip="{loc:Loc MainWindow_AddTrack_Tooltip}" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <materialIcons:MaterialIcon Kind="Plus" Width="16" Height="16"/>
-                                    <TextBlock Text="Add Track"/>
+                                    <TextBlock Text="{loc:Loc MainWindow_AddTrack_Button}"/>
                                 </StackPanel>
-                                <SplitButton.Flyout>
+                                <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Spacing="10" Width="340" Margin="4">
-                                            <TextBlock FontWeight="SemiBold" Text="Add from URL"/>
+                                        <StackPanel Spacing="12" Width="380" Margin="4">
+                                            <TextBlock FontWeight="SemiBold" Text="{loc:Loc MainWindow_AddFromUrl_Title}"/>
                                             <TextBox Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                                                     PlaceholderText="Paste a YouTube, SoundCloud, or Spotify link..."/>
-                                            <Button Classes="primary" Content="Add" Command="{Binding Input.AddTrackCommand}"
+                                                     PlaceholderText="{loc:Loc MainWindow_AddFromUrl_Placeholder}"/>
+                                            <Button Classes="primary" Content="{loc:Loc MainWindow_AddFromUrl_AddButton}" Command="{Binding Input.AddTrackCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                                            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                                            <Button Classes="ghost" Content="Choose local file..." Command="{Binding Input.AddLocalFileCommand}"
+                                            <Button Classes="ghost" Content="{loc:Loc MainWindow_AddLocalFile_Button}" Command="{Binding Input.AddLocalFileCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
-                                            <Button Classes="ghost" Content="Import a folder..." Command="{Binding Import.ImportFolderCommand}"
+                                            <Button Classes="ghost" Content="{loc:Loc MainWindow_ImportFolder_Button}" Command="{Binding Import.ImportFolderCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+                                            <Border Height="1" Background="{StaticResource BrushBorder}"/>
+                                            <controls:DownloadManagerView DataContext="{Binding DownloadManager}"/>
                                         </StackPanel>
                                     </Flyout>
-                                </SplitButton.Flyout>
-                            </SplitButton>
+                                </Button.Flyout>
+                            </Button>
                         </Grid>
                     </Border>
 
+                    <!-- Unified List Views -->
                     <Grid Grid.Row="1">
-                        <controls:TrackListView IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
+                        <controls:TrackListView DataContext="{Binding Library}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
+                        <controls:TrackListView DataContext="{Binding RadioLibrary}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Radio}"/>
+                        <controls:TrackListView DataContext="{Binding AudiobookLibrary}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Audiobooks}"/>
                         <controls:PlaylistsView IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
                     </Grid>
                 </Grid>
-                
-                <controls:TrackDetailView Grid.Column="2" IsVisible="{Binding Detail.IsOpen}"/>
-                <controls:QueueView Grid.Column="2" IsVisible="{Binding Queue.IsOpen}"/>
+
+                <!-- RIGHT: Detail / Queue Panel (Width Transition) -->
+                <Border Grid.Column="2"
+                        Width="{Binding ActiveRightPanelWidth}"
+                        ClipToBounds="True"
+                        Background="{StaticResource BrushSurface}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="QuadraticEaseOut"/>
+                        </Transitions>
+                    </Border.Transitions>
+                    <Panel>
+                        <controls:TrackDetailView IsVisible="{Binding Detail.IsOpen}"/>
+                        <controls:QueueView IsVisible="{Binding Queue.IsOpen}"/>
+                    </Panel>
+                </Border>
             </Grid>
         </DockPanel>
-        
-        <!-- THE TOAST OVERLAY LAYER (visible only while Settings is NOT the active host) -->
-        <StackPanel DataContext="{x:Static services:ToastService.Instance}"
-                    x:DataType="services:ToastService"
-                    IsVisible="{Binding SettingsHostActive, Converter={StaticResource BoolNegation}}"
-                    VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,24">
-            <Button Content="Dismiss all" Classes="ghost" Padding="8,4"
-                    HorizontalAlignment="Right" Margin="0,0,0,6"
-                    IsVisible="{Binding ShowDismissAll}"
-                    Command="{Binding DismissAllCommand}"/>
-            <ItemsControl ItemsSource="{Binding ActiveToasts}" IsHitTestVisible="True">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Spacing="8" VerticalAlignment="Bottom"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:LiveNotification">
-                        <Border Width="360" Margin="0,2"
-                                Background="{StaticResource BrushSurface}"
-                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
-                                CornerRadius="12" BoxShadow="0 4 20 0 #55000000" ClipToBounds="True"
-                                PointerEntered="OnToastPointerEntered"
-                                PointerExited="OnToastPointerExited">
-                            <Border.Styles>
-                                <Style Selector="Border">
-                                    <Style.Animations>
-                                        <Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
-                                            <KeyFrame KeyTime="0:0:0">
-                                                <Setter Property="Opacity" Value="0"/>
-                                                <Setter Property="TranslateTransform.Y" Value="15"/>
-                                            </KeyFrame>
-                                            <KeyFrame KeyTime="0:0:0.25">
-                                                <Setter Property="Opacity" Value="1"/>
-                                                <Setter Property="TranslateTransform.Y" Value="0"/>
-                                            </KeyFrame>
-                                        </Animation>
-                                    </Style.Animations>
-                                </Style>
-                            </Border.Styles>
-                            <Grid ColumnDefinitions="Auto, *">
-                                <Border Width="5" VerticalAlignment="Stretch" Background="{Binding NotificationColor}"/>
-                                <StackPanel Grid.Column="1" Margin="14,12" Spacing="6">
-                                    <Grid ColumnDefinitions="Auto, *, Auto">
-                                        <Path Grid.Column="0" Width="15" Height="15" Margin="0,0,8,0"
-                                            Fill="{Binding NotificationColor}" Data="{Binding IconData}"
-                                            Stretch="Uniform" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
-                                                Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"
-                                                TextTrimming="CharacterEllipsis"/>
-                                        <Button Grid.Column="2" Command="{Binding CloseCommand}"
-                                                Background="Transparent" BorderThickness="0" Padding="4"
-                                                MinWidth="0" MinHeight="0" Cursor="Hand">
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                    <Setter Property="Opacity" Value="0.7"/>
-                                                </Style>
-                                            </Button.Styles>
-                                            <materialIcons:MaterialIcon Kind="Close" Width="14" Height="14"
-                                                                        Foreground="{StaticResource BrushTextMuted}"/>
-                                        </Button>
-                                    </Grid>
-                                    <TextBlock Text="{Binding Message}" FontSize="12"
-                                            Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"
-                                            Margin="23,0,0,2"/>
-                                    <ProgressBar IsVisible="{Binding ShowProgressBar}" Value="{Binding ProgressValue}"
-                                                IsIndeterminate="{Binding IsIndeterminate}" Height="4" Margin="23,2,0,2"
-                                                CornerRadius="2" Background="{StaticResource BrushBorder}"
-                                                Foreground="{Binding NotificationColor}"/>
-                                    <Button IsVisible="{Binding ShowActionButton}" Command="{Binding ActionCommand}"
-                                            Content="{Binding ActionButtonText}" HorizontalAlignment="Right"
-                                            FontSize="{DynamicResource FontSizeXs}" Padding="10,4"
-                                            Background="{StaticResource BrushSurface2}"
-                                            Foreground="{StaticResource BrushTextPrimary}" CornerRadius="6"/>
-                                    <StackPanel IsVisible="{Binding HasDetailedMessage}" Margin="23,2,0,0">
-                                        <Button Command="{Binding ToggleExpandCommand}"
-                                                Background="Transparent" BorderThickness="0" Padding="0"
-                                                HorizontalAlignment="Left" Cursor="Hand">
-                                            <Panel>
-                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
-                                                    <materialIcons:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Show details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
-                                                    <materialIcons:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Hide details" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Panel>
-                                        </Button>
-                                        <Border IsVisible="{Binding IsExpanded}" Margin="0,6,0,0" Padding="8"
-                                                Background="{StaticResource BrushBase}" CornerRadius="6"
-                                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
-                                            <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
-                                                <TextBlock Text="{Binding DetailedMessage}" FontSize="11"
-                                                        Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
-                                            </ScrollViewer>
-                                        </Border>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
+
+        <!-- SHARED TOAST OVERLAY -->
+        <controls:ToastOverlayView VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,24"
+                                   IsVisible="{Binding Source={x:Static services:ToastService.Instance}, Path=SettingsHostActive, Converter={StaticResource BoolNegation}}"/>
     </Panel>
 </Window>

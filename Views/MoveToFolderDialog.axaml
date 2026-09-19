@@ -2,15 +2,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:views="using:NullWave.Views"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.MoveToFolderDialog"
-        Title="Move to Folder" Width="360" Height="400"
+        Title="{loc:Loc Dialog_MoveToFolder_Title}" Width="360" Height="400"
         WindowStartupLocation="CenterOwner" CanResize="False"
         Background="{StaticResource BrushBase}">
     <DockPanel Margin="16">
-        <TextBlock DockPanel.Dock="Top" Classes="section-label" Text="MOVE TO FOLDER" Margin="0,0,0,8"/>
+        <TextBlock DockPanel.Dock="Top" Classes="section-label" Text="{loc:Loc Dialog_MoveToFolder_Section}" Margin="0,0,0,8"/>
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,8,Auto,8,Auto" Margin="0,10,0,0">
-            <Button Grid.Column="2" Classes="secondary" Content="Cancel" Click="OnCancel" Padding="16,8"/>
-            <Button Grid.Column="4" Classes="primary" Content="Move" Click="OnOk" Padding="16,8"/>
+            <Button Grid.Column="2" Classes="secondary" Content="{loc:Loc Dialog_Cancel}" Click="OnCancel" Padding="16,8"/>
+            <Button Grid.Column="4" Classes="primary" Content="{loc:Loc Dialog_Move}" Click="OnOk" Padding="16,8"/>
         </Grid>
         <Border Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1" CornerRadius="{StaticResource RadiusMd}">

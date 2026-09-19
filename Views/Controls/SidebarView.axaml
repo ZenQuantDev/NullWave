@@ -3,39 +3,47 @@
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:models="using:NullWave.Models"
         xmlns:helpers="using:NullWave.Helpers"
+        xmlns:services="using:NullWave.Services"
         xmlns:sys="using:System"
         xmlns:attached="using:NullWave.Helpers.Attached"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.SidebarView"
         x:DataType="vm:MainViewModel"
         Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,0,1,0"
+        Width="{Binding SidebarWidth}"
+        ClipToBounds="True"
         Classes.collapsed="{Binding !IsSidebarExpanded}"
         PointerMoved="OnRowDragPointerMoved"
         PointerReleased="OnRowDragPointerReleased">
-
+    <Border.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Width" Duration="0:0:0.18" Easing="QuadraticEaseOut"/>
+        </Transitions>
+    </Border.Transitions>
     <Border.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <converters:AvatarSourceConverter x:Key="AvatarSource"/>
         <converters:BoolToRotateTransformConverter x:Key="BoolToRotate"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
+        <converters:BoolToBrushConverter x:Key="StarBrush" TrueBrush="{StaticResource BrushStarOn}" FalseBrush="{StaticResource BrushStarOff}"/>
         <converters:GuidEqualsConverter x:Key="GuidEquals"/>
+        <converters:BoolNegationConverter x:Key="BoolNegation"/>
 
-        <!-- Shared playlist row: ONE clickable row + overlay hover actions -->
         <DataTemplate x:Key="PlaylistRowTemplate" x:DataType="models:Playlist">
             <Border Classes="playlist-row" Tag="{Binding}"
                     DoubleTapped="OnPlaylistRowDoubleTapped"
                     Cursor="Hand">
                 <Border.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Play" Click="OnPlaylistMenuPlay"/>
-                        <MenuItem Header="Add to queue" Click="OnPlaylistMenuQueue"/>
-                        <MenuItem Header="Move to Folder..." Click="OnPlaylistMenuMoveToFolder"/>
+                        <MenuItem Header="{loc:Loc ContextMenu_Play}" Click="OnPlaylistMenuPlay"/>
+                        <MenuItem Header="{loc:Loc ContextMenu_AddToQueue}" Click="OnPlaylistMenuQueue"/>
+                        <MenuItem Header="{loc:Loc ContextMenu_MoveToFolder}" Click="OnPlaylistMenuMoveToFolder"/>
                         <Separator/>
-                        <MenuItem Header="Pin to sidebar" Click="OnPlaylistMenuPin"/>
+                        <MenuItem Header="{loc:Loc ContextMenu_PinToSidebar}" Click="OnPlaylistMenuPin"/>
                     </ContextMenu>
                 </Border.ContextMenu>
                 <attached:PseudoClass.Active>
@@ -44,10 +52,25 @@
                         <Binding Path="Id"/>
                     </MultiBinding>
                 </attached:PseudoClass.Active>
-                <Grid ColumnDefinitions="*,Auto">
-                    <Button Grid.Column="0" Classes="nav" ToolTip.Tip="{Binding Name}"
+                
+                <Grid>
+                    <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
+                    <Button Classes="nav sidebar-nav"
                             Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).NavigateToPlaylistCommand}"
                             CommandParameter="{Binding}" HorizontalAlignment="Stretch">
+                        <ToolTip.Tip>
+                            <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}" 
+                                    BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" 
+                                               Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding Tracks.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                        <TextBlock Text="{loc:Loc Sidebar_Label_Tracks}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </ToolTip.Tip>
                         <Button.Styles>
                             <Style Selector="Button /template/ ContentPresenter">
                                 <Setter Property="Background" Value="Transparent"/>
@@ -73,18 +96,21 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1"
                                         IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
                                 <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Tracks.Count, StringFormat='{}{0} tracks'}"
-                                           Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{Binding Tracks.Count}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc Sidebar_Label_Tracks}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Button>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"
                                 IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
-                        <Button Classes="sidebar-action" ToolTip.Tip="Play all"
+                        <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_PlayAll}"
                                 Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).PlayPlaylistCommand}" CommandParameter="{Binding}">
                             <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="{StaticResource BrushAccent}"/>
                         </Button>
-                        <Button Classes="sidebar-action" ToolTip.Tip="Pin to sidebar"
+                        <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Pin}"
                                 Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.PinPlaylistCommand}" CommandParameter="{Binding}">
                             <material:MaterialIcon Kind="PinOutline" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"/>
                         </Button>
@@ -92,36 +118,25 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
+        <DataTemplate x:Key="FolderChildRowTemplate" x:DataType="models:Playlist">
+            <Grid ColumnDefinitions="20,*">
+                <Border Grid.Column="0" Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                        Background="{StaticResource BrushBorder}"/>
+                <Border Grid.Column="0" Height="1" Width="10" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="{StaticResource BrushBorder}"/>
+                <ContentControl Grid.Column="1" Content="{Binding}"
+                                ContentTemplate="{StaticResource PlaylistRowTemplate}"/>
+            </Grid>
+        </DataTemplate>
     </Border.Resources>
 
     <Border.Styles>
         <Style Selector="Border.art-tile">
             <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BoxShadow" Value="0 2 6 0 #40000000"/>
+            <Setter Property="BoxShadow" Value="0 0 0 0 Transparent"/>
         </Style>
-
-        <Style Selector="Button.nav">
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-            <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}"/>
-            <Setter Property="Padding" Value="{DynamicResource NavPadding}"/>
-            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Margin" Value="0,1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
-            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
-        </Style>
-        <Style Selector="Button.nav.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
-            <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
-        </Style>
-
         <Style Selector="Button.sidebar-action">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -131,29 +146,30 @@
             <Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions></Setter>
         </Style>
         <Style Selector="Border.playlist-row:pointerover Button.sidebar-action"><Setter Property="Opacity" Value="1"/></Style>
-
         <Style Selector="Border.playlist-row">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
             <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Transitions"><Transitions><BrushTransition Property="Background" Duration="0:0:0.15"/></Transitions></Setter>
         </Style>
         <Style Selector="Border.playlist-row:pointerover">
-            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
-            <Setter Property="BoxShadow" Value="0 1 4 0 #33000000"/>
         </Style>
         <Style Selector="Border.playlist-row.active">
             <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
-            <Setter Property="BoxShadow" Value="0 2 8 0 #33000000"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
         <Style Selector="Border.playlist-row.drop-target">
             <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
-
+        <Style Selector="Border.playlist-row.dragging">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
         <Style Selector="Border.collapsed ScrollViewer">
             <Setter Property="Padding" Value="6,4"/>
         </Style>
@@ -173,19 +189,14 @@
         <Style Selector="Border.collapsed Border.active-bar">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
-
-        <!-- ═══ SLIM SCROLLBARS: subtle, revealed on hover ═══ -->
-        <Style Selector="ScrollBar">
-            <Setter Property="Opacity" Value="0.3"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                </Transitions>
-            </Setter>
+        
+        <!-- Tooltips ONLY in collapsed rail mode: when expanded, the labels are
+             already visible, so a hover box is redundant noise. -->
+        <Style Selector="Button.nav">
+            <Setter Property="ToolTip.ShowDelay" Value="3600000"/>
         </Style>
-        <Style Selector="ScrollViewer:pointerover ScrollBar">
-            <Setter Property="Opacity" Value="1"/>
+        <Style Selector="Border.collapsed Button.nav">
+            <Setter Property="ToolTip.ShowDelay" Value="200"/>
         </Style>
     </Border.Styles>
 
@@ -195,38 +206,28 @@
             <Panel>
                 <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsSidebarExpanded}">
                     <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True"
-                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 3 10 0 #55000000">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="{DynamicResource ColorAccent}" Offset="0"/>
-                                <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 3 10 0 #55000000"
+                            Background="{StaticResource BrushAccentGradient}">
                         <material:MaterialIcon Kind="Waveform" Foreground="White" Width="24" Height="24"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Grid.Column="1" Text="NullWave" Margin="12,0,0,0"
                                Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXl}"
                                FontWeight="Black" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" Classes="icon-btn" Command="{Binding ToggleSidebarCollapsedCommand}"
-                            ToolTip.Tip="Collapse sidebar (Ctrl+B)" VerticalAlignment="Center">
+                            ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Collapse}" VerticalAlignment="Center">
                         <material:MaterialIcon Kind="ChevronLeft" Width="18" Height="18"/>
                     </Button>
                 </Grid>
                 <Button HorizontalAlignment="Center" VerticalAlignment="Center"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        Command="{Binding ToggleSidebarCollapsedCommand}" ToolTip.Tip="Expand sidebar (Ctrl+B)"
+                        Command="{Binding ToggleSidebarCollapsedCommand}" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Expand}"
                         IsVisible="{Binding !IsSidebarExpanded}">
                     <Border Width="40" Height="40" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True"
-                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 3 10 0 #55000000">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="{DynamicResource ColorAccent}" Offset="0"/>
-                                <GradientStop Color="{DynamicResource ColorAccent2}" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 3 10 0 #55000000"
+                            Background="{StaticResource BrushAccentGradient}">
                         <material:MaterialIcon Kind="Waveform" Foreground="White" Width="24" Height="24"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </Button>
             </Panel>
@@ -236,116 +237,153 @@
 
         <!-- Bottom: profile / rail -->
         <Border DockPanel.Dock="Bottom" Background="{StaticResource BrushBase}"
-                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="8,10">
-            <Panel>
-                <Grid IsVisible="{Binding IsSidebarExpanded}" ColumnDefinitions="*,Auto">
-                    <Button Grid.Column="0" Command="{Binding OpenProfileCommand}" HorizontalContentAlignment="Stretch"
-                            Padding="0" Background="Transparent" BorderThickness="0" Cursor="Hand">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
-                                <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
-                            </Style>
-                        </Button.Styles>
-                        <Grid ColumnDefinitions="40,8,*" Margin="8,4">
-                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}"
+                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="8,6,8,10">
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,0,0,0"
+                            IsVisible="{Binding IsSidebarExpanded}">
+                    <TextBlock Text="{Binding Library.Tracks.Count}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                    <TextBlock Text="{loc:Loc Sidebar_Label_Tracks}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                </StackPanel>
+                <Panel>
+                    <Grid IsVisible="{Binding IsSidebarExpanded}" ColumnDefinitions="*,Auto">
+                        <Button Grid.Column="0" Command="{Binding OpenProfileCommand}" HorizontalContentAlignment="Stretch"
+                                Padding="0" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+                                    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+                                </Style>
+                            </Button.Styles>
+                            <Grid ColumnDefinitions="40,8,*" Margin="8,4">
+                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}"
+                                        Background="{StaticResource BrushAccentDim}" ClipToBounds="True"
+                                        BorderBrush="{StaticResource BrushAccent}"
+                                        BorderThickness="{Binding Source={x:Static services:ThemeService.Instance}, Path=AvatarFrameThickness}"
+                                        BoxShadow="0 2 6 0 #40000000">
+                                    <Panel>
+                                        <Image Source="{Binding Profile.Avatar}"
+                                               IsVisible="{Binding Profile.HasAvatar}" Stretch="UniformToFill"
+                                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                        <material:MaterialIcon Kind="Account" IsVisible="{Binding !Profile.HasAvatar}"
+                                                               Foreground="{StaticResource BrushAccent}" Width="20" Height="20"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Panel>
+                                </Border>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="{Binding Profile.Username}" Foreground="{StaticResource BrushTextPrimary}"
+                                               FontSize="{DynamicResource FontSizeMd}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Profile.Bio}" Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                        <Button Grid.Column="1" Classes="icon-btn" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Settings}"
+                                Command="{Binding OpenSettingsCommand}" Margin="4,0,0,0">
+                            <material:MaterialIcon Kind="Cog" Width="20" Height="20"/>
+                        </Button>
+                    </Grid>
+                    <StackPanel IsVisible="{Binding !IsSidebarExpanded}" Spacing="8" HorizontalAlignment="Center">
+                        <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Settings}" Command="{Binding OpenSettingsCommand}" HorizontalAlignment="Center">
+                            <material:MaterialIcon Kind="Cog" Width="20" Height="20"/>
+                        </Button>
+                        <Button ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Profile}" Command="{Binding OpenProfileCommand}"
+                                Padding="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand">
+                            <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}"
                                     Background="{StaticResource BrushAccentDim}" ClipToBounds="True"
-                                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 2 6 0 #40000000">
+                                    BorderBrush="{StaticResource BrushAccent}"
+                                    BorderThickness="{Binding Source={x:Static services:ThemeService.Instance}, Path=AvatarFrameThickness}"
+                                    BoxShadow="0 2 6 0 #40000000">
                                 <Panel>
-                                    <Image Source="{Binding Profile.Avatar, Converter={StaticResource AvatarSource}}"
-                                           IsVisible="{Binding Profile.HasAvatar}" Stretch="UniformToFill"/>
+                                    <Image Source="{Binding Profile.Avatar}"
+                                           IsVisible="{Binding Profile.HasAvatar}" Stretch="UniformToFill"
+                                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                     <material:MaterialIcon Kind="Account" IsVisible="{Binding !Profile.HasAvatar}"
-                                            Foreground="{StaticResource BrushAccent}" Width="20" Height="20"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                           Foreground="{StaticResource BrushAccent}" Width="18" Height="18"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Panel>
                             </Border>
-                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Text="{Binding Profile.Username}" Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeMd}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Profile.Bio}" Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
-                    <Button Grid.Column="1" Classes="icon-btn" VerticalAlignment="Center" ToolTip.Tip="Settings"
-                            Command="{Binding OpenSettingsCommand}" Margin="4,0,0,0">
-                        <material:MaterialIcon Kind="Cog" Width="20" Height="20"/>
-                    </Button>
-                </Grid>
-                <StackPanel IsVisible="{Binding !IsSidebarExpanded}" Spacing="8" HorizontalAlignment="Center">
-                    <Button Classes="icon-btn" ToolTip.Tip="Settings" Command="{Binding OpenSettingsCommand}" HorizontalAlignment="Center">
-                        <material:MaterialIcon Kind="Cog" Width="20" Height="20"/>
-                    </Button>
-                    <Button ToolTip.Tip="Profile" Command="{Binding OpenProfileCommand}"
-                            Padding="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0" Cursor="Hand">
-                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusFull}"
-                                Background="{StaticResource BrushAccentDim}" ClipToBounds="True"
-                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" BoxShadow="0 2 6 0 #40000000">
-                            <Panel>
-                                <Image Source="{Binding Profile.Avatar, Converter={StaticResource AvatarSource}}"
-                                       IsVisible="{Binding Profile.HasAvatar}" Stretch="UniformToFill"/>
-                                <material:MaterialIcon Kind="Account" IsVisible="{Binding !Profile.HasAvatar}"
-                                        Foreground="{StaticResource BrushAccent}" Width="18" Height="18"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Panel>
-                        </Border>
-                    </Button>
-                </StackPanel>
-            </Panel>
-        </Border>
-
-        <Border DockPanel.Dock="Bottom" Padding="16,6" IsVisible="{Binding IsSidebarExpanded}">
-            <TextBlock Text="{Binding Library.Tracks.Count, StringFormat='{}{0} tracks'}"
-                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </Button>
+                    </StackPanel>
+                </Panel>
+            </StackPanel>
         </Border>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="8,4,10,4">
             <StackPanel Spacing="0">
-                <!-- LIBRARY header -->
                 <Grid ColumnDefinitions="*,Auto,Auto" Margin="4,0,4,12" IsVisible="{Binding IsSidebarExpanded}">
-                    <TextBlock Grid.Column="0" Classes="section-label" Text="YOUR LIBRARY" Margin="0" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" Classes="icon-btn" ToolTip.Tip="Create new" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0" Classes="section-label" Text="{loc:Loc Sidebar_Section_YourLibrary}" Margin="0" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="icon-btn" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_CreateNew}" VerticalAlignment="Center">
                         <material:MaterialIcon Kind="Plus" Width="18" Height="18"/>
                         <Button.Flyout>
                             <Flyout Placement="RightEdgeAlignedTop">
                                 <StackPanel Spacing="2" MinWidth="170">
-                                    <TextBlock Classes="section-label" Text="CREATE NEW" Margin="4,2,4,4"/>
+                                    <TextBlock Classes="section-label" Text="{loc:Loc Sidebar_Section_CreateNew}" Margin="4,2,4,4"/>
                                     <Button Classes="flyout-item" Command="{Binding Playlist.CreatePlaylistCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <material:MaterialIcon Kind="PlaylistMusic" Width="18" Height="18" Foreground="{StaticResource BrushAccent}"/>
-                                            <TextBlock Text="Playlist" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{loc:Loc Sidebar_Menu_Playlist}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Classes="flyout-item" Command="{Binding Playlist.CreateFolderCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <material:MaterialIcon Kind="Folder" Width="18" Height="18" Foreground="{StaticResource BrushAmber}"/>
-                                            <TextBlock Text="Folder" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{loc:Loc Sidebar_Menu_Folder}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
                     </Button>
+
                     <Button Grid.Column="2" Classes="icon-btn" Command="{Binding ToggleCustomizeSidebarCommand}"
-                            ToolTip.Tip="Reorder / drag" VerticalAlignment="Center" Margin="2,0,0,0">
-                        <material:MaterialIcon Kind="Pencil" Width="18" Height="18"/>
+                            ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Reorder}" VerticalAlignment="Center" Margin="2,0,0,0">
+                        <material:MaterialIcon Kind="{Binding IsCustomizingSidebar, Converter={StaticResource BoolToIconKind}, ConverterParameter='Check, Pencil'}" Width="18" Height="18"/>
                     </Button>
                 </Grid>
 
-                <!-- Pinned items -->
                 <ItemsControl ItemsSource="{Binding Nav.Items}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:NavItem">
                             <Border Classes="playlist-row" Classes.active="{Binding IsActive}"
+                                    Classes.dragging="{Binding IsDragging}"
+                                    Classes.drop-target="{Binding IsDropTarget}"
                                     Tag="{Binding}"
                                     DoubleTapped="OnNavItemDoubleTapped"
+                                    PointerPressed="OnRowDragPointerPressed"
+                                    DragDrop.AllowDrop="True"
+                                    DragDrop.DragEnter="OnNavItemDragEnter"
+                                    DragDrop.DragLeave="OnNavItemDragLeave"
+                                    DragDrop.Drop="OnNavItemDrop"
                                     Cursor="Hand">
+
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{loc:Loc ContextMenu_Play}" Click="OnNavItemMenuPlay"/>
+                                        <MenuItem Header="{loc:Loc ContextMenu_AddToQueue}" Click="OnNavItemMenuQueue"/>
+                                        <Separator/>
+                                        <MenuItem Header="{loc:Loc ContextMenu_Unpin}" Click="OnNavItemMenuUnpin"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <Border Grid.Column="0" Classes="active-bar" Width="3" Margin="0,6" CornerRadius="0,2,2,0"
                                             Background="{DynamicResource BrushAccent}" IsVisible="{Binding IsActive}"/>
-                                    <Button Grid.Column="1" Classes="nav" Classes.active="{Binding IsActive}" Command="{Binding Command}" ToolTip.Tip="{Binding Label}"
+
+                                    <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
+                                    <Button Grid.Column="1" Classes="nav sidebar-nav" Classes.active="{Binding IsActive}" Command="{Binding Command}"
                                             HorizontalAlignment="Stretch">
+                                        <ToolTip.Tip>
+                                            <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}" 
+                                                    BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="13" 
+                                                               Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}"
+                                                               Foreground="{DynamicResource BrushTextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ToolTip.Tip>
                                         <Button.Styles>
                                             <Style Selector="Button /template/ ContentPresenter">
                                                 <Setter Property="Background" Value="Transparent"/>
@@ -377,20 +415,37 @@
                                             </StackPanel>
                                         </Grid>
                                     </Button>
+
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
                                                 IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
-                                        <Button Classes="sidebar-action" ToolTip.Tip="Play all"
-                                                Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).PlayPlaylistCommand}"
-                                                CommandParameter="{Binding Playlist}"
-                                                IsVisible="{Binding Type, Converter={x:Static converters:NavItemTypeToVisibilityConverter.Instance}, ConverterParameter=PinnedPlaylist}">
-                                            <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="{StaticResource BrushAccent}"/>
-                                        </Button>
-                                        <Button Classes="sidebar-action" ToolTip.Tip="Unpin"
-                                                Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.UnpinCommand}"
-                                                CommandParameter="{Binding}"
-                                                IsVisible="{Binding Type, Converter={x:Static converters:NavItemTypeToVisibilityConverter.Instance}, ConverterParameter=PinnedPlaylist}">
-                                            <material:MaterialIcon Kind="PinOffOutline" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"/>
-                                        </Button>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsCustomizingSidebar}">
+                                            <Button Classes="sidebar-action" ToolTip.Tip="Move Up" Opacity="1"
+                                                    Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.MoveUpCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <material:MaterialIcon Kind="ArrowUp" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
+                                            </Button>
+                                            <Button Classes="sidebar-action" ToolTip.Tip="Move Down" Opacity="1"
+                                                    Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.MoveDownCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <material:MaterialIcon Kind="ArrowDown" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsCustomizingSidebar, Converter={StaticResource BoolNegation}}">
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_PlayAll}"
+                                                    Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).PlayPlaylistCommand}"
+                                                    CommandParameter="{Binding Playlist}"
+                                                    IsVisible="{Binding Type, Converter={x:Static converters:NavItemTypeToVisibilityConverter.Instance}, ConverterParameter=PinnedPlaylist}">
+                                                <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="{StaticResource BrushAccent}"/>
+                                            </Button>
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_Unpin}"
+                                                    Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.UnpinCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding Type, Converter={x:Static converters:NavItemTypeToVisibilityConverter.Instance}, ConverterParameter=PinnedPlaylist}">
+                                                <material:MaterialIcon Kind="PinOffOutline" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"/>
+                                            </Button>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -398,7 +453,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Folder tree -->
                 <ItemsControl ItemsSource="{Binding Nav.FolderNodes}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:SidebarFolderNode">
@@ -409,21 +463,35 @@
                                         DragDrop.Drop="OnFolderDrop">
                                     <Border.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Rename folder" Click="OnFolderMenuRename"/>
-                                            <MenuItem Header="Delete folder" Click="OnFolderMenuDelete"/>
+                                            <MenuItem Header="{loc:Loc ContextMenu_RenameFolder}" Click="OnFolderMenuRename"/>
+                                            <MenuItem Header="{loc:Loc ContextMenu_DeleteFolder}" Click="OnFolderMenuDelete"/>
                                         </ContextMenu>
                                     </Border.ContextMenu>
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <Button Grid.Column="0" Classes="nav"
+                                    
+                                    <Grid>
+                                        <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
+                                        <Button Classes="nav sidebar-nav"
                                                 Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.ToggleFolderCommand}"
                                                 CommandParameter="{Binding}" HorizontalAlignment="Stretch">
+                                            <ToolTip.Tip>
+                                                <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}" 
+                                                        BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
+                                                    <StackPanel Spacing="4">
+                                                        <TextBlock Text="{Binding Folder.Name}" FontWeight="SemiBold" FontSize="13" 
+                                                                   Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="{Binding Playlists.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                                            <TextBlock Text="Playlists" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </ToolTip.Tip>
                                             <Button.Styles>
                                                 <Style Selector="Button /template/ ContentPresenter">
                                                     <Setter Property="Background" Value="Transparent"/>
                                                 </Style>
                                             </Button.Styles>
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                <!-- Folder tile flush-left, same offset as playlist art tiles -->
                                                 <Border Grid.Column="0" Classes="art-tile"
                                                         Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
                                                         Margin="0,0,10,0" CornerRadius="{StaticResource RadiusSm}"
@@ -434,11 +502,13 @@
                                                 </Border>
                                                 <TextBlock Grid.Column="1" Text="{Binding Folder.Name}" TextTrimming="CharacterEllipsis"
                                                            VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding Playlists.Count}"
-                                                           Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
-                                                           Margin="0,0,6,0" VerticalAlignment="Center"
-                                                           IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}"/>
-                                                <!-- Trailing disclosure chevron -->
+                                                <Border Grid.Column="2" Background="{StaticResource BrushSurface2}"
+                                                        CornerRadius="{StaticResource RadiusFull}"
+                                                        Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Playlists.Count}"
+                                                               Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
                                                 <material:MaterialIcon Grid.Column="3" Kind="ChevronRight" Width="16" Height="16"
                                                         Foreground="{StaticResource BrushTextMuted}"
                                                         RenderTransform="{Binding IsExpanded, Converter={StaticResource BoolToRotate}}"
@@ -446,14 +516,15 @@
                                                         IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}"/>
                                             </Grid>
                                         </Button>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
+                                        
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"
                                                     IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
-                                            <Button Classes="sidebar-action" ToolTip.Tip="Rename folder"
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_RenameFolder}"
                                                     Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.RenameFolderCommand}"
                                                     CommandParameter="{Binding}">
                                                 <material:MaterialIcon Kind="Pencil" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
                                             </Button>
-                                            <Button Classes="sidebar-action" ToolTip.Tip="Delete folder"
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Tooltip_DeleteFolder}"
                                                     Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.DeleteFolderCommand}"
                                                     CommandParameter="{Binding}">
                                                 <material:MaterialIcon Kind="TrashCan" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
@@ -461,89 +532,103 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
-                                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1,0,0,0"
-                                        Margin="18,2,0,6" Padding="2,0,0,0" IsVisible="{Binding IsExpanded}">
-                                    <ItemsControl ItemsSource="{Binding Playlists}" ItemTemplate="{StaticResource PlaylistRowTemplate}"/>
+                                
+                                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0"
+                                        Margin="18,0,0,4" Padding="0" IsVisible="{Binding IsExpanded}">
+                                    <ItemsControl ItemsSource="{Binding Playlists}"
+                                                  ItemTemplate="{StaticResource FolderChildRowTemplate}"/>
                                 </Border>
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Unpinned playlists (Top-level drop zone) -->
                 <Border DragDrop.AllowDrop="True"
-                        DragDrop.DragEnter="OnTopLevelDragEnter" 
+                        DragDrop.DragEnter="OnTopLevelDragEnter"
                         DragDrop.DragLeave="OnTopLevelDragLeave"
                         DragDrop.Drop="OnTopLevelDrop">
-                    <ItemsControl ItemsSource="{Binding Nav.UnpinnedPlaylists}" Margin="0,8,0,0"
-                                  ItemTemplate="{StaticResource PlaylistRowTemplate}"/>
+                    <Panel Margin="0,8,0,0">
+                        <ItemsControl ItemsSource="{Binding Nav.UnpinnedPlaylists}"
+                                      ItemTemplate="{StaticResource PlaylistRowTemplate}"/>
+                        
+                        <Border MinHeight="56"
+                                IsVisible="{Binding Nav.IsReorderDragging}"
+                                BorderBrush="{StaticResource BrushBorder}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Background="{StaticResource BrushAccentDim}">
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <material:MaterialIcon Kind="PinOffOutline" Width="14" Height="14"
+                                                       Foreground="{StaticResource BrushTextMuted}"/>
+                                <TextBlock Text="{loc:Loc Sidebar_DropToUnpin}"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{DynamicResource FontSizeXs}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="{loc:Loc Sidebar_DropToUnpin}"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   FontSize="{DynamicResource FontSizeXs}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Margin="0,16,0,0"
+                                   IsVisible="{Binding !Nav.UnpinnedPlaylists.Count}"/>
+                    </Panel>
                 </Border>
 
-                <!-- FILTERS -->
                 <Border Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
-                <TextBlock Classes="section-label" Text="FILTERS" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
-                <Button Classes="nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="Favorites">
+                <TextBlock Classes="section-label" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
+                <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
                                 CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Star" Width="20" Height="20" Foreground="{StaticResource BrushAmber}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="Favorites" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc Sidebar_Filter_Favorites}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
                     </Grid>
                 </Button>
-                <Button Classes="nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="Recently Added">
+                <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Recent}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
                                 CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="History" Width="20" Height="20" Foreground="{StaticResource BrushBlue}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="Recently Added" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc Sidebar_Filter_Recent}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
                     </Grid>
                 </Button>
 
-                <!-- SOURCES -->
                 <Border Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
-                <TextBlock Classes="section-label" Text="SOURCES" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
-                <Button Classes="nav" Classes.active="{Binding Library.IsYouTubeFilter}" Command="{Binding Library.FilterYouTubeCommand}" ToolTip.Tip="YouTube">
+                <TextBlock Classes="section-label" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
+                <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsYouTubeFilter}" Command="{Binding Library.FilterYouTubeCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_YouTube}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
                                 CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Youtube" Width="20" Height="20" Foreground="#FF0000"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="YouTube" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc Sidebar_Source_YouTube}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
                     </Grid>
                 </Button>
-                <Button Classes="nav" Classes.active="{Binding Library.IsLastFmFilter}" Command="{Binding Library.FilterLastFmCommand}" ToolTip.Tip="Last.fm">
-                    <Grid ColumnDefinitions="Auto,Auto,*">
-                        <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
-                                CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
-                            <material:MaterialIcon Kind="Radio" Width="20" Height="20" Foreground="#D51007"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Grid.Column="1" Text="Last.fm" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                    </Grid>
-                </Button>
-                <Button Classes="nav" Classes.active="{Binding Library.IsSoundCloudFilter}" Command="{Binding Library.FilterSoundCloudCommand}" ToolTip.Tip="SoundCloud">
+                <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsSoundCloudFilter}" Command="{Binding Library.FilterSoundCloudCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_SoundCloud}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
                                 CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Soundcloud" Width="20" Height="20" Foreground="#FF5500"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="SoundCloud" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc Sidebar_Source_SoundCloud}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
                     </Grid>
                 </Button>
-                <Button Classes="nav" Classes.active="{Binding Library.IsLocalFilter}" Command="{Binding Library.FilterLocalCommand}" ToolTip.Tip="Local Files">
+                <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsLocalFilter}" Command="{Binding Library.FilterLocalCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_LocalFiles}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}" Margin="0,0,10,0"
                                 CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Folder" Width="20" Height="20" Foreground="{StaticResource BrushGreen}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="Local Files" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc Sidebar_Source_LocalFiles}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
                     </Grid>
                 </Button>
             </StackPanel>

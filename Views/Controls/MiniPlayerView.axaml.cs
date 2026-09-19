@@ -53,6 +53,21 @@ public partial class MiniPlayerView : Border
             vm.Player.SeekTo((float)slider.Value);
     }
 
+    /// <summary>
+    /// Handles the edge case where the pointer is captured by the slider during a drag
+    /// but then leaves the control before release (e.g. dragged off the mini-player).
+    /// Without this, _isSeeking stays true forever and subsequent position updates
+    /// are ignored until the user clicks the slider again.
+    /// </summary>
+    private void OnSeekCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (!_isSeeking) return;
+        _isSeeking = false;
+
+        if (sender is Slider slider && DataContext is MainViewModel vm)
+            vm.Player.SeekTo((float)slider.Value);
+    }
+
     private async void RestartMarquee()
     {
         _marqueeCts?.Cancel();
@@ -94,7 +109,7 @@ public partial class MiniPlayerView : Border
         }
         catch (OperationCanceledException)
         {
-            // Expected when a new track arrives mid-scroll — the new call's
+            // Expected when a new track arrives mid-scroll - the new call's
             // cts.Cancel() interrupts this one; nothing to clean up.
         }
     }

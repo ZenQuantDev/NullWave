@@ -2,48 +2,48 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:pvm="using:NullWave.ViewModels.Settings"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.PluginsTab"
              x:DataType="vm:SettingsViewModel">
-
-  <ScrollViewer>
-    <StackPanel Margin="24">
-
-      <TextBlock Classes="section-label" Text="PLUGINS &amp; INTEGRATIONS" Margin="4,0,0,12"/>
-      <TextBlock Text="Enable or disable optional external services. Disabling a plugin hides its features but keeps your existing data intact."
-                 Foreground="{StaticResource BrushTextSecondary}"
-                 FontSize="{DynamicResource FontSizeBody}"
-                 TextWrapping="Wrap"
-                 Margin="0,0,0,16"/>
-
+  <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="0">
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Plugins_Section_Installed}" Margin="0,0,0,12"/>
       <ItemsControl ItemsSource="{Binding PluginRows}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="pvm:PluginRowViewModel">
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-
+              <Grid ColumnDefinitions="Auto,*,Auto">
                 <Ellipse Grid.Column="0" Width="10" Height="10"
-                         Fill="{Binding StatusDotColor}" Margin="0,0,14,0"/>
-
-                <StackPanel Grid.Column="1">
+                         Fill="{Binding StatusDotBrush}" Margin="0,0,14,0"
+                         VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="0,0,16,0">
                   <TextBlock Text="{Binding Name}"
-                             FontSize="{DynamicResource FontSizeSubtitle}"
+                             Foreground="{StaticResource BrushTextPrimary}"
+                             FontSize="{DynamicResource FontSizeBodyLarge}"
                              FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding Description}"
-                             Foreground="{StaticResource BrushTextSecondary}"
+                             Foreground="{StaticResource BrushTextMuted}"
                              FontSize="{DynamicResource FontSizeSm}"
                              TextWrapping="Wrap"
                              Margin="0,2,0,0"/>
                 </StackPanel>
-
-                <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}"/>
+                <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"/>
               </Grid>
             </Border>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-
+      <Border Classes="settings-banner">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16"
+                                 Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc Settings_Plugins_Banner}"
+                     Foreground="{StaticResource BrushAccentHover}"
+                     FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
       <Border Classes="BottomSpacer"/>
     </StackPanel>
   </ScrollViewer>
-
 </UserControl>

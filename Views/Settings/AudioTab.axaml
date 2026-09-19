@@ -2,137 +2,82 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.AudioTab"
              x:DataType="vm:SettingsViewModel">
-
-    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="0">
-
-            <!--  Download Settings  -->
-            <TextBlock Classes="section-label" Text="DOWNLOAD" Margin="0,0,0,12"/>
-
-            <Border Classes="settings-card">
-                <StackPanel Spacing="16">
-
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Audio format"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Preferred container for downloaded streams"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AudioFormatOptions}"
-                                  SelectedItem="{Binding AudioFormat, Mode=TwoWay}"
-                                  MinWidth="130"
-                                  VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Audio quality"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Bitrate for extraction - 'best' grabs the highest available"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AudioQualityOptions}"
-                                  SelectedItem="{Binding AudioQuality, Mode=TwoWay}"
-                                  MinWidth="130"
-                                  VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Concurrent downloads"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <Button Classes="help-btn"
-                                        ToolTip.Tip="How many yt-dlp processes can run simultaneously. Lower on slow connections, higher on fast fiber.">
-                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="Limit parallel yt-dlp download threads (1 = sequential, 5 = max)"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding ConcurrentDownloadOptions}"
-                                  SelectedItem="{Binding MaxConcurrentDownloads, Mode=TwoWay}"
-                                  MinWidth="130"
-                                  VerticalAlignment="Center"/>
-                    </Grid>
-
-                </StackPanel>
-            </Border>
-
-            <!--  Playback Transitions  -->
-            <TextBlock Classes="section-label" Text="PLAYBACK TRANSITIONS" Margin="0,0,0,12"/>
-
-            <Border Classes="settings-card">
-                <StackPanel Spacing="16">
-                    <Grid ColumnDefinitions="*, Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Fade on Pause / Resume"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Smoothly ramps volume down/up when toggling playback"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding FadeOnPauseEnabled}" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*, Auto" IsEnabled="{Binding FadeOnPauseEnabled}">
-                        <Slider Grid.Column="0" Minimum="100" Maximum="2000" TickFrequency="100" IsSnapToTickEnabled="True" Value="{Binding FadeOnPauseDurationMs}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding FadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-
-                    <Grid ColumnDefinitions="*, Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="Crossfade Tracks"
-                                       Foreground="{StaticResource BrushTextPrimary}"
-                                       FontSize="{DynamicResource FontSizeBodyLarge}"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="Overlap audio at the end of tracks (Local files only)"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       FontSize="{DynamicResource FontSizeSm}"/>
-                        </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding CrossfadeEnabled}" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*, Auto" IsEnabled="{Binding CrossfadeEnabled}">
-                        <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CrossfadeDurationSeconds}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CrossfadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource BrushSurface2}"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    Padding="14,12">
-                <TextBlock Text="Format and quality apply to new downloads only. Existing files are not re-encoded."
-                           Foreground="{StaticResource BrushTextMuted}"
-                           FontSize="{DynamicResource FontSizeXs}"
-                           TextWrapping="Wrap"/>
-            </Border>
-            <Border Classes="BottomSpacer"/>
+  <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="0">
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Audio_Section_Download}" Margin="0,0,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+              <TextBlock Text="{loc:Loc Settings_Audio_Format_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:Loc Settings_Audio_Format_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding AudioFormatOptions}" SelectedItem="{Binding AudioFormat, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
+          </Grid>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+              <TextBlock Text="{loc:Loc Settings_Audio_Quality_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:Loc Settings_Audio_Quality_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding AudioQualityOptions}" SelectedItem="{Binding AudioQuality, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
+          </Grid>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Audio_Concurrent_Tooltip}">
+                  <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                </Button>
+              </StackPanel>
+              <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding ConcurrentDownloadOptions}" SelectedItem="{Binding MaxConcurrentDownloads, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
+          </Grid>
         </StackPanel>
-    </ScrollViewer>
+      </Border>
 
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Audio_Section_Transitions}"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+              <TextBlock Text="{loc:Loc Settings_Audio_Fade_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:Loc Settings_Audio_Fade_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding FadeOnPauseEnabled}" VerticalAlignment="Center"/>
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding FadeOnPauseEnabled}" Margin="0,4,0,0">
+            <Slider Grid.Column="0" Minimum="100" Maximum="2000" TickFrequency="100" IsSnapToTickEnabled="True" Value="{Binding FadeOnPauseDurationMs}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding FadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+          </Grid>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+              <TextBlock Text="{loc:Loc Settings_Audio_Crossfade_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:Loc Settings_Audio_Crossfade_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding CrossfadeEnabled}" VerticalAlignment="Center"/>
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding CrossfadeEnabled}" Margin="0,4,0,0">
+            <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CrossfadeDurationSeconds}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding CrossfadeDurationDisplay}" Width="60" TextAlignment="Right" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="settings-banner">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc Settings_Audio_Banner}"
+                     Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+      <Border Classes="BottomSpacer"/>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

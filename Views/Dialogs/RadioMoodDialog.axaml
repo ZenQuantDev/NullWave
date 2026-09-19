@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:NullWave.Helpers.Localization"
+        xmlns:helpers="using:NullWave.Helpers"
+        x:Class="NullWave.Views.Dialogs.RadioMoodDialog"
+        Title="{loc:Loc Radio_MoodDialog_Title}" Width="460" Height="440"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBase}">
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="{loc:Loc Radio_MoodDialog_Hint}" TextWrapping="Wrap"
+               Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" Margin="0,0,0,12"/>
+    <Button DockPanel.Dock="Bottom" Classes="primary" Click="OnAddClicked"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            Content="{loc:Loc Radio_MoodDialog_AddAll}"/>
+    <ItemsControl x:Name="ChannelList">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="helpers:RadioChannel">
+          <Grid ColumnDefinitions="90,*,Auto" Margin="0,0,0,8">
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding StreamUrl}" PlaceholderText="https://stream.../mp3" Margin="8,0"/>
+            <Button Grid.Column="2" Classes="ghost" Padding="8,4" Click="OnFindClicked" Tag="{Binding}"
+                    Content="{loc:Loc Radio_MoodDialog_Find}"/>
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </DockPanel>
+</Window>

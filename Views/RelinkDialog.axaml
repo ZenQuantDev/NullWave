@@ -1,20 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.RelinkDialog"
-        Title="NullWave - Relink Track"
+        Title="{loc:Loc Dialog_Relink_Title}"
         Width="440" Height="210"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="{StaticResource BrushBase}">
     <DockPanel Margin="20">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-            <Button Content="Cancel" Click="OnCancel" Classes="secondary" Padding="16,8"/>
-            <Button Content="Save" Click="OnSave" Classes="primary" Padding="16,8"/>
+            <Button Content="{loc:Loc Dialog_Cancel}" Click="OnCancel" Classes="secondary" Padding="16,8"/>
+            <Button Content="{loc:Loc Dialog_Save}" Click="OnSave" Classes="primary" Padding="16,8"/>
         </StackPanel>
         <StackPanel Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="New URL or local file path" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
-            <TextBox x:Name="UrlInput" PlaceholderText="https://youtube.com/...  or  /home/user/music.mp3"/>
-            <Button Content="Choose local file..." Click="OnChooseFile" Classes="ghost" HorizontalAlignment="Left" Padding="12,6"/>
+            <TextBlock Text="{loc:Loc Dialog_Relink_Label}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}"/>
+            <TextBox x:Name="UrlInput" PlaceholderText="{loc:Loc Dialog_Relink_Placeholder}"/>
+            <Button Content="{loc:Loc Dialog_Relink_ChooseFile}" Click="OnChooseFile" Classes="ghost" HorizontalAlignment="Left" Padding="12,6"/>
         </StackPanel>
     </DockPanel>
 </Window>

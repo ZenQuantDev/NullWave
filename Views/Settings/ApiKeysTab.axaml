@@ -1,232 +1,173 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.ApiKeysTab"
              x:DataType="vm:SettingsViewModel">
-
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <!-- Changed Padding to Margin here -->
         <StackPanel Spacing="0" Margin="24,20">
-
-            <TextBlock Classes="section-label" Text="METADATA &amp; SEARCH" Margin="0,0,0,12"/>
-
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_ApiKeys_Section_Metadata}" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
-
-                    <!-- YouTube API Token -->
+                    <!-- YouTube -->
                     <Grid ColumnDefinitions="*,8,Auto">
                         <StackPanel Grid.Column="0" Spacing="8">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="YouTube Data API v3"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="console.cloud.google.com → APIs → YouTube Data API v3 → Credentials"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"
-                                           TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusSm}" Background="#26FF0000">
+                                    <material:MaterialIcon Kind="Youtube" Width="14" Height="14" Foreground="#FF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_YouTube_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_YouTube_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}"
-                                     PlaceholderText="AIza..."
-                                     PasswordChar="●"/>
+                            <TextBox Text="{Binding YouTubeApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_YouTube_Placeholder}" PasswordChar="●"/>
                         </StackPanel>
-                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
-                                Background="{StaticResource BrushGreenDim}"
-                                CornerRadius="{StaticResource RadiusSm}"
-                                Padding="8,6"
-                                IsVisible="{Binding YouTubeApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                ToolTip.Tip="Key saved">
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                IsVisible="{Binding YouTubeApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_KeySaved}">
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- Last.fm Profiles -->
+                    <!-- Last.fm -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Last.fm (API Key &amp; Secret)"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{DynamicResource FontSizeBodyLarge}"
-                                   FontWeight="SemiBold"/>
-                        <TextBlock Text="last.fm/api/account/create - required for scrobbling"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusSm}" Background="#26D51007">
+                                <material:MaterialIcon Kind="Radio" Width="14" Height="14" Foreground="#E8433A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{loc:Loc Settings_ApiKeys_LastFm_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_ApiKeys_LastFm_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </StackPanel>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding LastFmApiKey, Mode=TwoWay}"
-                                     PlaceholderText="API Key"
-                                     PasswordChar="●"/>
-                            <Border Grid.Column="2"
-                                    Background="{StaticResource BrushGreenDim}"
-                                    CornerRadius="{StaticResource RadiusSm}"
-                                    Padding="8,6"
-                                    IsVisible="{Binding LastFmApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                    ToolTip.Tip="Key saved">
+                            <TextBox Grid.Column="0" Text="{Binding LastFmApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_Key_Placeholder}" PasswordChar="●"/>
+                            <Border Grid.Column="2" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                    IsVisible="{Binding LastFmApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_KeySaved}">
                                 <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                         <Grid ColumnDefinitions="*,8,Auto">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding LastFmApiSecret, Mode=TwoWay}"
-                                     PlaceholderText="Shared Secret"
-                                     PasswordChar="●"/>
-                            <Border Grid.Column="2"
-                                    Background="{StaticResource BrushGreenDim}"
-                                    CornerRadius="{StaticResource RadiusSm}"
-                                    Padding="8,6"
-                                    IsVisible="{Binding LastFmApiSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                    ToolTip.Tip="Secret saved">
+                            <TextBox Grid.Column="0" Text="{Binding LastFmApiSecret, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_Secret_Placeholder}" PasswordChar="●"/>
+                            <Border Grid.Column="2" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                    IsVisible="{Binding LastFmApiSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_SecretSaved}">
                                 <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                     </StackPanel>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- OpenWeather Channel -->
+                    <!-- OpenWeather -->
                     <Grid ColumnDefinitions="*,8,Auto">
                         <StackPanel Grid.Column="0" Spacing="8">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="OpenWeather"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="openweathermap.org/api - free tier, 60 calls/minute"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"
-                                           TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusSm}" Background="#26F59E0B">
+                                    <material:MaterialIcon Kind="WeatherPartlyCloudy" Width="14" Height="14" Foreground="#FBBF24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_Weather_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_Weather_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBox Text="{Binding OpenWeatherApiKey, Mode=TwoWay}"
-                                     PlaceholderText="API key"
-                                     PasswordChar="●"/>
+                            <TextBox Text="{Binding OpenWeatherApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_Weather_Placeholder}" PasswordChar="●"/>
                         </StackPanel>
-                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
-                                Background="{StaticResource BrushGreenDim}"
-                                CornerRadius="{StaticResource RadiusSm}"
-                                Padding="8,6"
-                                IsVisible="{Binding OpenWeatherApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                ToolTip.Tip="Key saved">
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                IsVisible="{Binding OpenWeatherApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_KeySaved}">
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- SoundCloud Configuration -->
+                    <!-- SoundCloud -->
                     <Grid ColumnDefinitions="*,8,Auto">
                         <StackPanel Grid.Column="0" Spacing="8">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="SoundCloud"
-                                           Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="soundcloud.com/you/apps - new registrations limited by region"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"
-                                           TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusSm}" Background="#26FF5500">
+                                    <material:MaterialIcon Kind="Soundcloud" Width="14" Height="14" Foreground="#FF7733" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_SoundCloud_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Settings_ApiKeys_SoundCloud_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}"
-                                     PlaceholderText="Client ID"
-                                     PasswordChar="●"/>
+                            <TextBox Text="{Binding SoundCloudClientId, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_ClientId_Placeholder}" PasswordChar="●"/>
                         </StackPanel>
-                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
-                                Background="{StaticResource BrushGreenDim}"
-                                CornerRadius="{StaticResource RadiusSm}"
-                                Padding="8,6"
-                                IsVisible="{Binding SoundCloudClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                ToolTip.Tip="Key saved">
+                        <Border Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                IsVisible="{Binding SoundCloudClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_KeySaved}">
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
 
-                    <!-- Spotify Configuration -->
+                    <!-- Spotify -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Spotify (metadata only)"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{DynamicResource FontSizeBodyLarge}"
-                                   FontWeight="SemiBold"/>
-                        <TextBlock Text="developer.spotify.com/dashboard - metadata lookup only, not streaming"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeXs}"
-                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusSm}" Background="#261DB954">
+                                <material:MaterialIcon Kind="Spotify" Width="14" Height="14" Foreground="#1ED760" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{loc:Loc Settings_ApiKeys_Spotify_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{loc:Loc Settings_ApiKeys_Spotify_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </StackPanel>
                         <Grid ColumnDefinitions="*,8,Auto" Margin="0,6,0,0">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding SpotifyClientId, Mode=TwoWay}"
-                                     PlaceholderText="Client ID"
-                                     PasswordChar="●"/>
-                            <Border Grid.Column="2"
-                                    Background="{StaticResource BrushGreenDim}"
-                                    CornerRadius="{StaticResource RadiusSm}"
-                                    Padding="8,6"
-                                    IsVisible="{Binding SpotifyClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                    ToolTip.Tip="Key saved">
+                            <TextBox Grid.Column="0" Text="{Binding SpotifyClientId, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_ClientId_Placeholder}" PasswordChar="●"/>
+                            <Border Grid.Column="2" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                    IsVisible="{Binding SpotifyClientId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_KeySaved}">
                                 <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                         <Grid ColumnDefinitions="*,8,Auto">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding SpotifyClientSecret, Mode=TwoWay}"
-                                     PlaceholderText="Client Secret"
-                                     PasswordChar="●"/>
-                            <Border Grid.Column="2"
-                                    Background="{StaticResource BrushGreenDim}"
-                                    CornerRadius="{StaticResource RadiusSm}"
-                                    Padding="8,6"
-                                    IsVisible="{Binding SpotifyClientSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                    ToolTip.Tip="Key saved">
+                            <TextBox Grid.Column="0" Text="{Binding SpotifyClientSecret, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_ApiKeys_ClientSecret_Placeholder}" PasswordChar="●"/>
+                            <Border Grid.Column="2" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
+                                    IsVisible="{Binding SpotifyClientSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc Settings_ApiKeys_SecretSaved}">
                                 <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                             </Border>
                         </Grid>
                     </StackPanel>
-
                 </StackPanel>
             </Border>
 
-            <!-- Last.fm Account Tunnel Platform -->
+            <!-- Last.fm Account Connection -->
             <Border Classes="settings-card" Margin="0,16,0,0">
                 <StackPanel Spacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock Text="🎵" FontSize="20" VerticalAlignment="Center"/>
-                        <TextBlock Text="Last.fm Account"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{DynamicResource FontSizeBodyLarge}"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center"/>
+                        <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusSm}" Background="#26D51007">
+                            <material:MaterialIcon Kind="Radio" Width="16" Height="16" Foreground="#E8433A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{loc:Loc Settings_ApiKeys_Section_Account}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Width="10" Height="10" CornerRadius="5" Background="#4CAF50" IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
-                            <Border Width="10" Height="10" CornerRadius="5" Background="#A8B4CC" IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource BrushGreen}" IsVisible="{Binding IsLastFmConnected}" VerticalAlignment="Center"/>
+                            <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource BrushTextMuted}" IsVisible="{Binding !IsLastFmConnected}" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding LastFmStateLabel}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
                         </StackPanel>
-
-                        <Button Grid.Column="1" Classes="primary" Content="Connect to Last.fm" Command="{Binding LastFmConnectCommand}" IsVisible="{Binding !IsLastFmConnected}"/>
-                        <Button Grid.Column="1" Classes="danger" Content="Disconnect" Command="{Binding LastFmDisconnectCommand}" IsVisible="{Binding IsLastFmConnected}"/>
+                        <Button Grid.Column="1" Classes="primary" Content="{loc:Loc Settings_ApiKeys_Connect}" Command="{Binding LastFmConnectCommand}" IsVisible="{Binding !IsLastFmConnected}"/>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_ApiKeys_Disconnect}" Command="{Binding LastFmDisconnectCommand}" IsVisible="{Binding IsLastFmConnected}"/>
                     </Grid>
-
                     <Border Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" IsVisible="{Binding IsLastFmAwaitingAuth}">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="A browser window opened for you to approve NullWave's access to your Last.fm account." Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
-                            <Button Classes="secondary" Content="I've Authorized It — Finish Connecting" Command="{Binding LastFmConfirmAuthCommand}" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{loc:Loc Settings_ApiKeys_AuthBanner}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                            <Button Classes="secondary" Content="{loc:Loc Settings_ApiKeys_ConfirmAuth}" Command="{Binding LastFmConfirmAuthCommand}" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
-
                     <TextBlock Text="{Binding LastFmStatusMessage}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding LastFmStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <TextBlock Text="Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{loc:Loc Settings_ApiKeys_AccountInfo}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
-            <!-- Security Encryption Notice -->
+            <!-- Security Notice & Save -->
             <Border Background="{StaticResource BrushAccentDim}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" Margin="0,16,0,0">
-                <TextBlock Text="Keys are stored encrypted with AES-256-GCM at ~/.nullwave/keys.enc and never appear in logs or version control." Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <material:MaterialIcon Kind="ShieldCheck" Width="16" Height="16" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Loc Settings_ApiKeys_SecurityNotice}" Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                </StackPanel>
             </Border>
-
-            <Button Classes="primary" Content="Save API Keys" Command="{Binding SaveKeysCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12" Margin="0,16,0,0"/>
+            <Button Classes="primary" Content="{loc:Loc Settings_ApiKeys_Save}" Command="{Binding SaveKeysCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12" Margin="0,16,0,0"/>
             <Border Classes="BottomSpacer"/>
         </StackPanel>
     </ScrollViewer>

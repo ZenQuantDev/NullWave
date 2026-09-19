@@ -1,9 +1,9 @@
 <Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
-        xmlns:helpers="using:NullWave.Helpers"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:material="using:Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
         x:CompileBindings="False"
@@ -14,36 +14,80 @@
         Padding="16,0">
     <Border.Resources>
         <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"/>
+        <converters:MediaTypeToIconKindConverter x:Key="MediaTypeToIconKind"/>
+        <converters:BoolNegationConverter x:Key="BoolNegation"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
+        <converters:BoolToBrushConverter x:Key="StarBrush" TrueBrush="{StaticResource BrushStarOn}" FalseBrush="{StaticResource BrushStarOff}"/>
     </Border.Resources>
+
+    <!-- LOCAL STYLES: Hover-thickened seek track for better click/drag targeting.
+         Scoped to #SeekSlider so the volume slider in column 2 is unaffected. -->
+    <Border.Styles>
+        <!-- Track groove: 2px at rest, 5px on hover -->
+        <Style Selector="Slider#SeekSlider /template/ Border#TrackBackground">
+            <Setter Property="Height" Value="2"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Height" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Slider#SeekSlider:pointerover /template/ Border#TrackBackground">
+            <Setter Property="Height" Value="5"/>
+        </Style>
+
+        <!-- Thumb: grows on hover so the grab target stays comfortable -->
+        <Style Selector="Slider#SeekSlider /template/ Thumb">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Height" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Slider#SeekSlider:pointerover /template/ Thumb">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+
+        <!-- Already-playing toast slide-in -->
+        <Style Selector="Border.already-playing-toast">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="TranslateTransform.Y" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+    </Border.Styles>
+
     <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Stretch">
         <!-- Already Playing Toast Overlay -->
         <Panel Grid.ColumnSpan="3" VerticalAlignment="Top" Margin="0,-45,0,0" IsHitTestVisible="False">
-            <Border HorizontalAlignment="Center"
+            <Border Classes="already-playing-toast"
+                    HorizontalAlignment="Center"
                     Background="{StaticResource BrushSurface2}"
                     BorderBrush="{StaticResource BrushBorder}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource RadiusFull}"
                     Padding="12,6"
                     IsVisible="{Binding Player.ShowAlreadyPlayingToast}">
-                <Border.Transitions>
-                    <Transitions>
-                        <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-                    </Transitions>
-                </Border.Transitions>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <material:MaterialIcon Kind="InformationOutline" Width="14" Height="14" Foreground="{StaticResource BrushBlue}" VerticalAlignment="Center"/>
-                    <TextBlock Text="Already playing" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Loc MiniPlayer_AlreadyPlaying}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Panel>
-        <!--  LEFT: Art + track info + favorite  -->
+
+        <!-- LEFT: Art + track info + favorite -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
-            <Border Width="{DynamicResource MiniArtSize}" Height="{DynamicResource MiniArtSize}" CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushElevated}" ClipToBounds="True">
+            <Border Width="{DynamicResource MiniArtSize}" Height="{DynamicResource MiniArtSize}" CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}" ClipToBounds="True">
                 <Panel>
                     <Image Source="{Binding Player.AlbumArtPath, Converter={StaticResource PathToBitmap}}" IsVisible="{Binding Player.HasAlbumArt}" Stretch="UniformToFill"/>
-                    <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding !Player.HasAlbumArt}" Foreground="{StaticResource BrushTextMuted}" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <material:MaterialIcon Kind="{Binding Player.ArtPlaceholderKind}" IsVisible="{Binding !Player.HasAlbumArt}" Foreground="{StaticResource BrushTextMuted}" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Panel>
             </Border>
             <StackPanel VerticalAlignment="Center" Spacing="3" MaxWidth="200">
@@ -56,62 +100,125 @@
                                    FontWeight="SemiBold"/>
                     </StackPanel>
                 </Border>
-                <TextBlock Text="{Binding Player.CurrentArtistDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Player.CurrentArtistOrNowPlayingDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-            <Button Classes="player-btn" Command="{Binding Player.ToggleCurrentFavoriteCommand}" ToolTip.Tip="Toggle Favorite" VerticalAlignment="Center">
-                <material:MaterialIcon Kind="{Binding Player.IsCurrentFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" Width="20" Height="20" Foreground="{StaticResource BrushAmber}" Opacity="{Binding Player.IsCurrentFavorite, Converter={StaticResource BoolToOpacity}}"/>
+            <Button Classes="player-btn" Command="{Binding Player.ToggleCurrentFavoriteCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Favorite}" VerticalAlignment="Center">
+                <material:MaterialIcon Kind="{Binding Player.IsCurrentFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}" Width="20" Height="20" Foreground="{Binding Player.IsCurrentFavorite, Converter={StaticResource StarBrush}}"/>
             </Button>
         </StackPanel>
-        <!--  CENTER: Controls + seek (fixed 440px)  -->
+
+        <!-- CENTER: Controls + seek -->
         <StackPanel Grid.Column="1" Width="440" VerticalAlignment="Center" Spacing="8">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                <Button Classes="player-btn" Command="{Binding Player.CycleShuffleCommand}" Foreground="{Binding Player.ShuffleForeground}" ToolTip.Tip="{Binding Player.ShuffleTooltip}">
+                <Button Classes="player-btn" Classes.shuffle-on="{Binding Player.IsShuffleNormal}" Classes.shuffle-smart="{Binding Player.IsSmartShuffle}" Command="{Binding Player.CycleShuffleCommand}" ToolTip.Tip="{Binding Player.ShuffleTooltip}">
                     <material:MaterialIcon Kind="{Binding Player.ShuffleIconKind}" Width="20" Height="20"/>
                 </Button>
-                <Button Classes="player-btn" Command="{Binding Player.PreviousTrackCommand}" ToolTip.Tip="Previous (P)">
+                <Button Classes="player-btn" Command="{Binding Player.PreviousTrackCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Previous}">
                     <material:MaterialIcon Kind="SkipPrevious" Width="20" Height="20"/>
                 </Button>
-                <Button Classes="player-btn" Command="{Binding Player.SeekBackwardCommand}" ToolTip.Tip="Back 10s (←)">
+                <!-- 10s = music only -->
+                <Button Classes="player-btn" Command="{Binding Player.SeekBackwardCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Back10s}" IsVisible="{Binding Player.Show10sSeek}">
                     <material:MaterialIcon Kind="Rewind10" Width="20" Height="20"/>
                 </Button>
-                <!-- Play/pause - white circle, dark icon -->
-                <Button Classes="player-btn play" Command="{Binding Player.PlayPauseCommand}" ToolTip.Tip="Play / Pause (Space)">
+                <!-- 30s = audiobook only -->
+                <Button Classes="player-btn" Command="{Binding Player.SkipBack30Command}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Back30s}" IsVisible="{Binding Player.IsAudiobook}">
+                    <material:MaterialIcon Kind="Rewind30" Width="20" Height="20"/>
+                </Button>
+                <Button Classes="player-btn play" Command="{Binding Player.PlayPauseCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_PlayPause}">
                     <material:MaterialIcon Kind="{Binding Player.PlayPauseIconKind}" Width="24" Height="24"/>
                 </Button>
-                <Button Classes="player-btn" Command="{Binding Player.SeekForwardCommand}" ToolTip.Tip="Forward 10s (→)">
+                <Button Classes="player-btn" Command="{Binding Player.SeekForwardCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Forward10s}" IsVisible="{Binding Player.Show10sSeek}">
                     <material:MaterialIcon Kind="FastForward10" Width="20" Height="20"/>
                 </Button>
-                <Button Classes="player-btn" Command="{Binding Player.NextTrackCommand}" ToolTip.Tip="Next (N)">
+                <Button Classes="player-btn" Command="{Binding Player.SkipForward30Command}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Forward30s}" IsVisible="{Binding Player.IsAudiobook}">
+                    <material:MaterialIcon Kind="FastForward30" Width="20" Height="20"/>
+                </Button>
+                <Button Classes="player-btn" Command="{Binding Player.NextTrackCommand}" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Next}">
                     <material:MaterialIcon Kind="SkipNext" Width="20" Height="20"/>
                 </Button>
-                <Button Classes="player-btn" Command="{Binding Player.CycleRepeatCommand}" Foreground="{Binding Player.RepeatForeground}" ToolTip.Tip="{Binding Player.RepeatTooltip}">
+                <Button Classes="player-btn" Classes.repeat-on="{Binding Player.IsRepeat}" Command="{Binding Player.CycleRepeatCommand}" ToolTip.Tip="{Binding Player.RepeatTooltip}">
                     <material:MaterialIcon Kind="{Binding Player.RepeatIconKind}" Width="20" Height="20"/>
                 </Button>
             </StackPanel>
-            <Grid ColumnDefinitions="36,*,36">
+
+            <!-- Seek bar: hidden for live radio. Timestamps flank the slider
+                 at the natural left/right ends (review point 4 already satisfied). -->
+            <Grid ColumnDefinitions="36,*,36" IsVisible="{Binding Player.IsRadio, Converter={StaticResource BoolNegation}}">
                 <TextBlock Grid.Column="0" Text="{Binding Player.PositionDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
-                <Slider Grid.Column="1" x:Name="SeekSlider" Value="{Binding Player.Position, Mode=OneWay}" Minimum="0" Maximum="1" VerticalAlignment="Center" PointerPressed="OnSeekPressed" PointerReleased="OnSeekReleased"/>
+                <Slider Grid.Column="1" x:Name="SeekSlider" Value="{Binding Player.Position, Mode=OneWay}" Minimum="0" Maximum="1" VerticalAlignment="Center"
+                        PointerPressed="OnSeekPressed" PointerReleased="OnSeekReleased" PointerCaptureLost="OnSeekCaptureLost"/>
                 <TextBlock Grid.Column="2" Text="{Binding Player.DurationDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,0,0,0"/>
             </Grid>
+
+            <!-- LIVE indicator replaces the seek bar for radio -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6"
+                        IsVisible="{Binding Player.IsRadio}">
+                <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc MiniPlayer_LiveStream}" Foreground="{StaticResource BrushRed}"
+                           FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
         </StackPanel>
-        <!--  RIGHT: Queue + Volume  -->
+
+        <!-- RIGHT: Speed + Sleep Timer + Queue + Volume -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Player.IsDownloading}" VerticalAlignment="Center">
-                <TextBlock Text="Downloading" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc MiniPlayer_Downloading}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                 <ProgressBar Value="{Binding Player.DownloadProgress}" Maximum="1" Width="60" Height="2" VerticalAlignment="Center"/>
             </StackPanel>
+            <!-- Speed control: audiobook only, auto width, accent only when ≠ 1.0x -->
+            <Button Classes="player-btn" MinWidth="32" Padding="6,0"
+                ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Speed}" IsVisible="{Binding Player.IsAudiobook}">
+                <TextBlock Text="{Binding Player.PlaybackRateDisplay}" FontSize="{DynamicResource FontSizeXs}"
+                           FontWeight="SemiBold" Foreground="{StaticResource BrushPlayerIcon}"
+                           Classes.rate-on="{Binding Player.IsRateAdjusted}" VerticalAlignment="Center"/>
+                <Button.Flyout>
+                    <MenuFlyout Placement="TopEdgeAlignedRight">
+                        <MenuItem Header="0.75x" Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="0.75"/>
+                        <MenuItem Header="1.0x"  Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="1.0"/>
+                        <MenuItem Header="1.25x" Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="1.25"/>
+                        <MenuItem Header="1.5x"  Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="1.5"/>
+                        <MenuItem Header="1.75x" Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="1.75"/>
+                        <MenuItem Header="2.0x"  Command="{Binding Player.SetPlaybackRateCommand}" CommandParameter="2.0"/>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            <!-- Sleep timer in a fixed-footprint container (no jitter) -->
+            <Grid MinWidth="32">
+                <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right">
+                    <Button Classes="player-btn" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_SleepTimer}">
+                        <material:MaterialIcon Kind="TimerOutline" Width="20" Height="20"/>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="TopEdgeAlignedRight">
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_15}" Command="{Binding Player.SetSleepTimerCommand}" CommandParameter="15"/>
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_30}" Command="{Binding Player.SetSleepTimerCommand}" CommandParameter="30"/>
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_45}" Command="{Binding Player.SetSleepTimerCommand}" CommandParameter="45"/>
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_60}" Command="{Binding Player.SetSleepTimerCommand}" CommandParameter="60"/>
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_Chapter}" Command="{Binding Player.SetEndOfChapterTimerCommand}" IsVisible="{Binding Player.IsAudiobook}"/>
+                                <Separator IsVisible="{Binding Player.IsSleepTimerActive}"/>
+                                <MenuItem Header="{loc:Loc MiniPlayer_SleepTimer_Cancel}" Command="{Binding Player.CancelSleepTimerCommand}" IsVisible="{Binding Player.IsSleepTimerActive}"/>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <TextBlock Text="{Binding Player.SleepTimerDisplay}"
+                               Foreground="{StaticResource BrushAccent}"
+                               FontSize="{DynamicResource FontSizeXs}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding Player.IsSleepTimerActive}"/>
+                </StackPanel>
+            </Grid>
             <Button Classes="player-btn" Classes.active="{Binding Detail.IsOpen}"
                     Command="{Binding ToggleDetailCommand}" VerticalAlignment="Center"
-                    ToolTip.Tip="Track details">
+                    ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Details}">
                 <material:MaterialIcon Kind="InformationOutline" Width="20" Height="20"/>
             </Button>
-            <Button Classes="player-btn" Classes.active="{Binding Queue.IsOpen}" Command="{Binding ToggleQueueCommand}" VerticalAlignment="Center" ToolTip.Tip="Queue">
+            <Button Classes="player-btn" Classes.active="{Binding Queue.IsOpen}" Command="{Binding ToggleQueueCommand}" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Queue}">
                 <material:MaterialIcon Kind="PlaylistPlay" Width="20" Height="20"/>
             </Button>
-            <Button Classes="player-btn" Command="{Binding Player.ToggleMuteCommand}" VerticalAlignment="Center" ToolTip.Tip="Mute / Unmute (M)">
+            <Button Classes="player-btn" Command="{Binding Player.ToggleMuteCommand}" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Mute}">
                 <material:MaterialIcon Kind="{Binding Player.VolumeIconKind}" Width="20" Height="20"/>
             </Button>
-            <Slider Value="{Binding Player.Volume, Mode=TwoWay}" Minimum="0" Maximum="1" Width="90" VerticalAlignment="Center" ToolTip.Tip="Volume"/>
+            <Slider Value="{Binding Player.Volume, Mode=TwoWay}" Minimum="0" Maximum="1" Width="90" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Volume}"/>
         </StackPanel>
     </Grid>
 </Border>
