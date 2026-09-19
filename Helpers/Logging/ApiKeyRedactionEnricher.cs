@@ -6,7 +6,6 @@ namespace NullWave.Helpers.Logging;
 
 public class ApiKeyRedactionEnricher : ILogEventEnricher
 {
-    // Only match actual API key patterns, not arbitrary hex strings
     private static readonly Regex KeyPattern = new(
         @"\b(AIzaSy[A-Za-z0-9_-]{33}|[a-f0-9]{32})(?=\s|$|[^a-f0-9])", 
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -17,8 +16,9 @@ public class ApiKeyRedactionEnricher : ILogEventEnricher
         {
             if (property.Value is ScalarValue scalar && scalar.Value is string stringValue)
             {
-                // Skip URLs - they're not API keys
-                if (stringValue.Contains("://")) continue;
+                // FAST PATH: Skip URLs, short strings, and strings with spaces (API keys don't have spaces)
+                if (stringValue.Length < 32 || stringValue.Contains("://") || stringValue.Contains(' ')) 
+                    continue;
                 
                 if (KeyPattern.IsMatch(stringValue))
                 {

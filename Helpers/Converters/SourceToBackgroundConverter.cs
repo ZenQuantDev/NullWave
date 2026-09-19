@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using NullWave.Models;
@@ -26,10 +27,12 @@ public class SourceToBackgroundConverter : IValueConverter
             "Spotify"    => Color.Parse("#1A7A40"),
             "LastFm"     => Color.Parse("#8B0000"),
             "Local"      => Color.Parse("#1A5276"),
+            "Live"       => Color.Parse("#DC2626"), 
+            "Audiobook"  => Color.Parse("#B45309"), 
             _            => Color.Parse("#2D3A4A")
         };
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => AvaloniaProperty.UnsetValue;
 }

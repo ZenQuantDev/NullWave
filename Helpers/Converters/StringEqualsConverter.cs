@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 
 namespace NullWave.Helpers.Converters;
 
-public class StringEqualsConverter : IValueConverter
+public class StringEqualsConverter : IValueConverter, IMultiValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -13,8 +14,13 @@ public class StringEqualsConverter : IValueConverter
         return false;
     }
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotSupportedException();
+        if (values.Count == 2 && values[0] is string a && values[1] is string b)
+            return a.Equals(b, StringComparison.OrdinalIgnoreCase);
+        return false;
     }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
 }

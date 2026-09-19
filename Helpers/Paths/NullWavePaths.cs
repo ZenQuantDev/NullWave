@@ -10,16 +10,23 @@ public static class NullWavePaths
     public static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
     public static bool IsMacOS => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
-    // Windows: %APPDATA%\NullWave (e.g., C:\Users\Alex\AppData\Roaming\NullWave)
+    // Windows: %APPDATA%\NullWave
     // Linux/Mac: ~/.nullwave
-    public static string DataDir => IsWindows 
+    public static string DataDir => IsWindows
         ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+
+    // Legacy path (where older versions stored data on Windows before the AppData migration)
+    public static string LegacyDataDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
 
     public static string LogsDir      => Path.Combine(DataDir, "logs");
     public static string DownloadsDir => Path.Combine(DataDir, "downloads");
     public static string ArtCacheDir  => Path.Combine(DataDir, "art");
+    public static string BackupsDir   => Path.Combine(DataDir, "backups");
+
     public static string DatabasePath => Path.Combine(DataDir, "library.db");
+    public static string LegacyDatabasePath => Path.Combine(LegacyDataDir, "library.db");
+
     public static string KeyStorePath => Path.Combine(DataDir, "keys.enc");
     public static string ProfilePath  => Path.Combine(DataDir, "profile.json");
     public static string AvatarPath   => Path.Combine(DataDir, "avatar.png");
@@ -33,5 +40,6 @@ public static class NullWavePaths
         Directory.CreateDirectory(LogsDir);
         Directory.CreateDirectory(DownloadsDir);
         Directory.CreateDirectory(ArtCacheDir);
+        Directory.CreateDirectory(BackupsDir);
     }
 }
