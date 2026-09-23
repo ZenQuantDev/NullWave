@@ -6,28 +6,17 @@ using Serilog;
 
 namespace NullWave.Services.Metadata;
 
-/// <summary>
-/// Unified utility for resolving clean (Title, Artist) search terms and 
-/// sanitizing messy YouTube-style metadata strings.
-/// </summary>
 public static partial class TrackTitleParser
 {
-    [GeneratedRegex(@"\s*[\(\[](official\s*(music\s*)?video|official\s*audio|lyrics?|hd|hq|visualizer|director'?s?\s*cut)[\)\]]\s*", RegexOptions.IgnoreCase)]
-    private static partial Regex ClutterRegex();
-
     [GeneratedRegex(@"\s+(ft\.?|feat\.?)\s+.+$", RegexOptions.IgnoreCase)]
     private static partial Regex FeatureRegex();
 
-    // Exotic separators used by synthwave / label channels
     [GeneratedRegex(@"^(.+?)\s*(?:\/\/\/|\/\/|⧸|∞|~|〜|·|•)\s*(.+)$", RegexOptions.Compiled)]
     private static partial Regex ExoticSeparatorRegex();
 
-    private static readonly string[] Separators = { " - ", " – ", " - " };
-    private static readonly string[] JunkPatterns = { "- Topic", "[Official Music Video]", "(Official Video)", "[Official Video]", "(Video)", "Official Audio" };
+    // FIX: Added em dash
+    private static readonly string[] Separators = { " - ", " – ", " — " };
 
-    /// <summary>
-    /// Checks if a title contains exotic separators that the old parser didn't understand.
-    /// </summary>
     public static bool HasExoticSeparator(string s) =>
         s.Contains('~') || s.Contains('∞') || s.Contains('·') || s.Contains('•') || s.Contains('⧸') || s.Contains("///");
 
@@ -54,10 +43,8 @@ public static partial class TrackTitleParser
         string title = rawTitle ?? string.Empty;
         string artist = rawArtist ?? string.Empty;
 
-        foreach (var pattern in JunkPatterns)
-        {
-            title = title.Replace(pattern, "", StringComparison.OrdinalIgnoreCase);
-        }
+        // FIX: Replaced JunkPatterns loop with TitleSanitizer
+        title = TitleSanitizer.SanitizeSingle(title);
 
         if (artist.EndsWith("Music", StringComparison.OrdinalIgnoreCase) && artist.Length > 5) 
             artist = artist[..^5];
@@ -86,7 +73,8 @@ public static partial class TrackTitleParser
     {
         if (string.IsNullOrWhiteSpace(rawTitle)) return null;
 
-        var cleaned = ClutterRegex().Replace(rawTitle, " ");
+        // FIX: Replaced ClutterRegex with TitleSanitizer
+        var cleaned = TitleSanitizer.SanitizeSingle(rawTitle);
         cleaned = FeatureRegex().Replace(cleaned, string.Empty);
         cleaned = cleaned.Trim();
 

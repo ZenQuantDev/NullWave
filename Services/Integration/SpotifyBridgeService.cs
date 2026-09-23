@@ -26,7 +26,8 @@ public class SpotifyBridgeService
     {
         _config = config;
         _http   = new HttpClient();
-        _http.DefaultRequestHeaders.Add("User-Agent", "NullWave/1.0");
+        _http.Timeout = TimeSpan.FromSeconds(15);
+        _http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     }
 
     public async Task<SpotifyBridgeResult> BridgeAsync(string spotifyUrl)
@@ -44,112 +45,66 @@ public class SpotifyBridgeService
         if (string.IsNullOrEmpty(ytUrl))
         {
             Log.Warning("[SpotifyBridge] No YouTube match for {Title} by {Artist}", title, artist);
-            return new SpotifyBridgeResult
-            {
-                SpotifyTitle  = title,
-                SpotifyArtist = artist,
-                Found         = false
-            };
+            return new SpotifyBridgeResult { SpotifyTitle = title, SpotifyArtist = artist, Found = false };
         }
 
         Log.Information("[SpotifyBridge] YouTube match: {YtTitle} → {YtUrl}", ytTitle, ytUrl);
-
-        return new SpotifyBridgeResult
-        {
-            SpotifyTitle  = title,
-            SpotifyArtist = artist,
-            YouTubeUrl    = ytUrl,
-            YouTubeTitle  = ytTitle,
-            Found         = true
-        };
+        return new SpotifyBridgeResult { SpotifyTitle = title, SpotifyArtist = artist, YouTubeUrl = ytUrl, YouTubeTitle = ytTitle, Found = true };
     }
 
     private async Task<(string Title, string Artist)> FetchSpotifyMetaAsync(string spotifyUrl)
     {
-        var ytDlpMeta = await GetYtDlpSpotifyMetaAsync(spotifyUrl);
-        if (ytDlpMeta.HasValue && !string.IsNullOrEmpty(ytDlpMeta.Value.Title))
-            return ytDlpMeta.Value;
+        try
+        {
+            var cleanUrl = SpotifyPageParser.CleanUrl(spotifyUrl);
+            var html = await _http.GetStringAsync(cleanUrl);
+            var page = SpotifyPageParser.Parse(html);
 
-        Log.Warning("[SpotifyBridge] All metadata methods failed for {Url}", spotifyUrl);
+            // FIX: Guard against Album/Playlist links until collection support is added
+            if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
+            {
+                Log.Warning("[SpotifyBridge] {Kind} links are not supported yet: {Url}", page.Kind, spotifyUrl);
+                return (string.Empty, string.Empty);
+            }
+
+            return (page.Title, page.Artist);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[SpotifyBridge] Page fetch failed for {Url}", spotifyUrl);
+            return (string.Empty, string.Empty);
+        }
+    }
+
+    private async Task<(string Url, string Title)> SearchYouTubeAsync(string title, string artist)
+    {
+        var ytDlpResult = await SearchViaYtDlpAsync(title, artist);
+        if (!string.IsNullOrEmpty(ytDlpResult.Url)) return ytDlpResult;
+
+        var apiKey = _config.GetYouTubeApiKey();
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            var apiResult = await SearchViaApiAsync(title, artist, apiKey);
+            if (!string.IsNullOrEmpty(apiResult.Url)) return apiResult;
+        }
+
         return (string.Empty, string.Empty);
     }
 
-    private static async Task<(string Title, string Artist)?> GetYtDlpSpotifyMetaAsync(
-        string spotifyUrl)
-    {
-        try
-        {
-            // FIX: Use ArgumentList to prevent argument injection
-            var psi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
-            {
-                ArgumentList =
-                {
-                    "--no-download",
-                    "--print", "%(title)s",
-                    "--print", "%(artist)s",
-                    spotifyUrl
-                },
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
-            };
-
-            using var proc = Process.Start(psi);
-            if (proc == null) return null;
-
-            var output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-
-            if (proc.ExitCode != 0) return null;
-
-            var lines = output.Split('\n',
-                StringSplitOptions.RemoveEmptyEntries |
-                StringSplitOptions.TrimEntries);
-
-            if (lines.Length >= 2)
-                return (lines[0], lines[1]);
-            if (lines.Length == 1)
-                return (lines[0], string.Empty);
-
-            return null;
-        }
-        catch { return null; }
-    }
-
-    private async Task<(string Url, string Title)> SearchYouTubeAsync(
-        string title, string artist)
-    {
-        var apiKey = _config.GetYouTubeApiKey();
-
-        if (!string.IsNullOrEmpty(apiKey))
-        {
-            var result = await SearchViaApiAsync(title, artist, apiKey);
-            if (!string.IsNullOrEmpty(result.Url)) return result;
-        }
-
-        return await SearchViaYtDlpAsync(title, artist);
-    }
-
-    private async Task<(string Url, string Title)> SearchViaApiAsync(
-        string title, string artist, string apiKey)
+    private async Task<(string Url, string Title)> SearchViaApiAsync(string title, string artist, string apiKey)
     {
         try
         {
             var query = Uri.EscapeDataString($"{title} {artist} official audio");
-            var url   = $"https://www.googleapis.com/youtube/v3/search" +
-                        $"?part=snippet&q={query}&type=video&maxResults=1&key={apiKey}";
-
+            var url   = $"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&type=video&maxResults=1&key={apiKey}";
             var json = await _http.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
             var items = doc.RootElement.GetProperty("items");
-
             if (items.GetArrayLength() == 0) return (string.Empty, string.Empty);
 
             var item     = items[0];
             var videoId  = item.GetProperty("id").GetProperty("videoId").GetString() ?? string.Empty;
             var vidTitle = item.GetProperty("snippet").GetProperty("title").GetString() ?? string.Empty;
-
             return ($"https://www.youtube.com/watch?v={videoId}", vidTitle);
         }
         catch (Exception ex)
@@ -159,22 +114,14 @@ public class SpotifyBridgeService
         }
     }
 
-    private static async Task<(string Url, string Title)> SearchViaYtDlpAsync(
-        string title, string artist)
+    private static async Task<(string Url, string Title)> SearchViaYtDlpAsync(string title, string artist)
     {
         try
         {
             var query = $"ytsearch1:{title} {artist} official audio";
-            // FIX: Use ArgumentList to prevent argument injection
             var psi   = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
-                ArgumentList =
-                {
-                    "--no-download",
-                    "--print", "id",
-                    "--print", "title",
-                    query
-                },
+                ArgumentList = { "--no-download", "--print", "id", "--print", "title", query },
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
@@ -184,12 +131,13 @@ public class SpotifyBridgeService
             using var proc = Process.Start(psi);
             if (proc == null) return (string.Empty, string.Empty);
 
-            var output = await proc.StandardOutput.ReadToEndAsync();
+            // FIX: Read stderr asynchronously to prevent deadlocks
+            var outputTask = proc.StandardOutput.ReadToEndAsync();
+            var errorTask = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
 
-            var lines = output.Split('\n',
-                StringSplitOptions.RemoveEmptyEntries |
-                StringSplitOptions.TrimEntries);
+            var output = await outputTask;
+            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (lines.Length >= 2)
                 return ($"https://www.youtube.com/watch?v={lines[0]}", lines[1]);

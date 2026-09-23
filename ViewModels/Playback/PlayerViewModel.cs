@@ -40,6 +40,9 @@ public class PlayerViewModel : ViewModelBase
     private Guid _playSessionId = Guid.NewGuid();
     private long _pendingResumeTicks;
     private System.Threading.Timer? _audiobookSaveTimer;
+    
+    // FIX: Flag to prevent Previous track oscillation
+    private bool _suppressHistoryRecord;
 
     // NEW: SLEEP TIMER STATE
     private System.Threading.Timer? _sleepTimer;
@@ -466,6 +469,7 @@ public class PlayerViewModel : ViewModelBase
                 Log.Information("Starting crossfade transition to {NextTitle}", next.Title);
 
                 var sessionId = _playSessionId;
+                var left = _currentTrack; // Capture outgoing track
                 var crossfadeTask = _playback.CrossfadeToAsync(
                     next.FilePath, _settings.CrossfadeDurationSeconds * 1000, _volume);
 
@@ -482,7 +486,17 @@ public class PlayerViewModel : ViewModelBase
                             || t.Result != _playback.CrossfadeGeneration)
                             return;
 
+                        // FIX: Record play for the outgoing track
+                        if (left != null) _navigator.RecordPlay(left);
+                        
+                        // FIX: Scrobble outgoing track if it met the threshold
+                        if (left != null && _playRecorded && left.MediaType != MediaType.Audiobook)
+                            TrackScrobbleRequested?.Invoke(left.Title, left.Artist, DateTime.UtcNow);
+
                         CurrentTrack = next;
+                        _navigator.CurrentTrack = next;
+                        _playRecorded = false;
+
                         AlbumArtPath = next.AlbumArtPath;
                         _trackStartTime = DateTime.UtcNow;
                         _hasTriggeredCrossfade = false;
@@ -802,10 +816,16 @@ public class PlayerViewModel : ViewModelBase
             else _activePlaylist = null;
         }
 
+        // FIX: Respect the suppress flag to prevent Previous oscillation
+        var recordHistory = !_suppressHistoryRecord;
+        _suppressHistoryRecord = false;
+
+        // FIX: SaveAudiobookProgress must ALWAYS run when leaving a track, 
+        // but history recording is conditional.
         if (_currentTrack != null && _currentTrack.Id != track.Id)
         {
             SaveAudiobookProgress();
-            _navigator.RecordPlay(_currentTrack);
+            if (recordHistory) _navigator.RecordPlay(_currentTrack);
         }
 
         _hasTriggeredCrossfade = false;
@@ -1022,7 +1042,9 @@ public class PlayerViewModel : ViewModelBase
 
         _activePlaylist = null;
         var prev = _navigator.GetPreviousTrack(_currentTrack);
-        if (prev != null) PlayTrack(prev);
+        
+        // FIX: Suppress history recording for the track we are leaving when going backwards
+        if (prev != null) { _suppressHistoryRecord = true; PlayTrack(prev); }
     }
 
     private void PlayNext()
