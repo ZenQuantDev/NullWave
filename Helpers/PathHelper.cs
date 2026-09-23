@@ -7,39 +7,38 @@ public static class PathHelper
 {
     public const string DataToken = "<NW_DATA>";
 
-    /// <summary>
-    /// Converts an absolute path to a portable token if it resides inside the NullWave data directory.
-    /// </summary>
+    private static bool IsInside(string path, string dir)
+    {
+        if (!path.StartsWith(dir, StringComparison.OrdinalIgnoreCase)) return false;
+        if (path.Length == dir.Length) return true;
+        var nextChar = path[dir.Length];
+        return nextChar == Path.DirectorySeparatorChar || nextChar == Path.AltDirectorySeparatorChar;
+    }
+
     public static string? Tokenize(string? absolutePath)
     {
         if (string.IsNullOrWhiteSpace(absolutePath)) return absolutePath;
 
-        // Check current DataDir
         string dataDir = NullWavePaths.DataDir;
-        if (absolutePath.StartsWith(dataDir, StringComparison.OrdinalIgnoreCase))
+        if (IsInside(absolutePath, dataDir))
         {
             string relative = absolutePath.Substring(dataDir.Length);
-            relative = relative.Replace('\\', '/').TrimStart('/'); // Normalize to forward slashes for DB
+            relative = relative.Replace('\\', '/').TrimStart('/');
             return $"{DataToken}/{relative}";
         }
 
-        // Check LegacyDataDir (just in case)
         string legacyDir = NullWavePaths.LegacyDataDir;
         if (!string.Equals(dataDir, legacyDir, StringComparison.OrdinalIgnoreCase) &&
-            absolutePath.StartsWith(legacyDir, StringComparison.OrdinalIgnoreCase))
+            IsInside(absolutePath, legacyDir))
         {
             string relative = absolutePath.Substring(legacyDir.Length);
             relative = relative.Replace('\\', '/').TrimStart('/');
             return $"{DataToken}/{relative}";
         }
 
-        // If it's outside NullWave data dir (e.g. user picked a custom music folder), leave it absolute.
         return absolutePath;
     }
 
-    /// <summary>
-    /// Resolves a portable token back to an absolute path for the current OS.
-    /// </summary>
     public static string? Resolve(string? storedPath)
     {
         if (string.IsNullOrWhiteSpace(storedPath)) return storedPath;
@@ -47,7 +46,7 @@ public static class PathHelper
         if (storedPath.StartsWith(DataToken, StringComparison.OrdinalIgnoreCase))
         {
             string relative = storedPath.Substring(DataToken.Length).TrimStart('/');
-            relative = relative.Replace('/', Path.DirectorySeparatorChar); // Convert to OS-specific separator
+            relative = relative.Replace('/', Path.DirectorySeparatorChar);
             return Path.Combine(NullWavePaths.DataDir, relative);
         }
 

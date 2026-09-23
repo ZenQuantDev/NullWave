@@ -14,8 +14,10 @@ public class IdentityService
 
     public string Fingerprint { get; private set; } = string.Empty;
     public string PublicKeyBase64 => _key == null ? string.Empty : Convert.ToBase64String(_key.ExportSubjectPublicKeyInfo());
+    
+    /// <summary>True if the keystore was unreadable and a new identity had to be generated.</summary>
+    public bool IdentityWasRegenerated { get; private set; }
 
-    // Removed the static Instance singleton so we can inject KeyStoreService securely
     public IdentityService(KeyStoreService keyStore)
     {
         _keyStore = keyStore;
@@ -26,19 +28,21 @@ public class IdentityService
     {
         try
         {
-            // 1. Try to load the encrypted private key from the secure keystore
             var privateKeyBase64 = _keyStore.GetKey("Identity:PrivateKey");
             
             if (!string.IsNullOrEmpty(privateKeyBase64))
             {
                 _key = ECDsa.Create();
-                // ImportPkcs8PrivateKey is the standard for secure ECC key storage
                 _key.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKeyBase64), out _);
                 Log.Information("[IdentityService] Loaded cryptographic identity.");
             }
             else
             {
-                // 2. Generate new P-256 keypair and save it SECURELY
+                // FIX: Detect if the keystore was recovered (quarantined) so we can warn the user
+                IdentityWasRegenerated = _keyStore.WasRecovered;
+                if (IdentityWasRegenerated)
+                    Log.Warning("[IdentityService] Keystore was recovered - generating a NEW identity. The old data is in the keys.enc.bad-* file.");
+
                 _key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
                 var pkcs8 = _key.ExportPkcs8PrivateKey();
                 _keyStore.SaveKey("Identity:PrivateKey", Convert.ToBase64String(pkcs8));

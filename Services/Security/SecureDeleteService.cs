@@ -1,8 +1,7 @@
-using NullWave.Services.Security;
 using System;
 using System.IO;
-using System.Security.Cryptography;
 using NullWave.Helpers;
+using NullWave.Services.Security;
 using Serilog;
 
 namespace NullWave.Services;
@@ -18,61 +17,60 @@ public class SecureDeleteService
         _nullwaveDir = NullWavePaths.DataDir;
     }
 
-    // Wipe only API keys
-    public void DeleteApiKeys()
+    /// <summary>
+    /// Refuses to proceed unless the target directory is unambiguously NullWave's own
+    /// data folder (or a temp folder standing in for it during tests).
+    /// </summary>
+    internal static void EnsureSafeToWipe(string dir)
     {
-        _keyStore.DeleteAllKeys();
+        var full = Path.GetFullPath(dir);
+        var dataDir = Path.GetFullPath(NullWavePaths.DataDir);
+
+        var isDataDir = string.Equals(full, dataDir, StringComparison.OrdinalIgnoreCase);
+        var isTempFolder = full.StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase);
+
+        if (!isDataDir && !isTempFolder)
+            throw new InvalidOperationException($"Refusing to wipe '{full}': not NullWave's data folder.");
     }
 
-    // Wipe logs only
+    public void DeleteApiKeys() => _keyStore.DeleteAllKeys();
+
     public void DeleteLogs()
     {
         var logDir = NullWavePaths.LogsDir;
         if (!Directory.Exists(logDir)) return;
+        EnsureSafeToWipe(_nullwaveDir);
 
         foreach (var file in Directory.GetFiles(logDir, "*.log"))
-            SecureWipeFile(file);
+            DeleteFile(file);
 
-        Log.Warning("All logs have been securely deleted");
+        Log.Warning("All logs have been deleted");
     }
 
-    // Nuclear option - wipe everything NullWave has stored
     public void DeleteEverything()
     {
+        EnsureSafeToWipe(_nullwaveDir);
+
         DeleteApiKeys();
         DeleteLogs();
 
-        // Wipe any other files in ~/.nullwave
-        if (Directory.Exists(_nullwaveDir))
+        if (!Directory.Exists(_nullwaveDir)) return;
+
+        foreach (var file in Directory.EnumerateFiles(_nullwaveDir, "*", SearchOption.AllDirectories))
+            DeleteFile(file);
+
+        foreach (var dir in Directory.EnumerateDirectories(_nullwaveDir))
         {
-            foreach (var file in Directory.GetFiles(_nullwaveDir))
-                SecureWipeFile(file);
+            try { Directory.Delete(dir, recursive: true); }
+            catch (Exception ex) { Log.Warning(ex, "[SecureDeleteService] Could not remove directory: {Dir}", dir); }
         }
 
         Log.Warning("NullWave data fully wiped");
     }
 
-    private static void SecureWipeFile(string path)
+    private static void DeleteFile(string path)
     {
-        try
-        {
-            var size = new FileInfo(path).Length;
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Write))
-            {
-                // Three-pass wipe
-                for (int i = 0; i < 3; i++)
-                {
-                    fs.Seek(0, SeekOrigin.Begin);
-                    var noise = RandomNumberGenerator.GetBytes((int)size);
-                    fs.Write(noise, 0, noise.Length);
-                    fs.Flush();
-                }
-            }
-            File.Delete(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Secure wipe failed for {Path}", path);
-        }
+        try { File.Delete(path); }
+        catch (Exception ex) { Log.Error(ex, "Delete failed for {Path}", path); }
     }
 }
