@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.1] - 23-Sep-2026 🛡️ "Stability & Safety"
+
+### Added
+- **Test Infrastructure**: Established xUnit foundation with `NULLWAVE_HOME` isolation, `FakeYtDlp` console harness, and comprehensive test suites for core services.
+- **Spotify OpenGraph Parser**: Added `SpotifyPageParser` to extract metadata from public Spotify pages without relying on yt-dlp or premium APIs.
+
+### Changed
+- **Download Output Template**: Changed yt-dlp output to `%(title).150B [%(id)s].%(ext)s` to prevent filename collisions.
+- **Database Backups**: Throttled rolling backups to once per 24 hours and only when the database has actually changed.
+
+### Fixed
+- **Data Loss Prevention (P0)**:
+  - `KeyStoreService`: Unreadable/corrupt keystores are now quarantined as `.bad-<timestamp>` instead of being silently overwritten. Atomic writes prevent mid-save corruption.
+  - `PreferencesService`: Fixed `Dispose()` order so settings changed right before exit are actually saved. Corrupt `prefs.json` files are quarantined.
+  - `DatabaseService`: Pending restores now run `PRAGMA integrity_check` before applying. Invalid restores are rejected, and the previous database is kept as `.pre-restore`.
+- **Download Stability (P1)**:
+  - Fixed stuck URLs in `_activeDownloads` when a download is cancelled while queued.
+  - Fixed `SemaphoreSlim` drift when concurrency limits are changed mid-flight.
+  - Fixed infinite hangs in playlist downloads when duplicate URLs trigger the guard.
+  - Added a 20-minute hard timeout ceiling to kill hung yt-dlp/ffmpeg process trees.
+- **Playback & Navigation**:
+  - Fixed "Previous" button oscillation (bouncing between two tracks).
+  - Fixed crossfade play counts and scrobbles not registering for the outgoing track.
+- **Metadata & Integration**:
+  - Replaced broken yt-dlp Spotify bridge with robust OpenGraph tag scraper.
+  - Fixed `TrackTitleParser` exotic separator handling.
+  - Fixed `SourceDetector` host-based detection and `TrackRecord` pipe-tag splitting.
+
+---
+
 ## [0.6.0] - 19-Sep-2026 🌼 "Oxeye Daisy"
 
 ### Added
