@@ -14,7 +14,6 @@ public class PreferencesService : IDisposable
     private readonly string _prefsPath;
     private Preferences _prefs;
     
-    // Replaced Timer with CancellationTokenSource for robust thread-safe shutdown
     private CancellationTokenSource? _debounceCts;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(2);
     private readonly object _saveLock = new object();
@@ -44,6 +43,13 @@ public class PreferencesService : IDisposable
             Log.Debug("[PreferencesService] Loaded preferences from {Path}", _prefsPath);
             return prefs;
         }
+        catch (JsonException ex)
+        {
+            Log.Error(ex, "prefs.json is corrupt; keeping a copy and using defaults");
+            try { File.Move(_prefsPath, _prefsPath + ".bad-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")); }
+            catch (Exception moveEx) { Log.Warning(moveEx, "Could not move the corrupt prefs.json aside"); }
+            return new Preferences { DownloadDirectory = NullWavePaths.DownloadsDir };
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to load preferences");
@@ -56,16 +62,24 @@ public class PreferencesService : IDisposable
         lock (_saveLock)
         {
             if (_disposed) return;
-            try
-            {
-                var json = JsonSerializer.Serialize(_prefs, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_prefsPath, json);
-                Log.Debug("[PreferencesService] Saved preferences to {Path}", _prefsPath);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to save preferences");
-            }
+            SaveCore();
+        }
+    }
+
+    private void SaveCore()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_prefs, new JsonSerializerOptions { WriteIndented = true });
+            Directory.CreateDirectory(Path.GetDirectoryName(_prefsPath)!);
+            var tmp = _prefsPath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, _prefsPath, overwrite: true);
+            Log.Debug("[PreferencesService] Saved preferences to {Path}", _prefsPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to save preferences");
         }
     }
 
@@ -75,14 +89,10 @@ public class PreferencesService : IDisposable
         {
             if (_disposed) return;
             
-            // 1. Update the object in memory immediately
             updater(_prefs);
-
-            // 2. Cancel any existing pending save
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();
             
-            // 3. Start a new debounce task
             _debounceCts = new CancellationTokenSource();
             var token = _debounceCts.Token;
 
@@ -91,15 +101,9 @@ public class PreferencesService : IDisposable
                 try
                 {
                     await Task.Delay(_debounceInterval, token);
-                    if (!token.IsCancellationRequested)
-                    {
-                        Save();
-                    }
+                    if (!token.IsCancellationRequested) Save();
                 }
-                catch (TaskCanceledException)
-                {
-                    // Expected when a new update comes in or service is disposed
-                }
+                catch (TaskCanceledException) { }
             }, token);
         }
     }
@@ -109,15 +113,13 @@ public class PreferencesService : IDisposable
         lock (_saveLock)
         {
             if (_disposed) return;
-            _disposed = true;
             
-            // Cancel any pending debounce task immediately
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();
             _debounceCts = null;
             
-            // Force a final synchronous save on shutdown
-            Save();
+            SaveCore();          // final synchronous save; runs before the disposed flag is set
+            _disposed = true;
         }
     }
 }

@@ -1,8 +1,9 @@
-using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
 using SQLite;
@@ -52,25 +53,70 @@ public class DatabaseService : IDisposable
 
     private void ApplyPendingRestore(string currentPath)
     {
+        var restorePath = currentPath + ".restoring";
+        if (!File.Exists(restorePath)) return;
+
+        var preRestore = currentPath + ".pre-restore";
         try
         {
-            string restorePath = currentPath + ".restoring";
-            if (File.Exists(restorePath))
+            if (!IsValidDatabase(restorePath))
             {
-                Log.Information("[DatabaseService] Found pending restore file. Applying...");
-                if (File.Exists(currentPath)) File.Delete(currentPath);
-                File.Move(restorePath, currentPath);
-
-                // Clean up WAL/SHM to prevent corruption from mismatched DB states
-                if (File.Exists(currentPath + "-wal")) File.Delete(currentPath + "-wal");
-                if (File.Exists(currentPath + "-shm")) File.Delete(currentPath + "-shm");
-
-                Log.Information("[DatabaseService] Restore applied successfully.");
+                var rejected = $"{restorePath}.rejected-{DateTime.Now:yyyyMMdd-HHmmss}";
+                File.Move(restorePath, rejected);
+                Log.Error("[DatabaseService] Restore file failed the integrity check; current database kept. Moved to {Path}", rejected);
+                return;
             }
+
+            if (File.Exists(currentPath))
+            {
+                // Keep the previous database instead of deleting it
+                File.Move(currentPath, preRestore, overwrite: true);
+                MoveIfExists(currentPath + "-wal", preRestore + "-wal");
+                MoveIfExists(currentPath + "-shm", preRestore + "-shm");
+            }
+
+            File.Move(restorePath, currentPath);
+            Log.Information("[DatabaseService] Restore applied. Previous database kept at {Path}", preRestore);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[DatabaseService] Failed to apply pending restore.");
+            try
+            {
+                // Roll back if we had already moved the current database away
+                if (!File.Exists(currentPath) && File.Exists(preRestore))
+                {
+                    File.Move(preRestore, currentPath);
+                    MoveIfExists(preRestore + "-wal", currentPath + "-wal");
+                    MoveIfExists(preRestore + "-shm", currentPath + "-shm");
+                }
+            }
+            catch (Exception rollbackEx)
+            {
+                Log.Error(rollbackEx, "[DatabaseService] Rollback failed; the previous database is at {Path}", preRestore);
+            }
+        }
+    }
+
+    private static void MoveIfExists(string from, string to)
+    {
+        if (File.Exists(from)) File.Move(from, to, overwrite: true);
+    }
+
+    internal static bool IsValidDatabase(string path)
+    {
+        try
+        {
+            using var conn = new SQLiteConnection(path, SQLiteOpenFlags.ReadOnly);
+            var integrity = conn.ExecuteScalar<string>("PRAGMA integrity_check;");
+            var hasTracks = conn.ExecuteScalar<int>(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Tracks';");
+            return string.Equals(integrity, "ok", StringComparison.OrdinalIgnoreCase) && hasTracks == 1;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DatabaseService] Could not validate database file {Path}", path);
+            return false;
         }
     }
 
@@ -108,31 +154,23 @@ public class DatabaseService : IDisposable
         try
         {
             if (!File.Exists(dbPath)) return;
+            if (new FileInfo(dbPath).Length < 10240) return;
+            if (!(_prefs?.Current.EnableAutoBackups ?? true)) return;
 
-            var fileInfo = new FileInfo(dbPath);
-            // Don't backup empty/newly created DBs (< 10KB)
-            if (fileInfo.Length < 10240) return;
-
-            bool enableBackups = _prefs?.Current.EnableAutoBackups ?? true;
-            if (!enableBackups) return;
-
-            int retention = _prefs?.Current.BackupRetentionCount ?? 3;
-
+            int retention = Math.Max(1, _prefs?.Current.BackupRetentionCount ?? 3);
             string backupDir = NullWavePaths.BackupsDir;
             Directory.CreateDirectory(backupDir);
 
-            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-            string backupFileName = $"library-{timestamp}.db";
+            if (!BackupIsDue(dbPath, backupDir, DateTime.Now)) return;
+
+            string backupFileName = $"library-{DateTime.Now:yyyyMMdd-HHmmss}.db";
             string backupPath = Path.Combine(backupDir, backupFileName);
 
-            // Safely copy the DB and its WAL/SHM files before SQLite opens them
             File.Copy(dbPath, backupPath, overwrite: false);
             if (File.Exists(dbPath + "-wal")) File.Copy(dbPath + "-wal", backupPath + "-wal", overwrite: false);
             if (File.Exists(dbPath + "-shm")) File.Copy(dbPath + "-shm", backupPath + "-shm", overwrite: false);
 
             Log.Information("[DatabaseService] Created rolling backup: {BackupFile}", backupFileName);
-
-            // Prune old backups
             PruneOldBackups(backupDir, retention);
         }
         catch (Exception ex)
@@ -141,13 +179,44 @@ public class DatabaseService : IDisposable
         }
     }
 
+    /// <summary>A backup is due if none exists, or the newest is over 24 hours old AND the database changed since.</summary>
+    internal static bool BackupIsDue(string dbPath, string backupDir, DateTime now)
+    {
+        var newest = Directory.GetFiles(backupDir, "library-*.db")
+            .Select(f => TryParseBackupTime(f))
+            .Where(t => t.HasValue)
+            .OrderByDescending(t => t!.Value)
+            .FirstOrDefault();
+
+        if (newest == null) return true;
+        if (now - newest.Value < TimeSpan.FromHours(24)) return false;
+
+        var lastChange = new[] { dbPath, dbPath + "-wal" }
+            .Where(f => File.Exists(f))
+            .Max(f => File.GetLastWriteTime(f));
+
+        return lastChange > newest.Value;
+    }
+
+    internal static DateTime? TryParseBackupTime(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);          // library-20260920-093000
+        const string prefix = "library-";
+        if (!name.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        
+        return DateTime.TryParseExact(name[prefix.Length..], "yyyyMMdd-HHmmss",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
+            ? time
+            : null;
+    }
+
     private void PruneOldBackups(string backupDir, int retentionCount)
     {
         try
         {
             var backupFiles = Directory.GetFiles(backupDir, "library-*.db")
                 .Select(f => new FileInfo(f))
-                .OrderByDescending(f => f.CreationTime)
+                .OrderByDescending(f => f.Name, StringComparer.Ordinal)   // Prune by filename timestamp, not CreationTime
                 .ToList();
 
             if (backupFiles.Count > retentionCount)
@@ -342,7 +411,6 @@ public class DatabaseService : IDisposable
                         PlaylistId = playlist.Id.ToString(),
                         TrackId = trackId.ToString(),
                         SortOrder = i,
-                        // NEW: Persist DateAdded, fallback to playlist creation date if missing
                         DateAdded = playlist.TrackDateAdded.TryGetValue(trackId, out var d) ? d : playlist.DateCreated
                     });
                 }
@@ -385,7 +453,6 @@ public class DatabaseService : IDisposable
                     if (trackMap.TryGetValue(pt.TrackId, out var track))
                     {
                         pList.Tracks.Add(track);
-                        // NEW: Load DateAdded into the dictionary, fallback to playlist creation date for legacy rows
                         pList.TrackDateAdded[track.Id] = pt.DateAdded == default ? pList.DateCreated : pt.DateAdded;
                     }
                 }

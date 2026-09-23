@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NullWave.Helpers;
 using SQLite;
 
@@ -63,7 +64,8 @@ public class TrackRecord
         Notes = t.Notes,
         SkipCount = t.SkipCount,
         LastSkipped = t.LastSkipped,
-        TagsRaw = t.Tags.Count > 0 ? string.Join("|", t.Tags) : null,
+        // Inside TrackRecord.FromTrack(Track t):
+        TagsRaw = t.Tags.Count > 0 ? string.Join("|", t.Tags.Select(x => x.Replace('|', '/'))) : null,
         DurationMs = (long)t.Duration.TotalMilliseconds,
         MediaType = t.MediaType.ToString(),
         PlaybackPositionTicks = t.PlaybackPositionTicks,

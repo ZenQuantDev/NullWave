@@ -83,15 +83,23 @@ public partial class SettingsViewModel
         IsStagingUpdate = true;
         try
         {
-            var rid = RuntimeInformation.RuntimeIdentifier;
-            UpdateStaged = await _updater.StageUpdateAsync(rid);
-            ToastService.Instance.Show(UpdateStaged ? "Update downloaded — restart to install." : "No matching release asset found.", UpdateStaged ? ToastType.Success : ToastType.Warning);
+            // Velopack handles RID matching automatically
+            UpdateStaged = await _updater.StageUpdateAsync(); 
+            ToastService.Instance.Show(
+                UpdateStaged ? "Update downloaded — restart to install." : "No update available.", 
+                UpdateStaged ? ToastType.Success : ToastType.Warning);
         }
-        catch (Exception ex) { ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error); }
-        finally { IsStagingUpdate = false; }
+        catch (Exception ex) 
+        { 
+            ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error); 
+        }
+        finally 
+        { 
+            IsStagingUpdate = false; 
+        }
     }
 
-    [RelayCommand] private void RestartToUpdate() => _updater.LaunchUpdaterAndExit();
+    [RelayCommand] private void RestartToUpdate() => _updater.ApplyUpdatesAndRestart();
     
     [RelayCommand] private void OpenReleasePage()
     {

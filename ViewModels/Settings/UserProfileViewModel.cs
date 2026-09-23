@@ -44,8 +44,9 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     private readonly PreferencesService _prefs;
     private readonly IdentityService _identity;
     private readonly PropertyChangedEventHandler _langHandler;
-    private readonly string _badgesPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "badges.json");
+    
+    // FIX: Route through NullWavePaths so NULLWAVE_HOME is respected during tests and factory resets
+    private readonly string _badgesPath;
     private List<SignedBadge> _grantedBadges = new();
 
     public ObservableCollection<ProfileBadge> Badges { get; } = new();
@@ -109,7 +110,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
 
     private TimeSpan _totalListeningTime;
 
-    // Cached stat fields
     private int _totalTracks;
     private int _totalFavorites;
     private int _totalPlays;
@@ -122,14 +122,12 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     private int _soundCloudCount;
     private int _localCount;
 
-    // Library Insights & Streaks
     private string _longestTrack = "-";
     private string _shortestTrack = "-";
     private string _averageTrackLength = "0:00";
     private int _currentStreak;
     private int _longestStreak;
 
-    // Distributions
     private Dictionary<string, double> _tasteDistribution = new();
     private Dictionary<string, double> _moodDistribution = new();
 
@@ -155,6 +153,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _library = library;
         _prefs = prefs;
         _identity = identity;
+        _badgesPath = Path.Combine(NullWavePaths.DataDir, "badges.json");
 
         Load();
 
@@ -174,17 +173,14 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _langHandler = (_, _) => Dispatcher.UIThread.Post(RefreshBadges);
         LocalizationService.Instance.PropertyChanged += _langHandler;
 
-        // FIX: Ensure initial stats are calculated on the UI thread after construction
         Dispatcher.UIThread.Post(UpdateStatistics);
     }
 
     private void OnLibraryChanged(object? sender, EventArgs e) 
     {
-        // FIX: Always marshal stat updates to the UI thread to prevent cross-thread binding exceptions
         Dispatcher.UIThread.Post(UpdateStatistics);
     }
 
-    // === AUTO-SAVE STATE INDICATOR ===
     private bool _isSavingChanges;
     public bool IsSavingChanges
     {
@@ -192,7 +188,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         private set { _isSavingChanges = value; OnPropertyChanged(); }
     }
 
-    // === EDITOR PANE STATE ===
     private bool _isEditorOpen;
     public bool IsEditorOpen
     {
@@ -203,7 +198,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     [global::CommunityToolkit.Mvvm.Input.RelayCommand] private void OpenEditor() => IsEditorOpen = true;
     [global::CommunityToolkit.Mvvm.Input.RelayCommand] private void CloseEditor() => IsEditorOpen = false;
 
-    // === BANNER (color presets + custom image) ===
     public string BannerColor
     {
         get => _prefs.Current.ProfileBannerColor;
@@ -282,7 +276,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         TryDeleteProfileAsset(oldBannerPath);
     }
 
-    // === PROFILE FRAME ===
     public string ProfileFrameStyle
     {
         get => _prefs.Current.ProfileFrameStyle;
@@ -296,7 +289,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     }
     [global::CommunityToolkit.Mvvm.Input.RelayCommand] private void SetProfileFrame(string style) => ProfileFrameStyle = style;
 
-    // === TRACK SHARING PREP ===
     public bool TrackSharingEnabled
     {
         get => _prefs.Current.EnableTrackSharing;
@@ -308,7 +300,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // === IDENTITY ===
     public string InstallId => _installId;
 
     public string ToastMessage
@@ -357,7 +348,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         private set { _showSaveToast = value; OnPropertyChanged(); }
     }
 
-    // === STATS ===
     public int TotalTracks => _totalTracks;
     public int TotalFavorites => _totalFavorites;
     public int TotalPlays => _totalPlays;
@@ -387,13 +377,14 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         try
         {
             var badge = JsonSerializer.Deserialize<SignedBadge>(json);
-            if (badge == null || !badge.VerifySignature())
+            
+            if (badge == null || !badge.VerifyAgainstMasterKey() || !badge.IsOfficial())
             {
                 ToastService.Instance.Show(L("Profile_Badge_Invalid"), ToastType.Error);
                 return;
             }
 
-            if (!string.Equals(badge.Payload.RecipientFingerprint, _identity.Fingerprint, StringComparison.OrdinalIgnoreCase))
+            if (!badge.IsBoundTo(_identity.Fingerprint))
             {
                 ToastService.Instance.Show(L("Profile_Badge_NotYours"), ToastType.Warning);
                 return;
@@ -463,7 +454,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
 
         _totalListeningTime = TimeSpan.FromTicks(allTracks.Sum(t => t.Duration.Ticks * (long)t.PlayCount));
 
-        // Library Insights Computation
         var validDurations = allTracks.Where(t => t.Duration > TimeSpan.Zero).ToList();
         if (validDurations.Any())
         {
@@ -479,13 +469,11 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
             _longestTrack = "-"; _shortestTrack = "-"; _averageTrackLength = "0:00";
         }
 
-        // Top 3 Artists
         TopArtists.Clear();
         foreach (var g in allTracks.Where(t => t.Artist != "Unknown" && !string.IsNullOrEmpty(t.Artist))
             .GroupBy(t => t.Artist).OrderByDescending(g => g.Sum(t => t.PlayCount)).Take(3))
             TopArtists.Add(new ArtistStat(g.Key, g.Sum(t => t.PlayCount)));
 
-        // Streaks
         var days = allTracks.Where(t => t.LastPlayed.HasValue).Select(t => t.LastPlayed!.Value.Date).Distinct().OrderBy(d => d).ToList();
         if (days.Count > 0) {
             int longest = 1, run = 1;
@@ -496,7 +484,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
             _currentStreak = current;
         } else { _currentStreak = 0; _longestStreak = 0; }
 
-        // Distributions
         _tasteDistribution = TagTaxonomy.ComputeDistribution(allTracks, TagTaxonomy.GenreAxes);
         _moodDistribution = TagTaxonomy.ComputeDistribution(allTracks, TagTaxonomy.MoodAxes);
 
@@ -519,7 +506,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         RefreshStatProperties();
         RefreshBadges();
         
-        // Invalidate QR code so it regenerates with fresh top tracks/tags on next export
         _shareQr = null;
     }
 
@@ -548,7 +534,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         Badges.Clear();
 
         var imported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var badge in _grantedBadges.Where(b => b.Payload != null && b.VerifySignature()))
+        
+        foreach (var badge in _grantedBadges.Where(b => b.Payload != null && b.VerifyAgainstMasterKey() && b.IsOfficial()))
         {
             var type = badge.Payload.BadgeType;
             if (string.IsNullOrWhiteSpace(type) || !imported.Add(type)) continue;
@@ -564,13 +551,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
                 brush));
         }
 
-        if (!imported.Contains("dev")
-            && (Username.Equals("ZenQuant", StringComparison.OrdinalIgnoreCase)
-                || Username.Equals("Alex", StringComparison.OrdinalIgnoreCase)))
-            Badges.Add(new ProfileBadge("dev", MaterialIconKind.CodeTags,
-                Loc("Profile_Badge_Developer", "Developer"),
-                Loc("Profile_Badge_Developer_Desc", "Built NullWave."),
-                Brush("BrushAccent2")));
+        // NOTE: Removed the hardcoded "Alex/ZenQuant" developer badge. 
+        // Developer status should be granted via a signed SignedBadge payload, not hardcoded username checks.
 
         if (!imported.Contains("early") && _createdAt != default && _createdAt < new DateTime(2025, 1, 1))
             Badges.Add(new ProfileBadge("early", MaterialIconKind.RocketLaunch,
@@ -674,7 +656,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+            // FIX: Use NullWavePaths.DataDir instead of hardcoded Environment.SpecialFolder
+            string dir = NullWavePaths.DataDir;
             string filePath = Path.Combine(dir, "profile.json");
 
             if (File.Exists(filePath))
@@ -746,7 +729,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+            // FIX: Use NullWavePaths.DataDir
+            string dir = NullWavePaths.DataDir;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
             string filePath = Path.Combine(dir, "profile.json");
@@ -840,8 +824,9 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         TryDeleteProfileAsset(oldAvatarPath);
     }
 
+    // FIX: Route through NullWavePaths.DataDir
     private static string GetProfileAssetsDirectory()
-        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "profile-assets");
+        => Path.Combine(NullWavePaths.DataDir, "profile-assets");
 
     private static void TryDeleteProfileAsset(string? path)
     {
@@ -875,7 +860,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         ShowSaveToast = false;
     }
 
-    // --- SHARE / QR INTEGRATION ---
     private string _shareCode = "";
     public string ShareCode => _shareCode;
 
