@@ -17,6 +17,11 @@ public static class PlatformHelper
     /// </summary>
     public static string ResolveExecutable(string name)
     {
+        // TEST HOOK: Allow tests to override tool paths via environment variables.
+        // "yt-dlp" becomes "YT_DLP", matching the NULLWAVE_TOOL_YT_DLP env var set in tests.
+        var envOverride = Environment.GetEnvironmentVariable($"NULLWAVE_TOOL_{name.ToUpperInvariant().Replace("-", "_")}");
+        if (!string.IsNullOrWhiteSpace(envOverride)) return envOverride;
+
         if (NullWavePaths.IsWindows)
         {
             var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
