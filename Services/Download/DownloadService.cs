@@ -199,7 +199,9 @@ public class DownloadService
             return;
         }
 
-        var outputTemplate = Path.Combine(_downloadDir, "%(title)s.%(ext)s");
+        // FIX: append the video id so two tracks sharing a title (two songs called "Intro")
+        // never collide and overwrite each other on disk.
+        var outputTemplate = Path.Combine(_downloadDir, "%(title).150B [%(id)s].%(ext)s");
         var qualityValue = audioQuality switch
         {
             "best" => "0",
@@ -232,19 +234,18 @@ public class DownloadService
         AppendSpeedAndAuthArgs(args);
 
         if (!allowPlaylist)
-        {
             args.Add("--no-playlist");
-        }
         else
-        {
             args.Add("--yes-playlist");
-        }
 
         lock (_activeDownloads)
         {
             if (_activeDownloads.Contains(url))
             {
                 Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
+                // FIX: fire the failure event instead of a silent return, so any caller
+                // awaiting a TaskCompletionSource tied to this trackId doesn't hang forever.
+                DownloadFailed?.Invoke(trackId, "Already downloading", isInteractive);
                 return;
             }
             _activeDownloads.Add(url);
@@ -264,31 +265,48 @@ public class DownloadService
                 cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             }
         }
+
+        // FIX: a hung yt-dlp process (network stall, waiting on input) used to hold a
+        // concurrency slot forever. Give every download a hard ceiling.
+        cts.CancelAfter(TimeSpan.FromMinutes(20));
         ct = cts.Token;
 
         Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
-        try
-        {
-            await _semaphore.WaitAsync(ct);
-        }
-        catch (ObjectDisposedException)
-        {
-            Log.Debug("[DownloadService] Semaphore rebuilt mid-wait, re-acquiring");
-            await _semaphore.WaitAsync(ct);
-        }
-
-        Interlocked.Increment(ref _activeDownloadCount); // NEW: Track in-flight downloads
-
-        // FIX: Use passed-in title/artist instead of hardcoded "Track"/"Unknown"
-        var job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
-        job.Status = "Downloading...";
-        job.IsIndeterminate = false;
+        // FIX: everything from the semaphore acquire through cleanup is now ONE try/finally.
+        // Previously, if the token cancelled while still queued (before WaitAsync returned),
+        // the method exited before ever reaching the cleanup that removed `url` from
+        // `_activeDownloads` — leaking it until restart. We also capture the exact semaphore
+        // instance we acquired from and release *that* instance, since `UpdateConcurrencyLimit`
+        // can swap `_semaphore` to a new object mid-download; releasing whatever the field
+        // currently points to could throw or corrupt the new semaphore's count.
+        SemaphoreSlim? acquiredSemaphore = null;
+        var activeDownloadCounted = false;
+        DownloadJob? job = null;
 
         try
         {
-            // FIX: Use ArgumentList to prevent argument injection
+            var sem = _semaphore;
+            try
+            {
+                await sem.WaitAsync(ct);
+            }
+            catch (ObjectDisposedException)
+            {
+                Log.Debug("[DownloadService] Semaphore rebuilt mid-wait, re-acquiring");
+                sem = _semaphore;
+                await sem.WaitAsync(ct);
+            }
+            acquiredSemaphore = sem;
+
+            Interlocked.Increment(ref _activeDownloadCount);
+            activeDownloadCounted = true;
+
+            job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
+            job.Status = "Downloading...";
+            job.IsIndeterminate = false;
+
             var psi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
                 RedirectStandardOutput = true,
@@ -298,9 +316,7 @@ public class DownloadService
             };
 
             foreach (var arg in args)
-            {
                 psi.ArgumentList.Add(arg);
-            }
 
             using var process = new Process { StartInfo = psi };
             string? outputFilePath = null;
@@ -347,19 +363,22 @@ public class DownloadService
             try
             {
                 await process.WaitForExitAsync(ct);
-                process.WaitForExit(); // Ensures ExitCode is populated
+                process.WaitForExit();
             }
             catch (OperationCanceledException)
             {
-                // yt-dlp spawns ffmpeg as a child process, so kill the entire process tree.
+                // yt-dlp spawns ffmpeg as a child process, so kill the entire tree.
                 if (!process.HasExited)
                 {
-                    try { process.Kill(true); } catch { /* Ignore teardown errors */ }
+                    try { process.Kill(true); } catch { /* ignore teardown errors */ }
                 }
-
-                Log.Warning("Download cancelled: {TrackId}", trackId);
+                Log.Warning("Download cancelled or timed out: {TrackId}", trackId);
                 DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
-                return; // Exit early so we don't trigger success logic
+                job.IsFailed = true;
+                job.Status = "Failed";
+                job.ErrorMessage = "Cancelled";
+                PruneCompletedJobs();
+                return;
             }
 
             if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
@@ -373,7 +392,6 @@ public class DownloadService
             }
             else if (process.ExitCode == 0)
             {
-                // FIX: Pass expected title to prevent cross-contamination during concurrent downloads
                 var recent = FindMostRecentUnlinkedDownload(title);
                 if (recent != null)
                 {
@@ -405,8 +423,9 @@ public class DownloadService
         }
         catch (OperationCanceledException)
         {
-            Log.Warning("Download cancelled: {TrackId}", trackId);
+            Log.Warning("Download cancelled while queued: {TrackId}", trackId);
             DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
+            if (job != null) { job.IsFailed = true; job.Status = "Failed"; job.ErrorMessage = "Cancelled"; }
             PruneCompletedJobs();
         }
         catch (Exception ex)
@@ -417,8 +436,8 @@ public class DownloadService
         }
         finally
         {
-            Interlocked.Decrement(ref _activeDownloadCount); // NEW: Decrement in-flight counter
-            _semaphore.Release();
+            if (activeDownloadCounted) Interlocked.Decrement(ref _activeDownloadCount);
+            acquiredSemaphore?.Release();
             lock (_activeDownloads)
                 _activeDownloads.Remove(url);
         }
@@ -630,6 +649,11 @@ public class DownloadService
                                         allowPlaylist: false, isInteractive: false, 
                                         title: title, artist: artist, ct: ct);
 
+                    // FIX: DownloadAsync can return without ever firing an event (e.g. the
+                    // duplicate-URL guard), which used to leave `tcs` unresolved and hang this
+                    // loop forever. No-op if an event already completed it.
+                    tcs.TrySetResult(false);
+
                     DownloadCompleted -= OnCompleted;
                     DownloadFailed    -= OnFailed;
 
@@ -807,6 +831,25 @@ public class DownloadService
 
         Log.Warning("[DownloadService] filepath not captured and multiple downloads in flight; refusing ambiguous fallback");
         return null;
+    }
+
+    /// <summary>
+    /// Safely posts to the UI thread. Swallows exceptions in test/headless environments 
+    /// where the Avalonia dispatcher hasn't been initialized.
+    /// </summary>
+    private static void PostToUiThread(Action action)
+    {
+        try
+        {
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                action();
+            else
+                Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
+        catch 
+        { 
+            // Ignored: Test environment or headless execution where dispatcher is unavailable 
+        }
     }
 
     public string DownloadDirectory => _downloadDir;
