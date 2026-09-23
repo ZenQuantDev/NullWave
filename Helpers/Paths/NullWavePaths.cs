@@ -10,14 +10,23 @@ public static class NullWavePaths
     public static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
     public static bool IsMacOS => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
-    // Windows: %APPDATA%\NullWave
-    // Linux/Mac: ~/.nullwave
-    public static string DataDir => IsWindows
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+    private static string? HomeOverride
+    {
+        get
+        {
+            var value = Environment.GetEnvironmentVariable("NULLWAVE_HOME");
+            // FIX: Strip trailing separator so IsInside() matches correctly
+            return string.IsNullOrWhiteSpace(value) ? null : Path.TrimEndingDirectorySeparator(value);
+        }
+    }
 
-    // Legacy path (where older versions stored data on Windows before the AppData migration)
-    public static string LegacyDataDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+    public static string DataDir => HomeOverride ?? (IsWindows
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave"));
+
+    public static string LegacyDataDir => HomeOverride is { } home
+        ? Path.Combine(home, "legacy-none")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
 
     public static string LogsDir      => Path.Combine(DataDir, "logs");
     public static string DownloadsDir => Path.Combine(DataDir, "downloads");
@@ -30,9 +39,6 @@ public static class NullWavePaths
     public static string KeyStorePath => Path.Combine(DataDir, "keys.enc");
     public static string ProfilePath  => Path.Combine(DataDir, "profile.json");
     public static string AvatarPath   => Path.Combine(DataDir, "avatar.png");
-
-    private static string Home =>
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     public static void EnsureDirectories()
     {
