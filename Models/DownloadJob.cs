@@ -6,6 +6,7 @@ namespace NullWave.Models;
 public partial class DownloadJob : ObservableObject
 {
     public Guid Id { get; } = Guid.NewGuid();
+    public string TrackId { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     
     [ObservableProperty] private string _title = "Unknown";

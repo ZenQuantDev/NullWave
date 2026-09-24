@@ -91,7 +91,9 @@ public partial class PlayerViewModel
                 IsDownloading = true;
                 StatusText = L("Player_Status_DownloadingBeforePlayback");
                 NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality);
+                // FIX: pass track metadata so the job shows the real title immediately
+                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality, 
+                    title: track.Title, artist: track.Artist);
             }
             else { StatusText = L("Player_Status_DownloadInProgress"); Log.Debug("[{Source}] Skipped duplicate download for {Url}", nameof(PlayerViewModel), track.Url); }
             return;

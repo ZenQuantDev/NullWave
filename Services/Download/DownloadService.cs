@@ -35,29 +35,72 @@ public class DownloadService
     private DownloadJob GetOrCreateJob(string trackId, string url, string title, string artist)
     {
         var existing = ActiveJobs.FirstOrDefault(j => j.Url == url && !j.IsCompleted && !j.IsFailed);
-        if (existing != null) return existing;
+        if (existing != null)
+        {
+            if (existing.Title == "Track" && title != "Track")
+            {
+                existing.Title = title;
+                existing.Artist = artist;
+            }
+            return existing;
+        }
 
         var job = new DownloadJob
         {
+            TrackId = trackId,
             Url = url,
             Title = title,
             Artist = artist,
             RetryAction = () => _ = DownloadAsync(trackId, url)
         };
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => ActiveJobs.Insert(0, job));
+        
+        void AddJob() => ActiveJobs.Insert(0, job);
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) AddJob();
+        else
+        {
+            // FIX: Headless test fallback. Modifying ObservableCollection from a background 
+            // thread throws in a live app, safely triggering Post(). In tests, it succeeds directly.
+            try { AddJob(); }
+            catch { Avalonia.Threading.Dispatcher.UIThread.Post(AddJob); }
+        }
         return job;
+    }
+
+    public void UpdateJobMetadata(string trackId, string? title, string? artist)
+    {
+        void Apply()
+        {
+            var job = ActiveJobs.FirstOrDefault(j => j.TrackId == trackId);
+            if (job == null) return;
+            if (!string.IsNullOrWhiteSpace(title)) job.Title = title;
+            if (!string.IsNullOrWhiteSpace(artist)) job.Artist = artist;
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) Apply();
+        else
+        {
+            try { Apply(); }
+            catch { Avalonia.Threading.Dispatcher.UIThread.Post(Apply); }
+        }
     }
 
     private void PruneCompletedJobs()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        void Prune()
         {
             while (ActiveJobs.Count > 25)
             {
                 var victim = ActiveJobs.LastOrDefault(j => j.IsCompleted || j.IsFailed) ?? ActiveJobs[^1];
                 if (victim != null) ActiveJobs.Remove(victim);
             }
-        });
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) Prune();
+        else
+        {
+            try { Prune(); }
+            catch { Avalonia.Threading.Dispatcher.UIThread.Post(Prune); }
+        }
     }
 
     public event Action<string, float>? ProgressChanged;
@@ -77,14 +120,13 @@ public class DownloadService
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly HashSet<string> _activeDownloads = new();
-    private int _activeDownloadCount; // NEW: Tracks in-flight downloads for fallback safety
+    private int _activeDownloadCount; 
     private CancellationTokenSource? _currentDownloadCts;
     private SemaphoreSlim _semaphore = new(2, 5);
     private int _currentLimit = 2;
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
 
-    // Dynamic Throttling State
     private volatile int _backoffMultiplier = 1;
     private volatile bool _rateLimitTriggered = false;
 
@@ -199,8 +241,6 @@ public class DownloadService
             return;
         }
 
-        // FIX: append the video id so two tracks sharing a title (two songs called "Intro")
-        // never collide and overwrite each other on disk.
         var outputTemplate = Path.Combine(_downloadDir, "%(title).150B [%(id)s].%(ext)s");
         var qualityValue = audioQuality switch
         {
@@ -243,8 +283,6 @@ public class DownloadService
             if (_activeDownloads.Contains(url))
             {
                 Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
-                // FIX: fire the failure event instead of a silent return, so any caller
-                // awaiting a TaskCompletionSource tied to this trackId doesn't hang forever.
                 DownloadFailed?.Invoke(trackId, "Already downloading", isInteractive);
                 return;
             }
@@ -266,21 +304,12 @@ public class DownloadService
             }
         }
 
-        // FIX: a hung yt-dlp process (network stall, waiting on input) used to hold a
-        // concurrency slot forever. Give every download a hard ceiling.
         cts.CancelAfter(TimeSpan.FromMinutes(20));
         ct = cts.Token;
 
         Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
             url, audioFormat, audioQuality);
 
-        // FIX: everything from the semaphore acquire through cleanup is now ONE try/finally.
-        // Previously, if the token cancelled while still queued (before WaitAsync returned),
-        // the method exited before ever reaching the cleanup that removed `url` from
-        // `_activeDownloads` — leaking it until restart. We also capture the exact semaphore
-        // instance we acquired from and release *that* instance, since `UpdateConcurrencyLimit`
-        // can swap `_semaphore` to a new object mid-download; releasing whatever the field
-        // currently points to could throw or corrupt the new semaphore's count.
         SemaphoreSlim? acquiredSemaphore = null;
         var activeDownloadCounted = false;
         DownloadJob? job = null;
@@ -367,7 +396,6 @@ public class DownloadService
             }
             catch (OperationCanceledException)
             {
-                // yt-dlp spawns ffmpeg as a child process, so kill the entire tree.
                 if (!process.HasExited)
                 {
                     try { process.Kill(true); } catch { /* ignore teardown errors */ }
@@ -454,7 +482,6 @@ public class DownloadService
         Log.Information("Starting playlist download: {Url}", playlistUrl);
         try
         {
-            // FIX: Use ArgumentList to prevent argument injection
             var metadataPsi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
             {
                 ArgumentList =
@@ -541,7 +568,6 @@ public class DownloadService
                         artist = TopicSuffixRegex.Replace(artist, string.Empty).Trim();
                     }
 
-                    // FIX: Fallback to channel name if artist is generic/unknown
                     if (string.IsNullOrWhiteSpace(artist) ||
                         artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
                         artist.Equals("Various Artists", StringComparison.OrdinalIgnoreCase))
@@ -644,14 +670,10 @@ public class DownloadService
                     DownloadCompleted += OnCompleted;
                     DownloadFailed    += OnFailed;
 
-                    // FIX: Pass real title/artist from playlist enumeration to DownloadAsync
                     await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "mp3", audioQuality: "best", 
                                         allowPlaylist: false, isInteractive: false, 
                                         title: title, artist: artist, ct: ct);
 
-                    // FIX: DownloadAsync can return without ever firing an event (e.g. the
-                    // duplicate-URL guard), which used to leave `tcs` unresolved and hang this
-                    // loop forever. No-op if an event already completed it.
                     tcs.TrySetResult(false);
 
                     DownloadCompleted -= OnCompleted;
@@ -659,7 +681,6 @@ public class DownloadService
 
                     var success = await tcs.Task;
 
-                    // Apply Exponential Backoff Logic
                     lock (_aria2cLock)
                     {
                         if (_rateLimitTriggered)
@@ -727,9 +748,6 @@ public class DownloadService
 
                             dbTrack.AlbumArtPath = await _albumArtService.GetArtPathAsync(dbTrack);
                             
-                            // FIX: Square-crop the freshly cached thumbnail to eliminate YouTube's
-                            // baked-in 4:3 letterbox bars. Idempotent: already-square files are
-                            // left untouched by ThumbnailCropper.
                             if (!string.IsNullOrEmpty(dbTrack.AlbumArtPath) && File.Exists(dbTrack.AlbumArtPath))
                             {
                                 ThumbnailCropper.CropFileToSquare(dbTrack.AlbumArtPath);
@@ -787,12 +805,6 @@ public class DownloadService
         }
     }
 
-    /// <summary>
-    /// Fallback for when yt-dlp exits 0 but the --print filepath line never arrived.
-    /// Prefers a file whose name matches the expected title; only falls back to
-    /// "newest unlinked file" when a single download is in flight, so two concurrent
-    /// playlist downloads can never mis-attribute each other's files.
-    /// </summary>
     private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null)
     {
         var dir = new DirectoryInfo(_downloadDir);
@@ -813,7 +825,6 @@ public class DownloadService
 
         if (newest == null) return null;
 
-        // 1) Exact-ish title match wins (yt-dlp sanitizes quotes/punctuation, so compare alnum-only)
         if (!string.IsNullOrWhiteSpace(expectedTitle))
         {
             static string Norm(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
@@ -825,7 +836,6 @@ public class DownloadService
             if (match != null) return match.FullName;
         }
 
-        // 2) "Newest unlinked" only when nothing else is downloading concurrently
         if (Volatile.Read(ref _activeDownloadCount) <= 1)
             return newest.FullName;
 
@@ -833,10 +843,6 @@ public class DownloadService
         return null;
     }
 
-    /// <summary>
-    /// Safely posts to the UI thread. Swallows exceptions in test/headless environments 
-    /// where the Avalonia dispatcher hasn't been initialized.
-    /// </summary>
     private static void PostToUiThread(Action action)
     {
         try
@@ -848,7 +854,6 @@ public class DownloadService
         }
         catch 
         { 
-            // Ignored: Test environment or headless execution where dispatcher is unavailable 
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -16,22 +17,18 @@ public class DownloadServiceTests : IDisposable
 
     public DownloadServiceTests()
     {
-        // AppContext.BaseDirectory is tests/NullWave.Tests/bin/Debug/net8.0/
-        // We go up 4 levels to reach the 'tests' folder.
         var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
         var testsDir = baseDir.Parent?.Parent?.Parent?.Parent;
         
         if (testsDir == null)
             throw new DirectoryNotFoundException("Could not locate the 'tests' directory from AppContext.BaseDirectory.");
 
-        // FakeYtDlp is a sibling folder to NullWave.Tests
         var fakeExe = Path.Combine(testsDir.FullName, "FakeYtDlp", "bin", "Debug", "net8.0", 
             OperatingSystem.IsWindows() ? "FakeYtDlp.exe" : "FakeYtDlp");
             
         if (!File.Exists(fakeExe))
             throw new FileNotFoundException($"FakeYtDlp not found at {fakeExe}. Ensure the ProjectReference is correct and the solution is built.");
 
-        // Point PlatformHelper directly to the compiled executable
         Environment.SetEnvironmentVariable("NULLWAVE_TOOL_YT_DLP", fakeExe);
         
         _downloadDir = NullWavePaths.DownloadsDir;
@@ -116,5 +113,40 @@ public class DownloadServiceTests : IDisposable
         Assert.True(completed, "The URL was permanently stuck in _activeDownloads after being cancelled while queued.");
 
         cts1.Cancel();
+    }
+
+    [Fact]
+    public async Task Job_receives_title_artist_and_trackId_when_provided()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "success");
+
+        await _service.DownloadAsync("track-title-1", "https://youtube.com/watch?v=TITLEJOB",
+            isInteractive: false, title: "My Song", artist: "My Artist");
+
+        var job = _service.ActiveJobs.FirstOrDefault(j => j.Url == "https://youtube.com/watch?v=TITLEJOB");
+        Assert.NotNull(job);
+        Assert.Equal("My Song", job!.Title);
+        Assert.Equal("My Artist", job.Artist);
+        Assert.Equal("track-title-1", job.TrackId);
+    }
+
+    [Fact]
+    public void UpdateJobMetadata_updates_the_matching_active_job()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang");
+        var cts = new CancellationTokenSource();
+
+        _ = _service.DownloadAsync("track-meta-1", "https://youtube.com/watch?v=METAJOB",
+            isInteractive: false, ct: cts.Token);
+        Thread.Sleep(300); 
+
+        _service.UpdateJobMetadata("track-meta-1", "Real Title", "Real Artist");
+
+        var job = _service.ActiveJobs.FirstOrDefault(j => j.TrackId == "track-meta-1");
+        Assert.NotNull(job);
+        Assert.Equal("Real Title", job!.Title);
+        Assert.Equal("Real Artist", job.Artist);
+
+        cts.Cancel();
     }
 }
