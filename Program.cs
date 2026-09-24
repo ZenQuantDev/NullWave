@@ -54,8 +54,9 @@ class Program
         }
         catch (Exception ex)
         {
+            // Catch synchronous startup crashes (like MainViewModel constructor failures)
             NullActionLogger.Error("Program", ex, "Unhandled top-level exception");
-            throw;
+            CrashHandler.HandleFatalCrash(ex);
         }
         finally
         {

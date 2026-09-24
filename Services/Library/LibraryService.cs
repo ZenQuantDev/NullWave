@@ -12,19 +12,14 @@ using Serilog;
 
 namespace NullWave.Services;
 
-public record LinkMismatch(
-    Guid TrackId,
-    string StoredTitle,
-    string StoredArtist,
-    string EmbeddedTitle,
-    string EmbeddedArtist,
-    string FilePath);
-
+public record LinkMismatch(Guid TrackId, string StoredTitle, string StoredArtist, string EmbeddedTitle, string EmbeddedArtist, string FilePath);
 public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
 public record ArtistMergeGroup(string CanonicalName, List<string> Variants, int TotalTracks);
 public record FileSyncReport(int Scanned, int Retagged, int Renamed, int Skipped, int Failed);
 
-public class LibraryService : IDisposable
+public enum SortField { Title, Artist, DateAdded, Source, PlayCount, LastPlayed }
+
+public partial class LibraryService : IDisposable
 {
     private readonly DatabaseService _db;
     private readonly MetadataService? _metadata;
@@ -34,186 +29,26 @@ public class LibraryService : IDisposable
     private readonly List<QueueEntry> _queue = new();
     private readonly List<Track> _history = new();
 
-    private static readonly Regex ArtistSeparatorRegex =
-        new(@"\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static readonly HashSet<string> DecorationTokens = new(StringComparer.Ordinal)
-    {
-        "official", "music", "video", "audio", "lyric", "lyrics", "explicit", "clean",
-        "version", "radio", "edit", "remix", "remastered", "live", "acoustic",
-        "ft", "feat", "featuring", "hd", "hq", "mv", "prod", "produced", "by",
-        "and", "with", "of", "in", "on", "part", "pt", "the", "that", "this"
-    };
-
-    private static readonly Regex[] YouTubeArtifactTitleRegexes = new[]
-    {
-        new Regex(@"\s*[\(\[]\s*(?:Official\s*(?:Music\s*)?Video|Official\s*Audio|Official\s*Lyric\s*Video|Lyric\s*Video|Lyrics|Audio|Video|Visualizer|Remix|Live|Performance|Clip)\s*[\)\]]", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new Regex(@"\s*[\(\[]\s*(?:Explicit|Clean)\s*[\)\]]", RegexOptions.IgnoreCase | RegexOptions.Compiled)
-    };
-
-    private static readonly Regex YouTubeTopicArtistRegex = new(@"\s*-\s*Topic\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–-]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex BracketContentRegex = new(@"[\(\[](.*?)[\)\]]", RegexOptions.Compiled);
-
     public event EventHandler? LibraryChanged;
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
-    public LibraryService(DatabaseService db, MetadataService? metadata = null, PreferencesService? prefs = null)
+    // FIX (C8): Added startBackgroundWork parameter so tests can instantiate the service
+    // without triggering background TagLib I/O and network calls.
+    public LibraryService(DatabaseService db, MetadataService? metadata = null, PreferencesService? prefs = null, bool startBackgroundWork = true)
     {
         _db = db;
         _metadata = metadata;
         _prefs = prefs;
-        lock (_tracksLock)
-        {
-            _tracks = _db.LoadAll();
-        }
-        Log.Information("[LibraryService] Loaded {Count} tracks from DB", GetAll().Count);
+        lock (_tracksLock) { _tracks = _db.LoadAll(); }
+        Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+
+        if (!startBackgroundWork) return;
 
         _ = Task.Run(CleanupBadUrls);
         _ = Task.Run(BackfillAlbumArt);
         _ = Task.Run(BackfillYouTubeThumbnails);
         _ = Task.Run(BackfillSoundCloudThumbnails);
-    }
-
-    public static string CleanYouTubeArtifacts(string input, bool isArtist = false)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return input;
-        var cleaned = input;
-        if (isArtist)
-        {
-            cleaned = YouTubeTopicArtistRegex.Replace(cleaned, "");
-        }
-        else
-        {
-            foreach (var regex in YouTubeArtifactTitleRegexes)
-            {
-                cleaned = regex.Replace(cleaned, "");
-            }
-        }
-        return cleaned.Trim();
-    }
-
-    private void BackfillYouTubeThumbnails()
-    {
-        List<Track> ytTracks;
-        lock (_tracksLock)
-        {
-            ytTracks = _tracks.Where(t => t.Source == TrackSource.YouTube && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList();
-        }
-        if (ytTracks.Count == 0) return;
-
-        Log.Information("[LibraryService] Backfilling thumbnails for {Count} YouTube tracks", ytTracks.Count);
-        var updatedTracks = new List<Track>();
-        foreach (var track in ytTracks)
-        {
-            try
-            {
-                var id = YouTubeMetadataFetcher.ExtractYouTubeId(track.Url!);
-                if (string.IsNullOrEmpty(id)) continue;
-
-                var thumbPath = YouTubeMetadataFetcher.FetchThumbnailAsync(id).GetAwaiter().GetResult();
-                if (string.IsNullOrEmpty(thumbPath)) continue;
-
-                track.AlbumArtPath = thumbPath;
-                updatedTracks.Add(track);
-            }
-            catch (Exception ex) { Log.Warning(ex, "[LibraryService] YouTube thumbnail backfill failed for {Title}", track.Title); }
-        }
-
-        if (updatedTracks.Count > 0)
-        {
-            _db.RunInTransaction(() => { foreach (var track in updatedTracks) _db.Update(track); });
-            StateVersion++;
-            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-        }
-    }
-
-    private void BackfillSoundCloudThumbnails()
-    {
-        List<Track> scTracks;
-        lock (_tracksLock)
-        {
-            scTracks = _tracks.Where(t => t.Source == TrackSource.SoundCloud && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList();
-        }
-        if (scTracks.Count == 0) return;
-
-        var fetcher = new SoundCloudMetadataFetcher();
-        var updatedTracks = new List<Track>();
-        foreach (var track in scTracks)
-        {
-            try
-            {
-                var (title, artist, thumbPath, _) = fetcher.FetchAsync(track.Url!).GetAwaiter().GetResult();
-                bool changed = false;
-
-                if (!string.IsNullOrEmpty(thumbPath) && string.IsNullOrEmpty(track.AlbumArtPath)) { track.AlbumArtPath = thumbPath; changed = true; }
-                if ((track.Title == track.Url || string.IsNullOrWhiteSpace(track.Title)) && !string.IsNullOrWhiteSpace(title)) { track.Title = title; changed = true; }
-                if ((track.Artist == "Unknown" || string.IsNullOrWhiteSpace(track.Artist)) && !string.IsNullOrWhiteSpace(artist)) { track.Artist = artist; changed = true; }
-
-                if (changed) updatedTracks.Add(track);
-            }
-            catch (Exception ex) { Log.Warning(ex, "[LibraryService] SoundCloud backfill failed for {Title}", track.Title); }
-        }
-
-        if (updatedTracks.Count > 0)
-        {
-            _db.RunInTransaction(() => { foreach (var track in updatedTracks) _db.Update(track); });
-            StateVersion++;
-            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-        }
-    }
-
-    private void CleanupBadUrls()
-    {
-        List<Track> bad;
-        lock (_tracksLock)
-        {
-            bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) && !SourceDetector.IsPlayableUrl(t.Url) && string.IsNullOrEmpty(t.FilePath)).ToList();
-        }
-        if (bad.Count == 0) return;
-
-        lock (_tracksLock)
-        {
-            foreach (var track in bad) { _tracks.Remove(track); _db.Delete(track.Id); }
-        }
-
-        StateVersion++;
-        Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
-    }
-
-    private void BackfillAlbumArt()
-    {
-        if (_metadata == null) return;
-
-        var updatedTracks = new List<Track>();
-        lock (_tracksLock)
-        {
-            foreach (var track in _tracks)
-            {
-                if (!string.IsNullOrEmpty(track.AlbumArtPath) || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) continue;
-                var art = _metadata.ExtractAlbumArt(track.FilePath);
-                if (art == null) continue;
-                track.AlbumArtPath = art;
-                updatedTracks.Add(track);
-            }
-        }
-
-        if (updatedTracks.Count > 0)
-        {
-            _db.RunInTransaction(() =>
-            {
-                foreach (var track in updatedTracks)
-                {
-                    _db.Update(track);
-                }
-            });
-            StateVersion++;
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-            Log.Information("[LibraryService] Album art backfill complete");
-        }
     }
 
     public IReadOnlyList<Track> GetAll()
@@ -225,12 +60,8 @@ public class LibraryService : IDisposable
     {
         if (IsDuplicate(track)) return;
 
-        if (!string.IsNullOrEmpty(track.FilePath) &&
-            string.IsNullOrEmpty(track.AlbumArtPath) &&
-            _metadata != null)
-        {
+        if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
             track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
-        }
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
@@ -249,7 +80,6 @@ public class LibraryService : IDisposable
         _db.Insert(track);
         StateVersion++;
         OnLibraryChanged();
-
         UpdateFileTags(track);
     }
 
@@ -266,7 +96,6 @@ public class LibraryService : IDisposable
 
     public void Update(Track track)
     {
-        // Offload SQLite write to background thread to prevent 2s UI freezes on skip
         Task.Run(() => {
             try { _db.Update(track); }
             catch (Exception ex) { Log.Error(ex, "DB Update failed for {Title}", track.Title); }
@@ -295,57 +124,37 @@ public class LibraryService : IDisposable
         });
     }
 
-    public IReadOnlyList<Track> Search(
-        string query, SortField field = SortField.DateAdded, bool ascending = true)
+    public IReadOnlyList<Track> Search(string query, SortField field = SortField.DateAdded, bool ascending = true)
     {
         if (string.IsNullOrWhiteSpace(query)) return GetSorted(field, ascending);
-
         List<Track> snapshot;
         lock (_tracksLock) snapshot = _tracks.ToList();
-        var results = snapshot
-            .Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                     || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
-
+        var results = snapshot.Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title      => results.OrderBy(t => t.Title),
-            SortField.Artist     => results.OrderBy(t => t.Artist),
-            SortField.DateAdded  => results.OrderBy(t => t.DateAdded),
-            SortField.Source     => results.OrderBy(t => t.Source),
-            SortField.PlayCount  => results.OrderBy(t => t.PlayCount),
-            SortField.LastPlayed => results.OrderBy(t => t.LastPlayed),
+            SortField.Title => results.OrderBy(t => t.Title), SortField.Artist => results.OrderBy(t => t.Artist),
+            SortField.DateAdded => results.OrderBy(t => t.DateAdded), SortField.Source => results.OrderBy(t => t.Source),
+            SortField.PlayCount => results.OrderBy(t => t.PlayCount), SortField.LastPlayed => results.OrderBy(t => t.LastPlayed),
             _ => results
         };
-
         return (ascending ? sorted : sorted.Reverse()).ToList();
     }
 
-    public IReadOnlyList<Track> FilterBySource(TrackSource source) =>
-        GetAll().Where(t => t.Source == source).ToList();
-
-    public IReadOnlyList<Track> GetFavorites() =>
-        GetAll().Where(t => t.IsFavorite).ToList();
-
-    public IReadOnlyList<Track> GetRecentlyAdded(int count = 20) =>
-        GetAll().OrderByDescending(t => t.DateAdded).Take(count).ToList();
-
-    public IReadOnlyList<Track> GetRecentlyPlayed(int count = 20) =>
-        _history.TakeLast(count).Reverse().ToList();
+    public IReadOnlyList<Track> FilterBySource(TrackSource source) => GetAll().Where(t => t.Source == source).ToList();
+    public IReadOnlyList<Track> GetFavorites() => GetAll().Where(t => t.IsFavorite).ToList();
+    public IReadOnlyList<Track> GetRecentlyAdded(int count = 20) => GetAll().OrderByDescending(t => t.DateAdded).Take(count).ToList();
+    public IReadOnlyList<Track> GetRecentlyPlayed(int count = 20) => _history.TakeLast(count).Reverse().ToList();
 
     public IReadOnlyList<Track> GetSorted(SortField field, bool ascending = true)
     {
         var snapshot = GetAll().ToList();
         IEnumerable<Track> sorted = field switch
         {
-            SortField.Title      => snapshot.OrderBy(t => t.Title),
-            SortField.Artist     => snapshot.OrderBy(t => t.Artist),
-            SortField.DateAdded  => snapshot.OrderBy(t => t.DateAdded),
-            SortField.Source     => snapshot.OrderBy(t => t.Source),
-            SortField.PlayCount  => snapshot.OrderBy(t => t.PlayCount),
-            SortField.LastPlayed => snapshot.OrderBy(t => t.LastPlayed),
+            SortField.Title => snapshot.OrderBy(t => t.Title), SortField.Artist => snapshot.OrderBy(t => t.Artist),
+            SortField.DateAdded => snapshot.OrderBy(t => t.DateAdded), SortField.Source => snapshot.OrderBy(t => t.Source),
+            SortField.PlayCount => snapshot.OrderBy(t => t.PlayCount), SortField.LastPlayed => snapshot.OrderBy(t => t.LastPlayed),
             _ => snapshot
         };
-
         return (ascending ? sorted : sorted.Reverse()).ToList();
     }
 
@@ -368,806 +177,54 @@ public class LibraryService : IDisposable
         track.LastPlayed = DateTime.Now;
         _db.Update(track);
         StateVersion++;
-
         _history.Add(track);
-        if (_history.Count > 200)
-            _history.RemoveAt(0);
-
+        if (_history.Count > 200) _history.RemoveAt(0);
         OnLibraryChanged();
     }
 
     public bool IsDuplicate(Track newTrack)
     {
         lock (_tracksLock) return _tracks.Any(t =>
-            (!string.IsNullOrWhiteSpace(newTrack.Url) &&
-             string.Equals(t.Url, newTrack.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(newTrack.FilePath) &&
-             string.Equals(t.FilePath, newTrack.FilePath, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(newTrack.Title) &&
-             !string.IsNullOrWhiteSpace(newTrack.Artist) &&
-             string.Equals(t.Title, newTrack.Title, StringComparison.OrdinalIgnoreCase) &&
-             string.Equals(t.Artist, newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
+            (!string.IsNullOrWhiteSpace(newTrack.Url) && string.Equals(t.Url, newTrack.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(newTrack.FilePath) && string.Equals(t.FilePath, newTrack.FilePath, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(newTrack.Title) && !string.IsNullOrWhiteSpace(newTrack.Artist) &&
+             string.Equals(t.Title, newTrack.Title, StringComparison.OrdinalIgnoreCase) && string.Equals(t.Artist, newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
     }
 
+    // --- Queue Methods ---
     public IReadOnlyList<QueueEntry> GetQueue() => _queue.AsReadOnly();
-
     public void AddToQueue(Guid id)
     {
         Track? track;
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track != null && !_queue.Any(e => e.Track.Id == track.Id))
         {
-            int insertIndex = _prefs?.Current.QueueManualInsertAtBlockEnd == true
-                ? _queue.FindIndex(e => !e.IsManual)
-                : 0;
-
+            int insertIndex = _prefs?.Current.QueueManualInsertAtBlockEnd == true ? _queue.FindIndex(e => !e.IsManual) : 0;
             if (insertIndex < 0) insertIndex = _queue.Count;
-
             _queue.Insert(insertIndex, new QueueEntry(track, IsManual: true));
             QueueChanged?.Invoke(this, EventArgs.Empty);
         }
     }
-
-    public void RemoveFromQueue(Guid id)
-    {
-        var entry = _queue.FirstOrDefault(e => e.Track.Id == id);
-        if (entry != null)
-        {
-            _queue.Remove(entry);
-            QueueChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public void RestoreQueue(IEnumerable<QueueEntry> entries)
-    {
-        if (_queue.Count > 0) return;
-        _queue.AddRange(entries);
-        QueueChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public void ClearQueue()
-    {
-        if (_queue.Count == 0) return;
-        _queue.Clear();
-        QueueChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public void ClearAutoQueue()
-    {
-        var autoEntries = _queue.Where(e => !e.IsManual).ToList();
-        foreach (var entry in autoEntries)
-            _queue.Remove(entry);
-        QueueChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public Track? DequeueNext()
-    {
-        if (_queue.Count == 0) return null;
-        var next = _queue[0];
-        _queue.RemoveAt(0);
-        QueueChanged?.Invoke(this, EventArgs.Empty);
-        return next.Track;
-    }
-
+    public void RemoveFromQueue(Guid id) { var e = _queue.FirstOrDefault(x => x.Track.Id == id); if (e != null) { _queue.Remove(e); QueueChanged?.Invoke(this, EventArgs.Empty); } }
+    public void RestoreQueue(IEnumerable<QueueEntry> entries) { if (_queue.Count > 0) return; _queue.AddRange(entries); QueueChanged?.Invoke(this, EventArgs.Empty); }
+    public void ClearQueue() { if (_queue.Count == 0) return; _queue.Clear(); QueueChanged?.Invoke(this, EventArgs.Empty); }
+    public void ClearAutoQueue() { foreach (var e in _queue.Where(e => !e.IsManual).ToList()) _queue.Remove(e); QueueChanged?.Invoke(this, EventArgs.Empty); }
+    public Track? DequeueNext() { if (_queue.Count == 0) return null; var n = _queue[0]; _queue.RemoveAt(0); QueueChanged?.Invoke(this, EventArgs.Empty); return n.Track; }
     public void FillQueue(IEnumerable<Track> autoTracks)
     {
-        var currentAutoCount = _queue.Count(e => !e.IsManual);
         var target = _prefs?.Current.QueueAutoFillSize ?? 20;
-
-        if (currentAutoCount >= target) return;
-
-        var needed = target - currentAutoCount;
-        foreach (var track in autoTracks.Take(needed))
-            _queue.Add(new QueueEntry(track, IsManual: false));
-
+        var needed = target - _queue.Count(e => !e.IsManual);
+        if (needed <= 0) return;
+        foreach (var t in autoTracks.Take(needed)) _queue.Add(new QueueEntry(t, IsManual: false));
         QueueChanged?.Invoke(this, EventArgs.Empty);
     }
-
-    public bool MoveQueueItem(int fromIndex, int toIndex)
+    public bool MoveQueueItem(int from, int to)
     {
-        if (fromIndex < 0 || toIndex < 0) return false;
-        if (fromIndex >= _queue.Count || toIndex >= _queue.Count) return false;
-
-        var entry = _queue[fromIndex];
-        _queue.RemoveAt(fromIndex);
-        _queue.Insert(toIndex, entry);
-        QueueChanged?.Invoke(this, EventArgs.Empty);
-        return true;
+        if (from < 0 || to < 0 || from >= _queue.Count || to >= _queue.Count) return false;
+        var e = _queue[from]; _queue.RemoveAt(from); _queue.Insert(to, e);
+        QueueChanged?.Invoke(this, EventArgs.Empty); return true;
     }
 
-    public int ClearAllArt()
-    {
-        int cleared = 0;
-        foreach (var track in GetAll())
-        {
-            if (string.IsNullOrEmpty(track.AlbumArtPath)) continue;
-            track.AlbumArtPath = null;
-            _db.Update(track);
-            cleared++;
-        }
-
-        if (cleared > 0) StateVersion++;
-
-        try
-        {
-            if (Directory.Exists(NullWavePaths.ArtCacheDir))
-            {
-                foreach (var file in Directory.EnumerateFiles(NullWavePaths.ArtCacheDir))
-                {
-                    try { File.Delete(file); }
-                    catch (Exception ex) { Log.Warning(ex, "[LibraryService] Could not delete art file: {File}", file); }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[LibraryService] Failed to clear art cache directory");
-        }
-
-        Log.Information("[LibraryService] Cleared album art for {Count} tracks and wiped art cache", cleared);
-        return cleared;
-    }
-
-    public void RebackfillThumbnails()
-    {
-        BackfillYouTubeThumbnails();
-        BackfillSoundCloudThumbnails();
-    }
-
-    public void RefreshAlbumArt(Track track)
-    {
-        if (_metadata == null || string.IsNullOrEmpty(track.FilePath)) return;
-        track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
-        _db.Update(track);
-        StateVersion++;
-        OnLibraryChanged();
-    }
-
-    public void UpdateFileTags(Track track)
-    {
-        if (_metadata == null || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
-        _metadata.WriteTagsToFile(track.FilePath, track.Title, track.Artist);
-    }
-
-    public FileSyncReport SyncLocalFilesWithLibrary(bool dryRun, string? currentlyPlayingPath)
-    {
-        int scanned = 0, retagged = 0, renamed = 0, skipped = 0, failed = 0;
-
-        foreach (var track in GetAll())
-        {
-            if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) continue;
-            scanned++;
-            try
-            {
-                var (wasRetagged, wasRenamed) = SyncOne(track, dryRun, currentlyPlayingPath);
-                if (wasRetagged) retagged++;
-                if (wasRenamed) renamed++;
-            }
-            catch (IOException) { skipped++; }
-            catch (Exception ex) { failed++; Log.Warning(ex, "[LibraryService] File sync failed for {Path}", track.FilePath); }
-        }
-
-        if (!dryRun && (retagged > 0 || renamed > 0)) StateVersion++;
-        Log.Information("[LibraryService] SyncLocalFiles: {Scanned} scanned, {Retagged} retagged, {Renamed} renamed, {Skipped} skipped, {Failed} failed (dryRun={DryRun})",
-            scanned, retagged, renamed, skipped, failed, dryRun);
-        return new FileSyncReport(scanned, retagged, renamed, skipped, failed);
-    }
-
-    public void NormalizeLocalFile(Track track)
-    {
-        if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
-        try { SyncOne(track, dryRun: false, currentlyPlayingPath: null); StateVersion++; }
-        catch (Exception ex) { Log.Warning(ex, "[LibraryService] NormalizeLocalFile failed for {Path}", track.FilePath); }
-    }
-
-    private (bool Retagged, bool Renamed) SyncOne(Track track, bool dryRun, string? currentlyPlayingPath)
-    {
-        if (currentlyPlayingPath != null &&
-            string.Equals(Path.GetFullPath(track.FilePath!), Path.GetFullPath(currentlyPlayingPath), StringComparison.OrdinalIgnoreCase))
-            return (false, false);
-
-        bool retagged = false, renamed = false;
-
-        if (_metadata != null)
-        {
-            var (fileTitle, fileArtist, _) = _metadata.FetchFromLocalFile(track.FilePath!);
-
-            // Self-heal: file tags are the swapped mirror of the DB row -> the DB is wrong.
-            // Repair the DB from the file, never the other way around.
-            if (!TitlesLooselyMatch(track.Title, fileTitle, track.Artist, fileArtist) &&
-                TitlesLooselyMatch(track.Title, fileArtist, track.Artist, fileTitle))
-            {
-                track.Title = CleanYouTubeArtifacts(fileTitle);
-                track.Artist = CleanYouTubeArtifacts(fileArtist);
-                if (!dryRun) _db.Update(track);
-                Log.Warning("[LibraryService] Self-healed swapped DB row: '{Title}' by '{Artist}' (from file tags)", track.Title, track.Artist);
-                retagged = true;
-                return (retagged, renamed);
-            }
-
-            if (!string.Equals(fileTitle, track.Title, StringComparison.Ordinal) ||
-                !string.Equals(fileArtist, track.Artist, StringComparison.Ordinal))
-            {
-                if (!dryRun) _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist);
-                retagged = true;
-            }
-        }
-
-        var dir    = Path.GetDirectoryName(track.FilePath!)!;
-        var ext    = Path.GetExtension(track.FilePath!);
-        var name   = SanitizeFileName($"{track.Artist} - {track.Title}") + ext;
-        var target = Path.Combine(dir, name);
-
-        if (!string.Equals(Path.GetFileName(track.FilePath!), name, StringComparison.OrdinalIgnoreCase))
-        {
-            if (File.Exists(target)) return (retagged, false);
-            if (!dryRun)
-            {
-                File.Move(track.FilePath!, target);
-                track.FilePath = target;
-                _db.Update(track);
-            }
-            renamed = true;
-        }
-
-        return (retagged, renamed);
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
-    }
-
-    public (int total, int missing, int removed) RepairPaths(bool removeDeadEntries = false)
-    {
-        var withPath = GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).ToList();
-        int missing = 0;
-        int removed = 0;
-
-        foreach (var track in withPath)
-        {
-            if (File.Exists(track.FilePath)) continue;
-
-            missing++;
-            Log.Debug("[LibraryService] Dead file path: {Path} (track: {Title})",
-                track.FilePath, track.Title);
-
-            if (!removeDeadEntries) continue;
-
-            track.FilePath = null;
-            _db.Update(track);
-            removed++;
-        }
-
-        if (removed > 0) StateVersion++;
-
-        Log.Information("[LibraryService] RepairPaths: {Total} checked, {Missing} missing, {Removed} cleared",
-            withPath.Count, missing, removed);
-        return (withPath.Count, missing, removed);
-    }
-
-    public int ReimportAssets(string directoryPath)
-    {
-        if (!Directory.Exists(directoryPath))
-        {
-            Log.Warning("[LibraryService] ReimportAssets: directory not found: {Path}", directoryPath);
-            return 0;
-        }
-
-        var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { ".mp3", ".flac", ".m4a", ".ogg", ".wav", ".aac", ".opus" };
-
-        var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories)
-            .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
-            .ToList();
-
-        var candidates = GetAll()
-            .Where(t => string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath))
-            .ToList();
-
-        var matchedTrackIds = new HashSet<Guid>();
-        var matchedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toUpdate = new List<Track>();
-
-        foreach (var file in files)
-        {
-            var fileNameNoExt = Path.GetFileNameWithoutExtension(file);
-            var exact = candidates.FirstOrDefault(t =>
-                !matchedTrackIds.Contains(t.Id) &&
-                string.Equals(t.Title, fileNameNoExt, StringComparison.OrdinalIgnoreCase));
-
-            if (exact == null) continue;
-
-            exact.FilePath = file;
-            matchedTrackIds.Add(exact.Id);
-            matchedFiles.Add(file);
-            toUpdate.Add(exact);
-            Log.Debug("[LibraryService] Re-linked (exact) '{Title}' → {File}", exact.Title, file);
-        }
-
-        foreach (var file in files)
-        {
-            if (matchedFiles.Contains(file)) continue;
-
-            var fileTokens = Tokenize(Path.GetFileNameWithoutExtension(file));
-            if (fileTokens.Count == 0) continue;
-
-            var match = candidates.FirstOrDefault(t =>
-            {
-                if (matchedTrackIds.Contains(t.Id)) return false;
-                var titleTokens = Tokenize(t.Title);
-                return titleTokens.Count >= 2 && titleTokens.IsSubsetOf(fileTokens);
-            });
-
-            if (match == null) continue;
-
-            match.FilePath = file;
-            matchedTrackIds.Add(match.Id);
-            matchedFiles.Add(file);
-            toUpdate.Add(match);
-            Log.Debug("[LibraryService] Re-linked (token match) '{Title}' → {File}", match.Title, file);
-        }
-
-        foreach (var track in toUpdate)
-            _db.Update(track);
-
-        if (toUpdate.Count > 0) StateVersion++;
-
-        Log.Information("[LibraryService] ReimportAssets: {Files} scanned, {Relinked} re-linked",
-            files.Count, toUpdate.Count);
-        return toUpdate.Count;
-    }
-
-    private static HashSet<string> Tokenize(string s) =>
-        Regex
-            .Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
-            .Select(m => m.Value)
-            .Where(w => w.Length > 2)
-            .ToHashSet();
-
-    public (int Checked, List<LinkMismatch> Mismatches) VerifyLinks()
-    {
-        var mismatches = new List<LinkMismatch>();
-        if (_metadata == null)
-        {
-            Log.Warning("[LibraryService] VerifyLinks: no MetadataService available, cannot read embedded tags");
-            return (0, mismatches);
-        }
-
-        var withFile = GetAll()
-            .Where(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
-            .ToList();
-
-        foreach (var track in withFile)
-        {
-            (string Title, string Artist, TimeSpan Duration) embedded;
-            try
-            {
-                embedded = _metadata.FetchFromLocalFile(track.FilePath!);
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "[LibraryService] VerifyLinks: couldn't read tags for {Path}", track.FilePath);
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(embedded.Title)) continue;
-            if (TitlesLooselyMatch(track.Title, embedded.Title, track.Artist, embedded.Artist)) continue;
-
-            var mismatch = new LinkMismatch(
-                track.Id, track.Title, track.Artist,
-                embedded.Title, embedded.Artist, track.FilePath!);
-            mismatches.Add(mismatch);
-
-            Log.Warning(
-                "[LibraryService] Possible mis-link: stored '{StoredTitle}' by '{StoredArtist}' " +
-                "→ file tagged '{EmbeddedTitle}' by '{EmbeddedArtist}' ({Path})",
-                mismatch.StoredTitle, mismatch.StoredArtist,
-                mismatch.EmbeddedTitle, mismatch.EmbeddedArtist, mismatch.FilePath);
-        }
-
-        Log.Information("[LibraryService] VerifyLinks: {Checked} tracks checked, {Mismatches} possible mismatch(es) found",
-            withFile.Count, mismatches.Count);
-        return (withFile.Count, mismatches);
-    }
-
-    private static List<string> Tokens(string s) =>
-        Regex.Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
-             .Select(m => m.Value)
-             .Where(w => w.Length > 1)
-             .ToList();
-
-    internal static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle,
-        string storedArtist = "", string embeddedArtist = "")
-    {
-        var cleanStoredTitle = CleanYouTubeArtifacts(storedTitle, isArtist: false);
-        var cleanEmbTitle = CleanYouTubeArtifacts(embeddedTitle, isArtist: false);
-        var cleanEmbArtist = CleanYouTubeArtifacts(embeddedArtist, isArtist: true);
-
-        if (cleanEmbTitle.Contains(" - "))
-        {
-            var split = cleanEmbTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
-            if (split.Length == 2)
-            {
-                var leftNorm = NormalizeArtistKey(split[0]);
-                var storedArtistNorm = NormalizeArtistKey(storedArtist);
-                var embArtistNorm = NormalizeArtistKey(cleanEmbArtist);
-
-                if (leftNorm == storedArtistNorm || leftNorm == embArtistNorm ||
-                    string.IsNullOrWhiteSpace(cleanEmbArtist) || cleanEmbArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
-                {
-                    cleanEmbArtist = string.IsNullOrWhiteSpace(cleanEmbArtist) ? split[0].Trim() : cleanEmbArtist;
-                    cleanEmbTitle = split[1].Trim();
-                }
-            }
-        }
-
-        if (cleanStoredTitle.Contains(" - "))
-        {
-            var split = cleanStoredTitle.Split(new[] { " - " }, 2, StringSplitOptions.None);
-            if (split.Length == 2)
-            {
-                var leftNorm = NormalizeArtistKey(split[0]);
-                var storedArtistNorm = NormalizeArtistKey(storedArtist);
-                if (leftNorm == storedArtistNorm)
-                {
-                    cleanStoredTitle = split[1].Trim();
-                }
-            }
-        }
-
-        var a = NormalizeForCompare(cleanStoredTitle);
-        var b = NormalizeForCompare(cleanEmbTitle);
-
-        if (a.Length == 0 || b.Length == 0) return true;
-        if (a == b) return true;
-
-        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
-        if (!longer.Contains(shorter, StringComparison.Ordinal)) return false;
-
-        var (shorterRaw, longerRaw) = a.Length <= b.Length
-            ? (cleanStoredTitle, cleanEmbTitle)
-            : (cleanEmbTitle, cleanStoredTitle);
-
-        var known = Tokens(shorterRaw)
-            .Concat(Tokens(storedArtist))
-            .Concat(Tokens(cleanEmbArtist))
-            .ToHashSet(StringComparer.Ordinal);
-
-        var extraTokens = ExtractContextTokens(longerRaw);
-        foreach(var token in extraTokens) known.Add(token);
-
-        return !Tokens(longerRaw)
-            .Any(t => !known.Contains(t) && !DecorationTokens.Contains(t));
-    }
-
-    private static IEnumerable<string> ExtractContextTokens(string rawTitle)
-    {
-        var tokens = new List<string>();
-
-        var featureMatches = FeatureArtistRegex.Matches(rawTitle);
-        foreach (Match match in featureMatches)
-        {
-            tokens.AddRange(Tokens(match.Groups[1].Value));
-        }
-
-        var bracketMatches = BracketContentRegex.Matches(rawTitle);
-        foreach (Match match in bracketMatches)
-        {
-            tokens.AddRange(Tokens(match.Groups[1].Value));
-        }
-
-        return tokens;
-    }
-
-    private static string NormalizeForCompare(string s)
-    {
-        var decomposed = (s ?? string.Empty).Normalize(System.Text.NormalizationForm.FormD);
-        var stripped = new string(decomposed
-            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                     != System.Globalization.UnicodeCategory.NonSpacingMark)
-            .ToArray());
-        return new string(stripped.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
-    }
-
-    private bool HasVerifiedFile(Track t)
-    {
-        if (string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)) return false;
-        if (_metadata == null) return true;
-        try
-        {
-            var embedded = _metadata.FetchFromLocalFile(t.FilePath);
-            if (string.IsNullOrWhiteSpace(embedded.Title)) return true;
-            return TitlesLooselyMatch(t.Title, embedded.Title, t.Artist, embedded.Artist);
-        }
-        catch
-        {
-            return true;
-        }
-    }
-
-    public List<ArtistMergeGroup> FindSimilarArtistGroups()
-    {
-        var groups = GetAll()
-            .Where(t => !string.IsNullOrWhiteSpace(t.Artist))
-            .GroupBy(t => NormalizeArtistKey(t.Artist))
-            .Where(g => g.Select(t => t.Artist).Distinct(StringComparer.Ordinal).Count() > 1)
-            .Select(g =>
-            {
-                var variantCounts = g.GroupBy(t => t.Artist, StringComparer.Ordinal)
-                    .Select(vg => (Name: vg.Key, Count: vg.Count()))
-                    .OrderByDescending(v => v.Count)
-                    .ThenBy(v => v.Name, StringComparer.Ordinal)
-                    .ToList();
-                return new ArtistMergeGroup(
-                    CanonicalName: variantCounts[0].Name,
-                    Variants: variantCounts.Select(v => v.Name).ToList(),
-                    TotalTracks: g.Count());
-            })
-            .OrderByDescending(g => g.TotalTracks)
-            .ToList();
-
-        Log.Information("[LibraryService] FindSimilarArtistGroups: {Count} group(s) with variant spellings found", groups.Count);
-        return groups;
-    }
-
-    public int MergeArtistGroup(ArtistMergeGroup group)
-    {
-        var variantSet = group.Variants.ToHashSet(StringComparer.Ordinal);
-        var toUpdate = GetAll().Where(t => variantSet.Contains(t.Artist)).ToList();
-
-        foreach (var track in toUpdate)
-        {
-            track.Artist = group.CanonicalName;
-            _db.Update(track);
-        }
-
-        if (toUpdate.Count > 0) StateVersion++;
-
-        Log.Information("[LibraryService] MergeArtistGroup: {Count} track(s) updated to canonical name '{Name}'",
-            toUpdate.Count, group.CanonicalName);
-        return toUpdate.Count;
-    }
-
-    internal static string NormalizeArtistKey(string artist)
-    {
-        var stripped = new string(artist.Where(c =>
-            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-            != System.Globalization.UnicodeCategory.Format).ToArray());
-        var normalized = stripped.Normalize(System.Text.NormalizationForm.FormKC);
-        var collapsed = Regex.Replace(normalized.Trim(), @"\s+", " ");
-        var joinerNormalized = ArtistSeparatorRegex.Replace(collapsed, " & ");
-        return joinerNormalized.ToLowerInvariant();
-    }
-
-    public static List<string> SplitArtistCredits(string artist)
-    {
-        if (string.IsNullOrWhiteSpace(artist)) return new List<string>();
-        return ArtistSeparatorRegex.Split(artist)
-            .Select(s => s.Trim())
-            .Where(s => s.Length > 0)
-            .ToList();
-    }
-
-    public int ForceCleanTitles()
-    {
-        int cleaned = 0;
-        var toUpdate = new List<Track>();
-
-        foreach (var track in GetAll())
-        {
-            // Skip already-cleaned tracks, EXCEPT titles carrying exotic separators
-            // (~, ∞, ·, •, ///) the OLD parser didn't understand - those get one
-            // re-evaluation pass with the upgraded parser.
-            if (track.TitleForceCleaned && !Metadata.TrackTitleParser.HasExoticSeparator(track.Title)) continue;
-
-            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
-            var parsed = Metadata.TrackTitleParser.TryParseArtistTitle(titleToParse);
-
-            if (parsed == null) { track.TitleForceCleaned = true; toUpdate.Add(track); continue; }
-
-            var (parsedArtist, parsedTitle) = parsed.Value;
-
-            if (string.IsNullOrWhiteSpace(parsedArtist) || string.IsNullOrWhiteSpace(parsedTitle))
-            {
-                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
-            }
-
-            if (parsedArtist == track.Artist && parsedTitle == track.Title)
-            {
-                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
-            }
-
-            // Guard: never accept a swap
-            bool artistMatchesExisting = TitlesLooselyMatch(parsedArtist, track.Artist);
-            bool existingArtistUnknown = string.IsNullOrWhiteSpace(track.Artist)
-                || track.Artist == "Unknown" || track.Artist.EndsWith("- Topic");
-
-            // Only trust the split when the parsed artist agrees with what we already know.
-            if (!artistMatchesExisting && !existingArtistUnknown)
-            {
-                track.TitleForceCleaned = true; toUpdate.Add(track); continue;
-            }
-
-            Log.Debug("[LibraryService] Force-cleaned: '{OldTitle}' by '{OldArtist}' → '{NewTitle}' by '{NewArtist}'",
-                track.Title, track.Artist, parsedTitle, parsedArtist);
-
-            track.Title = parsedTitle;
-            track.Artist = parsedArtist;
-            track.TitleForceCleaned = true;
-            toUpdate.Add(track);
-            UpdateFileTags(track);
-            cleaned++;
-        }
-
-        if (toUpdate.Count > 0)
-        {
-            _db.RunInTransaction(() => { foreach (var track in toUpdate) _db.Update(track); });
-            StateVersion++;
-        }
-
-        Log.Information("[LibraryService] ForceCleanTitles: {Count} of {Total} tracks cleaned",
-            cleaned, GetAll().Count);
-        return cleaned;
-    }
-
-    public int ClearTagsForReSync()
-    {
-        int cleared = 0;
-        foreach (var track in GetAll())
-        {
-            if (track.Tags.Count == 0) continue;
-            track.Tags.Clear();
-            _db.Update(track);
-            cleared++;
-        }
-
-        if (cleared > 0) StateVersion++;
-        Log.Information("[LibraryService] ClearTagsForReSync: cleared tags on {Count} tracks", cleared);
-        return cleared;
-    }
-
-    public (int Scanned, int Orphaned, int Deleted, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = false)
-    {
-        if (!Directory.Exists(downloadsDir))
-            return (0, 0, 0, 0);
-
-        var knownPaths = new HashSet<string>(
-            GetAll()
-                .Where(t => !string.IsNullOrEmpty(t.FilePath))
-                .Select(t => Path.GetFullPath(t.FilePath!)),
-            StringComparer.OrdinalIgnoreCase);
-
-        var audioFiles = Directory.GetFiles(downloadsDir, "*.*", SearchOption.TopDirectoryOnly)
-            .Where(f => f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ||
-                        f.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        int orphaned = 0, deleted = 0, failed = 0;
-
-        foreach (var file in audioFiles)
-        {
-            var fullPath = Path.GetFullPath(file);
-            if (knownPaths.Contains(fullPath)) continue;
-
-            orphaned++;
-            if (dryRun) continue;
-
-            try
-            {
-                File.Delete(fullPath);
-                deleted++;
-                Log.Debug("[LibraryService] Swept orphaned file: {Path}", fullPath);
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                Log.Warning(ex, "[LibraryService] Failed to delete orphaned file: {Path}", fullPath);
-            }
-        }
-
-        Log.Information("[LibraryService] SweepOrphanedFiles: {Scanned} scanned, {Orphaned} orphaned, {Deleted} deleted, {Failed} failed (dryRun={DryRun})",
-            audioFiles.Count, orphaned, deleted, failed, dryRun);
-        return (audioFiles.Count, orphaned, deleted, failed);
-    }
-
-    public (int Scanned, int DuplicateGroups, int Removed) RemoveDuplicates(bool dryRun = true)
-    {
-        var groups = GetAll()
-            .GroupBy(t => (Title: t.Title.Trim().ToLowerInvariant(), Artist: t.Artist.Trim().ToLowerInvariant()))
-            .Where(g => g.Count() > 1)
-            .ToList();
-
-        int removed = 0;
-        foreach (var group in groups)
-        {
-            var ordered = group
-                .OrderByDescending(t => HasVerifiedFile(t))
-                .ThenByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
-                .ThenByDescending(t => t.PlayCount)
-                .ThenByDescending(t => t.IsFavorite)
-                .ThenBy(t => t.DateAdded)
-                .ToList();
-
-            var keeper = ordered[0];
-            var duplicates = ordered.Skip(1).ToList();
-
-            foreach (var dup in duplicates)
-            {
-                Log.Information("[LibraryService] Duplicate: keeping '{KeepTitle}' ({KeepPath}), removing '{DupTitle}' ({DupPath})",
-                    keeper.Title, keeper.FilePath ?? keeper.Url, dup.Title, dup.FilePath ?? dup.Url);
-
-                if (!dryRun)
-                {
-                    lock (_tracksLock) _tracks.Remove(dup);
-                    _db.Delete(dup.Id);
-                    removed++;
-                }
-            }
-        }
-
-        if (removed > 0) StateVersion++;
-
-        Log.Information("[LibraryService] RemoveDuplicates: {Scanned} tracks scanned, {Groups} duplicate group(s) found, {Removed} removed (dryRun={DryRun})",
-            GetAll().Count, groups.Count, removed, dryRun);
-        return (GetAll().Count, groups.Count, removed);
-    }
-
-    public (long BeforeKB, long AfterKB) VacuumDatabase()
-    {
-        var before = new FileInfo(_db.DbPath).Length / 1024;
-        _db.Vacuum();
-        var after = new FileInfo(_db.DbPath).Length / 1024;
-        return (before, after);
-    }
-
-    public void Dispose()
-    {
-        _db.Dispose();
-    }
-
-    private void OnLibraryChanged()
-    {
-        LibraryChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>
-    /// Scans the library for tracks with missing durations and attempts to
-    /// backfill them using local TagLib metadata.
-    /// </summary>
-    public int BackfillDurations()
-    {
-        var fetcher = new Metadata.LocalMetadataFetcher();
-        int updated = 0;
-
-        // Only target local files that exist on disk and currently have 0 duration
-        var targets = GetAll().Where(t =>
-            t.Duration == TimeSpan.Zero &&
-            !string.IsNullOrEmpty(t.FilePath) &&
-            System.IO.File.Exists(t.FilePath)).ToList();
-
-        foreach (var t in targets)
-        {
-            var (_, _, duration) = fetcher.Fetch(t.FilePath!);
-            if (duration > TimeSpan.Zero)
-            {
-                t.Duration = duration;
-                Update(t);
-                updated++;
-            }
-        }
-
-        return updated;
-    }
-}
-
-public enum SortField
-{
-    Title,
-    Artist,
-    DateAdded,
-    Source,
-    PlayCount,
-    LastPlayed
+    public void Dispose() => _db.Dispose();
+    private void OnLibraryChanged() => LibraryChanged?.Invoke(this, EventArgs.Empty);
 }
