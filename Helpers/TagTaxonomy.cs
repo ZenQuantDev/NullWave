@@ -27,32 +27,51 @@ public static class TagTaxonomy
         ["Focus"] = new[] { "focus", "study", "instrumental", "concentration" }
     };
 
+    // FIX (C6): Centralized alias map for unifying Weather, External, and AI tags
+    private static readonly Dictionary<string, string> AliasMap = BuildAliasMap();
+
+    private static Dictionary<string, string> BuildAliasMap()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (canonical, keywords) in GenreAxes) foreach (var kw in keywords) map[kw] = canonical;
+        foreach (var (canonical, keywords) in MoodAxes) foreach (var kw in keywords) map[kw] = canonical;
+        
+        map["rnb"] = "Hip-Hop"; map["r&b"] = "Hip-Hop";
+        map["hip hop"] = "Hip-Hop"; map["hip-hop"] = "Hip-Hop";
+        map["rap"] = "Hip-Hop"; map["trap"] = "Hip-Hop";
+        map["lofi"] = "Ambient/Chill"; map["lo-fi"] = "Ambient/Chill";
+        return map;
+    }
+
+    public static string? Normalize(string rawTag)
+    {
+        if (string.IsNullOrWhiteSpace(rawTag)) return null;
+        return AliasMap.TryGetValue(rawTag.Trim().ToLowerInvariant(), out var canonical) ? canonical : null;
+    }
+
+    public static List<string> NormalizeAll(IEnumerable<string> tags) =>
+        tags.Select(Normalize).Where(t => t != null).Select(t => t!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    // FIX (C6): Count each track AT MOST ONCE per axis, rather than breaking on the first axis match
     public static Dictionary<string, double> ComputeDistribution(IEnumerable<Track> tracks, Dictionary<string, string[]> axes)
     {
         var counts = axes.Keys.ToDictionary(k => k, _ => 0);
-        int matched = 0;
+        int trackCount = 0;
+
         foreach (var t in tracks)
         {
-            if (t.Tags == null) continue;
-            bool trackMatched = false;
-            foreach (var tag in t.Tags)
+            if (t.Tags == null || t.Tags.Count == 0) continue;
+            trackCount++;
+
+            foreach (var (axis, keywords) in axes)
             {
-                foreach (var (axis, keywords) in axes)
-                {
-                    if (keywords.Any(k => tag.Contains(k, StringComparison.OrdinalIgnoreCase)))
-                    { 
-                        counts[axis]++; 
-                        trackMatched = true; 
-                        break; 
-                    }
-                }
-                if (trackMatched) break; // Count each track only once per axis mapping
+                bool matchedThisAxis = t.Tags.Any(tag => keywords.Any(k => string.Equals(tag.Trim(), k, StringComparison.OrdinalIgnoreCase)));
+                if (matchedThisAxis) counts[axis]++;
             }
-            if (trackMatched) matched++;
         }
         
-        return matched == 0
+        return trackCount == 0
             ? axes.Keys.ToDictionary(k => k, _ => 0.0)
-            : counts.ToDictionary(kv => kv.Key, kv => (double)kv.Value / matched);
+            : counts.ToDictionary(kv => kv.Key, kv => (double)kv.Value / trackCount);
     }
 }

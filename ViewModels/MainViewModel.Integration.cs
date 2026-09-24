@@ -60,6 +60,7 @@ public partial class MainViewModel
         _weatherService = new WeatherService(_keyStore);
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
 
+        _plugins = new PluginManager();
         _plugins.Register(new YtDlpDownloadProvider(_downloadService, _prefsService));
         _plugins.Register(new LastFmMetadataProvider(_lastFm, _prefsService));
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));

@@ -438,3 +438,6 @@ appsettings*.local.json
 
 publish/
 releases/
+publish-artifacts/
+
+build-release.ps1

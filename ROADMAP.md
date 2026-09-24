@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 19-Sep-2026
+> Last updated: 24-Sep-2026
 
 ---
 
@@ -20,11 +20,16 @@
 
 | Version     | Codename / Focus       | Key Deliverables                                                                                                                               |
 | ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v0.5.1**  | Stability              | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding (mostly complete on `fix/metadata-and-playlist-downloads`). |
+| **v0.5.1**  | Stability              | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                            |
 | **v0.5.2**  | QoL & Polish           | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                      |
-| **v0.6.0**  | "Oxeye Daisy"          | Shipped 07-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges/banners, RU localization, backups, onboarding polish, AI fallback, download manager crash fix. |
-| **v0.6.1**  | Deferred v0.6 features | Synced lyrics (LRCLIB), 10-band EQ + ReplayGain, dynamic smart playlists, Bandcamp.                                                            |
-| **v0.7.0+** | Ecosystem              | Installers, Discord RPC, animation pass.                                                                                                       |
+| **v0.6.0**  | "Oxeye Daisy"          | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish. |
+| **v0.6.1**  | "Stability & Safety"   | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
+| **v0.6.2**  | Correctness            | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                           |
+| **v0.6.3**  | Responsiveness         | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                            |
+| **v0.6.4**  | Discover & Reset       | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                   |
+| **v0.6.5**  | Premium & Performance  | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                               |
+| **v0.6.6**  | Launch Readiness       | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                         |
+| **v0.7.0+** | Ecosystem              | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                            |
 
 ---
 
@@ -268,7 +273,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ Core user actions (`TrackEdited`, `FavoriteToggled`, `SearchPerformed`, `TrackAdded`, `TrackRemoved`, `SkipPenalty`, `SettingChanged`) emitting structured `[ACTION]` logs.
 - 📋 Audit remaining user-triggered actions for live/toast notifications.
 
-### 9.3 Component naming reference (use these in future roadmap entries, not descriptions)
+### 9.3 Component naming reference
 
 | Informal description               | Actual component                                                                                                                                                                                                                                                              |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -375,7 +380,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 13 - Plugin Architecture & Service Isolation 🔄
+## Phase 13 - Plugin Architecture & Service Isolation ✅
 
 **Goal:** Make all external dependencies optional, disconnectable, and independently replaceable.
 
@@ -456,37 +461,83 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ **Download Manager Stability:** Fixed fatal XAML resource crash (`BoolNegation`) and improved active/failed job tracking.
 - ✅ **Library Maintenance:** Force-clean titles, orphaned file sweeping, and duplicate removal tools.
 - ✅ **Local AI Fallback:** Auto-switches to safe installed models if configured Ollama model is missing.
-
-## Phase 17½ - v0.6.1 Deferred Features 📋
-
-**Goal:** Complete the v0.6 feature set deferred from the release.
-
-- 📋 **Synced Lyrics:** LRCLIB integration with playback-position line highlighting.
-- 📋 **Advanced Audio Controls:** 10-band EQ (LibVLC equalizer) and ReplayGain/volume normalization.
-- 📋 **Dynamic Smart Playlists:** SQL-driven playlists for forgotten, frequently played, and recently added tracks.
-- 📋 **More Sources:** Bandcamp import support to complement YouTube/SoundCloud/Spotify.
 - ✅ **Settings ViewModel refactor:** split `SettingsViewModel` into domain partial files (ApiKeys / Preferences / AI / Maintenance / Updates). Completed in v0.6.0 to enforce architecture limits and improve maintainability.
 
 ---
 
-## Phase 18 - Platform & Ecosystem 💡
+## Phase 18 - v0.6.2 "Correctness" 🔜
 
-**Goal:** Distribution, localization, and deep OS integration.
+**Goal:** Fix download concurrency, mood AI reliability, and unify tag vocabularies.
 
-- 📋 **Installers & Auto-Update:** Velopack or NSIS via GitHub Actions; wire `UpdateService` to silent/background updates.
-- ✅ **i18n:** Localization support with English/Russian string tables and live language switching.
-- 📋 **Discord Rich Presence:** Show currently playing track and artist in Discord status.
-- 📋 **Animation Pass:** Page transitions, micro-interactions, menu-bar opacity transition (150ms fade).
+- 📋 **DownloadService (C4)**: Fix stuck URLs after cancel-while-queued, prevent `SemaphoreSlim` drift, fix playlist hang on duplicate URLs, add 20-min hard timeout, switch output template to `%(title).150B [%(id)s].%(ext)s`.
+- 📋 **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
+- 📋 **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
+- 📋 **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
+- 📋 **Local AI & Library (C8, C10)**: Fix Ollama connection refused detection, remove file paths from prompts, fix `RemoveDuplicates` scanned count, make `SweepOrphanedFiles` default to dry-run.
 
 ---
 
-## Phase 19 - Export & Decentralized Sharing 💡
+## Phase 19 - v0.6.3 "Responsiveness & First Run" 📋
 
-**Goal:** Make the library truly portable and enable P2P sharing between users.
+**Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
-- 📋 **Batch Export & Archiving**: Export selected tracks, playlists, or the entire library to a target folder (e.g., flash drive, phone music player) with options to zip or maintain folder structure.
-- 📋 **P2P / Torrent-like Sharing**: Generate magnet links or `.torrent` files for playlists/albums. Allow users to seamlessly share and download library chunks from peers without relying on centralized YouTube/SoundCloud APIs.
-- 📋 **Embedded Tag Sync**: Ensure all exported files carry their NullWave database metadata (tags, play counts, ratings) in their ID3/Vorbis headers. (Foundation laid in v0.5.1 via `MetadataService.WriteTagsToFile`).
+- 📋 **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
+- 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
+- 📋 **Process & HTTP (P9)**: Unify process execution into a single `ProcessRunner` (concurrent stdout/stderr, timeouts), share a single `HttpClient` setup.
+- 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
+
+---
+
+## Phase 20 - v0.6.4 "Factory Reset & Discover MVP" 📋
+
+**Goal:** Safe data wiping and curated, legal source discovery.
+
+- 📋 **Factory Reset**: "Reset on next start" mechanism via `reset.pending` marker, allowlist-based deletion, three tiers (Settings, Library, Factory).
+- 📋 **Discover / Featured**: Bundled `featured.json` (radio, audiobooks, free tracks), on-device ranking by library tags/weather, reuse `RadioBrowserProvider` and `LibriVoxProvider`.
+
+---
+
+## Phase 21 - v0.6.5 "Premium Look & Performance" 📋
+
+**Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
+
+- 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
+- 📋 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
+- 📋 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
+
+---
+
+## Phase 22 - v0.6.6 "Launch Readiness" 📋
+
+**Goal:** Survive the first impression on Reddit.
+
+- 📋 **Documentation**: `/docs` folder (install, sources, Mood Mix, troubleshooting, architecture, privacy).
+- 📋 **Repo Hygiene**: Clean `.gitignore`, issue templates asking for diagnostics, `THIRD-PARTY-NOTICES`.
+- 📋 **Release Packaging**: Windows Setup/Portable (Velopack), Linux AppImage/Flatpak.
+- 📋 **Feature Freeze**: 1-2 weeks before launch, bug fixes only, clean-machine install verification.
+
+---
+
+## Phase 23 - Post-Launch / Deferred Features 💡
+
+**Goal:** Highly requested features deferred to ensure a stable v0.6 launch.
+
+- 💡 **Synced Lyrics**: LRCLIB integration with playback-position line highlighting.
+- 💡 **Advanced Audio**: 10-band EQ (LibVLC) and ReplayGain/volume normalization.
+- 💡 **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
+- 💡 **More Sources**: Bandcamp import, M3U/M3U8 import and export.
+- 💡 **Export & Sharing**: Batch export/archiving, P2P/Torrent-like sharing, embedded tag sync.
+
+---
+
+## Phase 24 - v0.7.0 "Ecosystem" (Name TBD) 💡
+
+**Goal:** Deep OS integration, cross-device sync, and community features.
+
+- 💡 **OS Integration**: Media keys (MPRIS on Linux, SMTC on Windows), Discord Rich Presence, portable mode.
+- 💡 **macOS Build**: Test-only via friend's Mac + CI, replace Linux-specific code, map Ctrl to Cmd.
+- 💡 **Subsonic Server**: Opt-in, LAN-only, authenticated server for downloaded tracks (allows existing Android clients to connect).
+- 💡 **Multi-Source Search**: `IMusicSearchProvider` plugin interface to query YouTube/SoundCloud/Bandcamp in parallel.
 
 ---
 
@@ -512,13 +563,11 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ### Branch strategy
 
-```
-
+```text
 main                ← always stable, builds clean
 ├ refactor/*        ← structural changes, no new features
 ├ feature/{n}-*     ← new features per phase number
 └ fix/*             ← bug fixes, can target any branch
-
 ```
 
 ---

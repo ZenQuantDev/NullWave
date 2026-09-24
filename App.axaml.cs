@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using NullWave.Views;
+using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
@@ -64,8 +65,12 @@ public partial class App : Application
                 Log.Fatal(exception, "Anti-Crash: Critical unhandled domain exception. IsTerminating: {IsTerminating}", e.IsTerminating);
                 NullActionLogger.Error("Global_CriticalCore", exception, $"Fatal application boundary crash intercepted. IsTerminating={e.IsTerminating}");
 
+                // Generate user-friendly crash report before the app dies
                 if (e.IsTerminating)
+                {
+                    CrashHandler.HandleFatalCrash(exception);
                     Log.Information("NullWave is shutting down due to a fatal environment failure. Emergency cleanup executed.");
+                }
             }
         };
     }
