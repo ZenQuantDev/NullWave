@@ -11,11 +11,40 @@ public static partial class TrackTitleParser
     [GeneratedRegex(@"\s+(ft\.?|feat\.?)\s+.+$", RegexOptions.IgnoreCase)]
     private static partial Regex FeatureRegex();
 
-    [GeneratedRegex(@"^(.+?)\s*(?:\/\/\/|\/\/|⧸|∞|~|〜|·|•)\s*(.+)$", RegexOptions.Compiled)]
+    [GeneratedRegex(@"^(.+?)\s*(?:\/\/\/|\/\/|⧸|⧵|~|∞|·|•)\s*(.+)$", RegexOptions.Compiled)]
     private static partial Regex ExoticSeparatorRegex();
 
     // FIX: Added em dash
     private static readonly string[] Separators = { " - ", " – ", " — " };
+
+    // FIX: Centralized placeholder detection for metadata reconciliation
+    private static readonly HashSet<string> PlaceholderTitles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Unknown Title",
+        "YouTube track",
+        "SoundCloud track",
+        "Spotify track",
+        "Radio track",
+        "Audiobook track"
+    };
+
+    /// <summary>True if the title is a known placeholder that should be overwritten by real metadata.</summary>
+    public static bool IsPlaceholderTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return true;
+        if (PlaceholderTitles.Contains(title)) return true;
+        // Also treat raw URLs as placeholders
+        if (title.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            title.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    public static bool IsPlaceholderArtist(string? artist)
+    {
+        if (string.IsNullOrWhiteSpace(artist)) return true;
+        return artist.Equals("Unknown", StringComparison.OrdinalIgnoreCase)
+            || artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static bool HasExoticSeparator(string s) =>
         s.Contains('~') || s.Contains('∞') || s.Contains('·') || s.Contains('•') || s.Contains('⧸') || s.Contains("///");
@@ -46,9 +75,9 @@ public static partial class TrackTitleParser
         // FIX: Replaced JunkPatterns loop with TitleSanitizer
         title = TitleSanitizer.SanitizeSingle(title);
 
-        if (artist.EndsWith("Music", StringComparison.OrdinalIgnoreCase) && artist.Length > 5) 
+        if (artist.EndsWith("Music", StringComparison.OrdinalIgnoreCase) && artist.Length > 5)
             artist = artist[..^5];
-        if (artist.EndsWith("VEVO", StringComparison.OrdinalIgnoreCase) && artist.Length > 4) 
+        if (artist.EndsWith("VEVO", StringComparison.OrdinalIgnoreCase) && artist.Length > 4)
             artist = artist[..^4];
         if (artist.EndsWith("- Topic", StringComparison.OrdinalIgnoreCase) && artist.Length > 7)
             artist = artist[..^7];

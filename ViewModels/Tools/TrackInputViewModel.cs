@@ -10,6 +10,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Integration;
 using NullWave.ViewModels.Base;
+using NullWave.Services.Metadata;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -175,7 +176,6 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // FIX: Early Interception to prevent dummy track creation and log spam
         if (IsYouTubePlaylist(url))
         {
             PlaylistImportRequested?.Invoke(url);
@@ -184,7 +184,6 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // Known multi-stream radio sites need station selection instead of a dummy track.
         if (RadioStationCatalog.TryGetChannels(url, out var stationName, out var channels))
         {
             RadioSiteRequested?.Invoke(stationName, channels);
@@ -248,7 +247,6 @@ public class TrackInputViewModel : ViewModelBase
 
         var usedFallbackTitle = string.IsNullOrWhiteSpace(providedTitle);
 
-        // FIX: Prevent raw URLs from being saved as titles by using source-aware fallbacks
         var fallbackTitle = SelectedSource switch
         {
             TrackSource.SoundCloud => "SoundCloud track",
@@ -290,7 +288,8 @@ public class TrackInputViewModel : ViewModelBase
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
                     newTrack.Id.ToString(), url,
-                    _settings.AudioFormat, _settings.AudioQuality));
+                    _settings.AudioFormat, _settings.AudioQuality,
+                    title: newTrack.Title, artist: newTrack.Artist)); // FIX
         }
     }
 
@@ -341,16 +340,22 @@ public class TrackInputViewModel : ViewModelBase
 
             if (existing != null)
             {
-                if (!string.IsNullOrWhiteSpace(title) &&
-                    (existing.Title == url
-                    || existing.Title == StripQueryStringForDisplay(url)
-                    || existing.Title == "Unknown Title"
-                    || string.IsNullOrWhiteSpace(existing.Title)))
-                    existing.Title = title;
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    // FIX: API titles are often "Artist - Title"; split before assigning
+                    var parsed = TrackTitleParser.TryParseArtistTitle(title);
+                    var cleanTitle  = title;
+                    var cleanArtist = artist;
+                    if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Title))
+                    {
+                        cleanTitle = parsed.Value.Title;
+                        if (!string.IsNullOrWhiteSpace(parsed.Value.Artist)) cleanArtist = parsed.Value.Artist;
+                    }
 
-                if (!string.IsNullOrWhiteSpace(artist) &&
-                    (existing.Artist == "Unknown" || string.IsNullOrWhiteSpace(existing.Artist)))
-                    existing.Artist = artist;
+                    if (TrackTitleParser.IsPlaceholderTitle(existing.Title))  existing.Title  = cleanTitle;
+                    if (TrackTitleParser.IsPlaceholderArtist(existing.Artist) &&
+                        !string.IsNullOrWhiteSpace(cleanArtist))              existing.Artist = cleanArtist;
+                }
 
                 if (string.IsNullOrEmpty(existing.AlbumArtPath) && thumbnail != null)
                     existing.AlbumArtPath = thumbnail;
@@ -359,11 +364,12 @@ public class TrackInputViewModel : ViewModelBase
                     existing.Duration = duration;
 
                 _library.Update(existing);
+                _download.UpdateJobMetadata(existing.Id.ToString(), existing.Title, existing.Artist); // FIX
                 Avalonia.Threading.Dispatcher.UIThread.Post(
                     () => TrackMetadataUpdated?.Invoke());
 
                 Log.Information("[{Source}] Backfilled track metadata: {Title} by {Artist}",
-                    nameof(TrackInputViewModel), title, artist);
+                    nameof(TrackInputViewModel), existing.Title, existing.Artist);
             }
         }
         catch (Exception ex)
@@ -495,7 +501,8 @@ public class TrackInputViewModel : ViewModelBase
         _ = Task.Run(async () =>
             await _download.DownloadAsync(
                 track.Id.ToString(), result.YouTubeUrl,
-                _settings.AudioFormat, _settings.AudioQuality));
+                _settings.AudioFormat, _settings.AudioQuality,
+                title: track.Title, artist: track.Artist)); // FIX
     }
 
     private void ClearInputs()

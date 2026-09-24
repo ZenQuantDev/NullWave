@@ -35,7 +35,6 @@ public class NavigationViewModel : ViewModelBase
     public ObservableCollection<Playlist> UnpinnedPlaylists { get; } = new();
     public ObservableCollection<SidebarFolderNode> FolderNodes { get; } = new();
 
-    // True while a pinned NavItem is being drag-reordered; drives the dashed unpin overlay.
     private bool _isReorderDragging;
     public bool IsReorderDragging
     {
@@ -55,21 +54,45 @@ public class NavigationViewModel : ViewModelBase
     public NavigationViewModel(
         PreferencesService prefs,
         PlaylistService playlists,
-        ICommand navigateLibrary,
-        ICommand navigatePlaylists,
-        ICommand navigateRadio,
-        ICommand navigateAudiobooks,
+        Func<ICommand> navigateLibrary,
+        Func<ICommand> navigatePlaylists,
+        Func<ICommand> navigateRadio,
+        Func<ICommand> navigateAudiobooks,
         Action<Guid> navigateToPlaylist)
     {
         _prefs = prefs;
         _playlists = playlists;
         _navigateToPlaylist = navigateToPlaylist;
 
+        // FIX: Use Func<ICommand> to defer command resolution until click time.
+        // This prevents NullReferenceExceptions if the commands aren't initialized 
+        // when NavigationViewModel is constructed.
         _coreItems = new List<NavItem>
         {
-            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core) { Command = navigateLibrary },
-            new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core) { Command = navigateRadio },
-            new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core) { Command = navigateAudiobooks },
+            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core) 
+            { 
+                Command = new RelayCommand(() => 
+                { 
+                    navigateLibrary()?.Execute(null); 
+                    SetActivePage("Library"); 
+                })
+            },
+            new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core) 
+            { 
+                Command = new RelayCommand(() => 
+                { 
+                    navigateRadio()?.Execute(null); 
+                    SetActivePage("Radio"); 
+                })
+            },
+            new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core) 
+            { 
+                Command = new RelayCommand(() => 
+                { 
+                    navigateAudiobooks()?.Execute(null); 
+                    SetActivePage("Audiobooks"); 
+                })
+            },
         };
 
         MoveUpCommand = new RelayCommand<NavItem>(MoveUp);
@@ -81,7 +104,7 @@ public class NavigationViewModel : ViewModelBase
             if (node == null) return;
             node.IsExpanded = !node.IsExpanded;
             node.Folder.IsExpanded = node.IsExpanded;
-            _playlists.UpdateFolder(node.Folder);   // NEW: persist expansion state
+            _playlists.UpdateFolder(node.Folder);
         });
         PinPlaylistCommand = new RelayCommand<Playlist>(p =>
         {
@@ -99,11 +122,6 @@ public class NavigationViewModel : ViewModelBase
         Rebuild();
     }
 
-    /// <summary>
-    /// Deterministic persistence key for a nav item. Core items use their fixed key
-    /// ("Library"/"Radio"/"Audiobooks"); pinned playlists always use "pin:{guid}",
-    /// matching what PinPlaylist/BuildAutoSuggestion store in PinnedItems.Key.
-    /// </summary>
     internal static string NavKey(NavItem item) =>
         item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue
             ? $"pin:{item.TargetPlaylistId.Value}"
@@ -136,7 +154,6 @@ public class NavigationViewModel : ViewModelBase
         var all = _coreItems.Concat(pinnedItems).ToList();
         var savedOrder = _liveOrder.Count > 0 ? _liveOrder : _prefs.Current.NavOrder;
 
-        // Restore saved order via NavKey; append anything not yet in the saved order.
         var ordered = savedOrder.Count > 0
             ? savedOrder
                 .Select(key => all.FirstOrDefault(i => NavKey(i) == key))
@@ -163,7 +180,7 @@ public class NavigationViewModel : ViewModelBase
         {
             var id = data.TargetPlaylistId.Value;
             var playlist = _playlists.GetById(id);
-            if (playlist == null) return null;   // playlist was deleted -> drop the ghost pin
+            if (playlist == null) return null;
 
             var item = new NavItem(data.Key, data.Label, MaterialIconKind.PlaylistMusic, NavItemType.PinnedPlaylist, id);
             item.Command = new RelayCommand(() => _navigateToPlaylist(id));
@@ -256,7 +273,6 @@ public class NavigationViewModel : ViewModelBase
         foreach (var folder in _playlists.GetAllFolders())
         {
             var node = new SidebarFolderNode(folder);
-            // Pin is a shortcut, not a move: folder keeps ALL of its playlists.
             foreach (var pl in _playlists.GetAll().Where(p => p.FolderId == folder.Id))
                 node.Playlists.Add(pl);
             FolderNodes.Add(node);
@@ -292,7 +308,7 @@ public class NavigationViewModel : ViewModelBase
         var order = Items.Select(NavKey).ToList();
         _liveOrder = order;
         _prefs.Update(p => p.NavOrder = order);
-        _prefs.Save();   // flush NOW so a later Rebuild() can never resurrect a stale order
+        _prefs.Save();
     }
 
     public void MovePlaylistToFolder(Guid playlistId, Guid? folderId)

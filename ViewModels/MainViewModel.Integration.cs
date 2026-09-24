@@ -111,9 +111,14 @@ public partial class MainViewModel
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);
         Queue = new QueueViewModel(_library);
 
+        // FIX: Wrap the commands in lambdas () => ... so they are evaluated at click-time, 
+        // preventing the NullReferenceException if they aren't initialized yet during construction.
         Nav = new NavigationViewModel(
             _prefsService, _playlists,
-            NavigateLibraryCommand, NavigatePlaylistsCommand, NavigateRadioCommand, NavigateAudiobooksCommand,
+            () => NavigateLibraryCommand, 
+            () => NavigatePlaylistsCommand, 
+            () => NavigateRadioCommand, 
+            () => NavigateAudiobooksCommand,
             navigateToPlaylist: playlistId =>
             {
                 CurrentPage = "Playlists";
