@@ -470,8 +470,8 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 **Goal:** Fix download concurrency, mood AI reliability, and unify tag vocabularies.
 
 - ✅ **DownloadService (C4)**: Fix stuck URLs after cancel-while-queued, prevent `SemaphoreSlim` drift, fix playlist hang on duplicate URLs, add 20-min hard timeout, switch output template to `%(title).150B [%(id)s].%(ext)s`.
-- 📋 **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
-- 📋 **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
+- ✅ **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
+- ✅ **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
 - 📋 **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
 - 📋 **Local AI & Library (C8, C10)**: Fix Ollama connection refused detection, remove file paths from prompts, fix `RemoveDuplicates` scanned count, make `SweepOrphanedFiles` default to dry-run.
 
