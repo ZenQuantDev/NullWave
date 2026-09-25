@@ -11,7 +11,7 @@ namespace NullWave.Services;
 
 public partial class LibraryService
 {
-    private static readonly Regex ArtistSeparatorRegex = new(@"\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ArtistSeparatorRegex = new(@"\s*(?:,|&|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly HashSet<string> DecorationTokens = new(StringComparer.Ordinal)
     { "official", "music", "video", "audio", "lyric", "lyrics", "explicit", "clean", "version", "radio", "edit", "remix", "remastered", "live", "acoustic", "ft", "feat", "featuring", "hd", "hq", "mv", "prod", "produced", "by", "and", "with", "of", "in", "on", "part", "pt", "the", "that", "this" };
     

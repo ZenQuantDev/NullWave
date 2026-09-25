@@ -69,4 +69,5 @@ public class Preferences
     public bool AutoResumeAudiobooks { get; set; } = true;
     public float AudiobookPlaybackRate { get; set; } = 1.0f;
     public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "System"
+    public string LastSeenVersion { get; set; } = string.Empty;
 }

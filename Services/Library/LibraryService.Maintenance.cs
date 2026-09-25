@@ -18,6 +18,11 @@ public partial class LibraryService
         List<Track> bad;
         lock (_tracksLock) { bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) && !SourceDetector.IsPlayableUrl(t.Url) && string.IsNullOrEmpty(t.FilePath)).ToList(); }
         if (bad.Count == 0) return;
+
+        // FIX (C8): Log the actual URLs being removed
+        foreach (var t in bad)
+            Log.Warning("[LibraryService] Removing unplayable URL from DB: {Url}", t.Url);
+
         lock (_tracksLock) { foreach (var t in bad) { _tracks.Remove(t); _db.Delete(t.Id); } }
         StateVersion++;
         Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);

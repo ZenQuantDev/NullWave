@@ -70,7 +70,7 @@ public static partial class Locales
         //  Appearance 
         ["Settings_Appearance_Section_Signature"] = "SIGNATURE EDITION",
         ["Settings_Appearance_Signature_Title"] = "Oxeye Daisy",
-        ["Settings_Appearance_Signature_Desc"] = "The v0.5 signature edition - azure + orchid duo",
+        ["Settings_Appearance_Signature_Desc"] = "The signature v0.6 edition - daisy gold + leaf green duo",
         ["Settings_Appearance_Section_BaseColors"] = "BASE COLORS",
         ["Settings_Appearance_Section_AccentDuos"] = "ACCENT DUOS",
         ["Settings_Appearance_Section_ProfileFrame"] = "PROFILE FRAME",
@@ -922,5 +922,8 @@ public static partial class Locales
         ["MiniPlayer_SleepTimer_ChapterStopped"] = "Stopped at end of chapter.",
 
         ["Sidebar_DropToUnpin"] = "Drop here to unpin",
+
+        ["Settings_PageTitle_DevTools"] = "Developer Tools",
+        ["Settings_PageDesc_DevTools"] = "Sandbox, mocking, and diagnostic utilities for testing NullWave itself.",
     };
 }

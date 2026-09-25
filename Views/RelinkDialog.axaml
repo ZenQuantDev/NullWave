@@ -4,7 +4,7 @@
         x:Class="NullWave.Views.RelinkDialog"
         Title="{loc:Loc Dialog_Relink_Title}"
         Width="440" Height="210"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         CanResize="False"
         Background="{StaticResource BrushBase}">
     <DockPanel Margin="20">

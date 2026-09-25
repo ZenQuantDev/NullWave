@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -30,9 +31,42 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            desktop.MainWindow = new MainWindow();
+        {
+            var mainWindow = new MainWindow();
+            desktop.MainWindow = mainWindow;
+
+            // "What's New" screen: shown as an owned modal dialog AFTER the main window
+            // is visible. An ownerless window shown at startup breaks activation/z-order,
+            // misbehaves with Win+D / Alt+Tab, and glitches MainWindow during drags.
+            var prefs = new PreferencesService();
+            var currentVersion = GetAppVersion();
+
+            if (prefs.Current.LastSeenVersion != currentVersion)
+            {
+                prefs.Update(p => p.LastSeenVersion = currentVersion);
+                mainWindow.Opened += (_, _) =>
+                {
+                    var whatsNew = new WhatsNewWindow(currentVersion);
+                    _ = whatsNew.ShowDialog(mainWindow);
+                };
+            }
+        }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static string GetAppVersion()
+    {
+        var info = typeof(App).Assembly
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(info))
+        {
+            var plus = info.IndexOf('+');
+            if (plus > 0) info = info[..plus];
+            return info;
+        }
+        return typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
     private void RegisterAntiCrashSystem()

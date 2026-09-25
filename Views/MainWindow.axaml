@@ -147,16 +147,14 @@
                     </Grid>
                 </Grid>
 
-                <!-- RIGHT: Detail / Queue Panel (Width Transition) -->
+                <!-- RIGHT: Detail / Queue Panel -->
                 <Border Grid.Column="2"
                         Width="{Binding ActiveRightPanelWidth}"
                         ClipToBounds="True"
                         Background="{StaticResource BrushSurface}">
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="QuadraticEaseOut"/>
-                        </Transitions>
-                    </Border.Transitions>
+                    <!-- Transitions removed: Animating Width inside a Grid causes continuous 
+                         layout recalculations on every frame, leading to severe UI stuttering 
+                         and freezing during window drags on Windows. -->
                     <Panel>
                         <controls:TrackDetailView IsVisible="{Binding Detail.IsOpen}"/>
                         <controls:QueueView IsVisible="{Binding Queue.IsOpen}"/>

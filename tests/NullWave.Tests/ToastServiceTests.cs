@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using NullWave.Models;
 using NullWave.Services;
 using Xunit;
@@ -5,8 +8,20 @@ using Xunit;
 namespace NullWave.Tests;
 
 [Collection("Database")]
-public class ToastServiceTests
+public class ToastServiceTests : IDisposable
 {
+    public ToastServiceTests()
+    {
+        // Ensure a completely clean slate before every test
+        ToastService.Instance.ResetForTests();
+    }
+
+    public void Dispose()
+    {
+        // Clean up after the test to prevent state bleeding into the next test
+        ToastService.Instance.ResetForTests();
+    }
+
     [Fact]
     public void UpdateLiveActivity_with_title_updates_the_title()
     {
@@ -16,7 +31,6 @@ public class ToastServiceTests
 
         Assert.Equal("Still working", toast.Title);
         Assert.Equal("step 2", toast.Message);
-        ToastService.Instance.Dismiss(toast);
     }
 
     [Fact]
@@ -28,7 +42,6 @@ public class ToastServiceTests
         Assert.Same(first, second);
         Assert.Equal("New title", second.Title);
         Assert.Equal("new", second.Message);
-        ToastService.Instance.Dismiss(second);
     }
 
     [Fact]
@@ -43,7 +56,6 @@ public class ToastServiceTests
         Assert.True(toast.IsCompleted);
         Assert.False(toast.IsIndeterminate);
         Assert.Equal(100, toast.ProgressValue);
-        ToastService.Instance.Dismiss(toast);
     }
 
     [Fact]
@@ -55,6 +67,5 @@ public class ToastServiceTests
         Assert.Same(toast, again);
         Assert.Equal("Renamed", again.Title);
         Assert.Equal("second", again.Message);
-        ToastService.Instance.Dismiss(again);
     }
 }

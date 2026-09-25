@@ -12,7 +12,7 @@
         x:DataType="vm:SettingsViewModel"
         Title="{loc:Loc Onboarding_Title}"
         Width="680" Height="720"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         CanResize="False"
         Background="{StaticResource BrushBase}"
         KeyDown="OnWindowKeyDown">
