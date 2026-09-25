@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Models;
@@ -15,7 +17,8 @@ namespace NullWave.Services;
 /// <summary>
 /// Central notification hub.
 /// Features: single-host routing (MainWindow vs SettingsWindow), scope grouping,
-/// hover-pause, dismiss-all, hard cap of 4 visible toasts, actionable buttons.
+/// hover-pause, dismiss-all, hard cap of 4 visible toasts with an 8-deep overflow
+/// queue (no silent drops), and High priority that is never evicted.
 /// </summary>
 public class ToastService : INotifyPropertyChanged
 {
@@ -26,8 +29,11 @@ public class ToastService : INotifyPropertyChanged
     public ObservableCollection<LiveNotification> ActiveNotifications => ActiveToasts;
 
     public const int MaxVisibleToasts = 4;
+    public const int MaxQueuedToasts = 8;
 
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _timers = new();
+    private readonly Queue<LiveNotification> _overflow = new();
+    private readonly object _overflowLock = new();
 
     //  Single-host routing: only ONE window renders toasts at a time
     private bool _settingsHostActive;
@@ -57,12 +63,24 @@ public class ToastService : INotifyPropertyChanged
         DismissAllCommand = new RelayCommand(() =>
         {
             foreach (var t in ActiveToasts.ToList()) Dismiss(t);
+            lock (_overflowLock) _overflow.Clear();
         });
         ActiveToasts.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(ShowDismissAll));
             OnPropertyChanged(nameof(HasActiveNotifications));
         };
+    }
+
+    //  Test hooks (InternalsVisibleTo NullWave.Tests)
+    internal int QueuedCount { get { lock (_overflowLock) return _overflow.Count; } }
+
+    internal void ResetForTests()
+    {
+        foreach (var cts in _timers.Values) cts.Cancel();
+        _timers.Clear();
+        lock (_overflowLock) _overflow.Clear();
+        ActiveToasts.Clear();
     }
 
     //  Pathway 1: static toast
@@ -91,7 +109,8 @@ public class ToastService : INotifyPropertyChanged
             IsLiveActivity = true,
             ShowProgressBar = true,
             IsIndeterminate = isIndeterminate,
-            ProgressValue = 0
+            ProgressValue = 0,
+            DurationMs = 60_000 // only used if it ever has to wait in the overflow queue
         };
         AddToast(notification);
         return notification;
@@ -109,13 +128,7 @@ public class ToastService : INotifyPropertyChanged
             if (isIndeterminate.HasValue) notification.IsIndeterminate = isIndeterminate.Value;
         }
 
-        if (Dispatcher.UIThread.CheckAccess()) Apply();
-        else
-        {
-            // FIX: Try direct execution for headless tests, fallback to Post for live app
-            try { Apply(); }
-            catch { Dispatcher.UIThread.Post(Apply); }
-        }
+        RunOnUiThread(Apply);
     }
 
     public void CompleteLiveActivity(LiveNotification? notification, string finalMessage,
@@ -146,22 +159,23 @@ public class ToastService : INotifyPropertyChanged
             }
         }
 
-        if (Dispatcher.UIThread.CheckAccess()) Apply();
-        else
-        {
-            // FIX: Try direct execution for headless tests, fallback to Post for live app
-            try { Apply(); }
-            catch { Dispatcher.UIThread.Post(Apply); }
-        }
+        RunOnUiThread(Apply);
 
-        ScheduleDismiss(notification, lingerMs);
+        // If it's on screen, start the linger countdown now; if it's still queued,
+        // carry the linger time so DisplayToast schedules it when it finally shows.
+        RunOnUiThread(() =>
+        {
+            notification.DurationMs = lingerMs;
+            if (ActiveToasts.Contains(notification)) ScheduleDismiss(notification, lingerMs);
+        });
     }
 
     //  Pathway 3: grouped + actionable toast
     public LiveNotification Show(
         string message, ToastType type = ToastType.Info, int durationMs = 4000,
         string title = "", string detailedMessage = "",
-        string? actionText = null, Action? actionCallback = null, string? scope = null)
+        string? actionText = null, Action? actionCallback = null, string? scope = null,
+        ToastPriority priority = ToastPriority.Normal)
     {
         var existing = !string.IsNullOrEmpty(scope)
             ? ActiveToasts.FirstOrDefault(t => t.Scope == scope)
@@ -182,6 +196,8 @@ public class ToastService : INotifyPropertyChanged
         notification.Message = message;
         notification.DetailedMessage = detailedMessage;
         notification.Type = type;
+        notification.Priority = priority;
+        notification.DurationMs = durationMs;
 
         // Reusing a live activity = completion: finalize its progress bar.
         if (existing != null && existing.IsLiveActivity)
@@ -204,7 +220,7 @@ public class ToastService : INotifyPropertyChanged
         }
 
         if (existing == null) AddToast(notification);
-        ScheduleDismiss(notification, durationMs); // resets countdown on reuse
+        else ScheduleDismiss(notification, durationMs); // resets countdown on reuse
         return notification;
     }
 
@@ -219,26 +235,64 @@ public class ToastService : INotifyPropertyChanged
     //  Internals
     private void AddToast(LiveNotification n)
     {
-        void Add() { ActiveToasts.Add(n); EnforceCap(); }
-        if (Dispatcher.UIThread.CheckAccess()) Add();
-        else
+        void Add()
         {
-            // FIX: ObservableCollection throws NotSupportedException on background threads 
-            // in a live app, which safely triggers the Post() fallback. In headless tests, 
-            // it succeeds immediately so the test can observe the collection.
-            try { Add(); }
-            catch { Dispatcher.UIThread.Post(Add); }
+            if (ActiveToasts.Count >= MaxVisibleToasts)
+            {
+                bool mustShow = n.Priority == ToastPriority.High || n.IsLiveActivity;
+                if (mustShow)
+                {
+                    // High priority makes room by evicting the oldest Normal toast.
+                    var victim = ActiveToasts.FirstOrDefault(t =>
+                        !t.IsLiveActivity && !t.IsDismissing && t.Priority == ToastPriority.Normal);
+                    if (victim != null)
+                    {
+                        if (_timers.TryRemove(victim.Id, out var cts)) cts.Cancel();
+                        ActiveToasts.Remove(victim);
+                    }
+                    else
+                    {
+                        Enqueue(n); // screen full of High/live toasts: wait your turn
+                        return;
+                    }
+                }
+                else
+                {
+                    Enqueue(n); // never dropped, just queued
+                    return;
+                }
+            }
+            DisplayToast(n);
+        }
+        RunOnUiThread(Add);
+    }
+
+    private void Enqueue(LiveNotification n)
+    {
+        lock (_overflowLock)
+        {
+            _overflow.Enqueue(n);
+            // Queue itself is bounded: oldest waiting toast is discarded first.
+            while (_overflow.Count > MaxQueuedToasts) _overflow.Dequeue();
         }
     }
 
-    private void EnforceCap()
+    private void DisplayToast(LiveNotification n)
     {
-        while (ActiveToasts.Count > MaxVisibleToasts)
+        ActiveToasts.Add(n);
+        ScheduleDismiss(n, n.DurationMs);
+    }
+
+    /// <summary>Fills freed slots from the overflow queue. Must run on the UI thread.</summary>
+    private void PumpOverflow()
+    {
+        while (ActiveToasts.Count < MaxVisibleToasts)
         {
-            var victim = ActiveToasts.FirstOrDefault(t => !t.IsLiveActivity && !t.IsDismissing)
-                ?? ActiveToasts.FirstOrDefault(t => !t.IsDismissing);
-            if (victim == null) break;
-            Dismiss(victim);
+            LiveNotification? next;
+            lock (_overflowLock) next = _overflow.Count > 0 ? _overflow.Dequeue() : null;
+            if (next == null) break;
+            if (next.IsDismissing) continue; // dismissed while queued: skip silently
+            DisplayToast(next);
         }
     }
 
@@ -260,12 +314,7 @@ public class ToastService : INotifyPropertyChanged
         if (_timers.TryRemove(notification.Id, out var cts)) cts.Cancel();
 
         void BeginExit() => notification.IsDismissing = true;
-        if (Dispatcher.UIThread.CheckAccess()) BeginExit();
-        else
-        {
-            try { BeginExit(); }
-            catch { Dispatcher.UIThread.Post(BeginExit); }
-        }
+        RunOnUiThread(BeginExit);
 
         _ = Task.Run(async () =>
         {
@@ -273,14 +322,22 @@ public class ToastService : INotifyPropertyChanged
             void Remove()
             {
                 if (ActiveToasts.Contains(notification)) ActiveToasts.Remove(notification);
+                PumpOverflow();
             }
-            if (Dispatcher.UIThread.CheckAccess()) Remove();
-            else
-            {
-                try { Remove(); }
-                catch { Dispatcher.UIThread.Post(Remove); }
-            }
+            RunOnUiThread(Remove);
         });
+    }
+
+    // FIX: marshal to the UI thread in the live app; run inline only in headless tests
+    private static void RunOnUiThread(Action action)
+    {
+        if (Application.Current == null)
+        {
+            action(); // unit tests: synchronous, observable
+            return;
+        }
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

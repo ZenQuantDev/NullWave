@@ -36,12 +36,26 @@ public static class TagTaxonomy
     private static Dictionary<string, string> BuildAliasMap()
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (canonical, keywords) in GenreAxes) foreach (var kw in keywords) map[kw] = canonical;
-        foreach (var (canonical, keywords) in MoodAxes) foreach (var kw in keywords) map[kw] = canonical;
+        var canonicals = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (canonical, keywords) in GenreAxes)
+        {
+            canonicals.Add(canonical);
+            foreach (var kw in keywords) map[kw] = canonical;
+        }
         
-        // Ensure canonical names map to themselves
-        foreach (var canonical in map.Values.Distinct())
+        foreach (var (canonical, keywords) in MoodAxes)
+        {
+            canonicals.Add(canonical);
+            foreach (var kw in keywords) map[kw] = canonical;
+        }
+        
+        // Map canonical names to themselves (lowercase key -> proper case value)
+        // Using the HashSet avoids the "Collection was modified" bug on map.Values
+        foreach (var canonical in canonicals)
+        {
             map[canonical.ToLowerInvariant()] = canonical;
+        }
 
         return map;
     }
@@ -58,7 +72,6 @@ public static class TagTaxonomy
     public static List<string> NormalizeAll(IEnumerable<string> tags) =>
         tags.Select(Normalize).Where(t => t != null).Select(t => t!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-    // FIX (C6): Count each track AT MOST ONCE per axis, rather than breaking on the first axis match
     public static Dictionary<string, double> ComputeDistribution(IEnumerable<Track> tracks, Dictionary<string, string[]> axes)
     {
         var counts = axes.Keys.ToDictionary(k => k, _ => 0);

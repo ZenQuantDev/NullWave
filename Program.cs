@@ -3,6 +3,7 @@ using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Win32;
 using NullWave.Views;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
@@ -80,8 +81,24 @@ class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
+    => AppBuilder.Configure<App>()
+        .UsePlatformDetect()
+        .WithInterFont()
+        .LogToTrace();
+
+    /* 
+        This part of code works better on systems with GPU acceleration. It resolves problems with Main Window moving animation and stuttering.
+        But it may not work on older systems without GPU like i3 380M, which is the "floor machine" for NulLWave.
+        For now NullWave will be using "old" style system, and in future updates we will add a setting to switch between these two modes, 
+        and make overall performance better for all users. 
+    public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new Win32PlatformOptions
+            {
+                RenderingMode = new[] { Win32RenderingMode.Software }
+            })
             .WithInterFont()
             .LogToTrace();
+            */
 }

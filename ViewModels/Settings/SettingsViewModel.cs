@@ -49,6 +49,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region Constructor
     public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
     {
+        IsDevMode = CheckDevAccess();
         _keyStore = keyStore;
         _secureDelete = secureDelete;
         _prefsService = prefsService;
@@ -94,10 +95,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 }
             }));
         }
+        LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
     }
     #endregion
 
     #region Helpers
+    public string BuildDiagnosticsText()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"App Version: {VersionLabel}");
+        sb.AppendLine($"OS: {OsLabel} ({RuntimeInformation.OSDescription})");
+        sb.AppendLine($"Architecture: {RuntimeInformation.OSArchitecture} (Process: {RuntimeInformation.ProcessArchitecture})");
+        sb.AppendLine($"Runtime: {RuntimeInformation.FrameworkDescription}");
+        sb.AppendLine($"Language: {SelectedLanguage}");
+        sb.AppendLine($"Data Directory: {NullWavePaths.DataDir}");
+        sb.AppendLine($"Logs Directory: {NullWavePaths.LogsDir}");
+        sb.AppendLine($"Timestamp: {DateTime.UtcNow:dd-MM-yyyy HH:mm:ss} UTC");
+        return sb.ToString();
+    }
+
     private static string L(string key) => LocalizationService.Instance[key];
     
     private void ScheduleSave()
@@ -299,6 +315,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         StopHealthCheck();
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
+        LogViewer?.Dispose();
         GC.SuppressFinalize(this);
     }
     #endregion

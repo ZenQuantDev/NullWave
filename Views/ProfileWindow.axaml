@@ -13,7 +13,7 @@
         Title="NullWave - Profile"
         Width="820" Height="720"
         MinWidth="700" MinHeight="600"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         CanResize="True"
         Background="{StaticResource BrushBase}"
         KeyDown="OnWindowKeyDown">

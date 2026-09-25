@@ -49,7 +49,7 @@ public static partial class Locales
         //  Appearance 
         ["Settings_Appearance_Section_Signature"] = "ФИРМЕННАЯ СЕРИЯ",
         ["Settings_Appearance_Signature_Title"] = "Oxeye Daisy",
-        ["Settings_Appearance_Signature_Desc"] = "Фирменная тема v0.5 - дуэт лазури и орхидеи",
+        ["Settings_Appearance_Signature_Desc"] = "Фирменный дуотон v0.6 - золото маргаритки + зелень листа",
         ["Settings_Appearance_Section_BaseColors"] = "БАЗОВЫЕ ЦВЕТА",
         ["Settings_Appearance_Section_AccentDuos"] = "АКЦЕНТНЫЕ ДУЭТЫ",
         ["Settings_Appearance_Section_ProfileFrame"] = "РАМКА ПРОФИЛЯ",
@@ -900,5 +900,8 @@ public static partial class Locales
         ["MiniPlayer_SleepTimer_ChapterStopped"] = "Остановлено в конце главы.",
 
         ["Sidebar_DropToUnpin"] = "Отпустите, чтобы открепить",
+
+        ["Settings_PageTitle_DevTools"] = "Инструменты разработчика",
+        ["Settings_PageDesc_DevTools"] = "Песочница, моки и диагностика для тестирования самого NullWave.",
     };
 }

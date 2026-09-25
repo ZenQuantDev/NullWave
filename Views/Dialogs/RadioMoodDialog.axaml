@@ -3,7 +3,7 @@
         xmlns:helpers="using:NullWave.Helpers"
         x:Class="NullWave.Views.Dialogs.RadioMoodDialog"
         Title="{loc:Loc Radio_MoodDialog_Title}" Width="460" Height="440"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBase}">
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBase}">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="{loc:Loc Radio_MoodDialog_Hint}" TextWrapping="Wrap"
                Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" Margin="0,0,0,12"/>

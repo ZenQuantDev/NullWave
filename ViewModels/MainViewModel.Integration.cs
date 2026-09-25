@@ -184,6 +184,33 @@ public partial class MainViewModel
             if (Library.SelectedTrack != null) Player.PlayTrack(Library.SelectedTrack);
             else if (Library.Tracks.Count > 0) Player.PlayTrack(Library.Tracks[0]);
         };
+
+        // --- DevTools Library Stress Seeder ---
+        Settings.SeedLibraryRequested += count =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                _library.Add(new Track
+                {
+                    Id = Guid.NewGuid(),
+                    Title = $"Dev Seed {i + 1:D3}",
+                    Artist = "DevSeeder",
+                    Source = TrackSource.Local,
+                    FilePath = null,
+                    DateAdded = DateTime.UtcNow,
+                    Tags = new List<string> { "dev-seed" },
+                    MediaType = MediaType.Music
+                });
+            }
+            ToastService.Instance.Show($"Seeded {count} synthetic tracks (tag: dev-seed).", ToastType.Success);
+        };
+
+        Settings.RemoveSeededRequested += () =>
+        {
+            var ids = _library.GetAll().Where(t => t.Tags != null && t.Tags.Contains("dev-seed")).Select(t => t.Id).ToList();
+            foreach (var id in ids) _library.Remove(id);
+            ToastService.Instance.Show($"Removed {ids.Count} seeded tracks.", ToastType.Success);
+        };
     }
 
     private void WireIntegrationEvents()

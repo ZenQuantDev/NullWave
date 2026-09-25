@@ -15,7 +15,6 @@
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </Border.Resources>
-
     <!-- LOCAL STYLE OVERRIDES: Boost section-label contrast within this inspector.
          The global section-label uses BrushTextMuted (faint gray) which fails
          WCAG AA contrast on BrushSurface. Override to BrushTextSecondary + SemiBold
@@ -26,23 +25,26 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
     </Border.Styles>
-
     <Grid RowDefinitions="Auto,Auto,*">
-        <!-- ROW 0: Fixed Album Art -->
+        <!-- ROW 0: Fixed Album Art — FIT-TO-MAT (Uniform), not crop-to-fill.
+             The card background acts as a neutral mat. Square art renders 220x220 centered;
+             16:9 art renders full-width; no more baked-in black/maroon pillars. -->
         <Border Grid.Row="0" Height="{DynamicResource DetailArtHeight}"
                 Background="{StaticResource BrushSurface2}"
                 ClipToBounds="True">
             <Panel>
                 <Image Source="{Binding Detail.CurrentTrackArtPath,
-                           Converter={StaticResource PathToBitmap}}"
-                       Stretch="UniformToFill"
+                                        Converter={StaticResource PathToBitmap}}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
                        IsVisible="{Binding Detail.CurrentTrackArtPath,
-                           Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                           Converter={x:Static ObjectConverters.IsNotNull}}"/>
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Spacing="8"
                             IsVisible="{Binding Detail.CurrentTrackArtPath,
-                           Converter={x:Static ObjectConverters.IsNull}}">
+                                                Converter={x:Static ObjectConverters.IsNull}}">
                     <material:MaterialIcon Kind="MusicNote"
                                            Width="52" Height="52"
                                            Foreground="{StaticResource BrushTextMuted}"
@@ -54,7 +56,6 @@
                 </StackPanel>
             </Panel>
         </Border>
-
         <!-- ROW 1: Fixed Header -->
         <StackPanel Grid.Row="1" Spacing="0" Margin="16,16,16,0">
             <Grid ColumnDefinitions="*,Auto">
@@ -73,7 +74,6 @@
             </Grid>
             <Separator Background="{StaticResource BrushBorder}" Margin="0,12,0,0"/>
         </StackPanel>
-
         <!-- ROW 2: Scrollable Content Area -->
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
@@ -84,13 +84,11 @@
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Title}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
                 </StackPanel>
-
                 <!-- Artist -->
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Artist}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                 </StackPanel>
-
                 <!-- Source + Favorite -->
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="6">
@@ -100,7 +98,7 @@
                                 HorizontalAlignment="Left">
                             <Border.Background>
                                 <SolidColorBrush Color="{Binding Detail.DisplaySource,
-                                    Converter={StaticResource SourceToBg}}"/>
+                                                Converter={StaticResource SourceToBg}}"/>
                             </Border.Background>
                             <TextBlock Text="{Binding Detail.DisplaySource}"
                                        Foreground="White"
@@ -119,7 +117,6 @@
                                                Opacity="{Binding Detail.IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
                     </Button>
                 </Grid>
-
                 <!-- Stats -->
                 <Grid ColumnDefinitions="*,*,*">
                     <StackPanel Grid.Column="0" Spacing="4">
@@ -144,7 +141,6 @@
                                    FontWeight="Bold"/>
                     </StackPanel>
                 </Grid>
-
                 <!-- Date added -->
                 <StackPanel Spacing="4">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_DateAdded}" Margin="0"/>
@@ -152,7 +148,6 @@
                                Foreground="{StaticResource BrushTextSecondary}"
                                FontSize="{DynamicResource FontSizeBody}"/>
                 </StackPanel>
-
                 <!-- URL / Path: monospace code-chip with inline copy button -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_UrlPath}" Margin="0"/>
@@ -187,10 +182,8 @@
                             Padding="12,5"
                             HorizontalAlignment="Left"/>
                 </StackPanel>
-
                 <StackPanel Spacing="12">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_ArtistInfo}" Margin="0"/>
-
                     <!-- Spotify-style Artist Hero -->
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
                         <Border Width="100" Height="100" CornerRadius="50" ClipToBounds="True" Background="{StaticResource BrushSurface2}">
@@ -199,10 +192,10 @@
                                        Stretch="UniformToFill"
                                        IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                 <material:MaterialIcon Kind="AccountMusic"
-                                       IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNull}}"
-                                       Foreground="{StaticResource BrushTextMuted}"
-                                       Width="40" Height="40"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                       IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNull}}"
+                                                       Foreground="{StaticResource BrushTextMuted}"
+                                                       Width="40" Height="40"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Panel>
                         </Border>
                         <TextBlock Text="{Binding Detail.EditArtist}"
@@ -213,7 +206,6 @@
                                    TextTrimming="CharacterEllipsis"
                                    MaxWidth="280"/>
                     </StackPanel>
-
                     <!-- Bio Card -->
                     <Border Background="{StaticResource BrushSurface2}"
                             BorderBrush="{StaticResource BrushBorder}"
@@ -235,19 +227,16 @@
                                        Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{DynamicResource FontSizeSm}"
                                        IsVisible="{Binding Detail.IsLoadingArtistInfo}"/>
-
                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding Detail.HasArtistBio}">
                                 <TextBlock Text="{loc:Loc Detail_Artist_MonthlyListeners}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 <TextBlock Text="{Binding Detail.ArtistListeners}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
-
                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding Detail.ShowLibraryFallback}">
                                 <TextBlock Text="{loc:Loc Detail_Artist_LibraryMatches}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 <TextBlock Text="{Binding Detail.LibraryArtistTrackCount}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
-
                     <!-- Similar Artists -->
                     <StackPanel Spacing="8" IsVisible="{Binding Detail.HasSimilarArtists}">
                         <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_FansAlsoLike}" Margin="0"/>
@@ -276,9 +265,7 @@
                         </ItemsControl>
                     </StackPanel>
                 </StackPanel>
-
                 <Separator Background="{StaticResource BrushBorder}"/>
-
                 <!-- Tags -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Tags}" Margin="0"/>
@@ -342,9 +329,7 @@
                         </Button>
                     </Grid>
                 </StackPanel>
-
                 <Separator Background="{StaticResource BrushBorder}"/>
-
                 <!-- Notes -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Notes}" Margin="0"/>
@@ -353,7 +338,6 @@
                              AcceptsReturn="True"
                              Height="80"/>
                 </StackPanel>
-
                 <!-- Save -->
                 <Button Classes="primary"
                         Content="{loc:Loc Detail_Button_Save}"

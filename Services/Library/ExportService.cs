@@ -33,7 +33,7 @@ public class ExportService
             var escapedUrl = safeUrl?.Replace("\"", "\"\"") ?? "";
             var escapedPath = safePath?.Replace("\"", "\"\"") ?? "";
 
-            sb.AppendLine($"\"{escapedTitle}\",\"{escapedArtist}\",{t.Source},\"{escapedUrl}\",\"{escapedPath}\",{t.DateAdded:yyyy-MM-dd}");
+            sb.AppendLine($"\"{escapedTitle}\",\"{escapedArtist}\",{t.Source},\"{escapedUrl}\",\"{escapedPath}\",{t.DateAdded:dd-MM-yyyy}");
         }
 
         File.WriteAllText(filePath, sb.ToString());

@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             x:Class="NullWave.Views.Settings.DevTab"
+             x:DataType="vm:SettingsViewModel">
+    <UserControl.Resources>
+        <converters:BoolToBrushConverter x:Key="OkBrush" TrueBrush="{StaticResource BrushGreen}" FalseBrush="{StaticResource BrushRed}"/>
+    </UserControl.Resources>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="24,20">
+        <StackPanel Spacing="0">
+
+            <!-- UI & WINDOW SANDBOX -->
+            <TextBlock Classes="section-label" Text="UI &amp; WINDOW SANDBOX" Margin="0,0,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Force-launch modals and windows to test UI state, bindings, and transitions without restarting the app."/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Classes="secondary" Content="Relaunch Onboarding" Command="{Binding DevRelaunchOnboardingCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Show What's New" Command="{Binding DevShowWhatsNewCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Reset What's New Flag" Command="{Binding DevResetWhatsNewCommand}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- NOTIFICATION LAB -->
+            <TextBlock Classes="section-label" Text="NOTIFICATION LAB" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Exercise every toast pathway: static types, High priority eviction rules, the overflow queue, and live-activity progress bars. Every toast must auto-dismiss - a toast that stays is a bug."/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Classes="secondary" Content="Success" Command="{Binding DevTriggerToastCommand}" CommandParameter="Success" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Error" Command="{Binding DevTriggerToastCommand}" CommandParameter="Error" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Warning" Command="{Binding DevTriggerToastCommand}" CommandParameter="Warning" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Info" Command="{Binding DevTriggerToastCommand}" CommandParameter="Info" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="High Priority" Command="{Binding DevFireHighPriorityToastCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Storm x6 (queue test)" Command="{Binding DevFireToastStormCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Live Activity (progress)" Command="{Binding DevTestLiveActivityCommand}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- BINARY & ENDPOINT HEALTH -->
+            <TextBlock Classes="section-label" Text="BINARY &amp; ENDPOINT HEALTH" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"
+                                   Text="Live probe of external binaries via ProcessRunner (3s cap each) plus the Ollama HTTP endpoint. Read-only."/>
+                        <Button Grid.Column="1" Classes="secondary" Content="Re-scan" Command="{Binding DevRefreshBinariesCommand}"/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding DevBinaries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DevBinaryInfo">
+                                <Grid ColumnDefinitions="Auto,90,*" Margin="0,0,0,6">
+                                    <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"
+                                             Fill="{Binding IsOk, Converter={StaticResource OkBrush}}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                               FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Status}" Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{DynamicResource FontSizeXs}" FontFamily="Consolas, monospace"
+                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- LIBRARY STRESS -->
+            <TextBlock Classes="section-label" Text="LIBRARY STRESS" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Inject 100 synthetic tracks (tagged dev-seed) to exercise list scrolling, sorting and search at scale. Removal deletes exactly the tagged rows."/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Classes="secondary" Content="Seed 100 Tracks" Command="{Binding DevSeedLibraryCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="danger" Content="Remove Seeded Tracks" Command="{Binding DevRemoveSeededCommand}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- DIAGNOSTICS & PROFILING -->
+            <TextBlock Classes="section-label" Text="DIAGNOSTICS &amp; PROFILING" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Export a sanitized support bundle (logs + diagnostics + prefs, no API keys) for bug reports, or probe UI-thread latency and memory."/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Classes="secondary" Content="Export Support Bundle (.zip)" Command="{Binding DevExportSupportBundleCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="secondary" Content="Run System Probe" Command="{Binding DevRunProbeCommand}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                    <Border Background="{StaticResource BrushSurface}" CornerRadius="{StaticResource RadiusMd}" Padding="10,8">
+                        <TextBlock Text="{Binding DevProbeResult}" FontFamily="Consolas, monospace" FontSize="11"
+                                   Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- DATA & CACHE UTILITIES -->
+            <TextBlock Classes="section-label" Text="DATA &amp; CACHE UTILITIES" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Purge caches to verify background workers, AlbumArtService fallbacks, and file I/O atomic writes. Run this after changing the thumbnail resolution ladder."/>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Classes="danger" Content="Purge Art Cache" Command="{Binding DevPurgeArtCacheCommand}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="BottomSpacer"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

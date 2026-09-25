@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -51,16 +52,26 @@ public class MetadataService
 
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchSpotifyMetadataAsync(string url)
     {
-        var id = _urlParser.ExtractSpotifyId(url);
-        if (string.IsNullOrEmpty(id)) return ("Spotify track (unknown id)", "Unknown", null, TimeSpan.Zero);
-
-        Log.Warning("Spotify API not available - falling back to Last.fm search");
-        if (_lastFm.IsConfigured)
+        try
         {
-            var (t, a) = await _lastFm.SearchTrackAsync("Unknown", "Unknown");
-            return (t, a, null, TimeSpan.Zero);
+            using var http = new HttpClient();
+            var html = await http.GetStringAsync(SpotifyPageParser.CleanUrl(url));
+            var page = SpotifyPageParser.Parse(html);
+
+            // Guard against Album/Playlist links (C11)
+            if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
+            {
+                Log.Warning("[MetadataService] Spotify {Kind} links are not supported as single tracks.", page.Kind);
+                return ("Unknown Title", "Unknown Artist", null, TimeSpan.Zero);
+            }
+
+            return (page.Title, page.Artist, null, TimeSpan.FromSeconds(page.DurationSeconds));
         }
-        return ($"Spotify track ({id})", "Unknown", null, TimeSpan.Zero);
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[MetadataService] Spotify page fetch failed for {Url}", url);
+            return ("Spotify track", "Unknown", null, TimeSpan.Zero);
+        }
     }
 
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchLastFmUrlAsync(string url)

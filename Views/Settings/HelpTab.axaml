@@ -5,168 +5,219 @@
              xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Settings.HelpTab"
              x:DataType="vm:SettingsViewModel">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="24,20">
-        <StackPanel Spacing="0">
-            
-            <!-- QUICK START -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_QuickStart}" Margin="0,0,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="16">
-                    <StackPanel Spacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                                <TextBlock Text="1" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
-                            </Border>
-                            <TextBlock Text="{loc:Loc Settings_Help_Step1_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step1_Desc_v060}"/>
-                    </StackPanel>
-                    <Border Height="1" Background="{StaticResource BrushBorder}"/>
-                    <StackPanel Spacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                                <TextBlock Text="2" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
-                            </Border>
-                            <TextBlock Text="{loc:Loc Settings_Help_Step2_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step2_Desc}"/>
-                    </StackPanel>
-                    <Border Height="1" Background="{StaticResource BrushBorder}"/>
-                    <StackPanel Spacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                                <TextBlock Text="3" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
-                            </Border>
-                            <TextBlock Text="{loc:Loc Settings_Help_Step3_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step3_Desc}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- API KEY SETUP -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_ApiSetup}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="16">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{loc:Loc Settings_Help_Api_YouTube_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_YouTube_Desc}"/>
-                        <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://console.cloud.google.com/apis/library/youtube.googleapis.com"/>
-                    </StackPanel>
-                    <Border Height="1" Background="{StaticResource BrushBorder}"/>
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{loc:Loc Settings_Help_Api_LastFm_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_LastFm_Desc}"/>
-                        <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.last.fm/api/account/create"/>
-                    </StackPanel>
-                    <Border Height="1" Background="{StaticResource BrushBorder}"/>
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{loc:Loc Settings_Help_Api_Weather_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_Weather_Desc}"/>
-                        <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://openweathermap.org/api"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- SMART SEARCH -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Search}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="10">
-                    <Border Background="{StaticResource BrushSurface}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12">
-                        <StackPanel Spacing="6">
-                            <TextBlock FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushAccentHover}" TextWrapping="Wrap" Text="{loc:Loc Settings_Help_Search_Line1}"/>
-                            <TextBlock FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushAccentHover}" TextWrapping="Wrap" Text="{loc:Loc Settings_Help_Search_Line2}"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Search_Desc}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- KEYBOARD SHORTCUTS -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Shortcuts}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Space"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_PlayPause}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="N / P"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_NextPrev}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="← / →"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Seek}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="M"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Mute}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Ctrl+B"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Collapse}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Alt"/></Border>
-                        <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_MenuBar}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- INSTALLATION GUIDES -->
-            <TextBlock Classes="section-label" Text="Installation &amp; Dependencies" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="12">
-                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" Text="NullWave relies on external tools for downloading, playback, and AI features. Use the guides below to install them if they are missing."/>
-                    <StackPanel Spacing="8" HorizontalAlignment="Left">
-                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/yt-dlp/yt-dlp#installation">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Download" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="yt-dlp Installation Guide" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.videolan.org/vlc/">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Vlc" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="VLC / LibVLC Installation" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://ffmpeg.org/download.html">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Cog" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="ffmpeg Installation Guide" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#install">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="Brain" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="Ollama (Local AI) Setup" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#model-library">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <material:MaterialIcon Kind="BookOpenVariant" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="Installing AI Models Guide" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- TROUBLESHOOTING -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Trouble}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="12">
-                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Trouble_Desc}"/>
-                    <StackPanel Spacing="8" HorizontalAlignment="Left">
-                        <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_OpenData}" Command="{Binding OpenDataFolderCommand}"/>
-                        <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_OpenLogs}" Command="{Binding OpenLogsFolderCommand}"/>
-                        <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_RestoreDb}" Command="{Binding RestoreDatabaseCommand}"/>
-                        <Button Classes="ghost" Content="{loc:Loc Settings_Help_Trouble_Report}" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ZenQuantDev/NullWave/issues"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-            <Border Classes="BottomSpacer"/>
+  <UserControl.Styles>
+    <!-- Level filter chips for the log viewer (checked = visible) -->
+    <Style Selector="ToggleButton.level-chip">
+      <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+      <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeSm}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="ToggleButton.level-chip:checked">
+      <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+      <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+    </Style>
+  </UserControl.Styles>
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="24,20">
+    <StackPanel Spacing="0">
+        
+      <!-- QUICK START -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_QuickStart}" Margin="0,0,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
+                <TextBlock Text="1" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+              </Border>
+              <TextBlock Text="{loc:Loc Settings_Help_Step1_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step1_Desc_v060}"/>
+          </StackPanel>
+          <Border Height="1" Background="{StaticResource BrushBorder}"/>
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
+                <TextBlock Text="2" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+              </Border>
+              <TextBlock Text="{loc:Loc Settings_Help_Step2_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step2_Desc}"/>
+          </StackPanel>
+          <Border Height="1" Background="{StaticResource BrushBorder}"/>
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
+                <TextBlock Text="3" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+              </Border>
+              <TextBlock Text="{loc:Loc Settings_Help_Step3_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Step3_Desc}"/>
+          </StackPanel>
         </StackPanel>
-    </ScrollViewer>
+      </Border>
+
+      <!-- API KEY SETUP -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_ApiSetup}" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc Settings_Help_Api_YouTube_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_YouTube_Desc}"/>
+            <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://console.cloud.google.com/apis/library/youtube.googleapis.com"/>
+          </StackPanel>
+          <Border Height="1" Background="{StaticResource BrushBorder}"/>
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc Settings_Help_Api_LastFm_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_LastFm_Desc}"/>
+            <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.last.fm/api/account/create"/>
+          </StackPanel>
+          <Border Height="1" Background="{StaticResource BrushBorder}"/>
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc Settings_Help_Api_Weather_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Api_Weather_Desc}"/>
+            <Button Classes="ghost" Padding="8,4" HorizontalAlignment="Left" Content="{loc:Loc Settings_Help_Api_Open}" Command="{Binding OpenUrlCommand}" CommandParameter="https://openweathermap.org/api"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- SMART SEARCH -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Search}" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="10">
+          <Border Background="{StaticResource BrushSurface}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12">
+            <StackPanel Spacing="6">
+              <TextBlock FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushAccentHover}" TextWrapping="Wrap" Text="{loc:Loc Settings_Help_Search_Line1}"/>
+              <TextBlock FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushAccentHover}" TextWrapping="Wrap" Text="{loc:Loc Settings_Help_Search_Line2}"/>
+            </StackPanel>
+          </Border>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Search_Desc}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- KEYBOARD SHORTCUTS -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Shortcuts}" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Space"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_PlayPause}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="N / P"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_NextPrev}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="← / →"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Seek}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="M"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Mute}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Ctrl+B"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_Collapse}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="kbd"><TextBlock Text="Alt"/></Border>
+            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_Help_Shortcut_MenuBar}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- INSTALLATION GUIDES -->
+      <TextBlock Classes="section-label" Text="Installation &amp; Dependencies" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="12">
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" Text="NullWave relies on external tools for downloading, playback, and AI features. Use the guides below to install them if they are missing."/>
+          <StackPanel Spacing="8" HorizontalAlignment="Left">
+            <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/yt-dlp/yt-dlp#installation">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="Download" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="yt-dlp Installation Guide" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.videolan.org/vlc/">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="Vlc" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="VLC / LibVLC Installation" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://ffmpeg.org/download.html">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="Cog" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="ffmpeg Installation Guide" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#install">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="Brain" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Ollama (Local AI) Setup" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#model-library">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="BookOpenVariant" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Installing AI Models Guide" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- TROUBLESHOOTING -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Trouble}" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="12">
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Text="{loc:Loc Settings_Help_Trouble_Desc}"/>
+          <StackPanel Spacing="8" HorizontalAlignment="Left">
+            <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_OpenData}" Command="{Binding OpenDataFolderCommand}"/>
+            <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_OpenLogs}" Command="{Binding OpenLogsFolderCommand}"/>
+            <Button Classes="secondary" Content="{loc:Loc Settings_Help_Trouble_RestoreDb}" Command="{Binding RestoreDatabaseCommand}"/>
+            <Button Classes="ghost" Content="{loc:Loc Settings_Help_Trouble_Report}" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ZenQuantDev/NullWave/issues"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- IN-APP LOG VIEWER -->
+      <TextBlock Classes="section-label" Text="In-App Log Viewer" Margin="0,16,0,12"/>
+      <Border Classes="settings-card">
+        <StackPanel Spacing="10">
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                     Text="Live tail of this session (last 500 lines). Filter it, or copy a diagnostics package to paste into a bug report."/>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBox Grid.Column="0" PlaceholderText="Filter log lines…" Text="{Binding LogViewer.FilterText}"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <ToggleButton Classes="level-chip" Content="Debug" IsChecked="{Binding LogViewer.ShowDebug}"/>
+              <ToggleButton Classes="level-chip" Content="Info"  IsChecked="{Binding LogViewer.ShowInfo}"/>
+              <ToggleButton Classes="level-chip" Content="Warn"  IsChecked="{Binding LogViewer.ShowWarning}"/>
+              <ToggleButton Classes="level-chip" Content="Error" IsChecked="{Binding LogViewer.ShowError}"/>
+            </StackPanel>
+          </Grid>
+          <TextBox IsReadOnly="True"
+                   Text="{Binding LogViewer.FilteredLog, Mode=OneWay}"
+                   AcceptsReturn="True"
+                   TextWrapping="NoWrap"
+                   FontFamily="Consolas, monospace"
+                   FontSize="11"
+                   Height="280"
+                   Background="{StaticResource BrushSurface}"
+                   Foreground="{StaticResource BrushTextSecondary}"
+                   BorderBrush="{StaticResource BrushBorder}"/>
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+            <Button Classes="secondary" Content="Copy Diagnostics" Click="OnCopyDiagnosticsClick"/>
+            <Button Classes="ghost" Content="Copy Filtered Log" Click="OnCopyLogClick"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="BottomSpacer"/>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

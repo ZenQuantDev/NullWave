@@ -4,7 +4,7 @@
         x:Class="NullWave.Views.CreatePlaylistDialog"
         Title="{loc:Loc Dialog_CreatePlaylist_Title}"
         Width="360" Height="180"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         CanResize="False"
         Background="{StaticResource BrushBase}">
     <DockPanel Margin="20">

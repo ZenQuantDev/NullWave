@@ -5,40 +5,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.2] - 25-Sep-2026 🧩 "Correctness"
+
+### Added
+
+- **In-App Log Viewer**: Help tab now features a live, filterable log tail (text filter + level chips) with a "Copy Diagnostics" button for easy bug reporting.
+- **"What's New" Screen**: Automatically displays a styled release notes popup on the first launch after an update.
+- **Unified Process Runner (P9)**: Introduced `ProcessRunner` helper to safely execute external processes with concurrent stdout/stderr reading, preventing OS pipe deadlocks.
+- **DevTools Support Bundle**: Fixed a build failure in `SettingsViewModel.DevTools.cs` caused by a missing `using Avalonia.Platform.Storage;` directive, restoring the native file picker (`FilePickerSaveOptions`) for exporting diagnostic zip bundles.
+
+### Changed
+
+- **Mood AI Prompt (C5)**: Added explicit JSON schema to Ollama prompts, capped `num_ctx` to prevent context overflow, and implemented a tolerant index parser.
+- **Local AI Resilience (C10)**: Improved Ollama connection-refused detection and removed local file paths from AI prompts for privacy.
+
+### Fixed
+
+- **Plugins Tab Crash (P0)**: Fixed a fatal `ArgumentOutOfRangeException` in Avalonia's layout engine caused by a UI binding coercion storm when rapidly toggling plugins.
+- **Toast Service**: Fixed `EnforceCap` logic to immediately remove evicted toasts, preventing unbounded collection growth and test failures in headless environments.
+- **Spotify Bridge (C7/C11)**: Routed Spotify metadata through the new `SpotifyPageParser` (ignoring Album/Playlist links) and fixed `SplitArtistCredits` to prevent breaking band names like "Florence and the Machine".
+
+---
+
 ## [0.6.1] - 23-Sep-2026 🛡️ "Stability & Safety"
 
 ### Added
+
 - **Test Infrastructure**: Established xUnit foundation with `NULLWAVE_HOME` isolation, `FakeYtDlp` console harness, and 196 passing tests covering core services, parsers, and data safety.
 - **Spotify OpenGraph Parser**: Added `SpotifyPageParser` to extract metadata from public Spotify pages without relying on yt-dlp or premium APIs.
 - **Master Key Pinning**: Generated real P-256 cryptographic master key pair for official badge signing.
 
 ### Changed
+
 - **Download Output Template**: Changed yt-dlp output to `%(title).150B [%(id)s].%(ext)s` to prevent filename collisions.
 - **Database Backups**: Throttled rolling backups to once per 24 hours and only when the database has actually changed.
 - **Secure Delete**: Replaced memory-heavy 3-pass overwrite with standard fast deletion; `DeleteEverything` now correctly recurses into subfolders.
 
 ### Fixed
+
 - **Data Loss Prevention (P0)**:
-  - `KeyStoreService`: Unreadable/corrupt keystores are now quarantined as `.bad-<timestamp>` instead of being silently overwritten. Atomic writes prevent mid-save corruption.
-  - `PreferencesService`: Fixed `Dispose()` order so settings changed right before exit are actually saved. Corrupt `prefs.json` files are quarantined.
-  - `DatabaseService`: Pending restores now run `PRAGMA integrity_check` before applying. Invalid restores are rejected, and the previous database is kept as `.pre-restore`.
+    - `KeyStoreService`: Unreadable/corrupt keystores are now quarantined as `.bad-<timestamp>` instead of being silently overwritten. Atomic writes prevent mid-save corruption.
+    - `PreferencesService`: Fixed `Dispose()` order so settings changed right before exit are actually saved. Corrupt `prefs.json` files are quarantined.
+    - `DatabaseService`: Pending restores now run `PRAGMA integrity_check` before applying. Invalid restores are rejected, and the previous database is kept as `.pre-restore`.
 - **Security & Identity (P0)**:
-  - `SignedBadge`: Verification now strictly pins against the official NullWave master public key and checks the recipient fingerprint, preventing forged badges.
-  - `ProfileShareService`: Capped decompression limits to prevent decompression bombs; fixed BOM round-trip bugs.
+    - `SignedBadge`: Verification now strictly pins against the official NullWave master public key and checks the recipient fingerprint, preventing forged badges.
+    - `ProfileShareService`: Capped decompression limits to prevent decompression bombs; fixed BOM round-trip bugs.
 - **Download Stability (P1)**:
-  - Fixed stuck URLs in `_activeDownloads` when a download is cancelled while queued.
-  - Fixed `SemaphoreSlim` drift when concurrency limits are changed mid-flight.
-  - Fixed infinite hangs in playlist downloads when duplicate URLs trigger the guard.
-  - Added a 20-minute hard timeout ceiling to kill hung yt-dlp/ffmpeg process trees.
+    - Fixed stuck URLs in `_activeDownloads` when a download is cancelled while queued.
+    - Fixed `SemaphoreSlim` drift when concurrency limits are changed mid-flight.
+    - Fixed infinite hangs in playlist downloads when duplicate URLs trigger the guard.
+    - Added a 20-minute hard timeout ceiling to kill hung yt-dlp/ffmpeg process trees.
 - **Playback & Navigation**:
-  - Fixed "Previous" button oscillation (bouncing between two tracks) via history stack cleanup and a suppress-history flag during backward navigation.
-  - Fixed crossfade play counts and Last.fm scrobbles not registering for the outgoing track.
-  - Skip penalties now use time-based decay (`0.5^days`), allowing excluded tracks to naturally recover even if they are never played.
+    - Fixed "Previous" button oscillation (bouncing between two tracks) via history stack cleanup and a suppress-history flag during backward navigation.
+    - Fixed crossfade play counts and Last.fm scrobbles not registering for the outgoing track.
+    - Skip penalties now use time-based decay (`0.5^days`), allowing excluded tracks to naturally recover even if they are never played.
 - **Metadata & Integration**:
-  - Replaced broken yt-dlp Spotify bridge with robust OpenGraph tag scraper.
-  - Fixed `TrackTitleParser` exotic separator handling and NFKC normalization.
-  - Fixed `SourceDetector` host-based detection and `TrackRecord` pipe-tag splitting.
-  - Fixed `PathHelper` prefix matching bug (e.g., `NullWave-old` no longer mistaken for the data folder).
+    - Replaced broken yt-dlp Spotify bridge with robust OpenGraph tag scraper.
+    - Fixed `TrackTitleParser` exotic separator handling and NFKC normalization.
+    - Fixed `SourceDetector` host-based detection and `TrackRecord` pipe-tag splitting.
+    - Fixed `PathHelper` prefix matching bug (e.g., `NullWave-old` no longer mistaken for the data folder).
 
 ---
 
@@ -154,7 +179,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Plugin Feedback**: Toggling plugins in Settings now triggers immediate success/warning toasts.
 - **Fullscreen mode**: `F11` / `Alt+Enter` toggles true fullscreen; previous window state (Normal/Maximized) is restored on exit.
 
-
 ### Fixed
 
 - **Instant Sidebar Refresh**: Deleted playlists and folders now disappear from the sidebar immediately (no reboot required).
@@ -231,7 +255,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   secondary bug where `FilterBySource` results were returned completely
   unsorted regardless of the chosen `SortField`.
 - `Views/MainWindow.axaml.cs` - `OnKeyDown`'s typing guard (`e.Source is
-  TextBox`) only matched the exact source type, but Avalonia's `TextBox` is
+TextBox`) only matched the exact source type, but Avalonia's `TextBox` is
   templated - the real typing source is an internal `TextPresenter` - so the
   check silently failed and `M`/`N`/`Space` fired as global hotkeys (mute,
   next track, play/pause) while typing in the search box. Fixed by walking
