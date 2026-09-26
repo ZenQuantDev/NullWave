@@ -42,6 +42,20 @@ public partial class SidebarView : Border
         if (DataContext is MainViewModel vm) vm.Nav.IsReorderDragging = false;
     }
 
+    // FIX (Bug 1b): Helper to check if the pointer press originated inside a Button
+    private static bool IsInsideButton(Visual source)
+    {
+        Visual? v = source;
+        while (v != null)
+        {
+            if (v is Button) return true;
+            // Stop searching if we hit the row boundary
+            if (v is Border b && b.Classes.Contains("playlist-row")) return false;
+            v = v.GetVisualParent();
+        }
+        return false;
+    }
+
     // Unified drag start: playlist rows always draggable; pinned NavItem rows only in customize mode.
     public void OnRowDragPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -50,6 +64,11 @@ public partial class SidebarView : Border
         _pendingDragNavItem = null;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         if (e.Source is not Visual source) return;
+
+        // FIX (Bug 1b): Do not arm a drag if the click originated on a Button 
+        // (e.g., Move Up/Down, Play, Unpin). This prevents drag-arming from 
+        // swallowing clicks on those buttons.
+        if (IsInsideButton(source)) return;
 
         // Playlist rows (unpinned list + folder children)
         var playlistRow = FindPlaylistRow(source);
@@ -176,6 +195,7 @@ public partial class SidebarView : Border
 
     public void OnFolderDrop(object? sender, DragEventArgs e)
     {
+        e.Handled = true; // FIX (Bug 1a): Prevent event bubbling
         if (DataContext is not MainViewModel vm) return;
         if (sender is not Border b || b.Tag is not SidebarFolderNode node) return;
         b.Classes.Remove("drop-target");
@@ -199,6 +219,7 @@ public partial class SidebarView : Border
 
     public void OnTopLevelDrop(object? sender, DragEventArgs e)
     {
+        e.Handled = true; // FIX (Bug 1a): Prevent event bubbling
         if (DataContext is not MainViewModel vm) return;
         if (sender is not Border b) return;
         b.Classes.Remove("drop-target");
@@ -224,6 +245,7 @@ public partial class SidebarView : Border
 
     public void OnNavItemDrop(object? sender, DragEventArgs e)
     {
+        e.Handled = true; // FIX (Bug 1a): Prevent event bubbling
         if (DataContext is not MainViewModel vm) return;
         if (sender is not Border targetBorder || targetBorder.Tag is not NavItem targetItem) return;
 

@@ -5,10 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.6.2] - 25-Sep-2026 🧩 "Correctness"
+## [0.6.2] - 26-Sep-2026 🧩 "Correctness"
 
 ### Added
 
+- **P2P Track Sharing Foundation**: Introduced `nullwave://` URI scheme generation for tracks and profiles. Added a "Share Link" button to the Track Detail panel and smart cross-pollination routing (pasting a profile link in the track box or vice versa now shows a helpful routing toast instead of failing).
+- **Unified Changelog Control**: Created a shared `ChangelogView` control that renders release notes with section-level icons (Added/Changed/Fixed), replacing duplicated markdown parsers and hand-written About tab bullets (Bug 5).
 - **In-App Log Viewer**: Help tab now features a live, filterable log tail (text filter + level chips) with a "Copy Diagnostics" button for easy bug reporting.
 - **"What's New" Screen**: Automatically displays a styled release notes popup on the first launch after an update.
 - **Unified Process Runner (P9)**: Introduced `ProcessRunner` helper to safely execute external processes with concurrent stdout/stderr reading, preventing OS pipe deadlocks.
@@ -16,14 +18,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Startup Diagnostics (Bug 0)**: Replaced the `vlc.exe --version` process call with `FileVersionInfo` on Windows to prevent the black console popup from stealing focus on launch.
+- **Sidebar Drag & Drop (Bug 1)**: Added a button-guard helper to prevent drag-arming from swallowing clicks on Move Up/Down, Play, and Pin buttons. Removed duplicate `PersistOrder()` calls to prevent double-saving to disk.
+- **App Lifecycle**: Fixed a race condition in `App.axaml.cs` where the debounced `PreferencesService` would overwrite the `LastSeenVersion` flag, causing the "What's New" window to appear on every launch.
+- **Clipboard Helper**: Updated `ClipboardHelper` to accept `PreferencesService` and `IdentityService` to support generating peer-to-peer share links.
 - **Mood AI Prompt (C5)**: Added explicit JSON schema to Ollama prompts, capped `num_ctx` to prevent context overflow, and implemented a tolerant index parser.
 - **Local AI Resilience (C10)**: Improved Ollama connection-refused detection and removed local file paths from AI prompts for privacy.
 
 ### Fixed
 
+- **Settings Header Clipping (Bug 2)**: Added `TextTrimming="CharacterEllipsis"` to the Settings window title and description headers to prevent text from overflowing the window bounds.
 - **Plugins Tab Crash (P0)**: Fixed a fatal `ArgumentOutOfRangeException` in Avalonia's layout engine caused by a UI binding coercion storm when rapidly toggling plugins.
 - **Toast Service**: Fixed `EnforceCap` logic to immediately remove evicted toasts, preventing unbounded collection growth and test failures in headless environments.
 - **Spotify Bridge (C7/C11)**: Routed Spotify metadata through the new `SpotifyPageParser` (ignoring Album/Playlist links) and fixed `SplitArtistCredits` to prevent breaking band names like "Florence and the Machine".
+- **Track Detail Dependencies**: Resolved missing namespace and constructor argument errors related to `IdentityService` and `AlbumArtService` across ViewModels.
 
 ---
 

@@ -7,6 +7,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Services.Security;
 
 namespace NullWave.ViewModels;
 
@@ -165,7 +166,8 @@ public partial class LibraryViewModel
     [RelayCommand]
     private async Task CopyUrlAsync()
     {
-        if (await ClipboardHelper.CopyTrackLinkAsync(SelectedTrack))
+        if (SelectedTrack == null) return;
+        if (await ClipboardHelper.CopyTrackLinkAsync(SelectedTrack, _prefs, _identity))
             ToastService.Instance.Show("URL copied to clipboard.", ToastType.Success, durationMs: 2000);
     }
 }

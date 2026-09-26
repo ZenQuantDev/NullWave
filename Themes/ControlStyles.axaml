@@ -40,7 +40,7 @@
     <Setter Property="FontSize"       Value="{DynamicResource FontSizeLabel}"/>
     <Setter Property="FontWeight"     Value="SemiBold"/>
     <Setter Property="LetterSpacing" Value="2"/>
-    <Setter Property="Margin"         Value="0,24,0,12"/>
+    <Setter Property="Margin"         Value="{DynamicResource SectionLabelMargin}"/>
   </Style>
 
   <!--  NAV BUTTON  -->
@@ -527,7 +527,7 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
     <Setter Property="Padding" Value="{DynamicResource CardPadding}"/>
-    <Setter Property="Margin" Value="0,0,0,16"/>
+    <Setter Property="Margin" Value="{DynamicResource CardMargin}"/>
   </Style>
   <Style Selector="Border.settings-banner">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>

@@ -196,7 +196,7 @@ public partial class ThemeService : ObservableObject
             SetRes(key, Math.Round(basis * mult, 1));
     }
 
-    public void ApplyDensity(Preferences p)
+        public void ApplyDensity(Preferences p)
     {
         bool compact = p.CompactMode;
         (double row, double art, double title, double sub,
@@ -222,8 +222,18 @@ public partial class ThemeService : ObservableObject
         SetRes("QueueRowHeight", compact ? 36.0 : 48.0);
         SetRes("QueueArtSize", compact ? 28.0 : 40.0);
         SetRes("CardPadding", compact ? new Thickness(16, 14) : new Thickness(20));
+
+        // FIX (compact mode in Settings): these three tokens drive the Settings
+        // chrome (card spacing, section label spacing, page header height).
+        // Previously compact mode never touched them, so Settings tabs looked
+        // identical in both densities.
+        SetRes("CardMargin", compact ? new Thickness(0, 0, 0, 10) : new Thickness(0, 0, 0, 16));
+        SetRes("SectionLabelMargin", compact ? new Thickness(0, 16, 0, 8) : new Thickness(0, 24, 0, 12));
+        SetRes("SettingsHeaderHeight", compact ? 64.0 : 84.0);
+
         TrackRowHeight = row;
         RowArtSize = art;
+        Log.Information("[ThemeService] Density applied: compact={Compact}, row={Row}", compact, row);
     }
 
     public void ApplySidebarWidth(string width)

@@ -262,12 +262,14 @@
                         Padding="24,0">
                     <StackPanel Spacing="2" VerticalAlignment="Center">
                         <TextBlock Text="{Binding CurrentSettingsPageTitle}"
-                                   Foreground="{StaticResource BrushTextPrimary}"
-                                   FontSize="{DynamicResource FontSizeXl}"
-                                   FontWeight="Bold"/>
+                                Foreground="{StaticResource BrushTextPrimary}"
+                                FontSize="{DynamicResource FontSizeXl}"
+                                FontWeight="Bold"
+                                TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{Binding CurrentSettingsPageDescription}"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   FontSize="{DynamicResource FontSizeSm}"/>
+                                Foreground="{StaticResource BrushTextMuted}"
+                                FontSize="{DynamicResource FontSizeSm}"
+                                TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
                 

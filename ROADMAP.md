@@ -465,19 +465,24 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 18 - v0.6.2 "Correctness" 🔜
+## Phase 18 - v0.6.2 "Correctness" ✅
 
 **Goal:** Fix download concurrency, mood AI reliability, and unify tag vocabularies.
 
 - ✅ **DownloadService (C4)**: Fix stuck URLs after cancel-while-queued, prevent `SemaphoreSlim` drift, fix playlist hang on duplicate URLs, add 20-min hard timeout, switch output template to `%(title).150B [%(id)s].%(ext)s`.
 - ✅ **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
 - ✅ **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
-- 📋 **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
+- ✅ **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
 - ✅ **Local AI & Library (C8, C10)**: Fix Ollama connection refused detection, remove file paths from prompts, fix `RemoveDuplicates` scanned count, make `SweepOrphanedFiles` default to dry-run.
-- 📋 **Unified `ProcessRunner` (P9)**: Replace 6+ fragmented `Process.Start` calls (yt-dlp, aria2c, nvidia-smi, hardware detection) with a single, robust helper that reads stdout/stderr concurrently (preventing deadlocks), supports timeouts, and tree-kills on cancel.
-- 📋 **`LibraryService` Immutable Snapshot (P5)**: Replace `GetAll()` list copying with an atomic immutable snapshot + `Dictionary<Guid, Track>`. This eliminates hot-path allocations and enables the fast ID lookups required for Multi-Source Search.
+- ✅ **Unified `ProcessRunner` (P9)**: Replace 6+ fragmented `Process.Start` calls (yt-dlp, aria2c, nvidia-smi, hardware detection) with a single, robust helper that reads stdout/stderr concurrently (preventing deadlocks), supports timeouts, and tree-kills on cancel.
 - ✅ **In-App Log Viewer (Help Tab)**: Bind the existing `InAppLogSink` to a UI with text/level filters and a "Copy Diagnostics" button (crucial for handling bug reports from early Reddit users).
 - ✅ **"What's New" Screen**: Render the latest `CHANGELOG.md` section as a markdown popup on first launch after an update.
+- ✅ **UI & Startup Polish (Bugs 0-2, 5)**: 
+    - Fixed VLC console popup on Windows by reading PE header instead of shelling out (Bug 0).
+    - Fixed sidebar drag-arming swallowing clicks on action buttons and removed duplicate persist calls (Bug 1).
+    - Fixed Settings header text clipping by adding `TextTrimming` (Bug 2).
+    - Unified "What's New" systems into a shared `ChangelogView` control (Bug 5).
+- ✅ **P2P Sharing Foundation**: Introduced `nullwave://` URI scheme generation and smart cross-pollination routing for misplaced paste operations.
 
 ---
 
@@ -486,8 +491,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
 - 📋 **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
-- ✅ **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
-- ✅ **Process & HTTP (P9)**: Unify process execution into a single `ProcessRunner` (concurrent stdout/stderr, timeouts), share a single `HttpClient` setup.
+- 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
 - 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
 
 ---

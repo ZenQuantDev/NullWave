@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -7,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
@@ -14,8 +14,8 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
-using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
+using NullWave.Services.Security;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -27,6 +27,9 @@ public class TrackDetailViewModel : ViewModelBase
 
     private readonly LibraryService _library;
     private readonly PluginManager _plugins;
+    private readonly IdentityService _identity;
+    private readonly PreferencesService _prefs;
+    
     private Track? _currentTrack;
     private bool _isOpen;
     private string _editTitle = string.Empty;
@@ -139,9 +142,6 @@ public class TrackDetailViewModel : ViewModelBase
     public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
     public string DisplayUrl => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
     
-    // MediaType-aware: radio stations are stored as Source=Unknown by design
-    // (the Source enum drives sidebar filters), so the display layer derives
-    // the human label from MediaType. Same for audiobooks.
     public string DisplaySource => _currentTrack?.MediaType switch
     {
         MediaType.Radio     => "Live",
@@ -172,6 +172,8 @@ public class TrackDetailViewModel : ViewModelBase
 
     public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
+    
+    public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
 
     public ICommand SaveCommand { get; }
     public ICommand CloseCommand { get; }
@@ -179,18 +181,23 @@ public class TrackDetailViewModel : ViewModelBase
     public ICommand RemoveTagCommand { get; }
     public ICommand ToggleFavoriteCommand { get; }
     public ICommand CopyUrlCommand { get; }
+    public ICommand CopyShareLinkCommand { get; }
     public ICommand RelinkFileCommand { get; }
 
-    public TrackDetailViewModel(LibraryService library, PluginManager plugins)
+    public TrackDetailViewModel(LibraryService library, PluginManager plugins, IdentityService identity, PreferencesService prefs)
     {
         _library = library;
         _plugins = plugins;
+        _identity = identity;
+        _prefs = prefs;
+        
         SaveCommand = new RelayCommand(Save);
         CloseCommand = new RelayCommand(() => IsOpen = false);
         AddTagCommand = new RelayCommand(AddTag);
         RemoveTagCommand = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
         CopyUrlCommand = new RelayCommand(async () => await CopyUrlAsync());
+        CopyShareLinkCommand = new RelayCommand(async () => await CopyShareLinkAsync());
         RelinkFileCommand = new RelayCommand(async () => await RelinkFileAsync());
     }
 
@@ -238,6 +245,7 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayLastSkipped));
         OnPropertyChanged(nameof(IsFavorite));
         OnPropertyChanged(nameof(DisplayDuration));
+        OnPropertyChanged(nameof(IsTrackSharingEnabled));
     }
 
     private void Save()
@@ -253,8 +261,6 @@ public class TrackDetailViewModel : ViewModelBase
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
 
         _library.Update(_currentTrack);
-
-        // NEW: Write manual edits back to the physical audio file
         _library.UpdateFileTags(_currentTrack);
 
         string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
@@ -297,7 +303,8 @@ public class TrackDetailViewModel : ViewModelBase
         {
             _isCopying = true;
 
-            if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack))
+            // FIX: Pass _prefs and _identity to satisfy the updated ClipboardHelper signature
+            if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack, _prefs, _identity))
             {
                 CopyStatus = "Copied!";
                 await Task.Delay(2000);
@@ -312,6 +319,33 @@ public class TrackDetailViewModel : ViewModelBase
         {
             CopyStatus = "Copy";
             _isCopying = false;
+        }
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (_currentTrack == null) return;
+        
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+        if (window == null) return;
+        
+        // FIX: TopLevel requires Avalonia.Controls
+        var clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
+        if (clipboard == null) return;
+
+        try
+        {
+            var installId = _identity.Fingerprint ?? "unknown-peer";
+            var shareUrl = ShareLink.Track(installId, _currentTrack.Id);
+            
+            await clipboard.SetTextAsync(shareUrl);
+            ToastService.Instance.Show("Track share link copied! Send it to a friend.", ToastType.Success, durationMs: 4000);
+            Log.Information("Track share link copied: {Url}", shareUrl);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to copy track share link to clipboard.");
+            ToastService.Instance.Show("Failed to copy share link.", ToastType.Error);
         }
     }
 

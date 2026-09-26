@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using NullWave.Helpers;
 
 namespace NullWave.Views;
 
@@ -15,10 +14,10 @@ public partial class WhatsNewWindow : Window
     {
         InitializeComponent();
         if (!string.IsNullOrEmpty(version))
+        {
             Title = $"What's New in v{version}";
-
-        foreach (var block in MarkdownLite.Render(ChangelogParser.GetLatestReleaseNotes()))
-            NotesPanel.Children.Add(block);
+            TitleText.Text = $"What's New in v{version}";
+        }
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();

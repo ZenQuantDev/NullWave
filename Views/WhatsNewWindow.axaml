@@ -1,50 +1,41 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.WhatsNewWindow"
         Title="What's New in NullWave"
-        Width="700" Height="600"
-        WindowStartupLocation="CenterScreen"
+        Width="640" Height="560"
+        WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        CanResize="True"
+        CanResize="False"
         Background="{DynamicResource BrushBase}">
-  <Window.Styles>
-    <!-- Lightweight markdown styles (see Helpers/MarkdownLite.cs) -->
-    <Style Selector="TextBlock.md-h1">
-      <Setter Property="FontSize" Value="{DynamicResource FontSizeLg}"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Margin" Value="0,4,0,10"/>
-    </Style>
-    <Style Selector="TextBlock.md-h2">
-      <Setter Property="FontSize" Value="{DynamicResource FontSizeBodyLarge}"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Margin" Value="0,14,0,6"/>
-    </Style>
-    <Style Selector="TextBlock.md-bullet">
-      <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Margin" Value="14,0,0,6"/>
-    </Style>
-    <Style Selector="TextBlock.md-p">
-      <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Margin" Value="0,0,0,6"/>
-    </Style>
-  </Window.Styles>
 
-  <Grid RowDefinitions="*,Auto" Margin="24">
-    <Border Grid.Row="0"
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+    <!-- Header: icon + title only; the version line now lives inside ChangelogView -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
+      <material:MaterialIcon Kind="PartyPopper" Width="24" Height="24"
+                             Foreground="{DynamicResource BrushAccent}"
+                             VerticalAlignment="Center"/>
+      <TextBlock x:Name="TitleText" Text="What's New in NullWave"
+                 FontSize="20" FontWeight="Bold"
+                 Foreground="{DynamicResource BrushTextPrimary}"
+                 VerticalAlignment="Center"/>
+    </StackPanel>
+
+    <Border Grid.Row="1"
             Background="{DynamicResource BrushSurface}"
             CornerRadius="{StaticResource RadiusMd}"
             BorderBrush="{DynamicResource BrushBorder}"
             BorderThickness="1"
-            Padding="20">
+            Padding="18,16">
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel x:Name="NotesPanel" Spacing="0"/>
+        <controls:ChangelogView/>
       </ScrollViewer>
     </Border>
 
-    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Classes="primary" Content="Got it!" Click="OnCloseClick" Padding="16,8"/>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Classes="primary" Content="Got it!" Click="OnCloseClick" Padding="24,8" FontWeight="SemiBold"/>
     </StackPanel>
   </Grid>
 </Window>

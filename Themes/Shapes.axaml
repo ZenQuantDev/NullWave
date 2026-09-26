@@ -47,10 +47,10 @@
   <x:Double x:Key="ProfileBannerHeight">220</x:Double>
   <x:Double x:Key="ProfileAvatarSize">100</x:Double>
 
-  <!-- Settings card padding (shrinks in Compact mode) -->
+  <!-- Settings density tokens (rewritten at runtime by ThemeService.ApplyDensity) -->
   <Thickness x:Key="CardPadding">20</Thickness>
-
-  <!-- Settings window: shared header height so rail header and page header align -->
+  <Thickness x:Key="CardMargin">0,0,0,16</Thickness>
+  <Thickness x:Key="SectionLabelMargin">0,24,0,12</Thickness>
   <x:Double x:Key="SettingsHeaderHeight">84</x:Double>
 
 </ResourceDictionary>
