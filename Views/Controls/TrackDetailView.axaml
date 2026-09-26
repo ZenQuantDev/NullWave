@@ -175,12 +175,27 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Button Classes="ghost"
-                            Content="{loc:Loc Detail_Button_Relink}"
-                            Command="{Binding Detail.RelinkFileCommand}"
-                            ToolTip.Tip="{loc:Loc Detail_Tooltip_Relink}"
-                            Padding="12,5"
-                            HorizontalAlignment="Left"/>
+                    
+                    <!-- Action Buttons: Relink + Share Link -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                        <Button Classes="ghost"
+                                Content="{loc:Loc Detail_Button_Relink}"
+                                Command="{Binding Detail.RelinkFileCommand}"
+                                ToolTip.Tip="{loc:Loc Detail_Tooltip_Relink}"
+                                Padding="12,5"/>
+                                
+                        <!-- FIX: Added P2P Share Link button. Only visible if Track Sharing is enabled in Profile -->
+                        <Button Classes="ghost" 
+                                Command="{Binding Detail.CopyShareLinkCommand}" 
+                                IsVisible="{Binding Detail.IsTrackSharingEnabled}"
+                                ToolTip.Tip="Copy NullWave P2P Share Link"
+                                Padding="12,5">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="ShareVariant" Width="16" Height="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="Share Link" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Spacing="12">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_ArtistInfo}" Margin="0"/>

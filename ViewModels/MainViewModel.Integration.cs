@@ -74,13 +74,13 @@ public partial class MainViewModel
     {
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, new AlbumArtService(_lastFm));
         
-        Library = new LibraryViewModel(_library, _localAI);
+        Library = new LibraryViewModel(_library, _localAI, _prefsService, _identity);
         Library.ExcludedMediaTypes.Add(MediaType.Radio);
         Library.ExcludedMediaTypes.Add(MediaType.Audiobook);
         Library.Refresh();
         
-        RadioLibrary = new LibraryViewModel(_library, _localAI) { MediaTypeFilter = MediaType.Radio };
-        AudiobookLibrary = new LibraryViewModel(_library, _localAI) { MediaTypeFilter = MediaType.Audiobook };
+        RadioLibrary = new LibraryViewModel(_library, _localAI, _prefsService, _identity) { MediaTypeFilter = MediaType.Radio };
+        AudiobookLibrary = new LibraryViewModel(_library, _localAI, _prefsService, _identity) { MediaTypeFilter = MediaType.Audiobook };
         
         Library.BulkAddToPlaylistRequested += tracks => _ = AddTracksToPlaylistAsync(tracks);
         Library.AddToPlaylistRequested += track => _ = AddTracksToPlaylistAsync(new[] { track }.ToList());
@@ -103,7 +103,7 @@ public partial class MainViewModel
         };
 
         Export = new ExportViewModel(_library, _export);
-        Detail = new TrackDetailViewModel(_library, _plugins);
+        Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
         Import = new ImportViewModel(_library, _metadata);
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         

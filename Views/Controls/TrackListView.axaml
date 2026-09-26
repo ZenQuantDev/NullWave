@@ -25,7 +25,7 @@
     <Grid DockPanel.Dock="Top" Margin="16,8,16,2">
         <!-- FIX: Proportional star weights eliminate the huge dead space on wide windows -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="64"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="2.6*"  MinWidth="260"/>  <!-- TITLE / ARTIST -->
             <ColumnDefinition Width="0.9*"  MinWidth="120"/>  <!-- SOURCE -->
             <ColumnDefinition Width="0.5*"  MinWidth="64"/>   <!-- PLAYS -->
@@ -142,7 +142,7 @@
                     <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}">
                         <!-- FIX: Same proportional column definitions as the header above -->
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="2.6*"  MinWidth="260"/>
                             <ColumnDefinition Width="0.9*"  MinWidth="120"/>
                             <ColumnDefinition Width="0.5*"  MinWidth="64"/>
@@ -167,12 +167,14 @@
                             </Border.IsVisible>
                         </Border>
 
+                        <!-- FIX C: Added Margin="0,0,12,0" to prevent art from touching the title text in compact mode -->
                         <Border Grid.Column="0"
                                 Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
                                 CornerRadius="{StaticResource RadiusArt}"
                                 Background="{StaticResource BrushSurface2}"
                                 ClipToBounds="True"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0">
                             <Panel>
                                 <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
                                        Stretch="UniformToFill"

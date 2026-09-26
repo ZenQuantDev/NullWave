@@ -7,6 +7,7 @@
         xmlns:models="using:NullWave.Models"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:loc="using:NullWave.Helpers.Localization"
+        WindowStartupLocation="CenterScreen"
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"

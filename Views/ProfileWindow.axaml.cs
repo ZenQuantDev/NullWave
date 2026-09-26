@@ -24,31 +24,25 @@ public partial class ProfileWindow : Window
         Loaded += OnWindowLoaded;
     }
 
-    /// <summary>
-    /// Pre-generates the share code + QR so the card is export-ready the moment
-    /// the window opens, and sniffs the clipboard for a friend's share string.
-    /// </summary>
     private async void OnWindowLoaded(object? sender, RoutedEventArgs e)
     {
         Loaded -= OnWindowLoaded;
         if (DataContext is not UserProfileViewModel vm) return;
-
         vm.EnsureShareAssets();
 
-        // Clipboard auto-detection: offer import if a share string is already copied.
         try
         {
-            // Reflection bridge bypasses Avalonia 12 compile-time clipboard API differences
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
-
             if (string.IsNullOrWhiteSpace(text)) return;
-            if (!ShareLink.TryParseProfile(text, out var encoded)) return;
+            
+            // FIX: Don't auto-import if it's a track link
+            if (ShareLink.TryParseTrack(text, out _, out _)) return;
 
+            if (!ShareLink.TryParseProfile(text, out var encoded)) return;
             var payload = ProfileShareService.Decode(encoded);
             if (payload == null) return;
 
-            // Never auto-import the user's own card.
             if (string.Equals(payload.Code, vm.ShareCode, StringComparison.OrdinalIgnoreCase)) return;
 
             vm.ImportShareString(encoded);
@@ -82,13 +76,9 @@ public partial class ProfileWindow : Window
     private async void ExportProfileCard()
     {
         if (DataContext is not UserProfileViewModel vm) return;
-
-        // Refresh code/QR so the exported card always carries current stats.
         vm.EnsureShareAssets();
-
         var topLevel = GetTopLevel(this);
         if (topLevel == null) return;
-
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export Profile Card",
@@ -100,24 +90,18 @@ public partial class ProfileWindow : Window
                 new FilePickerFileType("PNG Image (lossless, larger)") { Patterns = new[] { "*.png" } }
             }
         });
+
         if (file == null) return;
 
         try
         {
-            // Make sure the QR tile is painted before we snapshot the card.
             if (vm.ShareQrBitmap != null) QrImage.Source = vm.ShareQrBitmap;
-
-            // Remember the live size so we can restore the on-screen layout afterwards.
             var liveSize = ProfileCard.Bounds.Size;
 
-            // FIX: measure with UNBOUNDED height so the card grows to fit
-            // banner + identity + QR footer. The old constrained measure produced a
-            // short card where the footer collapsed on top of the stat chips.
             ProfileCard.Measure(new Size(liveSize.Width, double.PositiveInfinity));
             ProfileCard.Arrange(new Rect(new Point(0, 0), ProfileCard.DesiredSize));
             ProfileCard.UpdateLayout();
 
-            // 2x scale: crisp for social sharing, ~4x fewer pixels than the old 3x pass.
             const double scale = 2.0;
             var pixelSize = new PixelSize(
                 Math.Max(1, (int)(ProfileCard.DesiredSize.Width * scale)),
@@ -126,7 +110,6 @@ public partial class ProfileWindow : Window
             using var bitmap = new RenderTargetBitmap(pixelSize, new Vector(96 * scale, 96 * scale));
             bitmap.Render(ProfileCard);
 
-            // Restore the live layout immediately so the on-screen card isn't left stretched.
             ProfileCard.Measure(liveSize);
             ProfileCard.Arrange(new Rect(liveSize));
             ProfileCard.InvalidateVisual();
@@ -136,10 +119,6 @@ public partial class ProfileWindow : Window
 
             if (ext is ".jpg" or ".jpeg")
             {
-                // The photographic banner is high-entropy content that PNG compresses
-                // poorly (that's the 1.5 MB). Re-encode lossy via SkiaSharp at q92:
-                // visually identical for sharing, ~10x smaller. QR stays scannable
-                // thanks to 2x resolution + QR error correction.
                 using var pngMs = new MemoryStream();
                 bitmap.Save(pngMs);
                 pngMs.Position = 0;
@@ -149,7 +128,6 @@ public partial class ProfileWindow : Window
             }
             else
             {
-                // Lossless path for users who want a pristine PNG.
                 bitmap.Save(outStream);
             }
 
@@ -164,11 +142,21 @@ public partial class ProfileWindow : Window
     private void OnImportShareClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not UserProfileViewModel vm) return;
-
         var raw = ImportShareBox.Text;
         if (string.IsNullOrWhiteSpace(raw))
         {
             ToastService.Instance.Show("Paste a NullWave share string first (nullwave://p/... or NW1....).", ToastType.Warning);
+            return;
+        }
+
+        // FIX: Smart Routing - Intercept track links pasted in the Profile box
+        if (ShareLink.TryParseTrack(raw, out _, out _))
+        {
+            ToastService.Instance.Show(
+                "That's a track link! Paste it into the main window's 'Add Track' box to import it.",
+                type: ToastType.Info,
+                durationMs: 6000,
+                title: "Track Sharing");
             return;
         }
 
@@ -190,7 +178,6 @@ public partial class ProfileWindow : Window
                     await using var stream = await file.OpenReadAsync();
                     using var reader = new StreamReader(stream);
                     var json = await reader.ReadToEndAsync();
-
                     vm.ImportBadge(json);
                 }
                 catch (Exception ex)

@@ -32,18 +32,30 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // FIX (What's New every launch): read + persist LastSeenVersion BEFORE
+            // MainWindow (and thus MainViewModel's own PreferencesService instance)
+            // is constructed, and save SYNCHRONOUSLY. Previously the debounced save
+            // raced with the MainViewModel instance, which then wrote its stale
+            // in-memory LastSeenVersion back to disk, re-triggering the dialog
+            // on every single launch.
+            var prefs = new PreferencesService();
+            var currentVersion = GetAppVersion();
+            bool showWhatsNew = prefs.Current.LastSeenVersion != currentVersion;
+
+            if (showWhatsNew)
+            {
+                prefs.Current.LastSeenVersion = currentVersion;
+                prefs.Save(); // synchronous write, bypasses the 2s debounce
+            }
+
             var mainWindow = new MainWindow();
             desktop.MainWindow = mainWindow;
 
             // "What's New" screen: shown as an owned modal dialog AFTER the main window
             // is visible. An ownerless window shown at startup breaks activation/z-order,
             // misbehaves with Win+D / Alt+Tab, and glitches MainWindow during drags.
-            var prefs = new PreferencesService();
-            var currentVersion = GetAppVersion();
-
-            if (prefs.Current.LastSeenVersion != currentVersion)
+            if (showWhatsNew)
             {
-                prefs.Update(p => p.LastSeenVersion = currentVersion);
                 mainWindow.Opened += (_, _) =>
                 {
                     var whatsNew = new WhatsNewWindow(currentVersion);
