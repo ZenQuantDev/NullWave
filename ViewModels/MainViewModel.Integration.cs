@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
@@ -25,6 +26,7 @@ public partial class MainViewModel
     {
         _identity = new IdentityService(_keyStore);
         _prefsService = new PreferencesService();
+        _effectsTier = new EffectsTierResolver(_prefsService);
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
 
         ThemeService.Instance.PropertyChanged += (_, e) =>
@@ -111,8 +113,6 @@ public partial class MainViewModel
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);
         Queue = new QueueViewModel(_library);
 
-        // FIX: Wrap the commands in lambdas () => ... so they are evaluated at click-time, 
-        // preventing the NullReferenceException if they aren't initialized yet during construction.
         Nav = new NavigationViewModel(
             _prefsService, _playlists,
             () => NavigateLibraryCommand, 
@@ -185,7 +185,6 @@ public partial class MainViewModel
             else if (Library.Tracks.Count > 0) Player.PlayTrack(Library.Tracks[0]);
         };
 
-        // --- DevTools Library Stress Seeder ---
         Settings.SeedLibraryRequested += count =>
         {
             for (int i = 0; i < count; i++)
@@ -247,6 +246,49 @@ public partial class MainViewModel
             }
             Library.Refresh(); RadioLibrary.Refresh();
             if (added > 0) ToastService.Instance.Show(string.Format(LocalizationService.Instance["Radio_StationAdded"], added), ToastType.Success);
+        };
+
+        // NEW: Wire the Radio Catalog dialog
+        Input.RadioCatalogRequested += async () =>
+        {
+            var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+            if (window == null) return;
+            
+            var dialog = new Views.Dialogs.RadioCatalogDialog();
+            var added = await dialog.ShowDialog<List<Helpers.CuratedStation>>(window);
+            
+            if (added != null && added.Count > 0)
+            {
+                int count = 0;
+                foreach (var station in added)
+                {
+                    // Prevent duplicates
+                    if (_library.GetAll().Any(t => t.Url == station.StreamUrl)) continue;
+
+                    var track = new Track
+                    {
+                        Title = station.Name,
+                        Artist = station.Genre, 
+                        Url = station.StreamUrl,
+                        Source = TrackSource.Unknown, 
+                        MediaType = MediaType.Radio
+                    };
+                    _library.Add(track);
+                    count++;
+                }
+                
+                if (count > 0)
+                {
+                    ToastService.Instance.Show($"Added {count} station(s) to your Radio library.", ToastType.Success, scope: "radio-add");
+                    
+                    // FIX: Direct refresh instead of invoking another class's event
+                    Dispatcher.UIThread.Post(() => 
+                    { 
+                        Library.Refresh(); 
+                        RadioLibrary.Refresh(); 
+                    });
+                }
+            }
         };
 
         Input.TrackAdded += () =>
@@ -436,6 +478,23 @@ public partial class MainViewModel
             if (PowerStateService.ReadPowerState() != PowerState.Battery) _enrichment.BackfillAsync();
             else { _initialMoodPlaylistRun = true; _ = RunMoodPlaylistAsync(forceRefresh: false); }
         });
+        
+        _powerState.PowerStateChanged += state =>
+        {
+            _localAI.OnPowerStateChanged(state);
+            Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
+
+            // NEW: Effects Tier Battery Override
+            // Forces Minimal tier (and True Black, if implemented in UI) when unplugged
+            if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
+            {
+                _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
+            }
+            else if (state == PowerState.AC)
+            {
+                _effectsTier.ClearBatteryOverride();
+            }
+        };
     }
 
     private void OnClearYtDlpCacheRequested()

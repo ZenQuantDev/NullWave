@@ -58,7 +58,6 @@ public class MetadataService
             var html = await http.GetStringAsync(SpotifyPageParser.CleanUrl(url));
             var page = SpotifyPageParser.Parse(html);
 
-            // Guard against Album/Playlist links (C11)
             if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
             {
                 Log.Warning("[MetadataService] Spotify {Kind} links are not supported as single tracks.", page.Kind);
@@ -90,25 +89,29 @@ public class MetadataService
         return (title, artist, null, TimeSpan.Zero);
     }
 
-    public string? ExtractAlbumArt(string filePath)
+    // FIX: Made async and wrapped in Task.Run to prevent blocking the UI thread during startup
+    public async Task<string?> ExtractAlbumArtAsync(string filePath)
     {
         try
         {
-            using var file = TagLib.File.Create(filePath);
-            if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0) return null;
-
-            var picture = file.Tag.Pictures[0];
-            if (picture.Data == null || picture.Data.Count == 0) return null;
-
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filePath)))[..16];
-            var artPath = Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
-
-            if (!System.IO.File.Exists(artPath))
+            return await Task.Run(() =>
             {
-                System.IO.File.WriteAllBytes(artPath, picture.Data.Data);
-                Log.Information("Album art extracted: {Path}", artPath);
-            }
-            return artPath;
+                using var file = TagLib.File.Create(filePath);
+                if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0) return null;
+
+                var picture = file.Tag.Pictures[0];
+                if (picture.Data == null || picture.Data.Count == 0) return null;
+
+                var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filePath)))[..16];
+                var artPath = Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
+
+                if (!System.IO.File.Exists(artPath))
+                {
+                    System.IO.File.WriteAllBytes(artPath, picture.Data.Data);
+                    Log.Information("Album art extracted: {Path}", artPath);
+                }
+                return artPath;
+            });
         }
         catch (Exception ex)
         {

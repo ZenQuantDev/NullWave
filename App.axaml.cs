@@ -19,6 +19,10 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        
+        // Removed AvaloniaLocator diagnostic block (API changed in this Avalonia version).
+        // The Win32PlatformOptions log in Program.cs is sufficient to confirm the GPU path.
+        
         var prefs = new PreferencesService().Current;
 
         // Initialize localization with saved preference BEFORE ThemeService

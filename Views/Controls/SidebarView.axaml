@@ -54,7 +54,6 @@
                 </attached:PseudoClass.Active>
                 
                 <Grid>
-                    <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
                     <Button Classes="nav sidebar-nav"
                             Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).NavigateToPlaylistCommand}"
                             CommandParameter="{Binding}" HorizontalAlignment="Stretch">
@@ -120,13 +119,13 @@
         </DataTemplate>
 
         <DataTemplate x:Key="FolderChildRowTemplate" x:DataType="models:Playlist">
-            <Grid ColumnDefinitions="20,*">
-                <Border Grid.Column="0" Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                        Background="{StaticResource BrushBorder}"/>
-                <Border Grid.Column="0" Height="1" Width="10" HorizontalAlignment="Right" VerticalAlignment="Center"
-                        Background="{StaticResource BrushBorder}"/>
-                <ContentControl Grid.Column="1" Content="{Binding}"
-                                ContentTemplate="{StaticResource PlaylistRowTemplate}"/>
+            <Grid>
+                <Border Classes="folder-connector" Width="1" HorizontalAlignment="Left" Margin="10,0,0,0"
+                        VerticalAlignment="Stretch" Background="{StaticResource BrushBorder}"/>
+                <Border Classes="folder-connector" Height="1" Width="11" HorizontalAlignment="Left" Margin="10,0,0,0"
+                        VerticalAlignment="Center" Background="{StaticResource BrushBorder}"/>
+                <ContentControl Classes="folder-child-content" Margin="20,0,0,0"
+                                Content="{Binding}" ContentTemplate="{StaticResource PlaylistRowTemplate}"/>
             </Grid>
         </DataTemplate>
     </Border.Resources>
@@ -152,7 +151,6 @@
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
             <Setter Property="Margin" Value="0,1"/>
-            <Setter Property="Transitions"><Transitions><BrushTransition Property="Background" Duration="0:0:0.15"/></Transitions></Setter>
         </Style>
         <Style Selector="Border.playlist-row:pointerover">
             <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
@@ -170,8 +168,12 @@
         <Style Selector="Border.playlist-row.dragging">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
+
+        <!-- RAIL ADAPTIVITY: no painted scrollbar thumb colliding with the icon column;
+             Hidden keeps wheel scrolling functional. -->
         <Style Selector="Border.collapsed ScrollViewer">
             <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
         </Style>
         <Style Selector="Border.collapsed Border.playlist-row">
             <Setter Property="Margin" Value="4,2"/>
@@ -189,9 +191,31 @@
         <Style Selector="Border.collapsed Border.active-bar">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
+        <!-- RAIL ACTIVE CUE: accent ring on the tile itself, since the edge bar is hidden.
+             Class-change only, no transitions - zero per-frame invalidation cost. -->
+        <Style Selector="Border.collapsed Border.playlist-row.active Border.art-tile">
+            <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <!-- RAIL RHYTHM: tighten section separators and drop-zone spacing when labels are hidden -->
+        <Style Selector="Border.collapsed Border.sidebar-sep">
+            <Setter Property="Margin" Value="6,6,6,6"/>
+        </Style>
+        <Style Selector="Border.collapsed Panel.unpinned-zone">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <!-- RAIL FIXES: hide tree connectors, flatten child indent, drop count badge -->
+        <Style Selector="Border.collapsed Border.folder-connector">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.collapsed ContentControl.folder-child-content">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style Selector="Border.collapsed Border.folder-count">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
         
-        <!-- Tooltips ONLY in collapsed rail mode: when expanded, the labels are
-             already visible, so a hover box is redundant noise. -->
+        <!-- Tooltips ONLY in collapsed rail mode -->
         <Style Selector="Button.nav">
             <Setter Property="ToolTip.ShowDelay" Value="3600000"/>
         </Style>
@@ -233,7 +257,7 @@
             </Panel>
         </Border>
 
-        <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource BrushBorder}" Margin="12,0,12,8"/>
+        <Border DockPanel.Dock="Top" Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="12,0,12,8"/>
 
         <!-- Bottom: profile / rail -->
         <Border DockPanel.Dock="Bottom" Background="{StaticResource BrushBase}"
@@ -370,7 +394,6 @@
                                     <Border Grid.Column="0" Classes="active-bar" Width="3" Margin="0,6" CornerRadius="0,2,2,0"
                                             Background="{DynamicResource BrushAccent}" IsVisible="{Binding IsActive}"/>
 
-                                    <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
                                     <Button Grid.Column="1" Classes="nav sidebar-nav" Classes.active="{Binding IsActive}" Command="{Binding Command}"
                                             HorizontalAlignment="Stretch">
                                         <ToolTip.Tip>
@@ -469,7 +492,6 @@
                                     </Border.ContextMenu>
                                     
                                     <Grid>
-                                        <!-- FIX: ToolTip.ShowDelay expects an int (milliseconds), not a TimeSpan string -->
                                         <Button Classes="nav sidebar-nav"
                                                 Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.ToggleFolderCommand}"
                                                 CommandParameter="{Binding}" HorizontalAlignment="Stretch">
@@ -483,6 +505,16 @@
                                                             <TextBlock Text="{Binding Playlists.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
                                                             <TextBlock Text="Playlists" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
                                                         </StackPanel>
+                                                        <Border Height="1" Background="{DynamicResource BrushBorder}" Margin="0,2,0,2"
+                                                                IsVisible="{Binding Playlists.Count}"/>
+                                                        <ItemsControl ItemsSource="{Binding Playlists}" MaxHeight="150">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="models:Playlist">
+                                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource BrushTextMuted}"
+                                                                               FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </StackPanel>
                                                 </Border>
                                             </ToolTip.Tip>
@@ -502,7 +534,7 @@
                                                 </Border>
                                                 <TextBlock Grid.Column="1" Text="{Binding Folder.Name}" TextTrimming="CharacterEllipsis"
                                                            VerticalAlignment="Center"/>
-                                                <Border Grid.Column="2" Background="{StaticResource BrushSurface2}"
+                                                <Border Grid.Column="2" Classes="folder-count" Background="{StaticResource BrushSurface2}"
                                                         CornerRadius="{StaticResource RadiusFull}"
                                                         Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Playlists.Count}"
@@ -547,7 +579,7 @@
                         DragDrop.DragEnter="OnTopLevelDragEnter"
                         DragDrop.DragLeave="OnTopLevelDragLeave"
                         DragDrop.Drop="OnTopLevelDrop">
-                    <Panel Margin="0,8,0,0">
+                    <Panel Classes="unpinned-zone" Margin="0,8,0,0">
                         <ItemsControl ItemsSource="{Binding Nav.UnpinnedPlaylists}"
                                       ItemTemplate="{StaticResource PlaylistRowTemplate}"/>
                         
@@ -557,26 +589,39 @@
                                 BorderThickness="1"
                                 CornerRadius="{StaticResource RadiusMd}"
                                 Background="{StaticResource BrushAccentDim}">
-                            <StackPanel Orientation="Horizontal" Spacing="6"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <material:MaterialIcon Kind="PinOffOutline" Width="14" Height="14"
-                                                       Foreground="{StaticResource BrushTextMuted}"/>
-                                <TextBlock Text="{loc:Loc Sidebar_DropToUnpin}"
-                                           Foreground="{StaticResource BrushTextMuted}"
-                                           FontSize="{DynamicResource FontSizeXs}"/>
-                            </StackPanel>
+                            <Panel>
+                                <StackPanel Orientation="Horizontal" Spacing="6"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsVisible="{Binding IsSidebarExpanded}">
+                                    <material:MaterialIcon Kind="PinOffOutline" Width="14" Height="14"
+                                                           Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="{loc:Loc Sidebar_DropToUnpin}"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{DynamicResource FontSizeXs}"/>
+                                </StackPanel>
+                                <material:MaterialIcon Kind="PinOffOutline" Width="20" Height="20"
+                                                       Foreground="{StaticResource BrushTextMuted}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       IsVisible="{Binding !IsSidebarExpanded}"/>
+                            </Panel>
                         </Border>
 
                         <TextBlock Text="{loc:Loc Sidebar_DropToUnpin}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{DynamicResource FontSizeXs}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Margin="0,16,0,0"
-                                   IsVisible="{Binding !Nav.UnpinnedPlaylists.Count}"/>
+                                   Margin="0,16,0,0">
+                            <TextBlock.IsVisible>
+                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                    <Binding Path="IsSidebarExpanded"/>
+                                    <Binding Path="!Nav.UnpinnedPlaylists.Count"/>
+                                </MultiBinding>
+                            </TextBlock.IsVisible>
+                        </TextBlock>
                     </Panel>
                 </Border>
 
-                <Border Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
+                <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
                 <TextBlock Classes="section-label" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
                 <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
                     <Grid ColumnDefinitions="Auto,Auto,*">
@@ -599,7 +644,7 @@
                     </Grid>
                 </Button>
 
-                <Border Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
+                <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
                 <TextBlock Classes="section-label" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
                 <Button Classes="nav sidebar-nav" Classes.active="{Binding Library.IsYouTubeFilter}" Command="{Binding Library.FilterYouTubeCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_YouTube}">
                     <Grid ColumnDefinitions="Auto,Auto,*">

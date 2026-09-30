@@ -750,7 +750,7 @@ public class DownloadService
                             
                             if (!string.IsNullOrEmpty(dbTrack.AlbumArtPath) && File.Exists(dbTrack.AlbumArtPath))
                             {
-                                ThumbnailCropper.CropFileToSquare(dbTrack.AlbumArtPath);
+                                ThumbnailCropper.TrimLetterboxInPlace(dbTrack.AlbumArtPath);
                             }
                             
                             _libraryService.Update(dbTrack);
