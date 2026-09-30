@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels;
@@ -36,7 +37,6 @@ public partial class ProfileWindow : Window
             var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
             if (string.IsNullOrWhiteSpace(text)) return;
             
-            // FIX: Don't auto-import if it's a track link
             if (ShareLink.TryParseTrack(text, out _, out _)) return;
 
             if (!ShareLink.TryParseProfile(text, out var encoded)) return;
@@ -61,13 +61,17 @@ public partial class ProfileWindow : Window
             ExportProfileCard();
             e.Handled = true;
         }
+        else if (e.Key == Key.F3)
+        {
+            PerfOverlayController.Toggle();
+            e.Handled = true;
+        }
         else if (e.Key == Key.Escape)
         {
             if (DataContext is UserProfileViewModel vm && vm.IsEditorOpen)
                 vm.IsEditorOpen = false;
             else
                 Close();
-            e.Handled = true;
         }
     }
 
@@ -149,7 +153,6 @@ public partial class ProfileWindow : Window
             return;
         }
 
-        // FIX: Smart Routing - Intercept track links pasted in the Profile box
         if (ShareLink.TryParseTrack(raw, out _, out _))
         {
             ToastService.Instance.Show(

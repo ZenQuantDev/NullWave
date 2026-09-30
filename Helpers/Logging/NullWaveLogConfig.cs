@@ -60,6 +60,15 @@ public static class NullWaveLogConfig
                     fileSizeLimitBytes: 5 * 1024 * 1024,
                     rollOnFileSizeLimit: true,
                     outputTemplate: outputTemplate))
+            .WriteTo.Logger(lc => lc
+                .Filter.ByIncludingOnly(Matching.WithProperty<string>("Channel", v => v == "Perf"))
+                .WriteTo.File(
+                    path: Path.Combine(logDir, "Perf-.log"),
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 3,
+                    fileSizeLimitBytes: 2 * 1024 * 1024,
+                    rollOnFileSizeLimit: true,
+                    outputTemplate: outputTemplate))
             .CreateLogger();
 
         Log.Information("Serilog initialized under dynamic operational modes.");

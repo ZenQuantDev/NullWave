@@ -67,6 +67,16 @@ public partial class MainViewModel
             return () => { Settings.ReportThumbnailsCleared(cleared); Library.Refresh(); };
         });
 
+        Settings.RefetchYouTubeThumbsRequested += () =>
+        {
+            _ = Task.Run(() =>
+            {
+                var count = _library.RefetchYouTubeThumbnails();
+                _library.RebackfillThumbnails();
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => Settings.ReportYouTubeThumbsRefetched(count));
+            });
+        };
+
         Settings.RepairPathsRequested += () => RunMaintenanceTask("RepairPaths", false, async () =>
         {
             var (total, missing, removed) = await Task.Run(() => _library.RepairPaths(removeDeadEntries: true));

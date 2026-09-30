@@ -6,15 +6,19 @@ using SkiaSharp;
 namespace NullWave.Helpers;
 
 /// <summary>
-/// Normalizes downloaded thumbnails. Trims baked-in letterbox/pillarbox bars but
-/// PRESERVES the source aspect ratio: UI controls crop visually via UniformToFill,
-/// so forcing squares here destroyed composition and threw away resolution.
+/// Normalizes thumbnails. Trims baked-in letterbox/pillarbox bars (black, maroon,
+/// dark-grey - any flat dark band) but PRESERVES source aspect ratio: UI controls
+/// crop visually via UniformToFill where they want to, and the detail view mats.
+/// The legacy square center-crop was REMOVED: it destroyed side pixels on 16:9
+/// sources ("zoomed/cut" covers). Aspect-preserving trim + UI-side cropping is
+/// the only supported normalization now.
 /// </summary>
 public static class ThumbnailCropper
 {
-    private const byte NearBlack = 16;          // per-channel "near black" cutoff
-    private const double BlackRatio = 0.985;    // fraction of sampled pixels that must be near-black
-    private const int SampleStep = 4;           // scan every Nth pixel for speed
+    private const int SampleStep = 4;        // scan every Nth pixel for speed
+    private const int FlatTolerance = 14;    // max per-channel deviation inside a bar band
+    private const double FlatRatio = 0.985;  // sampled pixels that must be uniform
+    private const int MaxBarLuma = 140;      // bars are dark; protects white/light-bg art
 
     /// <summary>Trims letterbox/pillarbox bars in place, keeping the original aspect. Returns true if rewritten.</summary>
     public static bool TrimLetterboxInPlace(string path)
@@ -54,92 +58,60 @@ public static class ThumbnailCropper
         }
     }
 
-    /// <summary>Legacy square center-crop. Kept only for existing callers; do not use for new thumbnail paths.</summary>
-    public static bool CropFileToSquare(string path)
-    {
-        try
-        {
-            if (!File.Exists(path)) return false;
-
-            using var src = SKBitmap.Decode(path);
-            if (src == null || src.Width < 8 || src.Height < 8) return false;
-
-            var content = TrimLetterbox(src);
-            var tolerance = Math.Max(2, (int)(src.Height * 0.02));
-            if (Math.Abs(content.Width - content.Height) <= tolerance) return false;
-
-            int side = Math.Min(content.Width, content.Height);
-            int cx = content.Left + (content.Width - side) / 2;
-            int cy = content.Top + (content.Height - side) / 2;
-            var srcRect = new SKRect(cx, cy, cx + side, cy + side);
-
-            using var square = new SKBitmap(side, side);
-            using (var canvas = new SKCanvas(square))
-            {
-                canvas.DrawBitmap(src, srcRect, new SKRect(0, 0, side, side));
-            }
-
-            var tmp = path + ".crop.tmp";
-            using (var data = square.Encode(SKEncodedImageFormat.Jpeg, 90))
-            using (var fs = File.Create(tmp))
-            {
-                data.SaveTo(fs);
-            }
-            File.Move(tmp, path, overwrite: true);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[ThumbnailCropper] Failed to crop {Path}", path);
-            try { if (File.Exists(path + ".crop.tmp")) File.Delete(path + ".crop.tmp"); } catch { }
-            return false;
-        }
-    }
-
     private static SKRectI TrimLetterbox(SKBitmap bmp)
     {
         int top = 0, bottom = bmp.Height - 1;
-        while (top < bottom && IsBlackRow(bmp, top)) top++;
-        while (bottom > top && IsBlackRow(bmp, bottom)) bottom--;
+        while (top < bottom && IsBarRow(bmp, top)) top++;
+        while (bottom > top && IsBarRow(bmp, bottom)) bottom--;
 
         int left = 0, right = bmp.Width - 1;
-        while (left < right && IsBlackColumn(bmp, left, top, bottom)) left++;
-        while (right > left && IsBlackColumn(bmp, right, top, bottom)) right--;
+        while (left < right && IsBarColumn(bmp, left, top, bottom)) left++;
+        while (right > left && IsBarColumn(bmp, right, top, bottom)) right--;
 
         int h = bottom - top + 1;
         int w = right - left + 1;
 
         // Per-axis safety: genuinely dark artwork must not be mistaken for bars.
-        // Accept a trim only if at least half of that axis remains; otherwise keep the full axis.
-        // This correctly handles the classic YouTube case (square art in 16:9 frame ~56% width retained)
-        // while still protecting album art that is >50% black on either axis.
+        // Accept a trim only if at least half of that axis remains.
         if (h < bmp.Height * 0.50) { top = 0; bottom = bmp.Height - 1; }
         if (w < bmp.Width  * 0.50) { left = 0; right = bmp.Width - 1; }
 
         return new SKRectI(left, top, right + 1, bottom + 1);
     }
 
-    private static bool IsBlackRow(SKBitmap bmp, int y)
+    private static bool IsBarRow(SKBitmap bmp, int y)
     {
-        int black = 0, sampled = 0;
+        var refPix = bmp.GetPixel(0, y);
+        int matched = 0, sampled = 0;
         for (int x = 0; x < bmp.Width; x += SampleStep)
         {
             var p = bmp.GetPixel(x, y);
+            if (sampled == 0) refPix = p;
             sampled++;
-            if (p.Red < NearBlack && p.Green < NearBlack && p.Blue < NearBlack) black++;
+            if (Math.Abs(p.Red - refPix.Red) <= FlatTolerance &&
+                Math.Abs(p.Green - refPix.Green) <= FlatTolerance &&
+                Math.Abs(p.Blue - refPix.Blue) <= FlatTolerance) matched++;
         }
-        return sampled > 0 && black / (double)sampled >= BlackRatio;
+        if (sampled == 0 || matched / (double)sampled < FlatRatio) return false;
+        return Luma(refPix) <= MaxBarLuma;
     }
 
-    private static bool IsBlackColumn(SKBitmap bmp, int x, int top, int bottom)
+    private static bool IsBarColumn(SKBitmap bmp, int x, int top, int bottom)
     {
-        int black = 0, sampled = 0;
+        var refPix = bmp.GetPixel(x, top);
+        int matched = 0, sampled = 0;
         for (int y = top; y <= bottom; y += SampleStep)
         {
             var p = bmp.GetPixel(x, y);
+            if (sampled == 0) refPix = p;
             sampled++;
-            if (p.Red < NearBlack && p.Green < NearBlack && p.Blue < NearBlack) black++;
+            if (Math.Abs(p.Red - refPix.Red) <= FlatTolerance &&
+                Math.Abs(p.Green - refPix.Green) <= FlatTolerance &&
+                Math.Abs(p.Blue - refPix.Blue) <= FlatTolerance) matched++;
         }
-        return sampled > 0 && black / (double)sampled >= BlackRatio;
+        if (sampled == 0 || matched / (double)sampled < FlatRatio) return false;
+        return Luma(refPix) <= MaxBarLuma;
     }
+
+    private static int Luma(SKColor c) => (c.Red * 299 + c.Green * 587 + c.Blue * 114) / 1000;
 }

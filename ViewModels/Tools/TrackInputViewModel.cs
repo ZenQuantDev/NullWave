@@ -12,7 +12,7 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
-using NullWave.Services.Integration; // RESTORED: AlbumArtService lives here
+using NullWave.Services.Integration; 
 using NullWave.Services.Plugins;
 using NullWave.ViewModels.Base;
 using NullWave.Services.Metadata;
@@ -35,6 +35,7 @@ public class TrackInputViewModel : ViewModelBase
     private string _inputTitle = string.Empty;
     private string _inputArtist = string.Empty;
     private TrackSource _selectedSource = TrackSource.Unknown;
+    public event Action? RadioCatalogRequested;
     private bool _isFetching;
     private bool _isUrlInputVisible;
     private string _statusMessage = string.Empty;
@@ -45,6 +46,7 @@ public class TrackInputViewModel : ViewModelBase
     public ICommand AddTrackCommand { get; }
     public ICommand AddLocalFileCommand { get; }
     public ICommand ShowUrlInputCommand { get; }
+    public ICommand BrowseRadioCatalogCommand { get; }
     
     public event Action? TrackAdded;
     public event Action? TrackMetadataUpdated;
@@ -78,7 +80,6 @@ public class TrackInputViewModel : ViewModelBase
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsInputUrlValid));
             
-            // FIX: Intercept nullwave:// track URIs so SourceDetector doesn't reject them
             if (ShareLink.TryParseTrack(value, out _, out _))
             {
                 SelectedSource = TrackSource.Unknown;
@@ -102,13 +103,10 @@ public class TrackInputViewModel : ViewModelBase
             var url = InputUrl.Trim();
             if (string.IsNullOrWhiteSpace(url)) return false;
             
-            // FIX: Allow profile share codes to pass validation so the Add button
-            // can be clicked to show the "routing" toast.
             if (ShareLink.IsProfileLink(url) || 
                 url.StartsWith("NW1.", StringComparison.OrdinalIgnoreCase) || 
                 url.StartsWith("NW-", StringComparison.OrdinalIgnoreCase)) return true;
 
-            // FIX: Allow nullwave:// track URIs to pass validation
             if (ShareLink.TryParseTrack(url, out _, out _)) return true;
             
             if (_urlParser.IsValidUrl(url) && SourceDetector.IsPlayableUrl(url)) return true;
@@ -166,6 +164,7 @@ public class TrackInputViewModel : ViewModelBase
         AddTrackCommand = new RelayCommand(AddTrack);
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
         ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
+        BrowseRadioCatalogCommand = new RelayCommand(() => RadioCatalogRequested?.Invoke());
     }
 
     private static string StripQueryStringForDisplay(string url)
@@ -190,7 +189,6 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // FIX: Smart Routing - Intercept Profile links pasted in the Track box
         if (ShareLink.IsProfileLink(url) || 
             url.StartsWith("NW1.", StringComparison.OrdinalIgnoreCase) || 
             url.StartsWith("NW-", StringComparison.OrdinalIgnoreCase))
@@ -205,7 +203,6 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        // FIX: Gracefully handle nullwave:// track URIs.
         if (ShareLink.TryParseTrack(url, out _, out _))
         {
             ToastService.Instance.Show(

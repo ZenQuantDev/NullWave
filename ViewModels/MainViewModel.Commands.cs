@@ -135,8 +135,37 @@ public partial class MainViewModel
         });
 
         if (files.Count == 0) return;
+        var srcFile = files[0];
 
-        playlist.CustomArtPath = files[0].Path.LocalPath;
+        // DURABILITY FIX: copy into the managed art cache instead of pointing at the
+        // picker's source file. A Downloads/USB/cloud path can vanish later and silently
+        // break the cover; every other art-write path in the app (ThumbnailDownloader,
+        // AlbumArtService) already copies into ArtCacheDir first.
+        var ext = Path.GetExtension(srcFile.Name);
+        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+        var dest = Path.Combine(NullWavePaths.ArtCacheDir, $"pl_{playlist.Id:N}{ext}");
+
+        try
+        {
+            await using var inStream = await srcFile.OpenReadAsync();
+            await using var outStream = File.Create(dest);
+            await inStream.CopyToAsync(outStream);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Playlist] cover copy failed for {Name}", playlist.Name);
+            ToastService.Instance.Show($"Couldn't copy cover image: {ex.Message}", ToastType.Error, scope: "playlist");
+            return;
+        }
+
+        playlist.CustomArtPath = dest;
+
+        // DIAGNOSTIC (one run only, then delete): names which leg fails, if any still does.
+        Log.Information("[Playlist] cover set: path={Path} exists={Exists} decoded={Decoded}",
+            playlist.CustomArtPath,
+            File.Exists(playlist.CustomArtPath),
+            BitmapCacheService.DecodeSync(playlist.CustomArtPath, 256) != null);
+
         _playlists.UpdatePlaylist(playlist);
         Playlist.Refresh();
         Nav.RefreshPlaylistLists();

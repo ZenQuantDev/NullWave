@@ -107,7 +107,59 @@
                                Text="Purge caches to verify background workers, AlbumArtService fallbacks, and file I/O atomic writes. Run this after changing the thumbnail resolution ladder."/>
                     <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
                         <Button Classes="danger" Content="Purge Art Cache" Command="{Binding DevPurgeArtCacheCommand}" Margin="0,0,8,8"/>
+                        <Button Classes="danger" Content="Heal YouTube Thumbs (aspect fix)" Command="{Binding DevRefetchYouTubeThumbsCommand}" Margin="0,0,8,8"/>
                     </WrapPanel>
+                    <Button Classes="secondary" Content="Re-crop Art Cache (trim bars)" Command="{Binding DevRecropArtCacheCommand}" Margin="0,0,8,8"/>
+                </StackPanel>
+            </Border>
+
+            <!-- PERFORMANCE -->
+            <TextBlock Classes="section-label" Text="PERFORMANCE" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                               Text="Toggle performance overlays, monitor virtualization behavior, and control rendering composition mode."/>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="Performance Overlays" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="Toggle F3 Overlay" Command="{Binding DevTogglePerfOverlayCommand}"/>
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Hover Tagging" VerticalAlignment="Center"/>
+                            <TextBlock Text="Log control class under cursor (adds minor overhead)" 
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding DevHoverTagEnabled}" HorizontalAlignment="Right"/>
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Invalidation Storm Detector" VerticalAlignment="Center"/>
+                            <TextBlock Text="Warn when controls redraw >5 times per hover" 
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding DevStormDetectorEnabled}" HorizontalAlignment="Right"/>
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Container Realization Counter" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DevRealizationCount, StringFormat='Realized containers: {0}'}" 
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="Reset Counter" Command="{Binding DevResetRealizationCommand}"/>
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Compose Mode (restart required)" VerticalAlignment="Center"/>
+                            <TextBlock Text="lowlatency = V-Sync | direct = uncapped" 
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding DevComposeOptions}" SelectedItem="{Binding DevSelectedComposeMode}" MinWidth="140"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

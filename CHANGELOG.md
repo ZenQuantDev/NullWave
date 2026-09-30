@@ -15,6 +15,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **"What's New" Screen**: Automatically displays a styled release notes popup on the first launch after an update.
 - **Unified Process Runner (P9)**: Introduced `ProcessRunner` helper to safely execute external processes with concurrent stdout/stderr reading, preventing OS pipe deadlocks.
 - **DevTools Support Bundle**: Fixed a build failure in `SettingsViewModel.DevTools.cs` caused by a missing `using Avalonia.Platform.Storage;` directive, restoring the native file picker (`FilePickerSaveOptions`) for exporting diagnostic zip bundles.
+- **Dev Tab Performance section**: F3 overlay toggle button, opt-in hover tagging, Invalidation Storm Detector toggle (warns when a control exceeds 5 layout passes per hover), live container-realization counter with reset, and a compose-mode selector (`lowlatency`/`direct`/`winui`, persisted, applied on restart).
+- **`InvalidationStormDetector`** attached behavior (`Helpers/Diagnostics/`) for auditing hover-time layout storms.
+- **`BitmapPrewarm`** helper: chunked background pass at startup that realizes GPU textures for all cached album art, eliminating first-scroll upload hitches.
+- **`RowIcons`** static geometry registry plus `MediaTypeToGeometryConverter`/`BoolToStarGeometryConverter`: track-row icons now render as lightweight `Path` elements instead of `MaterialIcon` templated controls.
+- **YouTube thumbnail heal**: `LibraryService.RefetchYouTubeThumbnails()` plus Dev Tab "Heal YouTube Thumbs (aspect fix)" button - deletes legacy square-cropped `yt_*.jpg` files, invalidates their decode cache entries, nulls paths in one transaction, and re-runs the aspect-preserving backfill.
+- **`BitmapCacheService.InvalidatePath`/`Clear`** for surgical decode-cache eviction, and Dev Tab "Re-crop Art Cache (trim bars)" utility.
 
 ### Changed
 
@@ -24,6 +30,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Clipboard Helper**: Updated `ClipboardHelper` to accept `PreferencesService` and `IdentityService` to support generating peer-to-peer share links.
 - **Mood AI Prompt (C5)**: Added explicit JSON schema to Ollama prompts, capped `num_ctx` to prevent context overflow, and implemented a tolerant index parser.
 - **Local AI Resilience (C10)**: Improved Ollama connection-refused detection and removed local file paths from AI prompts for privacy.
+- **Track list virtualization**: removed `CacheLength="1.0"` from `VirtualizingStackPanel`; traces showed the extra cache viewport multiplied container rebinds during scrollbar drags.
+- **Row hover highlight** moved from a `ListBoxItem:pointerover` template setter to a localized `Grid.track-row:pointerover` style hoisted into `ListBox.Styles`, keeping dirty rects row-local instead of full-viewport.
+- **`SmoothScrollBehavior`** now coalesces external scroll offsets (scrollbar drag, keyboard) into one state commit per render frame and kills the spring immediately on external input to prevent offset fighting.
+- **Album art decode width** standardized to 96px across row XAML, startup warm, and GPU prewarm (crisp on HiDPI, no draw-time upscaling).
+- **`ThumbnailCropper`** is aspect-preserving only: legacy `CropFileToSquare` removed and its last caller (`DownloadService` playlist pipeline) switched to `TrimLetterboxInPlace`.
+- **`ThumbnailDownloader`** shared `HttpClient` capped at 8s timeout; session-long 404 negative cache prevents repeated ladder probes.
+- **`Program.cs`** compose-mode comment corrected (`lowlatency` = V-Sync-paced default; `direct` = uncapped, diagnostics only) and stale commented-out `BuildAvaloniaApp` blocks deleted.
+- **Sidebar rows**: 150ms background `BrushTransition` removed; inner content grids marked `IsHitTestVisible="False"` to prune hit-test subtrees.
+- **Library maintenance** art backfills and `ClearAllArt` now apply in a single UI wave plus one DB transaction without triggering full-list rebuilds.
 
 ### Fixed
 
@@ -32,6 +47,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Toast Service**: Fixed `EnforceCap` logic to immediately remove evicted toasts, preventing unbounded collection growth and test failures in headless environments.
 - **Spotify Bridge (C7/C11)**: Routed Spotify metadata through the new `SpotifyPageParser` (ignoring Album/Playlist links) and fixed `SplitArtistCredits` to prevent breaking band names like "Florence and the Machine".
 - **Track Detail Dependencies**: Resolved missing namespace and constructor argument errors related to `IdentityService` and `AlbumArtService` across ViewModels.
+- **Recycle-dispose crash**: `SharedImage` wrapper prevents Avalonia `Image` controls from disposing shared cached `Bitmap`s when virtualized containers recycle (`ObjectDisposedException` on `Ref<IBitmapImpl>`).
+- **"Zoomed/cut" 16:9 covers**: playlist downloads no longer square-center-crop trimmed thumbnails; pre-existing bad cache entries healable from the Dev Tab.
+- **30fps wheel-scroll ceiling and 3-4fps scrollbar drags**: resolved via hover-invalidation fix, rebind-volume reduction, and drag-event coalescing.
+- **Uncapped 40,000fps render storm** under `NULLWAVE_COMPOSE=direct`: documented as diagnostics-only; default `lowlatency` V-Syncs correctly.
+- **Dev Tab art purge** no longer blocks the UI thread and no longer orphans `AlbumArtPath` rows (routes through the Maintenance pipeline).
 
 ---
 

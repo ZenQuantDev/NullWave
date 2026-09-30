@@ -40,12 +40,17 @@ public partial class SettingsViewModel
     // Routed through MainViewModel (same pattern as SweepOrphanedFilesRequested etc.)
     public event Action<int>? SeedLibraryRequested;
     public event Action? RemoveSeededRequested;
+    
+    // DevTools performance toggles
+    public event Action<bool>? HoverTaggingChanged;
+    public event Action<bool>? StormDetectorChanged;
+    public event Action? TogglePerfOverlayRequested;
+    public event Action? RefetchYouTubeThumbsRequested;
 
     private static bool CheckDevAccess()
     {
         if (Environment.GetEnvironmentVariable("NULLWAVE_DEV") == "1") return true;
         if (Environment.GetCommandLineArgs().Any(a => a == "--dev")) return true;
-        // TODO: Add IdentityService badge check here in Phase 2
         return false;
     }
 
@@ -132,7 +137,6 @@ public partial class SettingsViewModel
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
         {
-            // Temporarily reset the flag so the window allows itself to open
             _prefsService.Update(p => p.HasCompletedOnboarding = false);
             await new OnboardingWindow(this).ShowDialog(desktop.MainWindow);
             _prefsService.Update(p => p.HasCompletedOnboarding = true);
@@ -146,32 +150,6 @@ public partial class SettingsViewModel
         {
             var wn = new WhatsNewWindow("DEV");
             wn.Show(desktop.MainWindow);
-        }
-    }
-
-    [RelayCommand]
-    private void DevPurgeArtCache()
-    {
-        try
-        {
-            var artDir = new DirectoryInfo(Path.Combine(NullWavePaths.DataDir, "art"));
-            if (artDir.Exists)
-            {
-                var files = artDir.GetFiles();
-                int count = files.Length;
-                foreach (var file in files) file.Delete();
-                ToastService.Instance.Show($"Purged {count} cached art files.", ToastType.Success);
-                Log.Information("[DevTools] Art cache purged ({Count} files).", count);
-            }
-            else
-            {
-                ToastService.Instance.Show("Art cache directory not found.", ToastType.Warning);
-            }
-        }
-        catch (Exception ex)
-        {
-            ToastService.Instance.Show($"Purge failed: {ex.Message}", ToastType.Error);
-            Log.Error(ex, "[DevTools] Art cache purge failed");
         }
     }
 
@@ -200,7 +178,6 @@ public partial class SettingsViewModel
             var tmp = Path.Combine(Path.GetTempPath(), $"nw-bundle-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tmp);
             
-            // Calls the existing BuildDiagnosticsText() method from your Help/About logic
             await File.WriteAllTextAsync(Path.Combine(tmp, "diagnostics.txt"), BuildDiagnosticsText());
 
             var prefsSrc = Path.Combine(NullWavePaths.DataDir, "prefs.json");
@@ -242,6 +219,108 @@ public partial class SettingsViewModel
         var workingMb = Environment.WorkingSet / 1048576.0;
 
         DevProbeResult = $"UI thread round-trip: {uiMs} ms | Managed heap: {managedMb:F1} MB | Working set: {workingMb:F1} MB";
+    }
+
+    /// <summary>
+    /// SAFE purge: raw file deletion alone orphans every AlbumArtPath (gray rows,
+    /// black detail art) and leaves stale bitmaps in memory. This clears the decode
+    /// cache and routes through the Maintenance pipeline, which deletes files, nulls
+    /// paths in DB+memory, and kicks the refetch backfill.
+    /// </summary>
+    [RelayCommand]
+    private void DevPurgeArtCache()
+    {
+        BitmapCacheService.Clear();
+        ClearThumbnailsRequested?.Invoke();
+        Log.Information("[DevTools] Art cache purge routed through Maintenance pipeline.");
+    }
+
+    /// <summary>Re-runs bar trimming over the whole art cache (dark-flat detector).</summary>
+    [RelayCommand]
+    private async Task DevRecropArtCacheAsync()
+    {
+        var (changed, total) = await Task.Run(() =>
+        {
+            var dir = Path.Combine(NullWavePaths.DataDir, "art");
+            if (!Directory.Exists(dir)) return (0, 0);
+            var files = Directory.GetFiles(dir, "*.jpg");
+            int n = 0;
+            foreach (var f in files)
+                if (ThumbnailCropper.TrimLetterboxInPlace(f)) n++;
+            return (n, files.Length);
+        });
+
+        // Rewritten files must not keep serving pre-crop bitmaps from memory.
+        if (changed > 0) BitmapCacheService.Clear();
+
+        ToastService.Instance.Show(
+            changed > 0
+                ? $"Re-cropped {changed} of {total} cached art files; memory cache refreshed."
+                : $"Re-crop found nothing to trim in {total} file(s).",
+            ToastType.Success);
+        Log.Information("[DevTools] Art cache re-crop: {Changed}/{Total} files rewritten", changed, total);
+    }
+
+    /// <summary>Deletes legacy square-cropped YouTube thumbs and re-fetches them aspect-preserved.</summary>
+    [RelayCommand]
+    private void DevRefetchYouTubeThumbs()
+    {
+        ToastService.Instance.Show("Healing YouTube thumbnails in background - art may blink while re-fetching.",
+            ToastType.Info, durationMs: 6000, scope: "maintenance");
+        RefetchYouTubeThumbsRequested?.Invoke();
+    }
+
+    public void ReportYouTubeThumbsRefetched(int count)
+    {
+        ToastService.Instance.Show(count == 0
+            ? "No YouTube thumbnails needed healing."
+            : $"Healed {count} YouTube thumbnail(s) with aspect-preserving crop.",
+            ToastType.Success, scope: "maintenance");
+    }
+
+    [ObservableProperty]
+    private bool _devHoverTagEnabled;
+
+    [ObservableProperty]
+    private bool _devStormDetectorEnabled;
+
+    [ObservableProperty]
+    private int _devRealizationCount;
+
+    [ObservableProperty]
+    private string _devSelectedComposeMode = "lowlatency";
+
+    public string[] DevComposeOptions => new[] { "lowlatency", "direct", "winui" };
+
+    public void IncrementRealizationCount()
+    {
+        if (IsDevMode) DevRealizationCount++;
+    }
+
+    [RelayCommand]
+    private void DevTogglePerfOverlay() => TogglePerfOverlayRequested?.Invoke();
+
+    [RelayCommand]
+    private void DevResetRealization() => DevRealizationCount = 0;
+
+    partial void OnDevSelectedComposeModeChanged(string value)
+    {
+        Environment.SetEnvironmentVariable("NULLWAVE_COMPOSE", value);
+        _prefsService.Update(p => p.ComposeMode = value);
+        ScheduleSave();
+        ToastService.Instance.Show($"Compose mode set to '{value}'. Restart app to apply.", ToastType.Info);
+    }
+
+    partial void OnDevHoverTagEnabledChanged(bool value)
+    {
+        HoverTaggingChanged?.Invoke(value);
+        Log.Information("[DevTools] Hover tagging {State}", value ? "enabled" : "disabled");
+    }
+
+    partial void OnDevStormDetectorEnabledChanged(bool value)
+    {
+        StormDetectorChanged?.Invoke(value);
+        Log.Information("[DevTools] Storm detector {State}", value ? "enabled" : "disabled");
     }
 
     #endregion

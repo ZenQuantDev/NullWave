@@ -231,4 +231,31 @@ public class HardwareDetector
         // Fallback
         return ("qwen2.5:3b", $"Limited hardware ({ramGB}GB RAM) - using smallest model for best performance");
     }
+
+    private static HardwareInfo? _cachedInfo;
+    private static readonly object _cacheLock = new();
+
+    public static HardwareInfo GetCachedInfo()
+    {
+        if (_cachedInfo != null) return _cachedInfo;
+        lock (_cacheLock)
+        {
+            if (_cachedInfo != null) return _cachedInfo;
+            var detector = new HardwareDetector();
+            _cachedInfo = detector.Detect();
+            return _cachedInfo;
+        }
+    }
+
+    /// <summary>
+    /// Gate for EffectsTier.Full. Returns true if a discrete GPU (NVIDIA/AMD) is detected.
+    /// Independent of the VRAM-sizing logic used for Ollama LLM recommendations.
+    /// </summary>
+    public static bool SupportsFullEffectsTier()
+    {
+        var info = GetCachedInfo();
+        // Discrete GPU is the primary gate for shader-heavy effects (glow, blur, visualizers).
+        // Integrated GPUs (Intel HD, basic AMD Vega) will fall back to Standard/Minimal.
+        return info.HasNvidia || info.HasAmd;
+    }
 }

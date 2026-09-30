@@ -43,6 +43,7 @@ public partial class MainViewModel : ViewModelBase
     private LocalAIService _localAI = null!;
     private MoodPlaylistService _moodPlaylist = null!;
     private PowerStateService _powerState = null!;
+    private EffectsTierResolver _effectsTier = null!;
     private PluginManager _plugins = null!;
     private IdentityService _identity = null!;
     

@@ -510,8 +510,8 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 **Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
 
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
-- 📋 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
-- 📋 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
+- 🔄 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
+- 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
 ---
 
