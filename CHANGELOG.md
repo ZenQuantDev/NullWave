@@ -5,10 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.6.2] - 26-Sep-2026 🧩 "Correctness"
+## [0.6.2] - 02-Oct-2026 🧩 "Correctness"
 
 ### Added
-
+- **Custom WaveSeekBar (MiniPlayer)**: Replaced the standard Avalonia `Slider` with a custom `WaveSeekBar` control. Features a Samsung OneUI / Material You-style animated multi-layer squiggle with flat bottoms, organic crest variation (AM/FM modulation), and side-flanking timestamps.
 - **P2P Track Sharing Foundation**: Introduced `nullwave://` URI scheme generation for tracks and profiles. Added a "Share Link" button to the Track Detail panel and smart cross-pollination routing (pasting a profile link in the track box or vice versa now shows a helpful routing toast instead of failing).
 - **Unified Changelog Control**: Created a shared `ChangelogView` control that renders release notes with section-level icons (Added/Changed/Fixed), replacing duplicated markdown parsers and hand-written About tab bullets (Bug 5).
 - **In-App Log Viewer**: Help tab now features a live, filterable log tail (text filter + level chips) with a "Copy Diagnostics" button for easy bug reporting.
@@ -52,6 +52,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **30fps wheel-scroll ceiling and 3-4fps scrollbar drags**: resolved via hover-invalidation fix, rebind-volume reduction, and drag-event coalescing.
 - **Uncapped 40,000fps render storm** under `NULLWAVE_COMPOSE=direct`: documented as diagnostics-only; default `lowlatency` V-Syncs correctly.
 - **Dev Tab art purge** no longer blocks the UI thread and no longer orphans `AlbumArtPath` rows (routes through the Maintenance pipeline).
+- **Crossfade/Pause Desync**: Fixed a critical bug in `PlaybackService` where pausing during a crossfade left the incoming player silent at volume 0. The engine now correctly aborts the fade, promotes the incoming player, and pauses it.
+- **Volume Slider Drops**: Fixed an issue where `FadeAndPauseAsync` would overwrite the global `_targetVolume` with the mid-fade value (e.g., ~40%), causing the volume slider to drop and stay stuck until manually adjusted.
+- **Seek Bar Desync**: Bound the MiniPlayer's position/duration properties and seek bar to the *incoming* player during a crossfade so the UI reflects the correct track and time mid-fade.
+- **Double Play-Count Bug**: Removed duplicate `NullActionLogger.TrackPlayed` calls from `LibraryViewModel.PlayTrack` to prevent tracks from being counted twice in the database per play.
+- **Redundant Search Bar**: Removed the duplicate, non-functional local search bar from `PlaylistsView` in favor of the unified global search.
+- **Null Reference Warnings**: Resolved `CS8602` warnings in `PlaylistsView.axaml.cs` by applying proper null-guard chains to event handlers.
+- **AsyncImage Rendering**: Replaced synchronous `ImageBrush` and `PathToBitmap` converters with `AsyncImage` in `PlaylistsView` (hero tile, track rows) and `SidebarView` (playlist rows, nav items) to move decoding off the UI thread and share cache entries.
+- **Queue Priority**: Updated `PlayerViewModel` (`PlayNext` and `CheckCrossfade`) to prioritize manual queue entries over active playlist progression.
+- **Playlist Header Layout**: Changed the playlist header count column from a fixed `48px` to `Auto` to prevent label clipping, and aligned track row art to `Width="40"`.
 
 ---
 
