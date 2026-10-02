@@ -177,6 +177,9 @@ public class NavigationViewModel : ViewModelBase
         item.Playlist = playlist;
         item.ArtPath = playlist?.ArtPath;
         item.Subtitle = playlist == null ? null : $"Playlist • {playlist.Tracks.Count} tracks";
+        // FIX: pins show the LIVE playlist name, not the label snapshot saved at pin time
+        if (playlist != null && item.Type == NavItemType.PinnedPlaylist && item.Label != playlist.Name)
+            item.Label = playlist.Name;
     }
 
     private NavItem? ToNavItem(PinnedItemData data)
@@ -288,6 +291,20 @@ public class NavigationViewModel : ViewModelBase
             if (item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue)
                 Decorate(item, _playlists.GetById(item.TargetPlaylistId!.Value));
         }
+
+        // FIX: keep persisted pin labels in sync with renames/migration
+        bool pinsDirty = false;
+        foreach (var pin in _prefs.Current.PinnedItems)
+        {
+            if (!pin.TargetPlaylistId.HasValue) continue;
+            var pl = _playlists.GetById(pin.TargetPlaylistId.Value);
+            if (pl != null && pin.Label != pl.Name)
+            {
+                pin.Label = pl.Name;
+                pinsDirty = true;
+            }
+        }
+        if (pinsDirty) _prefs.Save();
     }
 
     private void MoveUp(NavItem? item)

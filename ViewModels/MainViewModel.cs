@@ -141,6 +141,10 @@ public partial class MainViewModel : ViewModelBase
     public ICommand ToolbarToggleSortDirectionCommand =>
         CurrentPage == "Playlists" ? Playlist.ToggleSortDirectionCommand : ActiveLibraryVM.ToggleSortDirectionCommand;
 
+    // FIX: EffectsTierResolver.Current (not CurrentTier). Gates the mini-player wave animation
+    // on the effects tier so Minimal-tier / low-end machines get a static flat line.
+    public bool CanAnimateSeekWave => _effectsTier.Current != EffectsTier.Minimal;
+
     // --- Child ViewModels ---
     public TrackInputViewModel Input { get; private set; } = null!;
     public LibraryViewModel Library { get; private set; } = null!;
