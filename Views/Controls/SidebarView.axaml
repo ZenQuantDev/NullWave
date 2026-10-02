@@ -81,12 +81,11 @@
                                     Margin="0,0,10,0" CornerRadius="{StaticResource RadiusSm}"
                                     Background="{StaticResource BrushAccentDim}" ClipToBounds="True">
                                 <Panel>
-                                    <Border CornerRadius="{StaticResource RadiusSm}"
-                                            IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <Border.Background>
-                                            <ImageBrush Source="{Binding ArtPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill"/>
-                                        </Border.Background>
-                                    </Border>
+                                    <!-- FIX: ImageBrush never painted; AsyncImage renders and shares the 96px row cache -->
+                                    <Image attached:AsyncImage.SourcePath="{Binding ArtPath}"
+                                           attached:AsyncImage.DecodeWidth="96"
+                                           Stretch="UniformToFill"
+                                           IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                     <material:MaterialIcon Kind="PlaylistMusic" Width="20" Height="20" Foreground="{StaticResource BrushAccent}"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -418,12 +417,11 @@
                                                     Margin="0,0,10,0" CornerRadius="{StaticResource RadiusSm}"
                                                     Background="{StaticResource BrushAccentDim}" ClipToBounds="True">
                                                 <Panel>
-                                                    <Border CornerRadius="{StaticResource RadiusSm}"
-                                                            IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                                        <Border.Background>
-                                                            <ImageBrush Source="{Binding ArtPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill"/>
-                                                        </Border.Background>
-                                                    </Border>
+                                                    <!-- FIX: ImageBrush never painted; AsyncImage renders and shares the 96px row cache -->
+                                                    <Image attached:AsyncImage.SourcePath="{Binding ArtPath}"
+                                                           attached:AsyncImage.DecodeWidth="96"
+                                                           Stretch="UniformToFill"
+                                                           IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                                     <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20"
                                                             Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                             IsVisible="{Binding ArtPath, Converter={x:Static ObjectConverters.IsNull}}"/>

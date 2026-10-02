@@ -158,7 +158,9 @@ public partial class LibraryViewModel
     {
         if (t != null)
         {
-            NullActionLogger.TrackPlayed(t.Id.ToString(), t.Title, t.Artist, "LibraryViewModel");
+            // Don't log TrackPlayed here. PlayerViewModel.PlayTrack logs
+            // it after the track actually starts playing in LibVLC. Logging in
+            // both places was double-counting every play in the DB.
             PlayTrackRequested?.Invoke(t);
         }
     }
