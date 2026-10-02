@@ -28,7 +28,11 @@
                              TextWrapping="Wrap"
                              Margin="0,2,0,0"/>
                 </StackPanel>
-                <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"/>
+                <ToggleSwitch Grid.Column="2"
+                              IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                              IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                              Click="OnPluginToggleClick"
+                              VerticalAlignment="Center"/>
               </Grid>
             </Border>
           </DataTemplate>

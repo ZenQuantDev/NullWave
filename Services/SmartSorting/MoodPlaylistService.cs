@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
 using Serilog;
@@ -70,7 +71,10 @@ public class MoodPlaylistService
             Log.Information("[MoodPlaylist] Weather: {Condition} {Temp}°C → mood tags: [{Tags}]",
                 weather.Condition, weather.TemperatureC, string.Join(", ", moodTags));
 
-            var candidates = _library.GetAll()
+            // FIX (C5): Filter library to Music only to prevent audiobooks/radio in fallback
+            var libraryMusic = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToList();
+
+            var candidates = libraryMusic
                 .Where(t => t.Tags.Any(tag => moodTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
                 .ToList();
 
@@ -79,9 +83,9 @@ public class MoodPlaylistService
             var usingFallbackPool = false;
             if (candidates.Count == 0)
             {
-                candidates = _library.GetAll().ToList();
+                candidates = libraryMusic; // Already filtered to Music
                 usingFallbackPool = true;
-                Log.Information("[MoodPlaylist] No tracks matched mood tags - falling back to full library");
+                Log.Information("[MoodPlaylist] No tracks matched mood tags - falling back to full music library");
             }
 
             if (candidates.Count == 0)
@@ -101,13 +105,21 @@ public class MoodPlaylistService
                 var ollamaUp = await _ai.IsOllamaRunningAsync();
                 if (ollamaUp)
                 {
+                    // FIX (C5): Cap to 150 candidates for AI context window
+                    var aiPool = candidates
+                        .OrderByDescending(t => t.PlayCount)
+                        .ThenByDescending(t => t.IsFavorite)
+                        .Take(150)
+                        .ToArray();
+
                     var rankedIds = await _ai.RankTracksForMoodAsync(
                         moodLabel, weather.Condition, weather.TemperatureC,
-                        candidates.ToArray(), maxResults);
+                        aiPool, maxResults);
 
                     if (rankedIds.Length > 0)
                     {
-                        var byId = candidates.ToDictionary(t => t.Id.ToString());
+                        // Map IDs back using the capped pool
+                        var byId = aiPool.ToDictionary(t => t.Id.ToString());
                         var ranked = rankedIds
                             .Where(byId.ContainsKey)
                             .Select(id => byId[id])
@@ -204,6 +216,7 @@ public static class WeatherMoodMap
         if (hour >= 22 || hour < 5)
             tags = tags.Concat(new[] { "chill", "ambient", "rnb", "soul" }).Distinct().ToArray();
 
-        return tags;
+        // FIX (C6): Normalize through central taxonomy before returning
+        return TagTaxonomy.NormalizeAll(tags).ToArray();
     }
 }

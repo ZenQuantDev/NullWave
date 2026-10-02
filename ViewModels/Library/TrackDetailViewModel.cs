@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
@@ -14,8 +15,8 @@ using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
-using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
+using NullWave.Services.Security;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -25,8 +26,17 @@ public class TrackDetailViewModel : ViewModelBase
 {
     private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
 
+    // Per-artist memoization. Kills the 7-12× repeat log storms when you click
+    // multiple tracks by the same artist in sequence, and prevents re-downloading
+    // the Last.fm default placeholder avatar (the "no artist image" image).
+    private static readonly ConcurrentDictionary<string, LastFmArtistInfo?> ArtistInfoCache = new();
+    private static readonly ConcurrentDictionary<string, string?> ArtistImagePathCache = new();
+
     private readonly LibraryService _library;
     private readonly PluginManager _plugins;
+    private readonly IdentityService _identity;
+    private readonly PreferencesService _prefs;
+    
     private Track? _currentTrack;
     private bool _isOpen;
     private string _editTitle = string.Empty;
@@ -139,9 +149,6 @@ public class TrackDetailViewModel : ViewModelBase
     public string? CurrentTrackArtPath => _currentTrack?.AlbumArtPath;
     public string DisplayUrl => _currentTrack?.Url ?? _currentTrack?.FilePath ?? "-";
     
-    // MediaType-aware: radio stations are stored as Source=Unknown by design
-    // (the Source enum drives sidebar filters), so the display layer derives
-    // the human label from MediaType. Same for audiobooks.
     public string DisplaySource => _currentTrack?.MediaType switch
     {
         MediaType.Radio     => "Live",
@@ -172,6 +179,8 @@ public class TrackDetailViewModel : ViewModelBase
 
     public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
+    
+    public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
 
     public ICommand SaveCommand { get; }
     public ICommand CloseCommand { get; }
@@ -179,18 +188,23 @@ public class TrackDetailViewModel : ViewModelBase
     public ICommand RemoveTagCommand { get; }
     public ICommand ToggleFavoriteCommand { get; }
     public ICommand CopyUrlCommand { get; }
+    public ICommand CopyShareLinkCommand { get; }
     public ICommand RelinkFileCommand { get; }
 
-    public TrackDetailViewModel(LibraryService library, PluginManager plugins)
+    public TrackDetailViewModel(LibraryService library, PluginManager plugins, IdentityService identity, PreferencesService prefs)
     {
         _library = library;
         _plugins = plugins;
+        _identity = identity;
+        _prefs = prefs;
+        
         SaveCommand = new RelayCommand(Save);
         CloseCommand = new RelayCommand(() => IsOpen = false);
         AddTagCommand = new RelayCommand(AddTag);
         RemoveTagCommand = new RelayCommand<string>(RemoveTag);
         ToggleFavoriteCommand = new RelayCommand(ToggleFavorite);
         CopyUrlCommand = new RelayCommand(async () => await CopyUrlAsync());
+        CopyShareLinkCommand = new RelayCommand(async () => await CopyShareLinkAsync());
         RelinkFileCommand = new RelayCommand(async () => await RelinkFileAsync());
     }
 
@@ -238,6 +252,7 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayLastSkipped));
         OnPropertyChanged(nameof(IsFavorite));
         OnPropertyChanged(nameof(DisplayDuration));
+        OnPropertyChanged(nameof(IsTrackSharingEnabled));
     }
 
     private void Save()
@@ -253,8 +268,6 @@ public class TrackDetailViewModel : ViewModelBase
         foreach (var tag in Tags) _currentTrack.Tags.Add(tag);
 
         _library.Update(_currentTrack);
-
-        // NEW: Write manual edits back to the physical audio file
         _library.UpdateFileTags(_currentTrack);
 
         string alteredFieldsSummary = $"Title=\"{EditTitle}\", Artist=\"{EditArtist}\", TotalTagsCount={Tags.Count}";
@@ -297,7 +310,7 @@ public class TrackDetailViewModel : ViewModelBase
         {
             _isCopying = true;
 
-            if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack))
+            if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack, _prefs, _identity))
             {
                 CopyStatus = "Copied!";
                 await Task.Delay(2000);
@@ -312,6 +325,32 @@ public class TrackDetailViewModel : ViewModelBase
         {
             CopyStatus = "Copy";
             _isCopying = false;
+        }
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (_currentTrack == null) return;
+        
+        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+        if (window == null) return;
+        
+        var clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
+        if (clipboard == null) return;
+
+        try
+        {
+            var installId = _identity.Fingerprint ?? "unknown-peer";
+            var shareUrl = ShareLink.Track(installId, _currentTrack.Id);
+            
+            await clipboard.SetTextAsync(shareUrl);
+            ToastService.Instance.Show("Track share link copied! Send it to a friend.", ToastType.Success, durationMs: 4000);
+            Log.Information("Track share link copied: {Url}", shareUrl);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to copy track share link to clipboard.");
+            ToastService.Instance.Show("Failed to copy share link.", ToastType.Error);
         }
     }
 
@@ -331,7 +370,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (result.Path != null)
         {
             _currentTrack.FilePath = result.Path;
-            _library.RefreshAlbumArt(_currentTrack);
+            await _library.RefreshAlbumArtAsync(_currentTrack); 
             changes += $"FilePath relinked to \"{result.Path}\"";
             Log.Information("Track relinked to local file: {Title} → {Path}", _currentTrack.Title, result.Path);
         }
@@ -359,11 +398,16 @@ public class TrackDetailViewModel : ViewModelBase
 
         var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
 
+        // Memoize: skip the Last.fm round-trip entirely for artists we've already resolved.
         LastFmArtistInfo? info = null;
-        if (_plugins.Get<LastFmMetadataProvider>() is { } provider)
+        if (!ArtistInfoCache.TryGetValue(primaryArtist, out info))
         {
-            try { info = await provider.GetArtistInfoAsync(primaryArtist); }
-            catch (Exception ex) { Log.Warning(ex, "[TrackDetailViewModel] Artist info fetch failed for {Artist}", primaryArtist); }
+            if (_plugins.Get<LastFmMetadataProvider>() is { } provider)
+            {
+                try { info = await provider.GetArtistInfoAsync(primaryArtist); }
+                catch (Exception ex) { Log.Warning(ex, "[TrackDetailViewModel] Artist info fetch failed for {Artist}", primaryArtist); }
+            }
+            ArtistInfoCache[primaryArtist] = info;
         }
 
         if (_currentTrack == null || _currentTrack.Id != trackId) return;
@@ -396,44 +440,63 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void ResolveArtistImageAsync(LastFmArtistInfo? info, string primaryArtist, Track track, Guid trackId)
     {
+        // Memoize: if we already know the path (or know there isn't one), apply immediately.
+        if (ArtistImagePathCache.TryGetValue(primaryArtist, out var cachedPath))
+        {
+            ArtistImagePath = cachedPath ?? track.AlbumArtPath;
+            return;
+        }
+
         var url = info?.ImageUrl;
-        Log.Information("[TrackDetailViewModel] Artist image for {Artist}: {Url}", primaryArtist, url ?? "<none>");
+        bool isPlaceholder = string.IsNullOrEmpty(url) || url.Contains(LastFmPlaceholderImageHash);
 
-        if (!string.IsNullOrEmpty(url) && !url.Contains(LastFmPlaceholderImageHash))
+        if (isPlaceholder)
         {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var cacheDir = NullWavePaths.ArtCacheDir;
-                    Directory.CreateDirectory(cacheDir);
-                    var safeName = string.Join("_", primaryArtist.Split(Path.GetInvalidFileNameChars()));
-                    var fileName = $"artist_{safeName}.jpg";
-                    var localPath = Path.Combine(cacheDir, fileName);
-
-                    if (!File.Exists(localPath) || new FileInfo(localPath).Length == 0)
-                    {
-                        using var http = new HttpClient();
-                        var bytes = await http.GetByteArrayAsync(url);
-                        await File.WriteAllBytesAsync(localPath, bytes);
-                        Log.Information("[TrackDetailViewModel] Downloaded artist image for {Artist} ({Bytes} bytes)", primaryArtist, bytes.Length);
-                    }
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (_currentTrack != null && _currentTrack.Id == trackId)
-                            ArtistImagePath = localPath;
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[TrackDetailViewModel] Failed to download artist image for {Artist}", primaryArtist);
-                }
-            });
-        }
-        else if (!string.IsNullOrEmpty(track.AlbumArtPath))
-        {
+            // Last.fm returns this hash for artists with no photo. Log at Debug only
+            // and fall back to album art — do NOT re-download the placeholder.
+            Log.Debug("[TrackDetailViewModel] Artist image for {Artist}: placeholder/none - using album art", primaryArtist);
+            ArtistImagePathCache[primaryArtist] = null;
             ArtistImagePath = track.AlbumArtPath;
+            return;
         }
+
+        Log.Information("[TrackDetailViewModel] Artist image for {Artist}: {Url}", primaryArtist, url);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var cacheDir = NullWavePaths.ArtCacheDir;
+                Directory.CreateDirectory(cacheDir);
+                var safeName = string.Join("_", primaryArtist.Split(Path.GetInvalidFileNameChars()));
+                var fileName = $"artist_{safeName}.jpg";
+                var localPath = Path.Combine(cacheDir, fileName);
+
+                if (!File.Exists(localPath) || new FileInfo(localPath).Length == 0)
+                {
+                    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+                    var bytes = await http.GetByteArrayAsync(url);
+                    await File.WriteAllBytesAsync(localPath, bytes);
+                    Log.Information("[TrackDetailViewModel] Downloaded artist image for {Artist} ({Bytes} bytes)", primaryArtist, bytes.Length);
+                }
+
+                ArtistImagePathCache[primaryArtist] = localPath;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (_currentTrack != null && _currentTrack.Id == trackId)
+                        ArtistImagePath = localPath;
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[TrackDetailViewModel] Failed to download artist image for {Artist}", primaryArtist);
+                // Cache the failure so we don't retry the same broken URL.
+                ArtistImagePathCache[primaryArtist] = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (_currentTrack != null && _currentTrack.Id == trackId)
+                        ArtistImagePath = track.AlbumArtPath;
+                });
+            }
+        });
     }
 }

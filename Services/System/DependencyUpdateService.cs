@@ -186,26 +186,23 @@ public class DependencyUpdateService
     {
         try
         {
-            var exe = PlatformHelper.ResolveExecutable(cmd);
-            var psi = new ProcessStartInfo(exe, args)
+            // FIX (P9): Route through ProcessRunner to prevent stderr deadlocks 
+            // and enforce a 2-minute timeout for hung package managers.
+            var result = await ProcessRunner.RunAsync(cmd, args, timeout: TimeSpan.FromMinutes(2));
+
+            if (result.ExitCode == 0) 
+                return result.StandardOutput;
+
+            // Special case: yt-dlp -U might exit non-zero in some environments but still report "up to date"
+            if (cmd == "yt-dlp" && args == "-U")
             {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+                var combined = result.StandardOutput + result.StandardError;
+                if (combined.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+                    return combined;
+            }
 
-            using var proc = Process.Start(psi);
-            if (proc == null) return null;
-
-            var output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-
-            if (proc.ExitCode == 0) return output;
-
-            // Special case: yt-dlp -U might exit with 0 but output "yt-dlp is up to date"
-            if (cmd == "yt-dlp" && args == "-U" && output.Contains("up to date", StringComparison.OrdinalIgnoreCase))
-                return output;
+            if (!string.IsNullOrWhiteSpace(result.StandardError))
+                Log.Warning("[DependencyUpdate] {Cmd} exited {Code}: {Err}", cmd, result.ExitCode, result.StandardError.Trim());
 
             return null;
         }

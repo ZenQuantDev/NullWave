@@ -68,7 +68,7 @@
                 </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:QueueEntry">
-                            <Grid Classes="draggable-row" ColumnDefinitions="24,8,40,8,*,Auto" Margin="4,4" MinHeight="{DynamicResource QueueRowHeight}"
+                            <Grid Classes="draggable-row" ColumnDefinitions="24,8,Auto,8,*,Auto" Margin="4,4" MinHeight="{DynamicResource QueueRowHeight}"
                                   Tag="{Binding}"
                                   DoubleTapped="OnTrackDoubleTapped"
                                   DragDrop.AllowDrop="True"

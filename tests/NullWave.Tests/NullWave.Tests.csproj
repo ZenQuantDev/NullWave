@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,24 +8,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="xunit" Version="2.5.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <!-- Versions are now managed centrally in Directory.Packages.props -->
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <!-- Prevent the test project from compiling FakeYtDlp's Program.cs -->
   <ItemGroup>
     <Compile Remove="FakeYtDlp\**" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\NullWave.csproj" />
-    <!-- FIX: FakeYtDlp is a sibling folder, so we need ..\ -->
     <ProjectReference Include="..\FakeYtDlp\FakeYtDlp.csproj" />
   </ItemGroup>
 </Project>

@@ -19,6 +19,16 @@ public enum ToastType
     Error
 }
 
+/// <summary>
+/// High-priority toasts (failures, security warnings) are never silently dropped:
+/// they evict a Normal toast if the screen is full, and are never evicted themselves.
+/// </summary>
+public enum ToastPriority
+{
+    Normal,
+    High
+}
+
 public partial class LiveNotification : ObservableObject
 {
     public Guid Id { get; } = Guid.NewGuid();
@@ -46,11 +56,16 @@ public partial class LiveNotification : ObservableObject
     [NotifyPropertyChangedFor(nameof(NotificationBrush))]
     private ToastType _type = ToastType.Info;
 
+    [ObservableProperty] private ToastPriority _priority = ToastPriority.Normal;
+
     [ObservableProperty] private double _progressValue;
     [ObservableProperty] private bool _isIndeterminate;
     [ObservableProperty] private bool _showProgressBar;
     [ObservableProperty] private bool _isCompleted;
     [ObservableProperty] private bool _isCancellable;
+
+    /// <summary>Requested auto-dismiss delay in ms. Travels with the toast so a queued toast keeps its timing when it finally displays.</summary>
+    public int DurationMs { get; set; } = 4000;
 
     public ICommand? CancelCommand { get; set; }
     public ICommand? ActionCommand { get; set; }

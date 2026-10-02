@@ -68,5 +68,9 @@ public class Preferences
     public int BackupRetentionCount { get; set; } = 3;
     public bool AutoResumeAudiobooks { get; set; } = true;
     public float AudiobookPlaybackRate { get; set; } = 1.0f;
-    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "System"
+    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "True Dark", "System"
+    public string LastSeenVersion { get; set; } = string.Empty;
+    public bool AutoEffectsTier { get; set; } = true;
+    public string EffectsTier { get; set; } = "Standard"; // Parsed as EffectsTier enum at runtime
+    public string ComposeMode { get; set; } = "lowlatency";
 }

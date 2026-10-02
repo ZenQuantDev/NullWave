@@ -49,7 +49,7 @@ public static partial class Locales
         //  Appearance 
         ["Settings_Appearance_Section_Signature"] = "ФИРМЕННАЯ СЕРИЯ",
         ["Settings_Appearance_Signature_Title"] = "Oxeye Daisy",
-        ["Settings_Appearance_Signature_Desc"] = "Фирменная тема v0.5 - дуэт лазури и орхидеи",
+        ["Settings_Appearance_Signature_Desc"] = "Фирменный дуотон v0.6 - золото маргаритки + зелень листа",
         ["Settings_Appearance_Section_BaseColors"] = "БАЗОВЫЕ ЦВЕТА",
         ["Settings_Appearance_Section_AccentDuos"] = "АКЦЕНТНЫЕ ДУЭТЫ",
         ["Settings_Appearance_Section_ProfileFrame"] = "РАМКА ПРОФИЛЯ",
@@ -802,22 +802,6 @@ public static partial class Locales
         ["Profile_Badge_Veteran_Desc"] = "Больше года в приложении",
         ["Profile_Section_TopTags"] = "ВАШИ ТОП-ТЕГИ",
         ["Profile_Tag_FilterHint"] = "Нажмите, чтобы отфильтровать библиотеку по тегу",
-
-        ["Profile_Section_Badges"] = "ПОЛУЧЕННЫЕ НАГРАДЫ",
-        ["Profile_Badge_Collector"] = "Коллекционер",
-        ["Profile_Badge_Collector_Desc"] = "Более 100 треков в библиотеке",
-        ["Profile_Badge_HeavyListener"] = "Меломан",
-        ["Profile_Badge_HeavyListener_Desc"] = "Более 1 000 прослушиваний",
-        ["Profile_Badge_TasteMaker"] = "Ценитель",
-        ["Profile_Badge_TasteMaker_Desc"] = "Более 50 избранных",
-        ["Profile_Badge_LocalPurist"] = "Локальный пурист",
-        ["Profile_Badge_LocalPurist_Desc"] = "Более 80% библиотеки - локальные файлы",
-        ["Profile_Badge_WaveRider"] = "Ловец волны",
-        ["Profile_Badge_WaveRider_Desc"] = "SoundCloud - ваш главный источник",
-        ["Profile_Badge_Veteran"] = "Ветеран",
-        ["Profile_Badge_Veteran_Desc"] = "Больше года в приложении",
-        ["Profile_Section_TopTags"] = "ВАШИ ТОП-ТЕГИ",
-        ["Profile_Tag_FilterHint"] = "Нажмите, чтобы отфильтровать библиотеку по тегу",
         ["Profile_TopTrack_Play_Tooltip"] = "Нажмите, чтобы воспроизвести ваш топ-трек",
         ["Profile_Time_Now"] = "только что",
         ["Profile_Time_MinutesAgo"] = "{0} мин назад",
@@ -900,5 +884,8 @@ public static partial class Locales
         ["MiniPlayer_SleepTimer_ChapterStopped"] = "Остановлено в конце главы.",
 
         ["Sidebar_DropToUnpin"] = "Отпустите, чтобы открепить",
+
+        ["Settings_PageTitle_DevTools"] = "Инструменты разработчика",
+        ["Settings_PageDesc_DevTools"] = "Песочница, моки и диагностика для тестирования самого NullWave.",
     };
 }

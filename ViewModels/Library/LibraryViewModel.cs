@@ -14,6 +14,7 @@ using NullWave.Services;
 using NullWave.Services.SmartSorting;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Services.Security;
 
 namespace NullWave.ViewModels;
 
@@ -21,6 +22,8 @@ public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _library;
     private readonly LocalAIService _localAI;
+    private readonly PreferencesService _prefs;
+    private readonly IdentityService _identity;  
     private CancellationTokenSource? _stateCts;
     private CancellationTokenSource? _aiPromptCts;
     private string? _selectedArtistFilter;
@@ -126,10 +129,12 @@ public partial class LibraryViewModel : ObservableObject
     public event Action<List<Track>>? BulkAddToPlaylistRequested;
     public event Action<Track>? AddToPlaylistRequested;
 
-    public LibraryViewModel(LibraryService library, LocalAIService localAI)
+    public LibraryViewModel(LibraryService library, LocalAIService localAI, PreferencesService prefs, IdentityService identity)
     {
         _library = library;
         _localAI = localAI;
+        _prefs = prefs;
+        _identity = identity; 
         TriggerRefresh(debounce: false);
         RefreshArtistGroups();
     }

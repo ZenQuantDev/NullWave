@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
@@ -25,6 +26,7 @@ public partial class MainViewModel
     {
         _identity = new IdentityService(_keyStore);
         _prefsService = new PreferencesService();
+        _effectsTier = new EffectsTierResolver(_prefsService);
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
 
         ThemeService.Instance.PropertyChanged += (_, e) =>
@@ -74,13 +76,13 @@ public partial class MainViewModel
     {
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, new AlbumArtService(_lastFm));
         
-        Library = new LibraryViewModel(_library, _localAI);
+        Library = new LibraryViewModel(_library, _localAI, _prefsService, _identity);
         Library.ExcludedMediaTypes.Add(MediaType.Radio);
         Library.ExcludedMediaTypes.Add(MediaType.Audiobook);
         Library.Refresh();
         
-        RadioLibrary = new LibraryViewModel(_library, _localAI) { MediaTypeFilter = MediaType.Radio };
-        AudiobookLibrary = new LibraryViewModel(_library, _localAI) { MediaTypeFilter = MediaType.Audiobook };
+        RadioLibrary = new LibraryViewModel(_library, _localAI, _prefsService, _identity) { MediaTypeFilter = MediaType.Radio };
+        AudiobookLibrary = new LibraryViewModel(_library, _localAI, _prefsService, _identity) { MediaTypeFilter = MediaType.Audiobook };
         
         Library.BulkAddToPlaylistRequested += tracks => _ = AddTracksToPlaylistAsync(tracks);
         Library.AddToPlaylistRequested += track => _ = AddTracksToPlaylistAsync(new[] { track }.ToList());
@@ -103,7 +105,7 @@ public partial class MainViewModel
         };
 
         Export = new ExportViewModel(_library, _export);
-        Detail = new TrackDetailViewModel(_library, _plugins);
+        Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
         Import = new ImportViewModel(_library, _metadata);
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
@@ -111,8 +113,6 @@ public partial class MainViewModel
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);
         Queue = new QueueViewModel(_library);
 
-        // FIX: Wrap the commands in lambdas () => ... so they are evaluated at click-time, 
-        // preventing the NullReferenceException if they aren't initialized yet during construction.
         Nav = new NavigationViewModel(
             _prefsService, _playlists,
             () => NavigateLibraryCommand, 
@@ -126,6 +126,27 @@ public partial class MainViewModel
                 Nav.SetPlaylistActive(playlistId);
                 LogNav($"PinnedPlaylist:{playlistId}");
             });
+
+        var oldAiPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("AI: ", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (oldAiPlaylists.Count > 0)
+        {
+            foreach (var pl in oldAiPlaylists)
+            {
+                var q = pl.Name.Substring(4).Trim();
+                if (string.IsNullOrWhiteSpace(q)) continue;
+                var humanName = GenerateHumanPlaylistName(q);
+                if (!_playlists.NameExists(humanName) || pl.Name == humanName)
+                {
+                    _playlists.Rename(pl.Id, humanName);
+                }
+                else
+                {
+                    _playlists.Rename(pl.Id, $"{humanName} (Migrated)");
+                }
+            }
+            Playlist.Refresh();
+            Nav.Rebuild(); // Rebuild nav labels so sidebar pins update
+        }
     }
 
     private void WireCoreEvents()
@@ -148,6 +169,7 @@ public partial class MainViewModel
         AudiobookLibrary.PlayTrackRequested += Player.PlayTrack;
         RadioLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
         AudiobookLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
+        Playlist.TrackDetailRequested += track => Detail.OpenFor(track); // Wire playlist row clicks
 
         Detail.PropertyChanged += (_, e) =>
         {
@@ -172,6 +194,18 @@ public partial class MainViewModel
         Playlist.PlayAllRequested += playlist => { if (playlist?.Tracks.Count > 0) Player.PlayPlaylist(playlist); };
         Playlist.PlaylistsChanged += () => Nav.Rebuild();
         Playlist.AttachNavigation(Nav);
+        
+        Playlist.BulkQueueRequested += tracks => 
+        { 
+            if (tracks == null) return;
+            int count = 0;
+            foreach (var t in tracks) 
+            {
+                _library.AddToQueue(t.Id); 
+                count++;
+            }
+            if (count > 0) ToastService.Instance.Show($"Added {count} track(s) to queue", ToastType.Info, durationMs: 2500, scope: "queue-add");
+        };
 
         Library.NavigateToLibraryRequested += () => CurrentPage = "Library";
         Library.TrackDetailRequested += track => Detail.OpenFor(track);
@@ -183,6 +217,32 @@ public partial class MainViewModel
         {
             if (Library.SelectedTrack != null) Player.PlayTrack(Library.SelectedTrack);
             else if (Library.Tracks.Count > 0) Player.PlayTrack(Library.Tracks[0]);
+        };
+
+        Settings.SeedLibraryRequested += count =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                _library.Add(new Track
+                {
+                    Id = Guid.NewGuid(),
+                    Title = $"Dev Seed {i + 1:D3}",
+                    Artist = "DevSeeder",
+                    Source = TrackSource.Local,
+                    FilePath = null,
+                    DateAdded = DateTime.UtcNow,
+                    Tags = new List<string> { "dev-seed" },
+                    MediaType = MediaType.Music
+                });
+            }
+            ToastService.Instance.Show($"Seeded {count} synthetic tracks (tag: dev-seed).", ToastType.Success);
+        };
+
+        Settings.RemoveSeededRequested += () =>
+        {
+            var ids = _library.GetAll().Where(t => t.Tags != null && t.Tags.Contains("dev-seed")).Select(t => t.Id).ToList();
+            foreach (var id in ids) _library.Remove(id);
+            ToastService.Instance.Show($"Removed {ids.Count} seeded tracks.", ToastType.Success);
         };
     }
 
@@ -220,6 +280,46 @@ public partial class MainViewModel
             }
             Library.Refresh(); RadioLibrary.Refresh();
             if (added > 0) ToastService.Instance.Show(string.Format(LocalizationService.Instance["Radio_StationAdded"], added), ToastType.Success);
+        };
+
+        Input.RadioCatalogRequested += async () =>
+        {
+            var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+            if (window == null) return;
+            
+            var dialog = new Views.Dialogs.RadioCatalogDialog();
+            var added = await dialog.ShowDialog<List<Helpers.CuratedStation>>(window);
+            
+            if (added != null && added.Count > 0)
+            {
+                int count = 0;
+                foreach (var station in added)
+                {
+                    if (_library.GetAll().Any(t => t.Url == station.StreamUrl)) continue;
+
+                    var track = new Track
+                    {
+                        Title = station.Name,
+                        Artist = station.Genre, 
+                        Url = station.StreamUrl,
+                        Source = TrackSource.Unknown, 
+                        MediaType = MediaType.Radio
+                    };
+                    _library.Add(track);
+                    count++;
+                }
+                
+                if (count > 0)
+                {
+                    ToastService.Instance.Show($"Added {count} station(s) to your Radio library.", ToastType.Success, scope: "radio-add");
+                    
+                    Dispatcher.UIThread.Post(() => 
+                    { 
+                        Library.Refresh(); 
+                        RadioLibrary.Refresh(); 
+                    });
+                }
+            }
         };
 
         Input.TrackAdded += () =>
@@ -409,6 +509,21 @@ public partial class MainViewModel
             if (PowerStateService.ReadPowerState() != PowerState.Battery) _enrichment.BackfillAsync();
             else { _initialMoodPlaylistRun = true; _ = RunMoodPlaylistAsync(forceRefresh: false); }
         });
+        
+        _powerState.PowerStateChanged += state =>
+        {
+            _localAI.OnPowerStateChanged(state);
+            Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
+
+            if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
+            {
+                _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
+            }
+            else if (state == PowerState.AC)
+            {
+                _effectsTier.ClearBatteryOverride();
+            }
+        };
     }
 
     private void OnClearYtDlpCacheRequested()
@@ -460,11 +575,48 @@ public partial class MainViewModel
     private void OnAiPlaylistRequested(string query, List<Track> tracks)
     {
         if (tracks.Count == 0) return;
-        var playlistName = _playlists.NameExists($"AI: {query}") ? $"AI: {query} ({DateTime.Now:HH:mm})" : $"AI: {query}";
+        
+        var humanName = GenerateHumanPlaylistName(query);
+        var playlistName = _playlists.NameExists(humanName) ? $"{humanName} ({DateTime.Now:HH:mm})" : humanName;
+        
         var playlist = _playlists.Create(playlistName, $"Generated by AI prompt: {query}", _aiPlaylistsFolder?.Id);
         foreach (var track in tracks) _playlists.AddTrack(playlist.Id, track);
         
         Playlist.Refresh(); Playlist.SelectById(playlist.Id); Nav.RefreshPlaylistLists(); CurrentPage = "Playlists";
         Dispatcher.UIThread.Post(() => GlobalSearchQuery = string.Empty);
+    }
+
+    private string GenerateHumanPlaylistName(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return "AI Mix";
+        
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                         .Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w.Substring(1).ToLower() : w);
+        var cleanQuery = string.Join(" ", words);
+
+        // FIX: string.GetHashCode() is randomized per process in .NET - the same query
+        // produced a different flavor on every launch (duplicate AI playlists).
+        // FNV-1a is stable across runs, so "eminem" always maps to the same name.
+        int seed = StableHash(cleanQuery.ToLowerInvariant());
+        string[] flavors = { 
+            $"{cleanQuery} Mix", 
+            $"The {cleanQuery} Experience", 
+            $"Essential {cleanQuery}", 
+            $"{cleanQuery} Deep Cuts", 
+            $"Late Night {cleanQuery}", 
+            $"{cleanQuery} Essentials", 
+            $"Vibe: {cleanQuery}" 
+        };
+        return flavors[seed % flavors.Length];
+    }
+
+    private static int StableHash(string s)
+    {
+        unchecked
+        {
+            uint h = 2166136261;
+            foreach (var c in s) { h ^= c; h *= 16777619; }
+            return (int)(h & 0x7FFFFFFF);
+        }
     }
 }

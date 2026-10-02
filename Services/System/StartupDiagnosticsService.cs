@@ -124,8 +124,35 @@ public class StartupDiagnosticsService
     }
 
     private static async Task LogToolVersionAsync(
-        string command, string versionArg, string displayName)
+    string command, string versionArg, string displayName)
     {
+        // FIX: VLC on Windows allocates its own console when printing
+        // --version/--help, producing a "Press RETURN to continue..." popup that
+        // also hangs startup until the user presses Enter. Read the version from
+        // the PE header instead — same result, zero console.
+        if (displayName == "VLC" && NullWavePaths.IsWindows)
+        {
+            var dir = PlatformHelper.ResolveVlcDirectory();
+            if (dir != null)
+            {
+                try
+                {
+                    var fvi = FileVersionInfo.GetVersionInfo(Path.Combine(dir, "vlc.exe"));
+                    var ver = fvi.FileVersion ?? fvi.ProductVersion ?? "unknown";
+                    NullActionLogger.StartupLine($"{displayName,-20}→ {ver}");
+                }
+                catch
+                {
+                    NullActionLogger.StartupLine($"{displayName,-20}→ not found");
+                }
+            }
+            else
+            {
+                NullActionLogger.StartupLine($"{displayName,-20}→ not found");
+            }
+            return;
+        }
+
         try
         {
             var vlcDirectory = command.Equals("vlc", StringComparison.OrdinalIgnoreCase)
@@ -138,7 +165,8 @@ public class StartupDiagnosticsService
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
-                UseShellExecute        = false
+                UseShellExecute        = false,
+                CreateNoWindow         = true   // belt-and-braces for any future tool
             };
             using var proc = Process.Start(psi);
             if (proc == null)
@@ -147,11 +175,10 @@ public class StartupDiagnosticsService
                 return;
             }
             var standardOutputTask = proc.StandardOutput.ReadToEndAsync();
-            var standardErrorTask = proc.StandardError.ReadToEndAsync();
+            var standardErrorTask  = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
             var output = await standardOutputTask;
-            var error = await standardErrorTask;
-
+            var error  = await standardErrorTask;
             var ver = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();
             if (string.IsNullOrWhiteSpace(ver)) ver = "unknown";
             NullActionLogger.StartupLine($"{displayName,-20}→ {ver}");

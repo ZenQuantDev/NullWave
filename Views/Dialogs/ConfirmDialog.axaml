@@ -4,7 +4,7 @@
         x:Class="NullWave.Views.ConfirmDialog"
         Title="{loc:Loc Dialog_Confirm_Title}"
         Width="340" Height="160"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         CanResize="False"
         Background="{StaticResource BrushBase}">
 

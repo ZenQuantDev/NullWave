@@ -22,6 +22,9 @@
       <Color x:Key="ColorStarOn">#F59E0B</Color>
       <Color x:Key="ColorStarOff">#6B7280</Color>
       <Color x:Key="ColorAmberDark">#FCD34D</Color>
+      
+      <!-- High contrast inline code for Dark Mode -->
+      <Color x:Key="ColorInlineCode">#FCD34D</Color>
 
       <!-- Dim/Glow colors need to be dark shades in Dark Mode -->
       <Color x:Key="ColorAccentDim">#223D63</Color>
@@ -49,6 +52,9 @@
       <Color x:Key="ColorTextPrimary">#111827</Color>
       <Color x:Key="ColorTextSecondary">#4B5563</Color>
       <Color x:Key="ColorTextMuted">#6B7280</Color>
+      
+      <!-- High contrast inline code for Light Mode (Dark Amber) -->
+      <Color x:Key="ColorInlineCode">#B45309</Color>
 
       <!-- Dim/Glow colors need to be light pastel tints in Light Mode -->
       <Color x:Key="ColorAccentDim">#DBEAFE</Color>
@@ -118,6 +124,9 @@
   <SolidColorBrush x:Key="BrushAccentGlow" Color="{DynamicResource ColorAccentGlow}"/>
   <SolidColorBrush x:Key="BrushAccent2" Color="{DynamicResource ColorAccent2}"/>
   <SolidColorBrush x:Key="BrushTextOnAccent" Color="{DynamicResource ColorTextOnAccent}"/>
+  
+  <!-- Semantic brush for inline `code` spans -->
+  <SolidColorBrush x:Key="BrushInlineCode" Color="{DynamicResource ColorInlineCode}"/>
 
   <LinearGradientBrush x:Key="BrushAccentGradient" StartPoint="0,0.5" EndPoint="1,0.5">
     <GradientStop Color="{DynamicResource ColorAccent}" Offset="0"/>

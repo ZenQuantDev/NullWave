@@ -18,30 +18,50 @@ public partial class LibraryService
         List<Track> bad;
         lock (_tracksLock) { bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) && !SourceDetector.IsPlayableUrl(t.Url) && string.IsNullOrEmpty(t.FilePath)).ToList(); }
         if (bad.Count == 0) return;
+
+        foreach (var t in bad)
+            Log.Warning("[LibraryService] Removing unplayable URL from DB: {Url}", t.Url);
+
         lock (_tracksLock) { foreach (var t in bad) { _tracks.Remove(t); _db.Delete(t.Id); } }
         StateVersion++;
         Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
     }
 
-    private void BackfillAlbumArt()
+    // PERF: collects results off-UI, then applies them in ONE UI-thread wave via
+    // ApplyArtBatch. No per-track PropertyChanged storm, no LibraryChanged rebuild.
+    private async Task BackfillAlbumArt()
     {
         if (_metadata == null) return;
-        var updated = new List<Track>();
+
+        List<Track> targets;
         lock (_tracksLock)
         {
-            foreach (var t in _tracks)
-            {
-                if (!string.IsNullOrEmpty(t.AlbumArtPath) || string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)) continue;
-                var art = _metadata.ExtractAlbumArt(t.FilePath);
-                if (art != null) { t.AlbumArtPath = art; updated.Add(t); }
-            }
+            targets = _tracks.Where(t => string.IsNullOrEmpty(t.AlbumArtPath) &&
+                                         !string.IsNullOrEmpty(t.FilePath) &&
+                                         File.Exists(t.FilePath)).ToList();
         }
-        if (updated.Count > 0)
+        if (targets.Count == 0) return;
+
+        // Let the window finish its first paints before touching the disk
+        await Task.Delay(1500);
+
+        var results = new List<(Track Track, string Path)>();
+        int count = 0;
+        foreach (var t in targets)
         {
-            _db.RunInTransaction(() => { foreach (var t in updated) _db.Update(t); });
-            StateVersion++;
-            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+            try
+            {
+                var art = await _metadata.ExtractAlbumArtAsync(t.FilePath!);
+                if (!string.IsNullOrEmpty(art)) results.Add((t, art));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[LibraryService] Art backfill failed for {Path}", t.FilePath);
+            }
+            if (++count % 25 == 0) await Task.Delay(16);
         }
+
+        ApplyArtBatch(results);
     }
 
     private void BackfillYouTubeThumbnails()
@@ -49,7 +69,8 @@ public partial class LibraryService
         List<Track> yt;
         lock (_tracksLock) { yt = _tracks.Where(t => t.Source == TrackSource.YouTube && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList(); }
         if (yt.Count == 0) return;
-        var updated = new List<Track>();
+
+        var results = new List<(Track Track, string Path)>();
         foreach (var t in yt)
         {
             try
@@ -57,16 +78,12 @@ public partial class LibraryService
                 var id = YouTubeMetadataFetcher.ExtractYouTubeId(t.Url!);
                 if (string.IsNullOrEmpty(id)) continue;
                 var path = YouTubeMetadataFetcher.FetchThumbnailAsync(id).GetAwaiter().GetResult();
-                if (!string.IsNullOrEmpty(path)) { t.AlbumArtPath = path; updated.Add(t); }
+                if (!string.IsNullOrEmpty(path)) results.Add((t, path));
             }
             catch (Exception ex) { Log.Warning(ex, "[LibraryService] YT thumb backfill failed for {Title}", t.Title); }
         }
-        if (updated.Count > 0)
-        {
-            _db.RunInTransaction(() => { foreach (var t in updated) _db.Update(t); });
-            StateVersion++;
-            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-        }
+
+        ApplyArtBatch(results);
     }
 
     private void BackfillSoundCloudThumbnails()
@@ -74,39 +91,131 @@ public partial class LibraryService
         List<Track> sc;
         lock (_tracksLock) { sc = _tracks.Where(t => t.Source == TrackSource.SoundCloud && string.IsNullOrEmpty(t.AlbumArtPath) && !string.IsNullOrEmpty(t.Url)).ToList(); }
         if (sc.Count == 0) return;
+
         var fetcher = new SoundCloudMetadataFetcher();
-        var updated = new List<Track>();
+        var results = new List<(Track Track, string Path)>();
+        var metaUpdates = new List<(Track Track, string? Title, string? Artist)>();
+
         foreach (var t in sc)
         {
             try
             {
                 var (title, artist, thumb, _) = fetcher.FetchAsync(t.Url!).GetAwaiter().GetResult();
-                bool changed = false;
-                if (!string.IsNullOrEmpty(thumb) && string.IsNullOrEmpty(t.AlbumArtPath)) { t.AlbumArtPath = thumb; changed = true; }
-                if ((t.Title == t.Url || string.IsNullOrWhiteSpace(t.Title)) && !string.IsNullOrWhiteSpace(title)) { t.Title = title; changed = true; }
-                if ((t.Artist == "Unknown" || string.IsNullOrWhiteSpace(t.Artist)) && !string.IsNullOrWhiteSpace(artist)) { t.Artist = artist; changed = true; }
-                if (changed) updated.Add(t);
+                if (!string.IsNullOrEmpty(thumb) && string.IsNullOrEmpty(t.AlbumArtPath)) results.Add((t, thumb));
+
+                string? newTitle = null, newArtist = null;
+                if ((t.Title == t.Url || string.IsNullOrWhiteSpace(t.Title)) && !string.IsNullOrWhiteSpace(title)) newTitle = title;
+                if ((t.Artist == "Unknown" || string.IsNullOrWhiteSpace(t.Artist)) && !string.IsNullOrWhiteSpace(artist)) newArtist = artist;
+                if (newTitle != null || newArtist != null) metaUpdates.Add((t, newTitle, newArtist));
             }
             catch (Exception ex) { Log.Warning(ex, "[LibraryService] SC backfill failed for {Title}", t.Title); }
         }
-        if (updated.Count > 0)
+
+        if (results.Count == 0 && metaUpdates.Count == 0) return;
+
+        // ONE UI-thread wave for all mutations, then ONE DB transaction.
+        Dispatcher.UIThread.Post(() =>
         {
-            _db.RunInTransaction(() => { foreach (var t in updated) _db.Update(t); });
+            foreach (var (t, p) in results) t.AlbumArtPath = p;
+            foreach (var (t, ti, ar) in metaUpdates)
+            {
+                if (ti != null) t.Title = ti;
+                if (ar != null) t.Artist = ar;
+            }
             StateVersion++;
-            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+            _ = Task.Run(() => _db.RunInTransaction(() =>
+            {
+                foreach (var (t, _) in results) _db.Update(t);
+                foreach (var (t, _, _) in metaUpdates) _db.Update(t);
+            }));
+        });
+    }
+
+    /// <summary>
+    /// Applies fetched art in a single UI-thread wave and persists in one transaction.
+    /// Deliberately does NOT raise LibraryChanged: that event triggers
+    /// LibraryViewModel.Refresh() -> Tracks.ReplaceAll(), which rebuilds every row
+    /// container and invalidates the whole window (the full-screen flash we captured).
+    /// Per-row PropertyChanged is sufficient: rows bind AlbumArtPath directly.
+    /// </summary>
+    private void ApplyArtBatch(List<(Track Track, string Path)> results)
+    {
+        if (results.Count == 0) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            foreach (var (t, p) in results) t.AlbumArtPath = p;
+            StateVersion++;
+            _ = Task.Run(() => _db.RunInTransaction(() =>
+            {
+                foreach (var (t, _) in results) _db.Update(t);
+            }));
+        });
+    }
+
+    /// <summary>
+    /// Surgical cache heal: deletes every cached YouTube thumbnail (yt_*.jpg),
+    /// invalidates its decoded cache entries, nulls AlbumArtPath on the tracks that
+    /// pointed at them, and persists in one transaction. Caller then runs
+    /// RebackfillThumbnails() to regenerate via the aspect-preserving ladder.
+    /// Embedded (hex-named) art is untouched - those are true 1:1 album covers.
+    /// </summary>
+    public int RefetchYouTubeThumbnails()
+    {
+        List<Track> affected;
+        lock (_tracksLock)
+        {
+            affected = _tracks.Where(t => !string.IsNullOrEmpty(t.AlbumArtPath) &&
+                                          Path.GetFileName(t.AlbumArtPath!)
+                                              .StartsWith("yt_", StringComparison.OrdinalIgnoreCase))
+                              .ToList();
         }
+        if (affected.Count == 0) return 0;
+
+        int deleted = 0;
+        foreach (var t in affected)
+        {
+            var path = t.AlbumArtPath!;
+            try { if (File.Exists(path)) { File.Delete(path); deleted++; } } catch { }
+            BitmapCacheService.InvalidatePath(path);
+            t.AlbumArtPath = null;
+        }
+
+        _db.RunInTransaction(() => { foreach (var t in affected) _db.Update(t); });
+        StateVersion++;
+        Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+        Log.Information("[LibraryService] YouTube thumb heal: cleared {Count} path(s), deleted {Deleted} file(s)",
+            affected.Count, deleted);
+        return affected.Count;
     }
 
     public void RebackfillThumbnails() { BackfillYouTubeThumbnails(); BackfillSoundCloudThumbnails(); }
-    public void RefreshAlbumArt(Track t) { if (_metadata == null || string.IsNullOrEmpty(t.FilePath)) return; t.AlbumArtPath = _metadata.ExtractAlbumArt(t.FilePath); _db.Update(t); StateVersion++; OnLibraryChanged(); }
-    
+
+    public async Task RefreshAlbumArtAsync(Track t)
+    {
+        if (_metadata == null || string.IsNullOrEmpty(t.FilePath)) return;
+        t.AlbumArtPath = await _metadata.ExtractAlbumArtAsync(t.FilePath!);
+        _db.Update(t);
+        StateVersion++;
+        OnLibraryChanged();
+    }
+
     public int ClearAllArt()
     {
-        int cleared = 0;
-        foreach (var t in GetAll()) { if (string.IsNullOrEmpty(t.AlbumArtPath)) continue; t.AlbumArtPath = null; _db.Update(t); cleared++; }
-        if (cleared > 0) StateVersion++;
+        List<Track> targets;
+        lock (_tracksLock) { targets = _tracks.Where(t => !string.IsNullOrEmpty(t.AlbumArtPath)).ToList(); }
+        if (targets.Count == 0) return 0;
+
+        // Persist off-UI in one transaction first...
+        foreach (var t in targets) t.AlbumArtPath = null;   // model-only, off-UI thread
+        _db.RunInTransaction(() => { foreach (var t in targets) _db.Update(t); });
+        StateVersion++;
+
+        // ...then ONE UI wave so rows drop their art in a single invalidation pass.
+        Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+
         try { if (Directory.Exists(NullWavePaths.ArtCacheDir)) foreach (var f in Directory.EnumerateFiles(NullWavePaths.ArtCacheDir)) try { File.Delete(f); } catch { } } catch { }
-        return cleared;
+        return targets.Count;
     }
 
     public int BackfillDurations()
@@ -212,7 +321,7 @@ public partial class LibraryService
                 (parsed.Value.Artist == t.Artist && parsed.Value.Title == t.Title) ||
                 (!TitlesLooselyMatch(parsed.Value.Artist, t.Artist) && !(string.IsNullOrWhiteSpace(t.Artist) || t.Artist == "Unknown" || t.Artist.EndsWith("- Topic"))))
             { t.TitleForceCleaned = true; toUpdate.Add(t); continue; }
-            
+
             t.Title = parsed.Value.Title; t.Artist = parsed.Value.Artist; t.TitleForceCleaned = true;
             toUpdate.Add(t); UpdateFileTags(t); cleaned++;
         }
@@ -228,7 +337,6 @@ public partial class LibraryService
         return cleared;
     }
 
-    // FIX (C8): Defaulting dryRun to true for safety. UI must explicitly pass false to actually delete.
     public (int Scanned, int Orphaned, int Deleted, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = true)
     {
         if (!Directory.Exists(downloadsDir)) return (0, 0, 0, 0);
@@ -246,11 +354,10 @@ public partial class LibraryService
         return (files.Count, orphaned, deleted, failed);
     }
 
-    // FIX (C8): Captured scannedCount BEFORE the deletion loop so the log and return value reflect the actual starting library size.
     public (int Scanned, int DuplicateGroups, int Removed) RemoveDuplicates(bool dryRun = true)
     {
         var allTracks = GetAll();
-        int scannedCount = allTracks.Count; 
+        int scannedCount = allTracks.Count;
 
         var groups = allTracks
             .GroupBy(t => (Title: t.Title.Trim().ToLowerInvariant(), Artist: t.Artist.Trim().ToLowerInvariant()))

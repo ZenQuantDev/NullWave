@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -18,6 +19,10 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        
+        // Removed AvaloniaLocator diagnostic block (API changed in this Avalonia version).
+        // The Win32PlatformOptions log in Program.cs is sufficient to confirm the GPU path.
+        
         var prefs = new PreferencesService().Current;
 
         // Initialize localization with saved preference BEFORE ThemeService
@@ -30,9 +35,54 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            desktop.MainWindow = new MainWindow();
+        {
+            // FIX (What's New every launch): read + persist LastSeenVersion BEFORE
+            // MainWindow (and thus MainViewModel's own PreferencesService instance)
+            // is constructed, and save SYNCHRONOUSLY. Previously the debounced save
+            // raced with the MainViewModel instance, which then wrote its stale
+            // in-memory LastSeenVersion back to disk, re-triggering the dialog
+            // on every single launch.
+            var prefs = new PreferencesService();
+            var currentVersion = GetAppVersion();
+            bool showWhatsNew = prefs.Current.LastSeenVersion != currentVersion;
+
+            if (showWhatsNew)
+            {
+                prefs.Current.LastSeenVersion = currentVersion;
+                prefs.Save(); // synchronous write, bypasses the 2s debounce
+            }
+
+            var mainWindow = new MainWindow();
+            desktop.MainWindow = mainWindow;
+
+            // "What's New" screen: shown as an owned modal dialog AFTER the main window
+            // is visible. An ownerless window shown at startup breaks activation/z-order,
+            // misbehaves with Win+D / Alt+Tab, and glitches MainWindow during drags.
+            if (showWhatsNew)
+            {
+                mainWindow.Opened += (_, _) =>
+                {
+                    var whatsNew = new WhatsNewWindow(currentVersion);
+                    _ = whatsNew.ShowDialog(mainWindow);
+                };
+            }
+        }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static string GetAppVersion()
+    {
+        var info = typeof(App).Assembly
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(info))
+        {
+            var plus = info.IndexOf('+');
+            if (plus > 0) info = info[..plus];
+            return info;
+        }
+        return typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
     private void RegisterAntiCrashSystem()

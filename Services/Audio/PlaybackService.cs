@@ -18,20 +18,17 @@ public class PlaybackService : IDisposable
     private Media? _currentMedia;
     private bool _disposed;
 
-    // FIX: Separate CTS instances. Pause/Resume must NEVER abort an in-flight
-    // crossfade (shared CTS previously left the incoming player silent at volume 0).
     private CancellationTokenSource? _fadeCts;
     private CancellationTokenSource? _crossfadeCts;
     private volatile bool _isCrossfading;
+    private volatile bool _pausePending;
     private int _crossfadeGeneration;
     private int _targetVolume = 80;
     private int _playRequestGeneration;
 
-    /// <summary>Current crossfade generation. Bumped whenever a crossfade is aborted.</summary>
     public int CrossfadeGeneration => Volatile.Read(ref _crossfadeGeneration);
     public bool IsCrossfading => _isCrossfading;
 
-    // ICY Metadata Polling for Radio Streams
     private System.Threading.Timer? _icyTimer;
     private string _lastIcyTitle = string.Empty;
     private string _lastIcyArtist = string.Empty;
@@ -48,16 +45,26 @@ public class PlaybackService : IDisposable
 
     public float Volume
     {
-        get => _activePlayer.Volume / 100f;
+        get => _isCrossfading ? _targetVolume / 100f : _activePlayer.Volume / 100f;
         set
         {
             _targetVolume = (int)Math.Clamp(value * 100, 0, 100);
             _activePlayer.Volume = _targetVolume;
+
+            if (_isCrossfading)
+            {
+                lock (_standbyLock)
+                {
+                    _standbyPlayer.Volume = _targetVolume;
+                }
+            }
         }
     }
 
-    public TimeSpan Position => TimeSpan.FromMilliseconds(_activePlayer.Time);
-    public TimeSpan Duration => TimeSpan.FromMilliseconds(_activePlayer.Length);
+    private MediaPlayer PositionSource => _isCrossfading ? _standbyPlayer : _activePlayer;
+
+    public TimeSpan Position => TimeSpan.FromMilliseconds(PositionSource.Time);
+    public TimeSpan Duration => TimeSpan.FromMilliseconds(PositionSource.Length);
 
     public PlaybackService()
     {
@@ -93,7 +100,9 @@ public class PlaybackService : IDisposable
 
     private void OnPositionChanged(MediaPlayer player, MediaPlayerPositionChangedEventArgs e)
     {
-        if (!ReferenceEquals(player, _activePlayer)) return;
+        bool isActive = ReferenceEquals(player, _activePlayer);
+        bool isIncomingDuringFade = _isCrossfading && ReferenceEquals(player, _standbyPlayer);
+        if (!isActive && !isIncomingDuringFade) return;
         Avalonia.Threading.Dispatcher.UIThread.Post(() => PositionChanged?.Invoke(e.Position));
     }
 
@@ -102,9 +111,14 @@ public class PlaybackService : IDisposable
         bool isActive = ReferenceEquals(player, _activePlayer);
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (isActive && !_isCrossfading)
-                player.Volume = _targetVolume;
             if (!isActive) return;
+            if (_pausePending)
+            {
+                player.Pause();
+                return;
+            }
+            if (!_isCrossfading)
+                player.Volume = _targetVolume;
             StateChanged?.Invoke(PlaybackState.Playing);
             if (player.Length > 0)
                 DurationDiscovered?.Invoke(TimeSpan.FromMilliseconds(player.Length));
@@ -150,8 +164,8 @@ public class PlaybackService : IDisposable
         try
         {
             var playRequest = Interlocked.Increment(ref _playRequestGeneration);
-            // Abort any in-flight crossfade before taking over the active player.
             AbortCrossfade();
+            _pausePending = false;
 
             _fadeCts?.Cancel();
 
@@ -159,7 +173,6 @@ public class PlaybackService : IDisposable
             _currentMedia?.Dispose();
             _currentMedia = null;
 
-            // Reset ICY Poller
             _icyTimer?.Dispose();
             _icyTimer = null;
             _lastIcyTitle = string.Empty;
@@ -240,11 +253,36 @@ public class PlaybackService : IDisposable
 
     public void Pause()
     {
-        if (_activePlayer.IsPlaying)
+        _pausePending = true;
+        _fadeCts?.Cancel();
+
+        if (_isCrossfading)
         {
-            // FIX: Only cancel pause-fades. A crossfade must survive pausing:
-            // the old player still fades out and is cleaned up by the crossfade itself.
-            _fadeCts?.Cancel();
+            _crossfadeCts?.Cancel();
+            _crossfadeCts?.Dispose();
+            _crossfadeCts = null;
+            _isCrossfading = false;
+
+            lock (_standbyLock)
+            {
+                var incoming = _standbyPlayer;
+                var outgoing = _activePlayer;
+
+                _activePlayer = incoming;
+                _standbyPlayer = outgoing;
+                _currentMedia = incoming.Media;
+
+                try { outgoing.Stop(); } catch { }
+
+                incoming.Volume = _targetVolume;
+                incoming.Pause();
+            }
+            Log.Debug("Crossfade aborted and paused");
+            return;
+        }
+
+        if (_activePlayer.Media != null)
+        {
             _activePlayer.Pause();
             Log.Debug("Playback paused");
         }
@@ -252,6 +290,7 @@ public class PlaybackService : IDisposable
 
     public void Resume()
     {
+        _pausePending = false;
         if (!_activePlayer.IsPlaying && _activePlayer.Media != null)
         {
             _fadeCts?.Cancel();
@@ -265,7 +304,8 @@ public class PlaybackService : IDisposable
     {
         Interlocked.Increment(ref _playRequestGeneration);
         _fadeCts?.Cancel();
-        AbortCrossfade(); // Stop kills everything, including an in-flight crossfade
+        _pausePending = false;
+        AbortCrossfade();
         _icyTimer?.Dispose();
         _icyTimer = null;
         _activePlayer.Stop();
@@ -286,7 +326,7 @@ public class PlaybackService : IDisposable
 
     public void Seek(float position)
     {
-        _activePlayer.Position = Math.Clamp(position, 0f, 1f);
+        PositionSource.Position = Math.Clamp(position, 0f, 1f);
     }
 
     public void SetRate(float rate)
@@ -294,58 +334,74 @@ public class PlaybackService : IDisposable
         try { _activePlayer.SetRate(rate); } catch { /* ignore native teardown */ }
     }
 
+    public void ResyncState()
+    {
+        var snapshot = _activePlayer.IsPlaying
+            ? PlaybackState.Playing
+            : (_activePlayer.Media != null && _activePlayer.State == VLCState.Paused ? PlaybackState.Paused : PlaybackState.Stopped);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => StateChanged?.Invoke(snapshot));
+    }
+
     public async Task FadeAndPauseAsync(int durationMs)
     {
+        _pausePending = true;
+
+        if (_isCrossfading)
+        {
+            _crossfadeCts?.Cancel();
+            _crossfadeCts?.Dispose();
+            _crossfadeCts = null;
+            _isCrossfading = false;
+
+            lock (_standbyLock)
+            {
+                var incoming = _standbyPlayer;
+                var outgoing = _activePlayer;
+
+                _activePlayer = incoming;
+                _standbyPlayer = outgoing;
+                _currentMedia = incoming.Media;
+
+                try { outgoing.Stop(); } catch { }
+
+                incoming.Volume = _targetVolume;
+            }
+        }
+
         _fadeCts?.Cancel();
         _fadeCts = new CancellationTokenSource();
 
         try
         {
-            float originalVolume = Volume;
-            await FadeVolumeAsync(_activePlayer, originalVolume, 0f, durationMs, _fadeCts.Token);
+            float currentFadeVolume = _activePlayer.Volume / 100f;
+            await FadeVolumeAsync(_activePlayer, currentFadeVolume, 0f, durationMs, _fadeCts.Token);
 
             if (!_fadeCts.Token.IsCancellationRequested)
             {
                 _activePlayer.Pause();
-                Volume = originalVolume;
+                _activePlayer.Volume = _targetVolume;
             }
         }
-        catch (OperationCanceledException)
-        {
-            // A newer fade superseded this one.
-        }
-        finally
-        {
-        }
+        catch (OperationCanceledException) { }
     }
 
     public async Task FadeAndResumeAsync(int durationMs)
     {
+        _pausePending = false;
         _fadeCts?.Cancel();
         _fadeCts = new CancellationTokenSource();
 
         try
         {
-            float targetVolume = Volume > 0 ? Volume : 0.8f;
+            float targetVolume = _targetVolume / 100f;
             _activePlayer.Volume = 0;
             _activePlayer.Play();
 
             await FadeVolumeAsync(_activePlayer, 0f, targetVolume, durationMs, _fadeCts.Token);
         }
-        catch (OperationCanceledException)
-        {
-            // A newer fade superseded this one.
-        }
-        finally
-        {
-        }
+        catch (OperationCanceledException) { }
     }
 
-    /// <summary>
-    /// Returns the crossfade generation. If the crossfade is aborted mid-flight
-    /// (Stop / new Play), the generation is bumped so the caller's continuation
-    /// can detect the abort and discard itself.
-    /// </summary>
     public async Task<int> CrossfadeToAsync(string nextPath, int durationMs, float targetVolume)
     {
         if (string.IsNullOrWhiteSpace(nextPath))
@@ -409,7 +465,10 @@ public class PlaybackService : IDisposable
                 _isCrossfading = false;
                 lock (_standbyLock)
                 {
-                    try { incoming.Stop(); } catch { }
+                    if (ReferenceEquals(incoming, _standbyPlayer))
+                    {
+                        try { incoming.Stop(); } catch { }
+                    }
                 }
             }
         }
@@ -422,7 +481,10 @@ public class PlaybackService : IDisposable
                 _isCrossfading = false;
                 lock (_standbyLock)
                 {
-                    try { incoming.Stop(); } catch { }
+                    if (ReferenceEquals(incoming, _standbyPlayer))
+                    {
+                        try { incoming.Stop(); } catch { }
+                    }
                 }
             }
         }

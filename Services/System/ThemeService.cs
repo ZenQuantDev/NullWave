@@ -18,12 +18,9 @@ public partial class ThemeService : ObservableObject
         public Color PrimaryColor => Color.Parse(Primary);
         public Color SecondaryColor => Color.Parse(Secondary);
         public SolidColorBrush Brush => new SolidColorBrush(PrimaryColor);
-
-        // Computed brushes so XAML ItemTemplates can bind directly
         public SolidColorBrush PrimaryBrush => new SolidColorBrush(PrimaryColor);
         public SolidColorBrush SecondaryBrush => new SolidColorBrush(SecondaryColor);
 
-        // 50/50 horizontal split for duotone swatch previews.
         private LinearGradientBrush? _splitGradient;
         public LinearGradientBrush SplitGradient => _splitGradient ??= new()
         {
@@ -72,21 +69,72 @@ public partial class ThemeService : ObservableObject
     [ObservableProperty] private double _trackRowHeight = 44;
     [ObservableProperty] private double _rowArtSize = 40;
 
-    //  Oxeye Daisy hero art (theme-aware) 
     public const string DarkHeroArt  = "avares://NullWave/Assets/Art/oxeye_daisy_dark.png";
     public const string LightHeroArt = "avares://NullWave/Assets/Art/oxeye_daisy_light.png";
 
     [ObservableProperty] private bool _isLightTheme;
     private IImage? _heroArt;
-    /// <summary>Theme-matched Oxeye Daisy artwork, ready to bind to Image.Source.</summary>
     public IImage? HeroArt => _heroArt;
+
+    //  True Black OLED palette 
+    // Applied as ROOT-LEVEL color overrides, not a custom ThemeVariant: Avalonia
+    // resolves ThemeDictionaries against built-in variant keys, so an
+    // x:Key="TrueBlack" dictionary silently falls back to Dark. Root overrides
+    // use the same proven mechanism as accents. TrueBlack rides on the Dark
+    // variant for Fluent control styling; only the palette differs.
+    private static readonly IReadOnlyDictionary<string, string> TrueBlackPalette = new Dictionary<string, string>
+    {
+        ["ColorBase"]          = "#000000",
+        ["ColorSurface"]       = "#000000",
+        ["ColorSurface2"]      = "#0A0A0A",
+        ["ColorElevated"]      = "#0A0A0A",
+        ["ColorHover"]         = "#141414",
+        ["ColorBorder"]        = "#1A1A1A",
+        ["ColorBorderSub"]     = "#242424",
+        ["ColorSliderGroove"]  = "#1A1A1A",
+        ["ColorPlayerIcon"]    = "#A8B4CC",
+        ["ColorTextPrimary"]   = "#F0F0F0",
+        ["ColorTextSecondary"] = "#9BA3AF",
+        ["ColorTextMuted"]     = "#5C6470",
+        ["ColorStarOn"]        = "#F59E0B",
+        ["ColorStarOff"]       = "#4B5563",
+        ["ColorAmberDark"]     = "#D97706",
+        ["ColorInlineCode"]    = "#FCD34D",
+        ["ColorAccentDim"]     = "#0F1A2E",
+        ["ColorAccentGlow"]    = "#16233D",
+        ["ColorBlueDim"]       = "#0F1A2E",
+        ["ColorAmberDim"]      = "#2A1A00",
+        ["ColorGreenDim"]      = "#02231A",
+        ["ColorRedDim"]        = "#2A0505",
+        ["ColorShuffle"]       = "#8B7CF6",
+        ["ColorShuffleSmart"]  = "#D97706",
+    };
+
+    private string _currentMode = "Dark";
+
+    // FIX (accents only applied on theme flip): separate the REQUESTED accent
+    // (_lastAccentName, re-applied on theme/variant changes) from the accent
+    // actually WRITTEN to resources (_appliedAccentName + _appliedAccentMode).
+    // The old guard compared the requested name, which the string overload sets
+    // before delegating - so it was always "equal" and swallowed every click.
+    private string _lastAccentName = "Oxeye Daisy";
+    private string _appliedAccentName = string.Empty;
+    private string _appliedAccentMode = string.Empty;
 
     public void Initialize(Preferences prefs)
     {
-        // Live OS theme flips while in "System" mode must swap the art too.
         if (Application.Current != null)
             Application.Current.ActualThemeVariantChanged += (_, _) =>
             {
+                // DEDUPE: this event also fires when *we* assign RequestedThemeVariant
+                // inside ApplyThemeMode - and ApplyThemeMode already re-runs
+                // UpdateThemeDependentArt() + ApplyAccent() explicitly at the end.
+                // Reacting here doubled the hero-art decode and accent remix on every
+                // Dark<->Light click (TrueBlack maps to the Dark variant, so only
+                // clicks crossing the Light/Dark boundary triggered the double work).
+                // Any variant change while an explicit mode is active is self-inflicted;
+                // only OS-driven flips under System mode are genuinely external.
+                if (!string.Equals(_currentMode, "System", StringComparison.OrdinalIgnoreCase)) return;
                 UpdateThemeDependentArt();
                 ApplyAccent(_lastAccentName);
             };
@@ -122,13 +170,13 @@ public partial class ThemeService : ObservableObject
         ApplyProfileFrame(p.ProfileFrameStyle);
     }
 
-    private string _lastAccentName = "Oxeye Daisy";
-
     public void ApplyAccent(string name)
     {
         _lastAccentName = name;
-        ApplyAccent(Lookup(name));
+        ApplyAccentCore(Lookup(name));
     }
+
+    public void ApplyAccent(AccentDef def) => ApplyAccentCore(def);
 
     private static AccentDef Lookup(string name)
     {
@@ -138,27 +186,36 @@ public partial class ThemeService : ObservableObject
         return CodenameAccent;
     }
 
-    public void ApplyAccent(AccentDef def)
+    private string AccentModeKey(bool light) =>
+        light ? "Light" : _currentMode == "TrueBlack" ? "TrueBlack" : "Dark";
+
+    private void ApplyAccentCore(AccentDef def)
     {
         var primary   = Color.Parse(def.Primary);
         var secondary = Color.Parse(def.Secondary);
 
-        // FIX: Use ActualThemeVariant to correctly resolve "System" theme preference.
-        // RequestedThemeVariant returns "Default" when System is selected, breaking light mode detection.
         var theme = Application.Current?.ActualThemeVariant ?? Application.Current?.RequestedThemeVariant;
         bool light = theme == Avalonia.Styling.ThemeVariant.Light;
-        
-        var mixTarget = light ? Colors.White : Color.Parse("#111827");
+        var modeKey = AccentModeKey(light);
+
+        // Skip only TRUE no-ops: same accent already written for the same mode.
+        if (_appliedAccentName == def.Name && _appliedAccentMode == modeKey) return;
+        _appliedAccentName = def.Name;
+        _appliedAccentMode = modeKey;
+
+        // True Black mixes accent tints against pure black, not navy.
+        var mixTarget = light ? Colors.White
+            : _currentMode == "TrueBlack" ? Colors.Black
+            : Color.Parse("#111827");
 
         SetColor("ColorAccent",      primary);
         SetColor("ColorAccentHover", light ? Mix(primary, Colors.Black, 0.15) : Mix(primary, Colors.White, 0.22));
         SetColor("ColorAccentDim",   Mix(primary, mixTarget, light ? 0.85 : 0.72));
         SetColor("ColorAccentGlow",  Mix(primary, mixTarget, light ? 0.65 : 0.55));
-        
         SetColor("ColorAccent2",     light ? Mix(secondary, Colors.Black, 0.35) : secondary);
         SetColor("ColorTextOnAccent", Luminance(primary) > 0.55 ? Color.Parse("#111827") : Colors.White);
         AdoptFluentSlider(primary, secondary);
-        Log.Information("[ThemeService] Accent applied: {Accent}", def.Name);
+        Log.Debug("[ThemeService] Accent applied: {Accent} ({Mode})", def.Name, modeKey);
     }
 
     private static void AdoptFluentSlider(Color primary, Color secondary)
@@ -222,8 +279,13 @@ public partial class ThemeService : ObservableObject
         SetRes("QueueRowHeight", compact ? 36.0 : 48.0);
         SetRes("QueueArtSize", compact ? 28.0 : 40.0);
         SetRes("CardPadding", compact ? new Thickness(16, 14) : new Thickness(20));
+        SetRes("CardMargin", compact ? new Thickness(0, 0, 0, 10) : new Thickness(0, 0, 0, 16));
+        SetRes("SectionLabelMargin", compact ? new Thickness(0, 16, 0, 8) : new Thickness(0, 24, 0, 12));
+        SetRes("SettingsHeaderHeight", compact ? 64.0 : 84.0);
+
         TrackRowHeight = row;
         RowArtSize = art;
+        Log.Debug("[ThemeService] Density applied: compact={Compact}, row={Row}", compact, row);
     }
 
     public void ApplySidebarWidth(string width)
@@ -263,11 +325,14 @@ public partial class ThemeService : ObservableObject
                 AvatarFrameBrush = Avalonia.Media.Brushes.Transparent;
                 break;
         }
-        Log.Information("[ThemeService] Profile frame applied: {Style}", style);
+        Log.Debug("[ThemeService] Profile frame applied: {Style}", style);
     }
 
     private static void SetColor(string key, Color color) =>
         RunOnUi(() => { if (Application.Current != null) Application.Current.Resources[key] = color; });
+
+    private static void RemoveColor(string key) =>
+        RunOnUi(() => { if (Application.Current != null) Application.Current.Resources.Remove(key); });
 
     private static void SetRes(string key, object value) =>
         RunOnUi(() => { if (Application.Current != null) Application.Current.Resources[key] = value; });
@@ -287,18 +352,31 @@ public partial class ThemeService : ObservableObject
 
     public void ApplyThemeMode(string mode)
     {
+        _currentMode = mode;
+
         var variant = mode switch
         {
-            "Light" => Avalonia.Styling.ThemeVariant.Light,
-            "Dark" => Avalonia.Styling.ThemeVariant.Dark,
-            _ => Avalonia.Styling.ThemeVariant.Default
+            "Light"     => Avalonia.Styling.ThemeVariant.Light,
+            "Dark"      => Avalonia.Styling.ThemeVariant.Dark,
+            "TrueBlack" => Avalonia.Styling.ThemeVariant.Dark,
+            _           => Avalonia.Styling.ThemeVariant.Default
         };
 
         if (Application.Current != null)
         {
             Application.Current.RequestedThemeVariant = variant;
+
+            // Clear previous True Black overrides FIRST so Dark/Light/System
+            // restore their XAML palette values exactly.
+            foreach (var key in TrueBlackPalette.Keys)
+                RemoveColor(key);
+
+            if (mode == "TrueBlack")
+                foreach (var kv in TrueBlackPalette)
+                    SetColor(kv.Key, Color.Parse(kv.Value));
+
             UpdateThemeDependentArt();
-            ApplyAccent(_lastAccentName); // re-mix accent tints for the new theme
+            ApplyAccent(_lastAccentName); // re-mix accent tints for the new mode
         }
         Log.Information("[ThemeService] Theme mode applied: {Mode}", mode);
     }

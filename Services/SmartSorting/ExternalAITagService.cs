@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -15,46 +16,6 @@ public class ExternalAITagService
     private static readonly HashSet<string> TagDenylist = new(StringComparer.OrdinalIgnoreCase)
     {
         "seen live", "favorite", "favourites", "awesome", "amazing"
-    };
-
-    //  Approved tag vocabulary (prevents fragmentation across exports) 
-    // The AI is instructed to only use these. On import we fuzzy-normalise
-    // anything that slipped through anyway.
-    public static readonly string[] ApprovedTags =
-    {
-        "Pop", "Rock", "Hip-Hop", "R&B", "Electronic", "Dance", "Jazz",
-        "Classical", "Country", "Metal", "Indie", "Ambient", "Soul", "Funk",
-        "Reggae", "Latin", "Alternative", "Folk", "Blues", "Punk",
-        "Chill", "Upbeat", "Melancholic", "Energetic", "Romantic",
-        "Dark", "Happy", "Aggressive", "Dreamy", "Nostalgic",
-        "Synthwave", "Lo-fi", "Trap", "House", "Techno", "Disco"
-    };
-
-    // Fuzzy normalisation map: common AI variants → canonical approved tag
-    private static readonly Dictionary<string, string> _tagNormalMap =
-        new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "hip hop",        "Hip-Hop"     },
-        { "hiphop",         "Hip-Hop"     },
-        { "rnb",            "R&B"         },
-        { "r and b",        "R&B"         },
-        { "rhythm and blues","R&B"        },
-        { "edm",            "Electronic"  },
-        { "electronica",    "Electronic"  },
-        { "electronic music","Electronic" },
-        { "chillout",       "Chill"       },
-        { "chill out",      "Chill"       },
-        { "chillwave",      "Chill"       },
-        { "lofi",           "Lo-fi"       },
-        { "lo fi",          "Lo-fi"       },
-        { "sad",            "Melancholic" },
-        { "moody",          "Melancholic" },
-        { "mellow",         "Chill"       },
-        { "party",          "Dance"       },
-        { "danceable",      "Dance"       },
-        { "synth",          "Synthwave"   },
-        { "synth-wave",     "Synthwave"   },
-        { "retro",          "Synthwave"   },
     };
 
     // Max tracks per export chunk - anything over this gets split into
@@ -134,7 +95,7 @@ public class ExternalAITagService
                     "If Artist is Unknown or empty, infer it from the Title field.",
                     "Only use tags from the approved_tags list. If no tag fits, use 'Alternative'."
                 },
-                approved_tags   = ApprovedTags,
+                approved_tags   = TagTaxonomy.ApprovedTags,
                 response_format = new[] { new { Id = "uuid", Tags = new[] { "tag1", "tag2", "tag3" } } }
             },
             tracks = trackList
@@ -233,7 +194,7 @@ public class ExternalAITagService
         sb.AppendLine("- Use the exact track IDs provided - do not change them.");
         sb.AppendLine("- If the Artist field is 'Unknown' or empty, infer the artist from the Title.");
         sb.AppendLine($"- Only use tags from this approved list:");
-        sb.AppendLine($"  {string.Join(", ", ApprovedTags)}");
+        sb.AppendLine($"  {string.Join(", ", TagTaxonomy.ApprovedTags)}");
         sb.AppendLine("- If no approved tag fits, use 'Alternative'.");
         sb.AppendLine();
         sb.AppendLine("EXPECTED FORMAT:");
@@ -321,26 +282,12 @@ public class ExternalAITagService
     private static string? NormaliseTag(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw) || raw.Length < 2) return null;
+        
+        // FIX (C6): Route through central taxonomy
+        var canonical = TagTaxonomy.Normalize(raw);
+        if (canonical != null) return canonical;
 
-        var trimmed = raw.Trim();
-
-        // Exact match (case-insensitive) against approved list
-        var exact = ApprovedTags.FirstOrDefault(
-            a => a.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
-        if (exact != null) return exact;
-
-        // Known alias map
-        if (_tagNormalMap.TryGetValue(trimmed, out var mapped)) return mapped;
-
-        // Partial match: if the raw tag contains an approved tag as a substring
-        // e.g. "hip-hop music" → "Hip-Hop"
-        var partial = ApprovedTags.FirstOrDefault(
-            a => trimmed.Contains(a, StringComparison.OrdinalIgnoreCase)
-              || a.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
-        if (partial != null) return partial;
-
-        // Unknown tag - log it and fall back to Alternative
-        Log.Debug("[ExternalAI] Unknown tag '{Tag}' → Alternative", trimmed);
+        Log.Debug("[ExternalAI] Unknown tag '{Tag}' → Alternative", raw.Trim());
         return "Alternative";
     }
 

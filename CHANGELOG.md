@@ -5,40 +5,102 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.2] - 02-Oct-2026 🧩 "Correctness"
+
+### Added
+- **Custom WaveSeekBar (MiniPlayer)**: Replaced the standard Avalonia `Slider` with a custom `WaveSeekBar` control. Features a Samsung OneUI / Material You-style animated multi-layer squiggle with flat bottoms, organic crest variation (AM/FM modulation), and side-flanking timestamps.
+- **P2P Track Sharing Foundation**: Introduced `nullwave://` URI scheme generation for tracks and profiles. Added a "Share Link" button to the Track Detail panel and smart cross-pollination routing (pasting a profile link in the track box or vice versa now shows a helpful routing toast instead of failing).
+- **Unified Changelog Control**: Created a shared `ChangelogView` control that renders release notes with section-level icons (Added/Changed/Fixed), replacing duplicated markdown parsers and hand-written About tab bullets (Bug 5).
+- **In-App Log Viewer**: Help tab now features a live, filterable log tail (text filter + level chips) with a "Copy Diagnostics" button for easy bug reporting.
+- **"What's New" Screen**: Automatically displays a styled release notes popup on the first launch after an update.
+- **Unified Process Runner (P9)**: Introduced `ProcessRunner` helper to safely execute external processes with concurrent stdout/stderr reading, preventing OS pipe deadlocks.
+- **DevTools Support Bundle**: Fixed a build failure in `SettingsViewModel.DevTools.cs` caused by a missing `using Avalonia.Platform.Storage;` directive, restoring the native file picker (`FilePickerSaveOptions`) for exporting diagnostic zip bundles.
+- **Dev Tab Performance section**: F3 overlay toggle button, opt-in hover tagging, Invalidation Storm Detector toggle (warns when a control exceeds 5 layout passes per hover), live container-realization counter with reset, and a compose-mode selector (`lowlatency`/`direct`/`winui`, persisted, applied on restart).
+- **`InvalidationStormDetector`** attached behavior (`Helpers/Diagnostics/`) for auditing hover-time layout storms.
+- **`BitmapPrewarm`** helper: chunked background pass at startup that realizes GPU textures for all cached album art, eliminating first-scroll upload hitches.
+- **`RowIcons`** static geometry registry plus `MediaTypeToGeometryConverter`/`BoolToStarGeometryConverter`: track-row icons now render as lightweight `Path` elements instead of `MaterialIcon` templated controls.
+- **YouTube thumbnail heal**: `LibraryService.RefetchYouTubeThumbnails()` plus Dev Tab "Heal YouTube Thumbs (aspect fix)" button - deletes legacy square-cropped `yt_*.jpg` files, invalidates their decode cache entries, nulls paths in one transaction, and re-runs the aspect-preserving backfill.
+- **`BitmapCacheService.InvalidatePath`/`Clear`** for surgical decode-cache eviction, and Dev Tab "Re-crop Art Cache (trim bars)" utility.
+
+### Changed
+
+- **Startup Diagnostics (Bug 0)**: Replaced the `vlc.exe --version` process call with `FileVersionInfo` on Windows to prevent the black console popup from stealing focus on launch.
+- **Sidebar Drag & Drop (Bug 1)**: Added a button-guard helper to prevent drag-arming from swallowing clicks on Move Up/Down, Play, and Pin buttons. Removed duplicate `PersistOrder()` calls to prevent double-saving to disk.
+- **App Lifecycle**: Fixed a race condition in `App.axaml.cs` where the debounced `PreferencesService` would overwrite the `LastSeenVersion` flag, causing the "What's New" window to appear on every launch.
+- **Clipboard Helper**: Updated `ClipboardHelper` to accept `PreferencesService` and `IdentityService` to support generating peer-to-peer share links.
+- **Mood AI Prompt (C5)**: Added explicit JSON schema to Ollama prompts, capped `num_ctx` to prevent context overflow, and implemented a tolerant index parser.
+- **Local AI Resilience (C10)**: Improved Ollama connection-refused detection and removed local file paths from AI prompts for privacy.
+- **Track list virtualization**: removed `CacheLength="1.0"` from `VirtualizingStackPanel`; traces showed the extra cache viewport multiplied container rebinds during scrollbar drags.
+- **Row hover highlight** moved from a `ListBoxItem:pointerover` template setter to a localized `Grid.track-row:pointerover` style hoisted into `ListBox.Styles`, keeping dirty rects row-local instead of full-viewport.
+- **`SmoothScrollBehavior`** now coalesces external scroll offsets (scrollbar drag, keyboard) into one state commit per render frame and kills the spring immediately on external input to prevent offset fighting.
+- **Album art decode width** standardized to 96px across row XAML, startup warm, and GPU prewarm (crisp on HiDPI, no draw-time upscaling).
+- **`ThumbnailCropper`** is aspect-preserving only: legacy `CropFileToSquare` removed and its last caller (`DownloadService` playlist pipeline) switched to `TrimLetterboxInPlace`.
+- **`ThumbnailDownloader`** shared `HttpClient` capped at 8s timeout; session-long 404 negative cache prevents repeated ladder probes.
+- **`Program.cs`** compose-mode comment corrected (`lowlatency` = V-Sync-paced default; `direct` = uncapped, diagnostics only) and stale commented-out `BuildAvaloniaApp` blocks deleted.
+- **Sidebar rows**: 150ms background `BrushTransition` removed; inner content grids marked `IsHitTestVisible="False"` to prune hit-test subtrees.
+- **Library maintenance** art backfills and `ClearAllArt` now apply in a single UI wave plus one DB transaction without triggering full-list rebuilds.
+
+### Fixed
+
+- **Settings Header Clipping (Bug 2)**: Added `TextTrimming="CharacterEllipsis"` to the Settings window title and description headers to prevent text from overflowing the window bounds.
+- **Plugins Tab Crash (P0)**: Fixed a fatal `ArgumentOutOfRangeException` in Avalonia's layout engine caused by a UI binding coercion storm when rapidly toggling plugins.
+- **Toast Service**: Fixed `EnforceCap` logic to immediately remove evicted toasts, preventing unbounded collection growth and test failures in headless environments.
+- **Spotify Bridge (C7/C11)**: Routed Spotify metadata through the new `SpotifyPageParser` (ignoring Album/Playlist links) and fixed `SplitArtistCredits` to prevent breaking band names like "Florence and the Machine".
+- **Track Detail Dependencies**: Resolved missing namespace and constructor argument errors related to `IdentityService` and `AlbumArtService` across ViewModels.
+- **Recycle-dispose crash**: `SharedImage` wrapper prevents Avalonia `Image` controls from disposing shared cached `Bitmap`s when virtualized containers recycle (`ObjectDisposedException` on `Ref<IBitmapImpl>`).
+- **"Zoomed/cut" 16:9 covers**: playlist downloads no longer square-center-crop trimmed thumbnails; pre-existing bad cache entries healable from the Dev Tab.
+- **30fps wheel-scroll ceiling and 3-4fps scrollbar drags**: resolved via hover-invalidation fix, rebind-volume reduction, and drag-event coalescing.
+- **Uncapped 40,000fps render storm** under `NULLWAVE_COMPOSE=direct`: documented as diagnostics-only; default `lowlatency` V-Syncs correctly.
+- **Dev Tab art purge** no longer blocks the UI thread and no longer orphans `AlbumArtPath` rows (routes through the Maintenance pipeline).
+- **Crossfade/Pause Desync**: Fixed a critical bug in `PlaybackService` where pausing during a crossfade left the incoming player silent at volume 0. The engine now correctly aborts the fade, promotes the incoming player, and pauses it.
+- **Volume Slider Drops**: Fixed an issue where `FadeAndPauseAsync` would overwrite the global `_targetVolume` with the mid-fade value (e.g., ~40%), causing the volume slider to drop and stay stuck until manually adjusted.
+- **Seek Bar Desync**: Bound the MiniPlayer's position/duration properties and seek bar to the *incoming* player during a crossfade so the UI reflects the correct track and time mid-fade.
+- **Double Play-Count Bug**: Removed duplicate `NullActionLogger.TrackPlayed` calls from `LibraryViewModel.PlayTrack` to prevent tracks from being counted twice in the database per play.
+- **Redundant Search Bar**: Removed the duplicate, non-functional local search bar from `PlaylistsView` in favor of the unified global search.
+- **Null Reference Warnings**: Resolved `CS8602` warnings in `PlaylistsView.axaml.cs` by applying proper null-guard chains to event handlers.
+- **AsyncImage Rendering**: Replaced synchronous `ImageBrush` and `PathToBitmap` converters with `AsyncImage` in `PlaylistsView` (hero tile, track rows) and `SidebarView` (playlist rows, nav items) to move decoding off the UI thread and share cache entries.
+- **Queue Priority**: Updated `PlayerViewModel` (`PlayNext` and `CheckCrossfade`) to prioritize manual queue entries over active playlist progression.
+- **Playlist Header Layout**: Changed the playlist header count column from a fixed `48px` to `Auto` to prevent label clipping, and aligned track row art to `Width="40"`.
+
+---
+
 ## [0.6.1] - 23-Sep-2026 🛡️ "Stability & Safety"
 
 ### Added
+
 - **Test Infrastructure**: Established xUnit foundation with `NULLWAVE_HOME` isolation, `FakeYtDlp` console harness, and 196 passing tests covering core services, parsers, and data safety.
 - **Spotify OpenGraph Parser**: Added `SpotifyPageParser` to extract metadata from public Spotify pages without relying on yt-dlp or premium APIs.
 - **Master Key Pinning**: Generated real P-256 cryptographic master key pair for official badge signing.
 
 ### Changed
+
 - **Download Output Template**: Changed yt-dlp output to `%(title).150B [%(id)s].%(ext)s` to prevent filename collisions.
 - **Database Backups**: Throttled rolling backups to once per 24 hours and only when the database has actually changed.
 - **Secure Delete**: Replaced memory-heavy 3-pass overwrite with standard fast deletion; `DeleteEverything` now correctly recurses into subfolders.
 
 ### Fixed
+
 - **Data Loss Prevention (P0)**:
-  - `KeyStoreService`: Unreadable/corrupt keystores are now quarantined as `.bad-<timestamp>` instead of being silently overwritten. Atomic writes prevent mid-save corruption.
-  - `PreferencesService`: Fixed `Dispose()` order so settings changed right before exit are actually saved. Corrupt `prefs.json` files are quarantined.
-  - `DatabaseService`: Pending restores now run `PRAGMA integrity_check` before applying. Invalid restores are rejected, and the previous database is kept as `.pre-restore`.
+    - `KeyStoreService`: Unreadable/corrupt keystores are now quarantined as `.bad-<timestamp>` instead of being silently overwritten. Atomic writes prevent mid-save corruption.
+    - `PreferencesService`: Fixed `Dispose()` order so settings changed right before exit are actually saved. Corrupt `prefs.json` files are quarantined.
+    - `DatabaseService`: Pending restores now run `PRAGMA integrity_check` before applying. Invalid restores are rejected, and the previous database is kept as `.pre-restore`.
 - **Security & Identity (P0)**:
-  - `SignedBadge`: Verification now strictly pins against the official NullWave master public key and checks the recipient fingerprint, preventing forged badges.
-  - `ProfileShareService`: Capped decompression limits to prevent decompression bombs; fixed BOM round-trip bugs.
+    - `SignedBadge`: Verification now strictly pins against the official NullWave master public key and checks the recipient fingerprint, preventing forged badges.
+    - `ProfileShareService`: Capped decompression limits to prevent decompression bombs; fixed BOM round-trip bugs.
 - **Download Stability (P1)**:
-  - Fixed stuck URLs in `_activeDownloads` when a download is cancelled while queued.
-  - Fixed `SemaphoreSlim` drift when concurrency limits are changed mid-flight.
-  - Fixed infinite hangs in playlist downloads when duplicate URLs trigger the guard.
-  - Added a 20-minute hard timeout ceiling to kill hung yt-dlp/ffmpeg process trees.
+    - Fixed stuck URLs in `_activeDownloads` when a download is cancelled while queued.
+    - Fixed `SemaphoreSlim` drift when concurrency limits are changed mid-flight.
+    - Fixed infinite hangs in playlist downloads when duplicate URLs trigger the guard.
+    - Added a 20-minute hard timeout ceiling to kill hung yt-dlp/ffmpeg process trees.
 - **Playback & Navigation**:
-  - Fixed "Previous" button oscillation (bouncing between two tracks) via history stack cleanup and a suppress-history flag during backward navigation.
-  - Fixed crossfade play counts and Last.fm scrobbles not registering for the outgoing track.
-  - Skip penalties now use time-based decay (`0.5^days`), allowing excluded tracks to naturally recover even if they are never played.
+    - Fixed "Previous" button oscillation (bouncing between two tracks) via history stack cleanup and a suppress-history flag during backward navigation.
+    - Fixed crossfade play counts and Last.fm scrobbles not registering for the outgoing track.
+    - Skip penalties now use time-based decay (`0.5^days`), allowing excluded tracks to naturally recover even if they are never played.
 - **Metadata & Integration**:
-  - Replaced broken yt-dlp Spotify bridge with robust OpenGraph tag scraper.
-  - Fixed `TrackTitleParser` exotic separator handling and NFKC normalization.
-  - Fixed `SourceDetector` host-based detection and `TrackRecord` pipe-tag splitting.
-  - Fixed `PathHelper` prefix matching bug (e.g., `NullWave-old` no longer mistaken for the data folder).
+    - Replaced broken yt-dlp Spotify bridge with robust OpenGraph tag scraper.
+    - Fixed `TrackTitleParser` exotic separator handling and NFKC normalization.
+    - Fixed `SourceDetector` host-based detection and `TrackRecord` pipe-tag splitting.
+    - Fixed `PathHelper` prefix matching bug (e.g., `NullWave-old` no longer mistaken for the data folder).
 
 ---
 
@@ -154,7 +216,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Plugin Feedback**: Toggling plugins in Settings now triggers immediate success/warning toasts.
 - **Fullscreen mode**: `F11` / `Alt+Enter` toggles true fullscreen; previous window state (Normal/Maximized) is restored on exit.
 
-
 ### Fixed
 
 - **Instant Sidebar Refresh**: Deleted playlists and folders now disappear from the sidebar immediately (no reboot required).
@@ -231,7 +292,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   secondary bug where `FilterBySource` results were returned completely
   unsorted regardless of the chosen `SortField`.
 - `Views/MainWindow.axaml.cs` - `OnKeyDown`'s typing guard (`e.Source is
-  TextBox`) only matched the exact source type, but Avalonia's `TextBox` is
+TextBox`) only matched the exact source type, but Avalonia's `TextBox` is
   templated - the real typing source is an internal `TextPresenter` - so the
   check silently failed and `M`/`N`/`Space` fired as global hotkeys (mute,
   next track, play/pause) while typing in the search box. Fixed by walking

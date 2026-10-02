@@ -22,7 +22,6 @@ public class PlaylistViewModel : ViewModelBase
     private bool _isRenaming;
     private string _searchQuery = string.Empty;
 
-    // NEW: Dialog Abstractions
     public Func<Task<string?>>? RequestCreatePlaylistName;
     public Func<Task<string?>>? RequestCreateFolderName;
 
@@ -33,7 +32,6 @@ public class PlaylistViewModel : ViewModelBase
     }
     public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery);
 
-    // UPDATED: Default to Custom sort for playlists
     private SortField _currentSort = SortField.Custom;
     public SortField CurrentSort
     {
@@ -53,14 +51,50 @@ public class PlaylistViewModel : ViewModelBase
     public bool IsSortedByArtist => CurrentSort == SortField.Artist;
     public bool IsSortedBySource => CurrentSort == SortField.Source;
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
-    
-    // NEW: Custom Sort Properties
+
     public bool IsSortedByCustom => CurrentSort == SortField.Custom;
     public bool IsDragReorderEnabled => CurrentSort == SortField.Custom && string.IsNullOrEmpty(SearchQuery);
 
     public BulkObservableCollection<Track> FilteredTracks { get; } = new();
-    public string ResultCountLabel => string.Format(LocalizationService.Instance["Playlist_RESULTCount_Format"], FilteredTracks.Count);
+    public string ResultCountLabel
+    {
+        get
+        {
+            var fmt = LocalizationService.Instance["Playlist_RESULTCount_Format"];
+            if (string.IsNullOrEmpty(fmt) || fmt.StartsWith("[")) fmt = "{0} tracks";
+            return string.Format(fmt, FilteredTracks.Count);
+        }
+    }
     public ObservableCollection<Playlist> Playlists { get; } = new();
+    private ObservableCollection<Track> _selectedTracks = new();
+    public ObservableCollection<Track> SelectedTracks
+    {
+        get => _selectedTracks;
+        set
+        {
+            if (_selectedTracks != null)
+                _selectedTracks.CollectionChanged -= SelectedTracks_CollectionChanged;
+
+            _selectedTracks = value;
+            OnPropertyChanged();
+
+            if (_selectedTracks != null)
+                _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
+
+            OnPropertyChanged(nameof(HasMultiSelection));
+            OnPropertyChanged(nameof(SelectionCountLabel));
+        }
+    }
+
+    private void SelectedTracks_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasMultiSelection));
+        OnPropertyChanged(nameof(SelectionCountLabel));
+    }
+
+    // FIX: parity with library - bulk bar only from 2 selections up (CTRL/SHIFT)
+    public bool HasMultiSelection => SelectedTracks?.Count > 1;
+    public string SelectionCountLabel => $"{SelectedTracks?.Count ?? 0} selected";
 
     public ICommand CreatePlaylistCommand { get; }
     public ICommand CreateFolderCommand { get; }
@@ -73,18 +107,22 @@ public class PlaylistViewModel : ViewModelBase
     public ICommand PinCommand { get; }
     public ICommand UnpinCommand { get; }
     public ICommand ClearSearchTextCommand { get; }
+    public ICommand ClearSearchCommand { get; }
     public ICommand SortByTitleCommand { get; }
     public ICommand SortByArtistCommand { get; }
     public ICommand SortBySourceCommand { get; }
     public ICommand SortByDateCommand { get; }
     public ICommand ToggleSortDirectionCommand { get; }
     public ICommand PlayAllCommand { get; }
+    public ICommand BulkQueueCommand { get; }
+    public ICommand BulkRemoveCommand { get; }
 
     public event Action<Playlist>? PinRequested;
     public event Action<Playlist>? UnpinRequested;
     public event Action? PlaylistsChanged;
     public event Action<Playlist>? PlayAllRequested;
     public event Action<Track>? TrackDetailRequested;
+    public event Action<IEnumerable<Track>>? BulkQueueRequested;
 
     public Playlist? SelectedPlaylist
     {
@@ -122,12 +160,12 @@ public class PlaylistViewModel : ViewModelBase
     public PlaylistViewModel(PlaylistService playlists)
     {
         _playlists = playlists;
+        _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
+
         CreatePlaylistCommand = new RelayCommand(async () => await CreatePlaylistAsync());
         CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync());
-        
-        // UPDATED: Safe async relay command
         RemovePlaylistCommand = new RelayCommand(async () => await RemovePlaylistAsync_Safe());
-        
+
         AddToPlaylistCommand = new RelayCommand<Track>(AddToPlaylist);
         RemoveFromPlaylistCommand = new RelayCommand<Track>(RemoveFromPlaylist);
         StartRenameCommand = new RelayCommand(StartRename);
@@ -135,18 +173,34 @@ public class PlaylistViewModel : ViewModelBase
         CancelRenameCommand = new RelayCommand(() => IsRenaming = false);
         PinCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PinRequested?.Invoke(SelectedPlaylist); });
         UnpinCommand = new RelayCommand(() => { if (SelectedPlaylist != null) UnpinRequested?.Invoke(SelectedPlaylist); });
+
         ClearSearchTextCommand = new RelayCommand(() => SearchQuery = string.Empty);
+        ClearSearchCommand = new RelayCommand(() => SearchQuery = string.Empty);
+
         SortByTitleCommand = new RelayCommand(() => SetSort(SortField.Title));
         SortByArtistCommand = new RelayCommand(() => SetSort(SortField.Artist));
         SortBySourceCommand = new RelayCommand(() => SetSort(SortField.Source));
         SortByDateCommand = new RelayCommand(() => SetSort(SortField.DateAdded));
         ToggleSortDirectionCommand = new RelayCommand(() => SortAscending = !SortAscending);
         PlayAllCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PlayAllRequested?.Invoke(SelectedPlaylist); });
-        
+
+        BulkQueueCommand = new RelayCommand(() => BulkQueueRequested?.Invoke(SelectedTracks.ToList()));
+        BulkRemoveCommand = new RelayCommand(async () =>
+        {
+            if (SelectedPlaylist == null || SelectedTracks.Count == 0) return;
+            var tracksToRemove = SelectedTracks.ToList();
+            foreach (var track in tracksToRemove)
+            {
+                _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
+            }
+            RefreshFilteredTracks();
+            SelectedTracks.Clear();
+            await Task.CompletedTask;
+        });
+
         Refresh();
     }
 
-    // NEW: Safe wrapper for fire-and-forget removal
     private async Task RemovePlaylistAsync_Safe()
     {
         if (SelectedPlaylist == null) return;
@@ -175,7 +229,6 @@ public class PlaylistViewModel : ViewModelBase
 
     private async Task CreatePlaylistAsync()
     {
-        // UPDATED: Use Delegate
         if (RequestCreatePlaylistName == null) return;
         var name = await RequestCreatePlaylistName();
         if (string.IsNullOrWhiteSpace(name)) return;
@@ -237,7 +290,6 @@ public class PlaylistViewModel : ViewModelBase
 
     private async Task CreateFolderAsync()
     {
-        // UPDATED: Use Delegate
         if (RequestCreateFolderName == null) return;
         var name = await RequestCreateFolderName();
         if (string.IsNullOrWhiteSpace(name)) return;
@@ -285,7 +337,6 @@ public class PlaylistViewModel : ViewModelBase
     public void SelectFirst() { if (SelectedPlaylist == null && Playlists.Count > 0) SelectById(Playlists[0].Id); }
     public void OpenTrackDetail(Track track) => TrackDetailRequested?.Invoke(track);
 
-    // NEW: Encapsulated move method for UI drag/drop
     public void MoveTrackInSelectedPlaylist(int fromIndex, int toIndex)
     {
         if (SelectedPlaylist == null) return;
@@ -311,7 +362,6 @@ public class PlaylistViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 
-    // UPDATED: Made public for UI drag-drop refresh
     public void RefreshFilteredTracks()
     {
         if (SelectedPlaylist == null)
@@ -334,10 +384,9 @@ public class PlaylistViewModel : ViewModelBase
                 t.Artist.ToLowerInvariant().Contains(q));
         }
 
-        // UPDATED: Replaced .Reverse() with OrderByDescending and added Custom/Playlist-DateAdded logic
         IEnumerable<Track> sorted = (CurrentSort, SortAscending) switch
         {
-            (SortField.Custom, _)          => tracks, // Preserve native DB SortOrder
+            (SortField.Custom, _)          => tracks,
             (SortField.Title, true)        => tracks.OrderBy(t => t.Title).ThenBy(t => t.Artist),
             (SortField.Title, false)       => tracks.OrderByDescending(t => t.Title).ThenByDescending(t => t.Artist),
             (SortField.Artist, true)       => tracks.OrderBy(t => t.Artist).ThenBy(t => t.Title),
