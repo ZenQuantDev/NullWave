@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Serilog.Core;
 using Serilog.Events;
@@ -8,14 +9,19 @@ using Serilog.Formatting.Display;
 
 namespace NullWave.Helpers.Logging;
 
+/// <summary>A single buffered log line with its level, for the in-app log viewer.</summary>
+public sealed record InAppLogEntry(LogEventLevel Level, string Line);
+
 public class InAppLogSink : ILogEventSink
 {
-    private static readonly ConcurrentQueue<string> _logLines = new();
+    private static readonly ConcurrentQueue<InAppLogEntry> _logLines = new();
     private readonly MessageTemplateTextFormatter _formatter;
-    
+
     // Throttle UI updates to max 1 time per second
-    private static long _lastFlushTicks = DateTime.UtcNow.Ticks; 
+    private static long _lastFlushTicks = DateTime.UtcNow.Ticks;
     private static readonly long FlushIntervalTicks = TimeSpan.FromSeconds(1).Ticks;
+
+    public const int MaxBufferedLines = 500;
 
     public static event Action? LogUpdated;
 
@@ -24,16 +30,19 @@ public class InAppLogSink : ILogEventSink
         _formatter = new MessageTemplateTextFormatter(outputTemplate, null);
     }
 
-    public static string GetSnapshot() => string.Join(Environment.NewLine, _logLines);
+    public static string GetSnapshot() => string.Join(Environment.NewLine, _logLines.Select(e => e.Line));
+
+    /// <summary>Snapshot for the log viewer: level + rendered line.</summary>
+    public static InAppLogEntry[] GetEntries() => _logLines.ToArray();
 
     public void Emit(LogEvent logEvent)
     {
         using var writer = new StringWriter();
         _formatter.Format(logEvent, writer);
-        
-        _logLines.Enqueue(writer.ToString().TrimEnd());
 
-        while (_logLines.Count > 100) // Keep buffer manageable
+        _logLines.Enqueue(new InAppLogEntry(logEvent.Level, writer.ToString().TrimEnd()));
+
+        while (_logLines.Count > MaxBufferedLines)
         {
             _logLines.TryDequeue(out _);
         }

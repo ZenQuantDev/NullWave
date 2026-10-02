@@ -57,7 +57,8 @@ public class AlbumArtService
                         var localPath = await ThumbnailDownloader.FetchAsync(pathOrUrl, $"yt_{track.Id:N}");
                         if (!string.IsNullOrEmpty(localPath))
                         {
-                            track.AlbumArtPath = localPath;
+                            // FIX: no model mutation here. Callers assign the returned path
+                            // so UI-thread ownership of PropertyChanged stays with the caller.
                             _logger.Information("Thumbnail saved successfully for track matching: {Title}", track.Title);
                             return localPath;
                         }

@@ -4,7 +4,8 @@
            xmlns:models="using:NullWave.Models"
            xmlns:converters="using:NullWave.Helpers.Converters"
            xmlns:material="using:Material.Icons.Avalonia"
-           xmlns:services="using:NullWave.Services"
+           xmlns:attached="using:NullWave.Helpers.Attached"
+           xmlns:helpers="using:NullWave.Helpers"
            xmlns:loc="using:NullWave.Helpers.Localization"
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:LibraryViewModel">
@@ -19,21 +20,24 @@
         <converters:MediaTypeToVisibilityConverter x:Key="MediaTypeToVisibility"/>
         <converters:MediaTypeToIconKindConverter x:Key="MediaTypeToIconKind"/>
         <converters:RadioNowPlayingConverter x:Key="RadioNowPlaying"/>
+        
+        <!-- Lightweight Path-based icon converters -->
+        <helpers:MediaTypeToGeometryConverter x:Key="MediaTypeToGeom"/>
+        <helpers:BoolToStarGeometryConverter x:Key="BoolToStarGeom"/>
     </DockPanel.Resources>
 
     <!-- COLUMN HEADERS -->
     <Grid DockPanel.Dock="Top" Margin="16,8,16,2">
-        <!-- FIX: Proportional star weights eliminate the huge dead space on wide windows -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="64"/>
-            <ColumnDefinition Width="2.6*"  MinWidth="260"/>  <!-- TITLE / ARTIST -->
-            <ColumnDefinition Width="0.9*"  MinWidth="120"/>  <!-- SOURCE -->
-            <ColumnDefinition Width="0.5*"  MinWidth="64"/>   <!-- PLAYS -->
-            <ColumnDefinition Width="0.5*"  MinWidth="70"/>   <!-- LENGTH -->
-            <ColumnDefinition Width="0.5*"  MinWidth="80"/>   <!-- STATUS -->
-            <ColumnDefinition Width="0.8*"  MinWidth="110"/>  <!-- ADDED -->
-            <ColumnDefinition Width="0.35*" MinWidth="36"/>   <!-- FAVORITE -->
-            <ColumnDefinition Width="0.35*" MinWidth="36"/>   <!-- MENU -->
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="2.6*"  MinWidth="260"/>
+            <ColumnDefinition Width="0.9*"  MinWidth="120"/>
+            <ColumnDefinition Width="0.5*"  MinWidth="64"/>
+            <ColumnDefinition Width="0.5*"  MinWidth="70"/>
+            <ColumnDefinition Width="0.5*"  MinWidth="80"/>
+            <ColumnDefinition Width="0.8*"  MinWidth="110"/>
+            <ColumnDefinition Width="0.35*" MinWidth="36"/>
+            <ColumnDefinition Width="0.35*" MinWidth="36"/>
         </Grid.ColumnDefinitions>
         
         <TextBlock Grid.Column="0" Classes="section-label"
@@ -100,49 +104,36 @@
                  Margin="8,0,8,8"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectionChanged="OnTrackSelected"
-                 DoubleTapped="OnTrackDoubleTapped">
-            <ListBox.ItemContainerTheme>
-                <ControlTheme TargetType="ListBoxItem"
-                              BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                    <Setter Property="ContextMenu">
-                        <Setter.Value>
-                            <ContextMenu>
-                                <MenuItem Header="{loc:Loc ContextMenu_Play}"
-                                          Command="{Binding $parent[ListBox].DataContext.PlayTrackCommand}"
-                                          CommandParameter="{Binding}"/>
-                                <MenuItem Header="{loc:Loc ContextMenu_ViewDetails}"
-                                          Command="{Binding $parent[ListBox].DataContext.OpenDetailCommand}"/>
-                                <MenuItem Header="{loc:Loc ContextMenu_ToggleFavorite}"
-                                          Command="{Binding $parent[ListBox].DataContext.ToggleFavoriteCommand}"
-                                          CommandParameter="{Binding}"/>
-                                <MenuItem Header="{loc:Loc ContextMenu_AddToQueue}"
-                                          Command="{Binding $parent[ListBox].DataContext.AddToQueueCommand}"
-                                          CommandParameter="{Binding}"/>
-                                <MenuItem Header="{loc:Loc ContextMenu_AddToPlaylist}"
-                                          Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddTrackToPlaylistCommand}"
-                                          CommandParameter="{Binding}"/>
-                                <MenuItem Header="{loc:Loc ContextMenu_CopyUrl}"
-                                          Command="{Binding $parent[ListBox].DataContext.CopyUrlCommand}"/>
-                                <Separator/>
-                                <MenuItem Header="Mark as Audiobook"
-                                          Command="{Binding $parent[ListBox].DataContext.MarkAsAudiobookCommand}"/>
-                                <MenuItem Header="Mark as Music"
-                                          Command="{Binding $parent[ListBox].DataContext.MarkAsMusicCommand}"/>
-                                <Separator/>
-                                <MenuItem Header="{loc:Loc ContextMenu_Remove}"
-                                          Command="{Binding $parent[ListBox].DataContext.RemoveTrackCommand}"
-                                          CommandParameter="{Binding}"/>
-                            </ContextMenu>
-                        </Setter.Value>
-                    </Setter>
-                </ControlTheme>
-            </ListBox.ItemContainerTheme>
+                 DoubleTapped="OnTrackDoubleTapped"
+                 ContextRequested="OnListContextRequested">
+            
+            <!-- Hoisted to ListBox.Styles to prevent per-container style instantiation overhead -->
+            <ListBox.Styles>
+                <Style Selector="Grid.track-row:pointerover">
+                    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+                </Style>
+            </ListBox.Styles>
+
+            <!-- Default VirtualizingStackPanel (CacheLength=0) prevents massive rebind storms on thumb drag -->
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">
-                    <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}">
-                        <!-- FIX: Same proportional column definitions as the header above -->
+                    <!-- LOCALIZED HOVER: Background and transitions applied directly to the row Grid 
+                         to prevent full-viewport invalidation caused by ListBoxItem:pointerover -->
+                    <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}"
+                          Background="Transparent" Classes="track-row">
+                        <Grid.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Grid.Transitions>
+
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="2.6*"  MinWidth="260"/>
                             <ColumnDefinition Width="0.9*"  MinWidth="120"/>
                             <ColumnDefinition Width="0.5*"  MinWidth="64"/>
@@ -153,6 +144,7 @@
                             <ColumnDefinition Width="0.35*" MinWidth="36"/>
                         </Grid.ColumnDefinitions>
                         
+                        <!-- ACCENT BAR -->
                         <Border Grid.Column="0"
                                 Width="3"
                                 HorizontalAlignment="Left"
@@ -162,7 +154,7 @@
                             <Border.IsVisible>
                                 <MultiBinding Converter="{StaticResource TrackIdEquals}">
                                     <Binding Path="Id"/>
-                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id"/>
+                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id" />
                                 </MultiBinding>
                             </Border.IsVisible>
                         </Border>
@@ -172,17 +164,21 @@
                                 CornerRadius="{StaticResource RadiusArt}"
                                 Background="{StaticResource BrushSurface2}"
                                 ClipToBounds="True"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0">
                             <Panel>
-                                <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                <Image attached:AsyncImage.SourcePath="{Binding AlbumArtPath}"
+                                       attached:AsyncImage.DecodeWidth="96"
                                        Stretch="UniformToFill"
-                                       IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                <material:MaterialIcon Kind="{Binding MediaType, Converter={StaticResource MediaTypeToIconKind}}"
-                                                       IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
-                                                       Foreground="{StaticResource BrushTextMuted}"
-                                                       Width="18" Height="18"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
+                                       IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       RenderOptions.BitmapInterpolationMode="MediumQuality"/>
+                                
+                                <!-- Lightweight Path icon (size-baked, Stretch="None") -->
+                                <Path Data="{Binding MediaType, Converter={StaticResource MediaTypeToGeom}}"
+                                      Stretch="None" Width="18" Height="18"
+                                      Fill="{StaticResource BrushTextMuted}"
+                                      IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Panel>
                         </Border>
 
@@ -199,6 +195,7 @@
                                        Foreground="{StaticResource BrushTextSecondary}"
                                        FontSize="{DynamicResource RowSubSize}"
                                        TextTrimming="CharacterEllipsis"/>
+                               
                             <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Player.NowPlayingDisplay}"
                                        Foreground="{StaticResource BrushAccent}"
                                        FontSize="{DynamicResource RowSubSize}"
@@ -206,14 +203,13 @@
                                 <TextBlock.IsVisible>
                                     <MultiBinding Converter="{StaticResource RadioNowPlaying}">
                                         <Binding Path="Id"/>
-                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id"/>
+                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id" />
                                         <Binding Path="IsRadio"/>
                                     </MultiBinding>
                                 </TextBlock.IsVisible>
                             </TextBlock>
                         </StackPanel>
 
-                        <!-- SOURCE + LIVE BADGE -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4"
                                     IsVisible="{Binding !IsRadio}">
@@ -256,13 +252,19 @@
                                     Spacing="4"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center">
-                            <material:MaterialIcon Kind="AccessPoint" Width="16" Height="16" Foreground="{StaticResource BrushBlue}"
-                                                   IsVisible="{Binding IsRadio}" ToolTip.Tip="{loc:Loc Radio_Live_Stream}"/>
+                            <!-- Size-baked: AccessPoint16, Stretch="None" -->
+                            <Path Data="{x:Static helpers:RowIcons.AccessPoint16}" Stretch="None" Width="16" Height="16"
+                                  Fill="{StaticResource BrushBlue}"
+                                  IsVisible="{Binding IsRadio}" ToolTip.Tip="{loc:Loc Radio_Live_Stream}"/>
                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsRadio}">
-                                <material:MaterialIcon Kind="CheckCircle" Width="16" Height="16" Foreground="{StaticResource BrushGreen}"
-                                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                <material:MaterialIcon Kind="CloudOff" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"
-                                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                <!-- Size-baked: CheckCircle16, Stretch="None" -->
+                                <Path Data="{x:Static helpers:RowIcons.CheckCircle16}" Stretch="None" Width="16" Height="16"
+                                      Fill="{StaticResource BrushGreen}"
+                                      IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                <!-- Size-baked: CloudOff16, Stretch="None" -->
+                                <Path Data="{x:Static helpers:RowIcons.CloudOff16}" Stretch="None" Width="16" Height="16"
+                                      Fill="{StaticResource BrushTextMuted}"
+                                      IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
                             </StackPanel>
                         </StackPanel>
 
@@ -272,75 +274,26 @@
                                    FontSize="{DynamicResource FontSizeSm}"
                                    VerticalAlignment="Center"/>
 
-                        <!-- FIX: Bumped to Grid.Column="7" -->
                         <Button Grid.Column="7"
                                 Classes="icon-btn"
                                 CommandParameter="{Binding}"
                                 Command="{Binding $parent[ListBox].DataContext.ToggleFavoriteCommand}"
                                 ToolTip.Tip="{loc:Loc Library_Tooltip_Favorite}"
                                 VerticalAlignment="Center">
-                            <material:MaterialIcon Kind="{Binding IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}"
-                                                   Width="18" Height="18"
-                                                   Foreground="{Binding IsFavorite, Converter={StaticResource StarBrush}}"/>
+                            <Path Data="{Binding IsFavorite, Converter={StaticResource BoolToStarGeom}}"
+                                  Stretch="None" Width="18" Height="18"
+                                  Fill="{Binding IsFavorite, Converter={StaticResource StarBrush}}"/>
                         </Button>
 
-                        <!-- FIX: Bumped to Grid.Column="8" -->
                         <Button Grid.Column="8"
                                 Classes="icon-btn"
                                 VerticalAlignment="Center"
+                                Click="OnRowMenuClick"
                                 ToolTip.Tip="{loc:Loc Library_Tooltip_MoreOptions}">
-                            <material:MaterialIcon Kind="DotsVertical" Width="18" Height="18"/>
-                            <Button.Flyout>
-                                <MenuFlyout>
-                                    <MenuItem Header="{loc:Loc ContextMenu_Play}"
-                                              Command="{Binding $parent[ListBox].DataContext.PlayTrackCommand}"
-                                              CommandParameter="{Binding}"/>
-                                    <MenuItem Header="{loc:Loc ContextMenu_ViewDetails}"
-                                              Command="{Binding $parent[ListBox].DataContext.OpenDetailCommand}"/>
-                                    <MenuItem Header="{loc:Loc ContextMenu_ToggleFavorite}"
-                                              Command="{Binding $parent[ListBox].DataContext.ToggleFavoriteCommand}"
-                                              CommandParameter="{Binding}"/>
-                                    <MenuItem Header="{loc:Loc ContextMenu_AddToQueue}"
-                                              Command="{Binding $parent[ListBox].DataContext.AddToQueueCommand}"
-                                              CommandParameter="{Binding}"/>
-                                    <MenuItem Header="{loc:Loc ContextMenu_AddToPlaylist}"
-                                              Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddTrackToPlaylistCommand}"
-                                              CommandParameter="{Binding}"/>
-                                    <MenuItem Header="{loc:Loc ContextMenu_CopyUrl}"
-                                              Command="{Binding $parent[ListBox].DataContext.CopyUrlCommand}"/>
-                                    <Separator/>
-                                    
-                                    <!-- 
-                                      SEMI-IMPORTANT: Media Type Toggles 
-                                      Commented out from the flyout to keep it clean, but preserved for future use.
-                                    -->
-                                    <!--
-                                    <MenuItem Header="Mark as Audiobook"
-                                              Command="{Binding $parent[ListBox].DataContext.MarkAsAudiobookCommand}"/>
-                                    <MenuItem Header="Mark as Music"
-                                              Command="{Binding $parent[ListBox].DataContext.MarkAsMusicCommand}"/>
-                                    <Separator/>
-                                    -->
-
-                                    <MenuItem Header="{loc:Loc ContextMenu_Remove}"
-                                              Command="{Binding $parent[ListBox].DataContext.RemoveTrackCommand}"
-                                              CommandParameter="{Binding}"/>
-                                </MenuFlyout>
-                            </Button.Flyout>
+                            <!-- Size-baked: DotsVertical18, Stretch="None" -->
+                            <Path Data="{x:Static helpers:RowIcons.DotsVertical18}" Stretch="None" Width="18" Height="18"
+                                  Fill="{StaticResource BrushTextSecondary}"/>
                         </Button>
-
-                        <!-- 
-                          SEMI-IMPORTANT: Audiobook Resume Progress Bar
-                          Commented out as per request to hide the audiobook progress indicator.
-                          If you need to restore it, simply uncomment the block below.
-                        -->
-                        <!--
-                        <ProgressBar Grid.Column="0" Grid.ColumnSpan="9"
-                                     Value="{Binding PlaybackPositionPercent}" Maximum="100" Height="2"
-                                     VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
-                                     Foreground="{StaticResource BrushAccent}" Background="Transparent"
-                                     IsVisible="{Binding IsAudiobook}"/>
-                        -->
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>

@@ -4,6 +4,7 @@
              xmlns:material="using:Material.Icons.Avalonia"
              xmlns:loc="using:NullWave.Helpers.Localization"
              xmlns:services="using:NullWave.Services"
+             xmlns:controls="using:NullWave.Views.Controls"
              x:Class="NullWave.Views.Settings.AboutTab"
              x:DataType="vm:SettingsViewModel">
   <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -63,26 +64,10 @@
         </Border>
 
       <!-- WHAT'S NEW -->
-      <TextBlock Classes="section-label" Text="{loc:Loc Settings_About_Section_WhatsNew}"/>
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_About_Section_WhatsNew}" Margin="0,24,0,4"/>
+
       <Border Classes="settings-card">
-        <StackPanel Spacing="12">
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-            <material:MaterialIcon Grid.Column="0" Kind="ThemeLightDark" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_About_WhatsNew_v060_1}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
-          </Grid>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-            <material:MaterialIcon Grid.Column="0" Kind="Radio" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_About_WhatsNew_v060_2}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
-          </Grid>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-            <material:MaterialIcon Grid.Column="0" Kind="TimerOutline" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_About_WhatsNew_v060_3}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
-          </Grid>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-            <material:MaterialIcon Grid.Column="0" Kind="ShieldAccount" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-            <TextBlock Grid.Column="1" Text="{loc:Loc Settings_About_WhatsNew_v060_4}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
-          </Grid>
-        </StackPanel>
+        <controls:ChangelogView/>
       </Border>
 
       <!-- BUILT WITH -->

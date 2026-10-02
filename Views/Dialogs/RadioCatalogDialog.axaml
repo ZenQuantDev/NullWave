@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="using:NullWave.Helpers"
+        xmlns:material="using:Material.Icons.Avalonia"
+        x:Class="NullWave.Views.Dialogs.RadioCatalogDialog"
+        Title="Browse Radio Stations" Width="500" Height="600"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBase}">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
+            <TextBlock Text="Curated Radio" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
+            <TextBlock Text="High-quality, legal, and free internet radio stations. Click 'Add' to save a station to your Radio library." 
+                       TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="StationList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="helpers:CuratedStation">
+                        <Border Classes="settings-card" Margin="0,0,0,8" Padding="12">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Grid.Column="0" Grid.Row="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="0" Grid.Row="1" Text="{Binding Genre}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSizeXs}" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Description}" 
+                                           Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" 
+                                           TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasDescription}"/>
+                                
+                                <Button Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Classes="primary" 
+                                        Click="OnAddStationClicked" Tag="{Binding}" 
+                                        Padding="12,6" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <material:MaterialIcon Kind="Plus" Width="14" Height="14"/>
+                                        <TextBlock Text="Add"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Classes="ghost" Content="Close" Click="OnCloseClicked" HorizontalAlignment="Right" Margin="0,16,0,0"/>
+    </Grid>
+</Window>

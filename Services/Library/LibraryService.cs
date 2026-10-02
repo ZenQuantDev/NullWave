@@ -49,6 +49,37 @@ public partial class LibraryService : IDisposable
         _ = Task.Run(BackfillAlbumArt);
         _ = Task.Run(BackfillYouTubeThumbnails);
         _ = Task.Run(BackfillSoundCloudThumbnails);
+        
+        // PERF: warm CPU decodes for the WHOLE library (not just 50), then force GPU
+        // texture uploads before the user scrolls. Decode width 40 must match the
+        // row Image's attached:AsyncImage.DecodeWidth so keys collide on purpose.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500); // let the window finish its first paints
+
+            List<Track> targets;
+            lock (_tracksLock)
+            {
+                targets = _tracks.Where(t => !string.IsNullOrEmpty(t.AlbumArtPath) && File.Exists(t.AlbumArtPath)).ToList();
+            }
+            if (targets.Count == 0) return;
+
+            var warmed = new List<Avalonia.Media.IImage>(targets.Count);
+            int i = 0;
+            foreach (var t in targets)
+            {
+                try
+                {
+                    var img = BitmapCacheService.DecodeSync(t.AlbumArtPath!, 96);
+                    if (img != null) warmed.Add(img);
+                }
+                catch { }
+                if (++i % 40 == 0) await Task.Delay(8);
+            }
+            Log.Information("[LibraryService] Decoded {Count}/{Total} track art bitmaps", warmed.Count, targets.Count);
+
+            BitmapPrewarm.PrewarmGpuTextures(warmed, 24, 96);
+        });
     }
 
     public IReadOnlyList<Track> GetAll()
@@ -60,8 +91,26 @@ public partial class LibraryService : IDisposable
     {
         if (IsDuplicate(track)) return;
 
+        // FIX: Offload synchronous TagLib I/O to a background thread to prevent UI blocking during import
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
-            track.AlbumArtPath = _metadata.ExtractAlbumArt(track.FilePath);
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var artPath = await _metadata.ExtractAlbumArtAsync(track.FilePath);
+                    if (!string.IsNullOrEmpty(artPath))
+                    {
+                        track.AlbumArtPath = artPath;
+                        Update(track); // Safely updates the DB and UI
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Background album art extraction failed for {Path}", track.FilePath);
+                }
+            });
+        }
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {

@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 24-Sep-2026
+> Last updated: 02-Oct-2026
 
 ---
 
@@ -330,11 +330,11 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - 📋 Audit Profile's existing stats section for gaps once Duration exists (10.6) - e.g. total listening time, most-played by minutes rather than play count
 - 💡 Consider whether Local source is the only "storage-based" bucket worth breaking out, or whether Spotify/LastFm sources should get their own breakdown slice too (currently only YouTube/SoundCloud/Local are shown)
 
-### 10.5 Playlists tab redesign (Library-style) 🔄
+### 10.5 Playlists tab redesign (Library-style) ✅
 
-- 🔄 Bring `TrackListView`'s toolbar polish (search box + clear button, sort direction toggle, clickable sortable headers, result count) to the track list inside a selected playlist in `PlaylistsView.axaml`.
-- 📋 Evaluate whether the playlist _list itself_ (left panel) needs its own search box.
-- 📋 Reuse `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase 9.1c.
+- ✅ Brought multi-select (`SelectionMode="Multiple"`), floating bulk action bar (Queue, Remove), and queue integration to the track list inside a selected playlist in `PlaylistsView.axaml`.
+- ✅ Reused `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase 9.1c for sortable headers.
+- 💡 Evaluate whether the playlist _list itself_ (left panel) needs its own search box (deferred, global search handles filtering).
 
 ### 10.6 Track duration (cross-cutting, opportunistic) 📋
 
@@ -465,15 +465,26 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 18 - v0.6.2 "Correctness" 🔜
+## Phase 18 - v0.6.2 "Correctness" ✅
 
 **Goal:** Fix download concurrency, mood AI reliability, and unify tag vocabularies.
 
 - ✅ **DownloadService (C4)**: Fix stuck URLs after cancel-while-queued, prevent `SemaphoreSlim` drift, fix playlist hang on duplicate URLs, add 20-min hard timeout, switch output template to `%(title).150B [%(id)s].%(ext)s`.
-- 📋 **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
-- 📋 **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
-- 📋 **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
-- 📋 **Local AI & Library (C8, C10)**: Fix Ollama connection refused detection, remove file paths from prompts, fix `RemoveDuplicates` scanned count, make `SweepOrphanedFiles` default to dry-run.
+- ✅ **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select ~150 candidates, cap `num_ctx`, use tolerant parser, filter fallback pool to `MediaType.Music`.
+- ✅ **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts into a single `TagTaxonomy.Normalize()`.
+- ✅ **Metadata & Spotify Bridge (C7, C11)**: Route Spotify metadata through `SpotifyPageParser`, fix `SplitArtistCredits`, guard against album/playlist links in single-track bridge.
+- ✅ **Local AI & Library (C8, C10)**: Fix Ollama connection refused detection, remove file paths from prompts, fix `RemoveDuplicates` scanned count, make `SweepOrphanedFiles` default to dry-run.
+- ✅ **Unified `ProcessRunner` (P9)**: Replace 6+ fragmented `Process.Start` calls (yt-dlp, aria2c, nvidia-smi, hardware detection) with a single, robust helper that reads stdout/stderr concurrently (preventing deadlocks), supports timeouts, and tree-kills on cancel.
+- ✅ **In-App Log Viewer (Help Tab)**: Bind the existing `InAppLogSink` to a UI with text/level filters and a "Copy Diagnostics" button (crucial for handling bug reports from early Reddit users).
+- ✅ **"What's New" Screen**: Render the latest `CHANGELOG.md` section as a markdown popup on first launch after an update.
+- ✅ **UI & Startup Polish (Bugs 0-2, 5)**: 
+    - Fixed VLC console popup on Windows by reading PE header instead of shelling out (Bug 0).
+    - Fixed sidebar drag-arming swallowing clicks on action buttons and removed duplicate persist calls (Bug 1).
+    - Fixed Settings header text clipping by adding `TextTrimming` (Bug 2).
+    - Unified "What's New" systems into a shared `ChangelogView` control (Bug 5).
+- ✅ **P2P Sharing Foundation**: Introduced `nullwave://` URI scheme generation and smart cross-pollination routing for misplaced paste operations.
+- ✅ **Custom WaveSeekBar**: Replaced standard MiniPlayer slider with a custom OneUI/Material You-style animated wave seek bar (filled shapes, flat bottom, 3-layer organic waves via AM/FM modulation).
+
 
 ---
 
@@ -483,7 +494,6 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 - 📋 **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
 - 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
-- 📋 **Process & HTTP (P9)**: Unify process execution into a single `ProcessRunner` (concurrent stdout/stderr, timeouts), share a single `HttpClient` setup.
 - 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
 
 ---
@@ -502,8 +512,8 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 **Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
 
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
-- 📋 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
-- 📋 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
+- 🔄 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
+- 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
 ---
 

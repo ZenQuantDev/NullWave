@@ -70,7 +70,7 @@ public static partial class Locales
         //  Appearance 
         ["Settings_Appearance_Section_Signature"] = "SIGNATURE EDITION",
         ["Settings_Appearance_Signature_Title"] = "Oxeye Daisy",
-        ["Settings_Appearance_Signature_Desc"] = "The v0.5 signature edition - azure + orchid duo",
+        ["Settings_Appearance_Signature_Desc"] = "The signature v0.6 edition - daisy gold + leaf green duo",
         ["Settings_Appearance_Section_BaseColors"] = "BASE COLORS",
         ["Settings_Appearance_Section_AccentDuos"] = "ACCENT DUOS",
         ["Settings_Appearance_Section_ProfileFrame"] = "PROFILE FRAME",
@@ -821,22 +821,6 @@ public static partial class Locales
         ["Profile_Badge_Veteran_Desc"] = "Member for over a year",
         ["Profile_Section_TopTags"] = "YOUR TOP TAGS",
         ["Profile_Tag_FilterHint"] = "Click to filter your library by this tag",
-
-                ["Profile_Section_Badges"] = "EARNED BADGES",
-        ["Profile_Badge_Collector"] = "Collector",
-        ["Profile_Badge_Collector_Desc"] = "100+ tracks in your library",
-        ["Profile_Badge_HeavyListener"] = "Heavy Listener",
-        ["Profile_Badge_HeavyListener_Desc"] = "1,000+ total plays",
-        ["Profile_Badge_TasteMaker"] = "Taste Maker",
-        ["Profile_Badge_TasteMaker_Desc"] = "50+ favorites",
-        ["Profile_Badge_LocalPurist"] = "Local Purist",
-        ["Profile_Badge_LocalPurist_Desc"] = "80%+ of your library is local files",
-        ["Profile_Badge_WaveRider"] = "Wave Rider",
-        ["Profile_Badge_WaveRider_Desc"] = "SoundCloud is your top source",
-        ["Profile_Badge_Veteran"] = "Veteran",
-        ["Profile_Badge_Veteran_Desc"] = "Member for over a year",
-        ["Profile_Section_TopTags"] = "YOUR TOP TAGS",
-        ["Profile_Tag_FilterHint"] = "Click to filter your library by this tag",
         ["Profile_TopTrack_Play_Tooltip"] = "Click to play your top track",
         ["Profile_Time_Now"] = "just now",
         ["Profile_Time_MinutesAgo"] = "{0}m ago",
@@ -922,5 +906,8 @@ public static partial class Locales
         ["MiniPlayer_SleepTimer_ChapterStopped"] = "Stopped at end of chapter.",
 
         ["Sidebar_DropToUnpin"] = "Drop here to unpin",
+
+        ["Settings_PageTitle_DevTools"] = "Developer Tools",
+        ["Settings_PageDesc_DevTools"] = "Sandbox, mocking, and diagnostic utilities for testing NullWave itself.",
     };
 }

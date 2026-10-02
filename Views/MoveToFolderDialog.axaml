@@ -5,7 +5,7 @@
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.MoveToFolderDialog"
         Title="{loc:Loc Dialog_MoveToFolder_Title}" Width="360" Height="400"
-        WindowStartupLocation="CenterOwner" CanResize="False"
+        WindowStartupLocation="CenterScreen" CanResize="False"
         Background="{StaticResource BrushBase}">
     <DockPanel Margin="16">
         <TextBlock DockPanel.Dock="Top" Classes="section-label" Text="{loc:Loc Dialog_MoveToFolder_Section}" Margin="0,0,0,8"/>

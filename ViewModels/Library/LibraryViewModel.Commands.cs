@@ -7,6 +7,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Services.Security;
 
 namespace NullWave.ViewModels;
 
@@ -157,7 +158,9 @@ public partial class LibraryViewModel
     {
         if (t != null)
         {
-            NullActionLogger.TrackPlayed(t.Id.ToString(), t.Title, t.Artist, "LibraryViewModel");
+            // Don't log TrackPlayed here. PlayerViewModel.PlayTrack logs
+            // it after the track actually starts playing in LibVLC. Logging in
+            // both places was double-counting every play in the DB.
             PlayTrackRequested?.Invoke(t);
         }
     }
@@ -165,7 +168,8 @@ public partial class LibraryViewModel
     [RelayCommand]
     private async Task CopyUrlAsync()
     {
-        if (await ClipboardHelper.CopyTrackLinkAsync(SelectedTrack))
+        if (SelectedTrack == null) return;
+        if (await ClipboardHelper.CopyTrackLinkAsync(SelectedTrack, _prefs, _identity))
             ToastService.Instance.Show("URL copied to clipboard.", ToastType.Success, durationMs: 2000);
     }
 }

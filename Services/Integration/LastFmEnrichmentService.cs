@@ -102,7 +102,22 @@ public partial class LastFmEnrichmentService
                 });
 
                 var failedList = failedTracks.ToList();
-                if (failedList.Count > 0 && PowerStateService.ReadPowerState() != PowerState.Battery)
+
+                // Gate: bulk AI fallback requires Ollama to actually be running.
+                // Without this, a dead Ollama burns ~60s discovering it's dead on
+                // every startup (395 tracks → 57s → "Enriched 0").
+                bool ollamaReachable = false;
+                if (failedList.Count > 0)
+                {
+                    try { ollamaReachable = await _localAi.IsOllamaRunningAsync(); }
+                    catch { /* treat as unreachable */ }
+                }
+
+                if (failedList.Count > 0 && !ollamaReachable)
+                {
+                    Log.Information("[LastFmEnrichment] Skipping bulk AI fallback for {Count} tracks - Ollama unreachable.", failedList.Count);
+                }
+                else if (failedList.Count > 0 && PowerStateService.ReadPowerState() != PowerState.Battery)
                 {
                     Log.Information("[LastFmEnrichment] Routing {Count} failed tracks to bulk AI fallback.", failedList.Count);
                     var chunks = failedList.Chunk(10);

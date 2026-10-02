@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -49,23 +50,24 @@ public partial class MiniPlayerView : Border
         if (!_isSeeking) return;
         _isSeeking = false;
 
-        if (sender is Slider slider && DataContext is MainViewModel vm)
-            vm.Player.SeekTo((float)slider.Value);
+        // FIX: WaveSeekBar derives from RangeBase, not Slider - cast accordingly.
+        if (sender is RangeBase bar && DataContext is MainViewModel vm)
+            vm.Player.SeekTo((float)bar.Value);
     }
 
     /// <summary>
-    /// Handles the edge case where the pointer is captured by the slider during a drag
-    /// but then leaves the control before release (e.g. dragged off the mini-player).
+    /// Handles the edge case where the pointer is captured during a drag but then
+    /// leaves the control before release (e.g. dragged off the mini-player).
     /// Without this, _isSeeking stays true forever and subsequent position updates
-    /// are ignored until the user clicks the slider again.
+    /// are ignored until the user clicks the bar again.
     /// </summary>
     private void OnSeekCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
         if (!_isSeeking) return;
         _isSeeking = false;
 
-        if (sender is Slider slider && DataContext is MainViewModel vm)
-            vm.Player.SeekTo((float)slider.Value);
+        if (sender is RangeBase bar && DataContext is MainViewModel vm)
+            vm.Player.SeekTo((float)bar.Value);
     }
 
     private async void RestartMarquee()

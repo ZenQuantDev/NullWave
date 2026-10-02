@@ -87,8 +87,19 @@ public partial class YouTubeMetadataFetcher
 
     public static async Task<string?> FetchThumbnailAsync(string videoId)
     {
-        var thumbUrl = $"https://img.youtube.com/vi/{videoId}/mqdefault.jpg";
-        return await ThumbnailDownloader.FetchAsync(thumbUrl, $"yt_{videoId}");
+        // Probe from highest quality (1080p) down to standard definition.
+        // Includes both WebP and JPG formats. SkiaSharp handles decoding both.
+        var urls = new[]
+        {
+            $"https://i.ytimg.com/vi_webp/{videoId}/maxresdefault.webp", // 1920x1080 WebP
+            $"https://img.youtube.com/vi/{videoId}/maxresdefault.jpg",   // 1920x1080 JPG
+            $"https://i.ytimg.com/vi_webp/{videoId}/sddefault.webp",     // 640x480 WebP
+            $"https://img.youtube.com/vi/{videoId}/sddefault.jpg",       // 640x480 JPG
+            $"https://img.youtube.com/vi/{videoId}/hqdefault.jpg",       // 480x360 JPG (has letterbox)
+            $"https://img.youtube.com/vi/{videoId}/mqdefault.jpg"        // 320x180 JPG (fallback)
+        };
+
+        return await ThumbnailDownloader.FetchWithFallbackAsync(urls, $"yt_{videoId}");
     }
 
     [GeneratedRegex(@"(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s\?#]+)", RegexOptions.IgnoreCase)]

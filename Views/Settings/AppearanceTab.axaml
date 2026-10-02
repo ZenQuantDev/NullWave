@@ -105,18 +105,24 @@
             </Border>
 
 
-<!-- THEME MODE -->
+            <!-- THEME MODE -->
             <TextBlock Classes="section-label" Text="THEME MODE" Margin="0,0,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Appearance" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" Content="Dark">
-                            <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Dark"/></attached:PseudoClass.Active>
-                        </Button>
                         <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Light" Content="Light">
                             <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Light"/></attached:PseudoClass.Active>
                         </Button>
+                        <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" Content="Dark">
+                            <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Dark"/></attached:PseudoClass.Active>
+                        </Button>
+                        
+                        <!-- NEW: True Black (OLED) Mode -->
+                        <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="TrueBlack" Content="True Black">
+                            <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="TrueBlack"/></attached:PseudoClass.Active>
+                        </Button>
+                        
                         <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="System" Content="System">
                             <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="System"/></attached:PseudoClass.Active>
                         </Button>

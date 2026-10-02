@@ -23,8 +23,8 @@ public class NavigationViewModel : ViewModelBase
     private readonly Action<Guid> _navigateToPlaylist;
     private readonly List<NavItem> _coreItems;
     private List<string> _liveOrder = new();
-    private SidebarPill _currentPill = SidebarPill.Playlists;
 
+    private SidebarPill _currentPill = SidebarPill.Playlists;
     public SidebarPill CurrentPill
     {
         get => _currentPill;
@@ -65,32 +65,32 @@ public class NavigationViewModel : ViewModelBase
         _navigateToPlaylist = navigateToPlaylist;
 
         // FIX: Use Func<ICommand> to defer command resolution until click time.
-        // This prevents NullReferenceExceptions if the commands aren't initialized 
+        // This prevents NullReferenceExceptions if the commands aren't initialized
         // when NavigationViewModel is constructed.
         _coreItems = new List<NavItem>
         {
-            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core) 
-            { 
-                Command = new RelayCommand(() => 
-                { 
-                    navigateLibrary()?.Execute(null); 
-                    SetActivePage("Library"); 
+            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    navigateLibrary()?.Execute(null);
+                    SetActivePage("Library");
                 })
             },
-            new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core) 
-            { 
-                Command = new RelayCommand(() => 
-                { 
-                    navigateRadio()?.Execute(null); 
-                    SetActivePage("Radio"); 
+            new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    navigateRadio()?.Execute(null);
+                    SetActivePage("Radio");
                 })
             },
-            new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core) 
-            { 
-                Command = new RelayCommand(() => 
-                { 
-                    navigateAudiobooks()?.Execute(null); 
-                    SetActivePage("Audiobooks"); 
+            new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    navigateAudiobooks()?.Execute(null);
+                    SetActivePage("Audiobooks");
                 })
             },
         };
@@ -136,8 +136,12 @@ public class NavigationViewModel : ViewModelBase
 
         var oldIndex = Items.IndexOf(actualDraggedItem);
         if (oldIndex < 0 || targetIndex < 0 || targetIndex >= Items.Count || oldIndex == targetIndex) return;
+
         Items.Move(oldIndex, targetIndex);
-        PersistOrder();
+        
+        // FIX: Removed explicit PersistOrder() call here. 
+        // The Items.CollectionChanged handler above already catches the 'Move' action 
+        // and calls PersistOrder() automatically. Calling it manually caused double-saves.
     }
 
     public void Rebuild()
@@ -164,6 +168,7 @@ public class NavigationViewModel : ViewModelBase
 
         Items.Clear();
         foreach (var item in ordered) Items.Add(item);
+
         RefreshPlaylistLists();
     }
 
@@ -172,6 +177,9 @@ public class NavigationViewModel : ViewModelBase
         item.Playlist = playlist;
         item.ArtPath = playlist?.ArtPath;
         item.Subtitle = playlist == null ? null : $"Playlist • {playlist.Tracks.Count} tracks";
+        // FIX: pins show the LIVE playlist name, not the label snapshot saved at pin time
+        if (playlist != null && item.Type == NavItemType.PinnedPlaylist && item.Label != playlist.Name)
+            item.Label = playlist.Name;
     }
 
     private NavItem? ToNavItem(PinnedItemData data)
@@ -283,6 +291,20 @@ public class NavigationViewModel : ViewModelBase
             if (item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue)
                 Decorate(item, _playlists.GetById(item.TargetPlaylistId!.Value));
         }
+
+        // FIX: keep persisted pin labels in sync with renames/migration
+        bool pinsDirty = false;
+        foreach (var pin in _prefs.Current.PinnedItems)
+        {
+            if (!pin.TargetPlaylistId.HasValue) continue;
+            var pl = _playlists.GetById(pin.TargetPlaylistId.Value);
+            if (pl != null && pin.Label != pl.Name)
+            {
+                pin.Label = pl.Name;
+                pinsDirty = true;
+            }
+        }
+        if (pinsDirty) _prefs.Save();
     }
 
     private void MoveUp(NavItem? item)
@@ -291,7 +313,6 @@ public class NavigationViewModel : ViewModelBase
         var index = Items.IndexOf(item);
         if (index <= 0) return;
         Items.Move(index, index - 1);
-        PersistOrder();
     }
 
     private void MoveDown(NavItem? item)
@@ -300,7 +321,6 @@ public class NavigationViewModel : ViewModelBase
         var index = Items.IndexOf(item);
         if (index < 0 || index >= Items.Count - 1) return;
         Items.Move(index, index + 1);
-        PersistOrder();
     }
 
     private void PersistOrder()
@@ -315,6 +335,7 @@ public class NavigationViewModel : ViewModelBase
     {
         if (folderId.HasValue && IsPlaylistPinned(playlistId))
             UnpinPlaylist(playlistId);
+
         _playlists.MovePlaylistToFolder(playlistId, folderId);
         RefreshPlaylistLists();
     }
@@ -323,8 +344,10 @@ public class NavigationViewModel : ViewModelBase
     {
         if (node == null) return;
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
+
         var name = await new Views.CreateFolderDialog(node.Folder.Name).ShowDialog<string?>(d.MainWindow);
         if (string.IsNullOrWhiteSpace(name)) return;
+
         _playlists.RenameFolder(node.Folder.Id, name);
         RefreshPlaylistLists();
     }
@@ -333,6 +356,7 @@ public class NavigationViewModel : ViewModelBase
     {
         if (node == null) return;
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
+
         var ok = await new Views.ConfirmDialog("Delete Folder?",
             $"Delete '{node.Folder.Name}'? Playlists inside move to the top level.").ShowDialog<bool>(d.MainWindow);
         if (!ok) return;

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -51,16 +52,25 @@ public class MetadataService
 
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchSpotifyMetadataAsync(string url)
     {
-        var id = _urlParser.ExtractSpotifyId(url);
-        if (string.IsNullOrEmpty(id)) return ("Spotify track (unknown id)", "Unknown", null, TimeSpan.Zero);
-
-        Log.Warning("Spotify API not available - falling back to Last.fm search");
-        if (_lastFm.IsConfigured)
+        try
         {
-            var (t, a) = await _lastFm.SearchTrackAsync("Unknown", "Unknown");
-            return (t, a, null, TimeSpan.Zero);
+            using var http = new HttpClient();
+            var html = await http.GetStringAsync(SpotifyPageParser.CleanUrl(url));
+            var page = SpotifyPageParser.Parse(html);
+
+            if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
+            {
+                Log.Warning("[MetadataService] Spotify {Kind} links are not supported as single tracks.", page.Kind);
+                return ("Unknown Title", "Unknown Artist", null, TimeSpan.Zero);
+            }
+
+            return (page.Title, page.Artist, null, TimeSpan.FromSeconds(page.DurationSeconds));
         }
-        return ($"Spotify track ({id})", "Unknown", null, TimeSpan.Zero);
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[MetadataService] Spotify page fetch failed for {Url}", url);
+            return ("Spotify track", "Unknown", null, TimeSpan.Zero);
+        }
     }
 
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchLastFmUrlAsync(string url)
@@ -79,25 +89,29 @@ public class MetadataService
         return (title, artist, null, TimeSpan.Zero);
     }
 
-    public string? ExtractAlbumArt(string filePath)
+    // FIX: Made async and wrapped in Task.Run to prevent blocking the UI thread during startup
+    public async Task<string?> ExtractAlbumArtAsync(string filePath)
     {
         try
         {
-            using var file = TagLib.File.Create(filePath);
-            if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0) return null;
-
-            var picture = file.Tag.Pictures[0];
-            if (picture.Data == null || picture.Data.Count == 0) return null;
-
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filePath)))[..16];
-            var artPath = Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
-
-            if (!System.IO.File.Exists(artPath))
+            return await Task.Run(() =>
             {
-                System.IO.File.WriteAllBytes(artPath, picture.Data.Data);
-                Log.Information("Album art extracted: {Path}", artPath);
-            }
-            return artPath;
+                using var file = TagLib.File.Create(filePath);
+                if (file.Tag.Pictures == null || file.Tag.Pictures.Length == 0) return null;
+
+                var picture = file.Tag.Pictures[0];
+                if (picture.Data == null || picture.Data.Count == 0) return null;
+
+                var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filePath)))[..16];
+                var artPath = Path.Combine(NullWavePaths.ArtCacheDir, $"{hash}.jpg");
+
+                if (!System.IO.File.Exists(artPath))
+                {
+                    System.IO.File.WriteAllBytes(artPath, picture.Data.Data);
+                    Log.Information("Album art extracted: {Path}", artPath);
+                }
+                return artPath;
+            });
         }
         catch (Exception ex)
         {

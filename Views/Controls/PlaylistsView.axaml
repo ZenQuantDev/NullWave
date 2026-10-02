@@ -1,10 +1,10 @@
-<!-- Views/Controls/PlaylistsView.axaml -->
 <DockPanel xmlns="https://github.com/avaloniaui"
            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
            xmlns:vm="using:NullWave.ViewModels"
            xmlns:models="using:NullWave.Models"
            xmlns:converters="using:NullWave.Helpers.Converters"
            xmlns:material="using:Material.Icons.Avalonia"
+           xmlns:attached="using:NullWave.Helpers.Attached"
            xmlns:loc="using:NullWave.Helpers.Localization"
            x:Class="NullWave.Views.Controls.PlaylistsView"
            x:DataType="vm:MainViewModel">
@@ -15,7 +15,6 @@
         <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
         <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
-        <!-- NEW: Date Added Converter -->
         <converters:PlaylistTrackDateAddedConverter x:Key="PlaylistTrackDateAdded"/>
     </DockPanel.Resources>
 
@@ -34,12 +33,10 @@
                         Margin="0,0,20,0" ClipToBounds="True"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <Panel>
-                        <Border CornerRadius="{StaticResource RadiusLg}"
-                                IsVisible="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <Border.Background>
-                                <ImageBrush Source="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill"/>
-                            </Border.Background>
-                        </Border>
+                        <Image attached:AsyncImage.SourcePath="{Binding Playlist.SelectedPlaylist.ArtPath}"
+                               attached:AsyncImage.DecodeWidth="256"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                         <material:MaterialIcon Kind="PlaylistMusic" Width="48" Height="48"
                                                Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                IsVisible="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -64,7 +61,6 @@
                                FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"/>
                     <TextBlock Text="{Binding Playlist.SelectedPlaylist.Name}" Foreground="{StaticResource BrushTextPrimary}"
                                FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"/>
-                    <!-- Replaced Run with StackPanel to safely support loc:Loc bindings -->
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="{Binding Playlist.SelectedPlaylist.Tracks.Count, Mode=OneWay}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
                         <TextBlock Text="{loc:Loc Playlist_Label_Tracks}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
@@ -106,8 +102,8 @@
             </Grid>
         </Border>
 
-        <!-- UPDATED: Column headers (added 24px drag handle column) -->
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="24,48,*,160,100,90,130,36,36" Margin="16,12,16,4">
+        <!-- Header -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="24,Auto,*,160,100,90,130,36,36" Margin="16,12,16,4">
             <TextBlock Grid.Column="1" Classes="section-label" Text="{Binding Playlist.ResultCountLabel}" FontSize="{DynamicResource FontSizeXs}" Margin="4,0,0,0"/>
             <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                     Command="{Binding Playlist.SortByTitleCommand}" HorizontalContentAlignment="Left" Margin="10,0,0,0">
@@ -138,18 +134,20 @@
         <Grid>
             <ListBox ItemsSource="{Binding Playlist.FilteredTracks}" Background="Transparent"
                      Margin="8,0,8,8" HorizontalAlignment="Stretch"
+                     SelectionMode="Multiple"
+                     SelectedItems="{Binding Playlist.SelectedTracks}"
+                     SelectionChanged="OnTrackSelected"
+                     DoubleTapped="OnTrackDoubleTapped"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="models:Track">
-                        <!-- UPDATED: Added 24px column, DragDrop events -->
-                        <Grid ColumnDefinitions="24,48,*,160,100,90,130,36,36"
+                        <Grid ColumnDefinitions="24,Auto,*,160,100,90,130,36,36"
                               Margin="{DynamicResource RowMargin}"
                               MinHeight="{DynamicResource TrackRowHeight}"
                               DragDrop.AllowDrop="True" 
                               DragDrop.DragOver="OnRowDragOver" 
                               DragDrop.Drop="OnRowDrop">
                             
-                            <!-- NEW: Drag Handle -->
                             <material:MaterialIcon Grid.Column="0" Kind="DragVertical" Width="16" Height="16"
                                                    Foreground="{StaticResource BrushTextMuted}"
                                                    VerticalAlignment="Center" Cursor="SizeAll"
@@ -167,9 +165,12 @@
                                 </Border.IsVisible>
                             </Border>
                             <Border Grid.Column="1" Width="40" Height="40" CornerRadius="{StaticResource RadiusArt}"
-                                    Background="{StaticResource BrushSurface2}" ClipToBounds="True" VerticalAlignment="Center">
+                                    Background="{StaticResource BrushSurface2}" ClipToBounds="True" VerticalAlignment="Center"
+                                    Margin="0,0,8,0">
                                 <Panel>
-                                    <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill"
+                                    <Image attached:AsyncImage.SourcePath="{Binding AlbumArtPath}"
+                                           attached:AsyncImage.DecodeWidth="96"
+                                           Stretch="UniformToFill"
                                            IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                     <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
                                                            Foreground="{StaticResource BrushTextMuted}" Width="16" Height="16"
@@ -196,7 +197,6 @@
                                                        IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
                             </StackPanel>
                             
-                            <!-- UPDATED: MultiBinding for Per-Playlist Date Added -->
                             <TextBlock Grid.Column="6" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center">
                                 <TextBlock.Text>
                                     <MultiBinding Converter="{StaticResource PlaylistTrackDateAdded}" StringFormat="{}{0:MMM dd, yyyy}">
@@ -222,6 +222,22 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+
+            <!-- Floating Bulk Action Bar -->
+            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,24"
+                    Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusFull}"
+                    Padding="16,8" BoxShadow="0 8 24 0 #80000000"
+                    IsVisible="{Binding Playlist.HasMultiSelection}">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="{Binding Playlist.SelectionCountLabel}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                    <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Bulk_Tooltip_Queue}" Command="{Binding Playlist.BulkQueueCommand}">
+                        <material:MaterialIcon Kind="PlaylistPlus" Width="20" Height="20"/>
+                    </Button>
+                    <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Bulk_Tooltip_Remove}" Command="{Binding Playlist.BulkRemoveCommand}">
+                        <material:MaterialIcon Kind="PlaylistRemove" Width="20" Height="20"/>
+                    </Button>
+                </StackPanel>
+            </Border>
             
             <!-- Empty State -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"

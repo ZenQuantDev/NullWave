@@ -13,11 +13,17 @@ namespace NullWave.ViewModels;
 
 public partial class PlayerViewModel
 {
+    private bool _queueInterrupt;
+    private System.Collections.Generic.List<Guid> _playlistDeck = new();
+    private int _playlistDeckPos;
+
     public void PlayPlaylist(Playlist playlist)
     {
         if (playlist.Tracks.Count == 0) return;
         _activePlaylist = playlist;
         _activePlaylistIndex = 0;
+        _playlistDeck.Clear();
+        _playlistDeckPos = 0;
         PlayTrack(playlist.Tracks[0]);
     }
 
@@ -27,12 +33,19 @@ public partial class PlayerViewModel
         NowPlayingTitle = string.Empty;
         NowPlayingArtist = string.Empty;
 
+        var hadPlaylist = _activePlaylist != null;
+
         if (_activePlaylist != null)
         {
             int idx = -1;
             for (int i = 0; i < _activePlaylist.Tracks.Count; i++) { if (_activePlaylist.Tracks[i].Id == track.Id) { idx = i; break; } }
-            if (idx >= 0) _activePlaylistIndex = idx; else _activePlaylist = null;
+            if (idx >= 0) _activePlaylistIndex = idx; else if (!_queueInterrupt) _activePlaylist = null;
         }
+        _queueInterrupt = false;
+
+        // Keep the queue panel truthful: rebuild auto "up next" whenever the context or index moves.
+        if (_activePlaylist != null) RebuildAutoQueue();
+        else if (hadPlaylist) { _library.ClearAutoQueue(); RefillAutoQueue(); }
 
         var recordHistory = !_suppressHistoryRecord;
         _suppressHistoryRecord = false;
@@ -91,8 +104,7 @@ public partial class PlayerViewModel
                 IsDownloading = true;
                 StatusText = L("Player_Status_DownloadingBeforePlayback");
                 NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-                // FIX: pass track metadata so the job shows the real title immediately
-                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality, 
+                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality,
                     title: track.Title, artist: track.Artist);
             }
             else { StatusText = L("Player_Status_DownloadInProgress"); Log.Debug("[{Source}] Skipped duplicate download for {Url}", nameof(PlayerViewModel), track.Url); }
@@ -107,12 +119,22 @@ public partial class PlayerViewModel
     {
         if (IsPlaying)
         {
+            if (!_playback.IsPlaying && !_playback.IsCrossfading)
+            {
+                _playback.ResyncState();
+                return;
+            }
             SaveAudiobookProgress();
             if (_settings.FadeOnPauseEnabled) _ = _playback.FadeAndPauseAsync(_settings.FadeOnPauseDurationMs); else _playback.Pause();
             NullActionLogger.TrackPaused(_currentTrack?.Id.ToString() ?? "?", PositionDisplay, nameof(PlayerViewModel));
         }
         else if (_state == PlaybackState.Paused)
         {
+            if (_playback.IsPlaying)
+            {
+                _playback.ResyncState();
+                return;
+            }
             if (_settings.FadeOnPauseEnabled) _ = _playback.FadeAndResumeAsync(_settings.FadeOnPauseDurationMs); else _playback.Resume();
             if (_currentTrack != null) NullActionLogger.TrackPlayed(_currentTrack.Id.ToString(), _currentTrack.Title, _currentTrack.Artist, nameof(PlayerViewModel));
         }
@@ -154,6 +176,35 @@ public partial class PlayerViewModel
         if (_navigator.ShouldRepeatCurrent() && _currentTrack != null) PlayTrack(_currentTrack); else PlayNext();
     }
 
+    // Playlist-scoped no-repeat shuffle deck (mirrors PlaybackNavigator's library deck)
+    private Track? DrawPlaylistShuffle()
+    {
+        if (_activePlaylist == null || _activePlaylist.Tracks.Count == 0) return null;
+        if (_playlistDeckPos >= _playlistDeck.Count)
+        {
+            _playlistDeck = _activePlaylist.Tracks.Select(t => t.Id).ToList();
+            for (int i = _playlistDeck.Count - 1; i > 0; i--)
+            {
+                int j = Random.Shared.Next(i + 1);
+                (_playlistDeck[i], _playlistDeck[j]) = (_playlistDeck[j], _playlistDeck[i]);
+            }
+            _playlistDeckPos = 0;
+            if (_currentTrack != null && _playlistDeck.Count > 1 && _playlistDeck[0] == _currentTrack.Id)
+            {
+                int j = Random.Shared.Next(1, _playlistDeck.Count);
+                (_playlistDeck[0], _playlistDeck[j]) = (_playlistDeck[j], _playlistDeck[0]);
+            }
+        }
+        var id = _playlistDeck[_playlistDeckPos++];
+        return _activePlaylist.Tracks.FirstOrDefault(t => t.Id == id);
+    }
+
+    private void RebuildAutoQueue()
+    {
+        _library.ClearAutoQueue();
+        RefillAutoQueue();
+    }
+
     private void PlayPrevious()
     {
         if (DateTime.UtcNow - _lastNavigationTime < NavigationDebounce) return;
@@ -162,9 +213,28 @@ public partial class PlayerViewModel
         if (duration > 0 && Position * duration > 3.0) { SeekTo(0f); return; }
         _download.CancelCurrentDownload();
         IsDownloading = false;
-        if (_currentTrack?.MediaType == MediaType.Audiobook) { var prevChapter = _navigator.GetPreviousChapter(_currentTrack); if (prevChapter != null) { PlayTrack(prevChapter); return; } }
-        if (_activePlaylist != null && _activePlaylistIndex > 0) { _activePlaylistIndex--; PlayTrack(_activePlaylist.Tracks[_activePlaylistIndex]); return; }
-        _activePlaylist = null;
+
+        if (_currentTrack?.MediaType == MediaType.Audiobook)
+        {
+            var prevChapter = _navigator.GetPreviousChapter(_currentTrack);
+            if (prevChapter != null) { PlayTrack(prevChapter); return; }
+        }
+
+        if (_activePlaylist != null && _currentTrack != null && _activePlaylist.Tracks.Any(t => t.Id == _currentTrack.Id))
+        {
+            var idx = _activePlaylist.Tracks.IndexOf(_currentTrack);
+            if (idx > 0)
+            {
+                _activePlaylistIndex = idx - 1;
+                PlayTrack(_activePlaylist.Tracks[idx - 1]);
+                return;
+            }
+            SeekTo(0f);
+            return;
+        }
+
+        if (_activePlaylist != null) _activePlaylist = null;
+
         var prev = _navigator.GetPreviousTrack(_currentTrack);
         if (prev != null) { _suppressHistoryRecord = true; PlayTrack(prev); }
     }
@@ -176,16 +246,58 @@ public partial class PlayerViewModel
         RecordSkipIfEarly();
         _download.CancelCurrentDownload();
         IsDownloading = false;
-        if (_currentTrack?.MediaType == MediaType.Audiobook) { var nextChapter = _navigator.GetNextChapter(_currentTrack); if (nextChapter != null) { PlayTrack(nextChapter); return; } StatusText = "End of Audiobook"; return; }
-        if (_activePlaylist != null)
+
+        if (_currentTrack?.MediaType == MediaType.Audiobook)
         {
-            if (IsShuffle) { var candidates = _activePlaylist.Tracks.Where(t => t.Id != _currentTrack?.Id).ToList(); if (candidates.Count > 0) { var pick = candidates[Random.Shared.Next(candidates.Count)]; _activePlaylistIndex = _activePlaylist.Tracks.IndexOf(pick); PlayTrack(pick); return; } }
-            else if (_activePlaylistIndex < _activePlaylist.Tracks.Count - 1) { _activePlaylistIndex++; PlayTrack(_activePlaylist.Tracks[_activePlaylistIndex]); return; }
-            _activePlaylist = null;
+            var nextChapter = _navigator.GetNextChapter(_currentTrack);
+            if (nextChapter != null) { PlayTrack(nextChapter); return; }
+            StatusText = "End of Audiobook";
+            return;
         }
-        var queued = _library.DequeueNext();
-        if (queued != null) { PlayTrack(queued); RefillAutoQueue(); return; }
-        _activePlaylist = null;
+
+        // 1) Queue is the single source of "up next": manual entries sit at the head,
+        //    auto entries mirror the playlist (sequential or shuffle deck).
+        var head = _library.GetQueue();
+        if (head.Count > 0)
+        {
+            bool wasManual = head[0].IsManual;
+            var queued = _library.DequeueNext();
+            if (queued != null)
+            {
+                if (wasManual) _queueInterrupt = true;
+                PlayTrack(queued);
+                RefillAutoQueue();
+                return;
+            }
+        }
+
+        // 2) Queue empty (auto-fill disabled or playlist exhausted): fall back to direct picks.
+        if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
+        {
+            Track? pick = null;
+            if (IsShuffle)
+            {
+                pick = DrawPlaylistShuffle();
+            }
+            else
+            {
+                var idx = _currentTrack != null ? _activePlaylist.Tracks.IndexOf(_currentTrack) : _activePlaylistIndex;
+                if (idx >= 0 && idx < _activePlaylist.Tracks.Count - 1) pick = _activePlaylist.Tracks[idx + 1];
+                else if (RepeatMode == RepeatMode.All)
+                {
+                    _playlistDeck.Clear(); _playlistDeckPos = 0;
+                    pick = _activePlaylist.Tracks[0];
+                }
+            }
+            if (pick != null) { PlayTrack(pick); RefillAutoQueue(); return; }
+            StatusText = $"End of '{_activePlaylist.Name}'.";
+            return;
+        }
+
+        // 3) No playlist context: original library behavior.
+        var queuedAuto = _library.DequeueNext();
+        if (queuedAuto != null) { PlayTrack(queuedAuto); RefillAutoQueue(); return; }
+
         var next = _navigator.GetNextTrack(_currentTrack);
         if (next != null) PlayTrack(next); else StatusText = L("Player_Status_EndOfLibrary");
     }
@@ -208,13 +320,37 @@ public partial class PlayerViewModel
         }
     }
 
+    // Playlist-aware auto-fill: the queue panel now shows upcoming playlist tracks
+    // (sequential order, or shuffle-deck order when shuffle is on).
     private void RefillAutoQueue()
     {
-        if (_activePlaylist != null) return;
-        var currentAutoCount = _library.GetQueue().Count(e => !e.IsManual);
         var target = _settings.QueueAutoFillSize;
-        if (currentAutoCount >= target) return;
-        var needed = target - currentAutoCount;
+        var autoCount = _library.GetQueue().Count(e => !e.IsManual);
+        var needed = target - autoCount;
+        if (needed <= 0) return;
+
+        if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
+        {
+            var adds = new System.Collections.Generic.List<Track>();
+            if (IsShuffle)
+            {
+                for (int i = 0; i < needed; i++)
+                {
+                    var t = DrawPlaylistShuffle();
+                    if (t == null) break;
+                    adds.Add(t);
+                }
+            }
+            else
+            {
+                var start = (_currentTrack != null ? _activePlaylist.Tracks.IndexOf(_currentTrack) : _activePlaylistIndex) + 1;
+                for (int i = 0; i < needed && start + i < _activePlaylist.Tracks.Count; i++)
+                    adds.Add(_activePlaylist.Tracks[start + i]);
+            }
+            if (adds.Count > 0) _library.FillQueue(adds);
+            return;
+        }
+
         var upcoming = _navigator.GenerateUpcoming(needed);
         _library.FillQueue(upcoming);
     }
@@ -229,26 +365,54 @@ public partial class PlayerViewModel
         if (remaining <= _settings.CrossfadeDurationSeconds)
         {
             _hasTriggeredCrossfade = true;
-            Track? next;
-            if (_activePlaylist != null)
+            Track? next = null;
+
+            var head = _library.GetQueue();
+            if (head.Count > 0)
             {
-                if (IsShuffle) { var candidates = _activePlaylist.Tracks.Where(t => t.Id != _currentTrack.Id).ToList(); next = candidates.Count > 0 ? candidates[Random.Shared.Next(candidates.Count)] : null; }
-                else { var index = _activePlaylist.Tracks.IndexOf(_currentTrack); next = index >= 0 && index < _activePlaylist.Tracks.Count - 1 ? _activePlaylist.Tracks[index + 1] : null; }
+                _queueInterrupt = head[0].IsManual;
+                next = head[0].Track;
+                _library.DequeueNext();
+            }
+            else if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
+            {
+                if (IsShuffle) next = DrawPlaylistShuffle();
+                else
+                {
+                    var index = _activePlaylist.Tracks.IndexOf(_currentTrack);
+                    next = index >= 0 && index < _activePlaylist.Tracks.Count - 1
+                        ? _activePlaylist.Tracks[index + 1]
+                        : (_navigator.RepeatMode == RepeatMode.All ? _activePlaylist.Tracks[0] : null);
+                }
             }
             else
             {
-                var queueEntries = _library.GetQueue();
-                if (queueEntries.Count > 0) { next = queueEntries[0].Track; _library.DequeueNext(); }
-                else next = _navigator.GetNextTrack(_currentTrack);
+                next = _navigator.GetNextTrack(_currentTrack);
+            }
+
+            if (next != null && _activePlaylist != null)
+            {
+                int idx = _activePlaylist.Tracks.IndexOf(next);
+                if (idx >= 0) _activePlaylistIndex = idx; else if (!_queueInterrupt) _activePlaylist = null;
+                _queueInterrupt = false;
+                RebuildAutoQueue();
             }
 
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && File.Exists(next.FilePath))
             {
                 _isCrossfading = true;
+                var left = _currentTrack;
+
+                CurrentTrack = next;
+                _navigator.CurrentTrack = next;
+                AlbumArtPath = next.AlbumArtPath;
+                StatusText = CurrentTrackDisplay;
+                _trackStartTime = DateTime.UtcNow;
+
                 Log.Information("Starting crossfade transition to {NextTitle}", next.Title);
                 var sessionId = _playSessionId;
-                var left = _currentTrack;
                 var crossfadeTask = _playback.CrossfadeToAsync(next.FilePath, _settings.CrossfadeDurationSeconds * 1000, _volume);
+
                 _ = crossfadeTask.ContinueWith(t =>
                 {
                     Dispatcher.UIThread.Post(() =>
@@ -256,20 +420,21 @@ public partial class PlayerViewModel
                         if (sessionId != _playSessionId) return;
                         _isCrossfading = false;
                         if (!t.IsCompletedSuccessfully || t.Result != _playback.CrossfadeGeneration) return;
+
                         if (left != null) _navigator.RecordPlay(left);
-                        if (left != null && _playRecorded && left.MediaType != MediaType.Audiobook) TrackScrobbleRequested?.Invoke(left.Title, left.Artist, DateTime.UtcNow);
-                        CurrentTrack = next;
-                        _navigator.CurrentTrack = next;
+                        if (left != null && _playRecorded && left.MediaType != MediaType.Audiobook)
+                            TrackScrobbleRequested?.Invoke(left.Title, left.Artist, DateTime.UtcNow);
+
                         _playRecorded = false;
-                        AlbumArtPath = next.AlbumArtPath;
-                        _trackStartTime = DateTime.UtcNow;
                         _hasTriggeredCrossfade = false;
-                        StatusText = CurrentTrackDisplay;
                         NullActionLogger.TrackPlayed(next.Id.ToString(), next.Title, next.Artist, nameof(PlayerViewModel));
                     });
                 });
             }
-            else Log.Debug("[PlayerViewModel] Approaching end of playlist or no valid next track. Crossfade bypassed.");
+            else
+            {
+                Log.Debug("[PlayerViewModel] Approaching end of playlist or no valid next track. Crossfade bypassed.");
+            }
         }
     }
 

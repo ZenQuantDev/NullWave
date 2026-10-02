@@ -7,6 +7,7 @@
         xmlns:models="using:NullWave.Models"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:loc="using:NullWave.Helpers.Localization"
+        WindowStartupLocation="CenterScreen"
         x:Class="NullWave.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NullWave"
@@ -66,7 +67,6 @@
                     <Border Grid.Row="0" Background="{StaticResource BrushSurface}"
                             BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8">
                         <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
-                            <!-- FIX: Added x:Name="GlobalSearchBox" for Ctrl+L focus targeting -->
                             <TextBox x:Name="GlobalSearchBox" Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
                                      PlaceholderText="{loc:Loc MainWindow_Search_Placeholder}"
                                      VerticalAlignment="Center">
@@ -120,16 +120,23 @@
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
                                         <StackPanel Spacing="12" Width="380" Margin="4">
-                                            <TextBlock FontWeight="SemiBold" Text="{loc:Loc MainWindow_AddFromUrl_Title}"/>
+                                            <TextBlock FontWeight="SemiBold" Text="{loc:Loc MainWindow_AddFromUrl_Title}"
+                                                       Foreground="{DynamicResource BrushTextPrimary}"/>
                                             <TextBox Text="{Binding Input.InputUrl, Mode=TwoWay}"
-                                                     PlaceholderText="{loc:Loc MainWindow_AddFromUrl_Placeholder}"/>
+                                                     PlaceholderText="{loc:Loc MainWindow_AddFromUrl_Placeholder}"
+                                                     PlaceholderForeground="{DynamicResource BrushTextMuted}"/>
                                             <Button Classes="primary" Content="{loc:Loc MainWindow_AddFromUrl_AddButton}" Command="{Binding Input.AddTrackCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                                             <Button Classes="ghost" Content="{loc:Loc MainWindow_AddLocalFile_Button}" Command="{Binding Input.AddLocalFileCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
                                             <Button Classes="ghost" Content="{loc:Loc MainWindow_ImportFolder_Button}" Command="{Binding Import.ImportFolderCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
-                                            <Border Height="1" Background="{StaticResource BrushBorder}"/>
+                                            
+                                            <!-- Radio Catalog Entry Point -->
+                                            <Button Classes="ghost" Content="Browse Radio Stations" Command="{Binding Input.BrowseRadioCatalogCommand}"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+
+                                            <Border Height="1" Background="{DynamicResource BrushBorder}"/>
                                             <controls:DownloadManagerView DataContext="{Binding DownloadManager}"/>
                                         </StackPanel>
                                     </Flyout>
@@ -147,17 +154,21 @@
                     </Grid>
                 </Grid>
 
-                <!-- RIGHT: Detail / Queue Panel (Width Transition) -->
+                <!-- RIGHT: Detail / Queue Panel.
+                     RESTORED SLIDE: DoubleTransition on Width (the supported transition type;
+                     Avalonia ships no GridLength transition). The inner Panel is pinned at 320px
+                     and right-aligned so content lays out ONCE and is revealed by the clipping
+                     host - no text re-wrap mid-animation. -->
                 <Border Grid.Column="2"
                         Width="{Binding ActiveRightPanelWidth}"
                         ClipToBounds="True"
                         Background="{StaticResource BrushSurface}">
                     <Border.Transitions>
                         <Transitions>
-                            <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="QuadraticEaseOut"/>
+                            <DoubleTransition Property="Width" Duration="0:0:0.22" Easing="CubicEaseOut"/>
                         </Transitions>
                     </Border.Transitions>
-                    <Panel>
+                    <Panel Width="{x:Static vm:MainViewModel.RightPanelWidth}" HorizontalAlignment="Right">
                         <controls:TrackDetailView IsVisible="{Binding Detail.IsOpen}"/>
                         <controls:QueueView IsVisible="{Binding Queue.IsOpen}"/>
                     </Panel>

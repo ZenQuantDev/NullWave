@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:attached="using:NullWave.Helpers.Attached">
 
   <!--  DANGER BUTTON  -->
   <Style Selector="Button.danger">
@@ -40,7 +41,7 @@
     <Setter Property="FontSize"       Value="{DynamicResource FontSizeLabel}"/>
     <Setter Property="FontWeight"     Value="SemiBold"/>
     <Setter Property="LetterSpacing" Value="2"/>
-    <Setter Property="Margin"         Value="0,24,0,12"/>
+    <Setter Property="Margin"         Value="{DynamicResource SectionLabelMargin}"/>
   </Style>
 
   <!--  NAV BUTTON  -->
@@ -66,7 +67,7 @@
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
     <Setter Property="Foreground" Value="{StaticResource BrushAccent2}"/>
   </Style>
-  <Style Selector="Button.nav.sidebar-nav">
+  <Style Selector="Button.nav.sidebar_nav">
     <Setter Property="Focusable" Value="False"/>
     <Setter Property="FontSize"   Value="{DynamicResource FontSizeBody}"/>
     <Setter Property="Margin"     Value="0,1"/>
@@ -331,7 +332,7 @@
     </Setter>
   </Style>
   <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <!-- DISABLED: Triggers full-viewport invalidation during scroll -->
   </Style>
   <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
@@ -450,9 +451,6 @@
   </Style>
 
   <!--  TOGGLE SWITCH - STANDARD LOOK  -->
-  <!-- Label left (inherited Foreground/FontSize flow into the generated label),
-       40x20 track with 12px knob, SOLID accent when checked (no duo gradient),
-       platform-standard margins (3px off / 23px on). -->
   <Style Selector="ToggleSwitch">
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
@@ -479,7 +477,6 @@
               </Transitions>
             </Border.Transitions>
             <Panel>
-              <!-- Required by Avalonia's ToggleSwitch internal logic -->
               <Panel x:Name="PART_MovingKnobs" />
               <Border x:Name="SwitchKnob"
                       Width="12" Height="12"
@@ -527,7 +524,7 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
     <Setter Property="Padding" Value="{DynamicResource CardPadding}"/>
-    <Setter Property="Margin" Value="0,0,0,16"/>
+    <Setter Property="Margin" Value="{DynamicResource CardMargin}"/>
   </Style>
   <Style Selector="Border.settings-banner">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
@@ -561,7 +558,7 @@
     <Setter Property="IsHitTestVisible" Value="False"/>
   </Style>
 
-  <!-- TECH CREDIT CHIP - About tab "Built with" credits (clickable) -->
+  <!-- TECH CREDIT CHIP -->
   <Style Selector="Button.tech-chip">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
@@ -595,7 +592,7 @@
     <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
   </Style>
 
-  <!--  SLIM SCROLLBARS: subtle, revealed on hover  -->
+  <!--  SLIM SCROLLBARS  -->
   <Style Selector="ScrollBar">
     <Setter Property="Opacity" Value="0.3"/>
     <Setter Property="Background" Value="Transparent"/>
@@ -635,7 +632,7 @@
     <Setter Property="Margin" Value="8,4"/>
   </Style>
 
-  <!--  KEYBOARD KEY CAP (fixed to use Border wrapper)  -->
+  <!--  KEYBOARD KEY CAP  -->
   <Style Selector="Border.kbd">
     <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
@@ -650,7 +647,6 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
-  <!-- Text inside accent buttons must ignore the global TextBlock foreground -->
   <Style Selector="Button.primary TextBlock">
     <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}"/>
   </Style>
@@ -659,5 +655,38 @@
   </Style>
   <Style Selector="Button.danger:pointerover TextBlock">
     <Setter Property="Foreground" Value="White"/>
+  </Style>
+
+  <Style Selector="FlyoutPresenter">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusMd}"/>
+    <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}"/>
+  </Style>
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}"/>
+    <Setter Property="Padding" Value="8,5"/>
+  </Style>
+
+  <!-- SMOOTH SCROLLING: RESTORED -->
+  <Style Selector="ScrollViewer">
+      <Setter Property="attached:SmoothScrollBehavior.IsEnabled" Value="True"/>
+  </Style>
+  
+  <!-- TARGETED STATIC DIMMING (OLED / Idle) -->
+  <Style Selector="Border.dimmable">
+    <Setter Property="Opacity" Value="1.0"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="CubicEaseOut"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.dimmable.idle-dim">
+    <Setter Property="Opacity" Value="0.35"/>
   </Style>
 </Styles>

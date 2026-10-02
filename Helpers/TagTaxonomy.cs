@@ -9,50 +9,69 @@ public static class TagTaxonomy
 {
     public static readonly Dictionary<string, string[]> GenreAxes = new()
     {
-        ["Electronic"] = new[] { "electronic", "edm", "house", "techno", "dubstep", "synth" },
+        ["Electronic"] = new[] { "electronic", "edm", "house", "techno", "dubstep", "synth", "electronica", "electronic music" },
         ["Rock/Metal"] = new[] { "rock", "metal", "punk", "grunge", "alternative" },
-        ["Hip-Hop"]    = new[] { "hip hop", "hip-hop", "rap", "trap", "r&b" },
+        ["Hip-Hop"]    = new[] { "hip hop", "hip-hop", "rap", "trap", "r&b", "rnb", "r and b", "rhythm and blues", "hiphop" },
         ["Pop"]        = new[] { "pop", "k-pop", "indie pop", "synthpop" },
         ["Jazz/Classical"] = new[] { "jazz", "classical", "orchestral", "blues" },
-        ["Ambient/Chill"] = new[] { "ambient", "chill", "lofi", "downtempo", "acoustic" }
+        ["Ambient/Chill"] = new[] { "ambient", "chill", "lofi", "downtempo", "acoustic", "lo-fi", "lo fi", "chillout", "chill out", "chillwave", "mellow" },
+        ["Dance"]      = new[] { "dance", "party", "danceable", "disco" },
+        ["Synthwave"]  = new[] { "synthwave", "synth", "synth-wave", "retro" }
     };
 
     public static readonly Dictionary<string, string[]> MoodAxes = new()
     {
-        ["Energetic"] = new[] { "energetic", "upbeat", "hype", "dance" },
-        ["Melancholy"] = new[] { "sad", "melancholy", "moody", "emotional" },
-        ["Chill"] = new[] { "chill", "relax", "calm", "mellow" },
+        ["Energetic"] = new[] { "energetic", "upbeat", "hype" },
+        ["Melancholic"] = new[] { "sad", "melancholy", "moody", "emotional", "melancholic" },
+        ["Chill"] = new[] { "chill", "relax", "calm" },
         ["Dark"] = new[] { "dark", "aggressive", "intense", "heavy" },
         ["Happy"] = new[] { "happy", "feel good", "uplifting", "joy" },
-        ["Focus"] = new[] { "focus", "study", "instrumental", "concentration" }
+        ["Focus"] = new[] { "focus", "study", "instrumental", "concentration" },
+        ["Romantic"] = new[] { "romantic", "soul", "funk" },
+        ["Dreamy"] = new[] { "dreamy", "nostalgic" }
     };
 
-    // FIX (C6): Centralized alias map for unifying Weather, External, and AI tags
     private static readonly Dictionary<string, string> AliasMap = BuildAliasMap();
 
     private static Dictionary<string, string> BuildAliasMap()
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (canonical, keywords) in GenreAxes) foreach (var kw in keywords) map[kw] = canonical;
-        foreach (var (canonical, keywords) in MoodAxes) foreach (var kw in keywords) map[kw] = canonical;
+        var canonicals = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (canonical, keywords) in GenreAxes)
+        {
+            canonicals.Add(canonical);
+            foreach (var kw in keywords) map[kw] = canonical;
+        }
         
-        map["rnb"] = "Hip-Hop"; map["r&b"] = "Hip-Hop";
-        map["hip hop"] = "Hip-Hop"; map["hip-hop"] = "Hip-Hop";
-        map["rap"] = "Hip-Hop"; map["trap"] = "Hip-Hop";
-        map["lofi"] = "Ambient/Chill"; map["lo-fi"] = "Ambient/Chill";
+        foreach (var (canonical, keywords) in MoodAxes)
+        {
+            canonicals.Add(canonical);
+            foreach (var kw in keywords) map[kw] = canonical;
+        }
+        
+        // Map canonical names to themselves (lowercase key -> proper case value)
+        // Using the HashSet avoids the "Collection was modified" bug on map.Values
+        foreach (var canonical in canonicals)
+        {
+            map[canonical.ToLowerInvariant()] = canonical;
+        }
+
         return map;
     }
+
+    // FIX (C6): Expose approved tags for External AI prompts
+    public static readonly string[] ApprovedTags = AliasMap.Values.Distinct().OrderBy(t => t).ToArray();
 
     public static string? Normalize(string rawTag)
     {
         if (string.IsNullOrWhiteSpace(rawTag)) return null;
-        return AliasMap.TryGetValue(rawTag.Trim().ToLowerInvariant(), out var canonical) ? canonical : null;
+        return AliasMap.TryGetValue(rawTag.Trim(), out var canonical) ? canonical : null;
     }
 
     public static List<string> NormalizeAll(IEnumerable<string> tags) =>
         tags.Select(Normalize).Where(t => t != null).Select(t => t!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-    // FIX (C6): Count each track AT MOST ONCE per axis, rather than breaking on the first axis match
     public static Dictionary<string, double> ComputeDistribution(IEnumerable<Track> tracks, Dictionary<string, string[]> axes)
     {
         var counts = axes.Keys.ToDictionary(k => k, _ => 0);
