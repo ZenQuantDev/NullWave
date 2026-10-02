@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 24-Sep-2026
+> Last updated: 02-Oct-2026
 
 ---
 
@@ -330,11 +330,11 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - 📋 Audit Profile's existing stats section for gaps once Duration exists (10.6) - e.g. total listening time, most-played by minutes rather than play count
 - 💡 Consider whether Local source is the only "storage-based" bucket worth breaking out, or whether Spotify/LastFm sources should get their own breakdown slice too (currently only YouTube/SoundCloud/Local are shown)
 
-### 10.5 Playlists tab redesign (Library-style) 🔄
+### 10.5 Playlists tab redesign (Library-style) ✅
 
-- 🔄 Bring `TrackListView`'s toolbar polish (search box + clear button, sort direction toggle, clickable sortable headers, result count) to the track list inside a selected playlist in `PlaylistsView.axaml`.
-- 📋 Evaluate whether the playlist _list itself_ (left panel) needs its own search box.
-- 📋 Reuse `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase 9.1c.
+- ✅ Brought multi-select (`SelectionMode="Multiple"`), floating bulk action bar (Queue, Remove), and queue integration to the track list inside a selected playlist in `PlaylistsView.axaml`.
+- ✅ Reused `SortFieldDisplayConverter`/`BoolToSortIconConverter` from Phase 9.1c for sortable headers.
+- 💡 Evaluate whether the playlist _list itself_ (left panel) needs its own search box (deferred, global search handles filtering).
 
 ### 10.6 Track duration (cross-cutting, opportunistic) 📋
 
@@ -483,6 +483,8 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
     - Fixed Settings header text clipping by adding `TextTrimming` (Bug 2).
     - Unified "What's New" systems into a shared `ChangelogView` control (Bug 5).
 - ✅ **P2P Sharing Foundation**: Introduced `nullwave://` URI scheme generation and smart cross-pollination routing for misplaced paste operations.
+- ✅ **Custom WaveSeekBar**: Replaced standard MiniPlayer slider with a custom OneUI/Material You-style animated wave seek bar (filled shapes, flat bottom, 3-layer organic waves via AM/FM modulation).
+
 
 ---
 
