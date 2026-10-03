@@ -32,6 +32,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="LibVLCSharp" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" />
     <PackageReference Include="Material.Icons.Avalonia" />
     <PackageReference Include="QRCoder" />
     <PackageReference Include="Serilog" />
