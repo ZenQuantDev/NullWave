@@ -1,5 +1,0 @@
-# This directory is a Syncthing folder marker.
-# Do not delete.
-
-folderID: 7pywa-mgdnp
-created: 2026-10-03T22:01:30+04:00
