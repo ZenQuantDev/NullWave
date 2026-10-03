@@ -436,12 +436,31 @@ appsettings*.local.json
 appsettings.local.json
 appsettings*.local.json
 
+# ==========================================
+# NullWave Custom & Syncthing Ignores
+# ==========================================
+
+# Syncthing temporary files (prevents sync conflicts)
+*.syncthing
+.syncthing*
+.stignore
+
+# Build & Release Artifacts (DO NOT SYNC THESE)
+bin/
+obj/
 publish/
 releases/
 publish-artifacts/
-
-build-release.ps1
-# Build and Release artifacts
 scripts/publish/
 scripts/releases/
 scripts/publish-artifacts/
+
+# Visual Studio specific (redundant with standard template, but kept for safety)
+*.user
+*.suo
+.vs/
+
+# Velopack / NuGet artifacts that might leak into root
+*.nupkg
+*.exe
+*.msi
