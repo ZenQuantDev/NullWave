@@ -70,7 +70,7 @@ public class DependencyUpdateService
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             Log.Information("[DependencyUpdate] Native update failed, attempting winget fallback...");
-            var wingetUpdate = await RunCommandAsync("winget", "upgrade yt-dlp.yt-dlp --accept-source-agreements --accept-package-agreements");
+            var wingetUpdate = await RunCommandAsync("winget", "upgrade", "yt-dlp.yt-dlp", "--accept-source-agreements", "--accept-package-agreements");
             if (wingetUpdate != null)
             {
                 Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
@@ -79,7 +79,7 @@ public class DependencyUpdateService
         }
 
         // 3. Fallback for Linux: try pip
-        var pipUpdate = await RunCommandAsync("pip", "install --upgrade yt-dlp");
+        var pipUpdate = await RunCommandAsync("pip", "install", "--upgrade", "yt-dlp");
         if (pipUpdate != null)
         {
             Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
@@ -141,7 +141,7 @@ public class DependencyUpdateService
             return "Install via your package manager (dnf/apt)";
 
         Log.Information("[DependencyUpdate] Attempting VLC install via winget...");
-        var ok = await RunCommandAsync("winget", "install --id VideoLAN.VLC -e --accept-source-agreements --accept-package-agreements");
+        var ok = await RunCommandAsync("winget", "install", "--id", "VideoLAN.VLC", "-e", "--accept-source-agreements", "--accept-package-agreements");
         if (ok != null)
         {
             Log.Information("[DependencyUpdate] VLC installed via winget");
@@ -182,7 +182,7 @@ public class DependencyUpdateService
     }
 
     // ===== HELPERS =====
-    private static async Task<string?> RunCommandAsync(string cmd, string args)
+    private static async Task<string?> RunCommandAsync(string cmd, params string[] args)
     {
         try
         {
@@ -194,7 +194,7 @@ public class DependencyUpdateService
                 return result.StandardOutput;
 
             // Special case: yt-dlp -U might exit non-zero in some environments but still report "up to date"
-            if (cmd == "yt-dlp" && args == "-U")
+            if (cmd == "yt-dlp" && args.Length == 1 && args[0] == "-U")
             {
                 var combined = result.StandardOutput + result.StandardError;
                 if (combined.Contains("up to date", StringComparison.OrdinalIgnoreCase))
@@ -208,7 +208,7 @@ public class DependencyUpdateService
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[DependencyUpdate] Command failed: {Cmd} {Args}", cmd, args);
+            Log.Warning(ex, "[DependencyUpdate] Command failed: {Cmd} {Args}", cmd, string.Join(" ", args));
             return null;
         }
     }
