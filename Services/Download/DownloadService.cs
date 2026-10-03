@@ -215,7 +215,7 @@ public class DownloadService
             ? Random.Shared.Next(3000, 8000)
             : Random.Shared.Next(600, 1800);
     }
-
+    
     public async Task DownloadAsync(
         string trackId,
         string url,
@@ -227,6 +227,15 @@ public class DownloadService
         string? artist = null,
         CancellationToken ct = default)
     {
+        // SECURITY FIX: Strict URL validation
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uriResult) || 
+            (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
+        {
+            Log.Warning("[DownloadService] Blocked invalid or non-HTTP URL: {Url}", url);
+            DownloadFailed?.Invoke(trackId, "Invalid URL format", isInteractive);
+            return;
+        }
+
         if (url.Contains("youtu.be") || url.Contains("youtube.com"))
         {
             url = SiParamRegex1.Replace(url, "");
@@ -241,42 +250,28 @@ public class DownloadService
             return;
         }
 
-        var outputTemplate = Path.Combine(_downloadDir, "%(title).150B [%(id)s].%(ext)s");
+        // SECURITY FIX: Hardened output template to prevent path traversal
+        var safeDownloadDir = Path.GetFullPath(_downloadDir);
+        var outputTemplate = Path.Combine(safeDownloadDir, "%(title).150B [%(id)s].%(ext)s");
+        
         var qualityValue = audioQuality switch
         {
-            "best" => "0",
-            "320"  => "0",
-            "192"  => "2",
-            "128"  => "4",
-            "96"   => "6",
-            _      => "0"
+            "best" => "0", "320"  => "0", "192"  => "2", "128"  => "4", "96"   => "6", _ => "0"
         };
 
         var args = new List<string>
         {
-            url,
-            "--extract-audio",
-            "--audio-format", audioFormat,
-            "--audio-quality", qualityValue,
-            "-f", "bestaudio/best",
-            "--output", outputTemplate,
-            "--print", "after_move:filepath",
-            "--ignore-errors",
-            "--js-runtimes", "node",
-            "--remote-components", "ejs:github",
-            "--embed-metadata",
-            "--embed-thumbnail",
-            "--write-thumbnail",
-            "--parse-metadata", "uploader:%(artist)s",
-            "--parse-metadata", "channel:%(artist)s"
+            url, "--extract-audio", "--audio-format", audioFormat, "--audio-quality", qualityValue,
+            "-f", "bestaudio/best", "--output", outputTemplate, "--print", "after_move:filepath",
+            "--ignore-errors", "--js-runtimes", "node", "--remote-components", "ejs:github",
+            "--embed-metadata", "--embed-thumbnail", "--write-thumbnail",
+            "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
         };
 
         AppendSpeedAndAuthArgs(args);
 
-        if (!allowPlaylist)
-            args.Add("--no-playlist");
-        else
-            args.Add("--yes-playlist");
+        if (!allowPlaylist) args.Add("--no-playlist");
+        else args.Add("--yes-playlist");
 
         lock (_activeDownloads)
         {

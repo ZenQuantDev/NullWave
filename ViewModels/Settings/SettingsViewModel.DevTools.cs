@@ -111,7 +111,7 @@ public partial class SettingsViewModel
 
         foreach (var tool in new[] { "yt-dlp", "aria2c", "ffmpeg", "vlc" })
         {
-            var result = await ProcessRunner.RunAsync(tool, "--version", TimeSpan.FromSeconds(3));
+            var result = await ProcessRunner.RunAsync(tool, new[] { "--version" }, TimeSpan.FromSeconds(3));
             var firstLine = result.StandardOutput
                 .Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim();
             bool ok = result.ExitCode == 0 && !string.IsNullOrWhiteSpace(firstLine);

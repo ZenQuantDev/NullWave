@@ -441,3 +441,7 @@ releases/
 publish-artifacts/
 
 build-release.ps1
+# Build and Release artifacts
+scripts/publish/
+scripts/releases/
+scripts/publish-artifacts/

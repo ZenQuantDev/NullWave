@@ -89,6 +89,36 @@ public partial class LibraryService : IDisposable
 
     public void Add(Track track)
     {
+        if (!string.IsNullOrEmpty(track.FilePath))
+        {
+            var importedPath = track.FilePath;
+            if (importedPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(segment => string.Equals(segment, "..", StringComparison.Ordinal)))
+            {
+                Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
+                return;
+            }
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(importedPath);
+            }
+            catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+            {
+                Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
+                return;
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
+                return;
+            }
+
+            track.FilePath = fullPath;
+        }
+
         if (IsDuplicate(track)) return;
 
         // FIX: Offload synchronous TagLib I/O to a background thread to prevent UI blocking during import
