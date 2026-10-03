@@ -22,39 +22,40 @@ public class UpdateService
 
     public UpdateService()
     {
-        // Point to your GitHub repository
         var source = new GithubSource("https://github.com/ZenQuantDev/NullWave", accessToken: null, prerelease: false);
         _updateManager = new UpdateManager(source);
+        
+        // Log initialization state
+        Log.Information("[UpdateService] Initialized. IsInstalled={IsInstalled}, Version={Version}", 
+            _updateManager.IsInstalled, CurrentVersion);
     }
 
-    /// <summary>
-    /// True if the app was installed via Velopack Setup/Installer. 
-    /// False if running from source/IDE (dotnet run), which prevents NotInstalledException.
-    /// </summary>
     public bool IsInstalled => _updateManager.IsInstalled;
-
     public string CurrentVersion => _updateManager.CurrentVersion?.ToString() ?? "0.0.0";
 
     public async Task<UpdateCheckResult> CheckForUpdateAsync()
     {
-        // Guard against dev builds throwing NotInstalledException
         if (!_updateManager.IsInstalled)
         {
+            Log.Information("[UpdateService] Skipping check: App is not installed via Velopack (dev/portable build).");
             return new UpdateCheckResult
             {
                 IsUpdateAvailable = false,
                 CurrentVersion = "dev build",
                 LatestVersion = "dev build",
                 ReleaseUrl = "https://github.com/ZenQuantDev/NullWave/releases",
-                ReleaseNotes = "Updates are not available in development builds."
+                ReleaseNotes = "Updates are only available for installed builds."
             };
         }
 
         try
         {
+            Log.Information("[UpdateService] Checking for updates (Current: v{Version})...", CurrentVersion);
             _pendingUpdate = await _updateManager.CheckForUpdatesAsync();
+
             if (_pendingUpdate == null)
             {
+                Log.Information("[UpdateService] No update found. v{Version} is up to date.", CurrentVersion);
                 return new UpdateCheckResult
                 {
                     IsUpdateAvailable = false,
@@ -65,6 +66,8 @@ public class UpdateService
             }
 
             var versionString = _pendingUpdate.TargetFullRelease.Version.ToString();
+            Log.Information("[UpdateService] Update available: v{Version}", versionString);
+
             return new UpdateCheckResult
             {
                 IsUpdateAvailable = true,
@@ -97,9 +100,9 @@ public class UpdateService
                 
             if (_pendingUpdate == null) return false;
 
-            // Velopack downloads, verifies hashes, and stages the update automatically
+            Log.Information("[UpdateService] Downloading update v{Version}...", _pendingUpdate.TargetFullRelease.Version);
             await _updateManager.DownloadUpdatesAsync(_pendingUpdate);
-            Log.Information("[UpdateService] Update staged successfully via Velopack.");
+            Log.Information("[UpdateService] Update staged successfully.");
             return true;
         }
         catch (Exception ex)
@@ -126,8 +129,7 @@ public class UpdateService
             
             if (_pendingUpdate != null)
             {
-                Log.Information("[UpdateService] Applying update and restarting...");
-                // Velopack handles the graceful shutdown, file swap, and restart securely
+                Log.Information("[UpdateService] Applying update v{Version} and restarting...", _pendingUpdate.TargetFullRelease.Version);
                 _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
             }
         }
