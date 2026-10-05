@@ -2,40 +2,36 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Serilog;
 
 namespace NullWave.Services.SmartSorting;
 
 public enum PowerState { AC, Battery, Unknown }
 
-/// <summary>
-/// Lightweight service that reads the system power state (AC/battery)
-/// and raises an event when it changes, so LocalAIService can auto-switch
-/// models without polling from the UI layer.
-/// </summary>
 public class PowerStateService : IDisposable
 {
     private PowerState _current = PowerState.Unknown;
-    private Timer? _pollTimer;
+    private ITimer? _pollTimer; 
     private bool _disposed;
+    private readonly TimeProvider _timeProvider;
+    private readonly string _sysFsRoot;
 
     public PowerState Current => _current;
     public event Action<PowerState>? PowerStateChanged;
 
-    public PowerStateService()
+    public const string DefaultSysFsRoot = "/sys/class/power_supply";
+
+    public PowerStateService(TimeProvider? timeProvider = null, string sysFsRoot = DefaultSysFsRoot)
     {
-        _current = ReadPowerState();
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _sysFsRoot = sysFsRoot;
+        _current = ReadPowerState(_sysFsRoot);
     }
 
-    /// <summary>
-    /// Start polling every 15 seconds. Cheap - just reads a sysfs file.
-    /// </summary>
     public void StartPolling()
     {
-        _pollTimer = new Timer(_ => CheckAndNotify(), null,
-            dueTime: TimeSpan.FromSeconds(15),
-            period:  TimeSpan.FromSeconds(15));
+        _pollTimer = _timeProvider.CreateTimer(_ => CheckAndNotify(), null,
+            TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
     }
 
     public void StopPolling()
@@ -46,7 +42,7 @@ public class PowerStateService : IDisposable
 
     private void CheckAndNotify()
     {
-        var state = ReadPowerState();
+        var state = ReadPowerState(_sysFsRoot);
         if (state != _current)
         {
             _current = state;
@@ -55,61 +51,95 @@ public class PowerStateService : IDisposable
         }
     }
 
-    public static PowerState ReadPowerState()
+    public static PowerState ReadPowerState(string sysFsRoot = DefaultSysFsRoot)
     {
         try
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                // /sys/class/power_supply/AC/online → "1" = plugged, "0" = battery
-                // Some systems use "AC0" or "ACAD" - try common names
-                foreach (var name in new[] { "AC", "AC0", "ACAD", "ADP0", "ADP1" })
-                {
-                    var path = $"/sys/class/power_supply/{name}/online";
-                    if (!File.Exists(path)) continue;
-
-                    var val = File.ReadAllText(path).Trim();
-                    return val == "1" ? PowerState.AC : PowerState.Battery;
-                }
-
-                // Fallback: check if any battery is discharging
-                var supplyDir = "/sys/class/power_supply";
-                if (Directory.Exists(supplyDir))
-                {
-                    foreach (var dir in Directory.GetDirectories(supplyDir))
-                    {
-                        var statusPath = Path.Combine(dir, "status");
-                        if (!File.Exists(statusPath)) continue;
-                        var status = File.ReadAllText(statusPath).Trim();
-                        if (status == "Discharging") return PowerState.Battery;
-                        if (status is "Charging" or "Full") return PowerState.AC;
-                    }
-                }
+                return ParseSysFs(sysFsRoot);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // System.Windows.Forms.SystemInformation isn't available in WinExe without Forms,
-                // so we use the Win32 GetSystemPowerStatus via P/Invoke
                 if (GetSystemPowerStatus(out var status))
-                    return status.ACLineStatus == 1 ? PowerState.AC : PowerState.Battery;
+                {
+                    return status.ACLineStatus switch
+                    {
+                        0 => PowerState.Battery,
+                        1 => PowerState.AC,
+                        255 => PowerState.Unknown,
+                        _ => PowerState.Unknown
+                    };
+                }
+            }
+            else
+            {
+                // Fallback for macOS or testing sysfs on Windows
+                if (Directory.Exists(sysFsRoot)) return ParseSysFs(sysFsRoot);
             }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[PowerState] Could not read power state");
         }
-
         return PowerState.Unknown;
     }
 
-    //  Win32 P/Invoke for Windows power state 
+    public static PowerState ParseSysFs(string sysFsRoot)
+    {
+        if (!Directory.Exists(sysFsRoot)) return PowerState.Unknown;
+
+        bool hasBattery = false;
+        bool isDischarging = false;
+        bool isAcOnline = false;
+
+        foreach (var dir in Directory.GetDirectories(sysFsRoot))
+        {
+            var typePath = Path.Combine(dir, "type");
+            var scopePath = Path.Combine(dir, "scope");
+            var statusPath = Path.Combine(dir, "status");
+            var onlinePath = Path.Combine(dir, "online");
+
+            string type = File.Exists(typePath) ? File.ReadAllText(typePath).Trim() : "";
+            string scope = File.Exists(scopePath) ? File.ReadAllText(scopePath).Trim() : "";
+            
+            if (scope.Equals("Device", StringComparison.OrdinalIgnoreCase)) continue;
+            if (type.Equals("USB", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (type.Equals("Battery", StringComparison.OrdinalIgnoreCase))
+            {
+                hasBattery = true;
+                if (File.Exists(statusPath))
+                {
+                    var status = File.ReadAllText(statusPath).Trim();
+                    if (status.Equals("Discharging", StringComparison.OrdinalIgnoreCase)) isDischarging = true;
+                }
+            }
+            else if (type.Equals("Mains", StringComparison.OrdinalIgnoreCase) || 
+                     type.Equals("AC", StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(onlinePath))
+                {
+                    var online = File.ReadAllText(onlinePath).Trim();
+                    if (online == "1") isAcOnline = true;
+                }
+            }
+        }
+
+        if (isDischarging) return PowerState.Battery;
+        if (hasBattery && !isDischarging) return PowerState.AC; 
+        if (isAcOnline) return PowerState.AC;
+        
+        return PowerState.Unknown;
+    }
+
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS lpSystemPowerStatus);
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private struct SYSTEM_POWER_STATUS
     {
-        public byte ACLineStatus;       // 0 = offline, 1 = online, 255 = unknown
+        public byte ACLineStatus;       
         public byte BatteryFlag;
         public byte BatteryLifePercent;
         public byte SystemStatusFlag;

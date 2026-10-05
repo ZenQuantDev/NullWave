@@ -71,20 +71,22 @@ public partial class SettingsViewModel
     public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running ? L("Settings_Dynamic_AI_Stop") : L("Settings_Dynamic_AI_Start");
 
     [RelayCommand]
-    private void DetectHardware()
+    private async Task DetectHardwareAsync()
     {
         IsDetectingHardware = true;
         try
         {
             var detector = new HardwareDetector();
-            var info = detector.Detect();
-            HardwareInfo = string.Format(L("Settings_Dynamic_HW_Info"), info.CpuCores, info.RamGB, info.GpuType, info.GpuVramGB, info.RecommendedModel, info.RecommendationReason);
+            var info = await detector.DetectAsync();
+            
+            string modelDisplay = info.RecommendedModel ?? "none";
+            HardwareInfo = string.Format(L("Settings_Dynamic_HW_Info"), info.CpuCores, info.RamGB, info.GpuType, info.GpuVramGB, modelDisplay, info.RecommendationReason);
             var currentPrefs = _prefsService.Current;
-            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel)) SelectedModel = info.RecommendedModel;
+            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel)) SelectedModel = info.RecommendedModel ?? "qwen2.5:0.5b";
             else OnPropertyChanged(nameof(SelectedModel));
             
             var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
-            var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
+            var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd, info.HasAvx, info.HasAvx2, info.IsArm64) ?? "qwen2.5:0.5b";
             
             if (string.IsNullOrEmpty(currentPrefs.BatteryModel)) BatteryModel = suggestedBattery;
             else OnPropertyChanged(nameof(BatteryModel));
