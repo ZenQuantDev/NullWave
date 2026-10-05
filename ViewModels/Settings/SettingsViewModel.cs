@@ -77,7 +77,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _lastFmState = LastFmConnectionState.Connected;
         }
 
-        DetectHardware();
+        _ = DetectHardwareAsync();
         _ = ProbeOllamaOnStartupAsync();
         StartAIHealthCheck();
         
