@@ -69,6 +69,9 @@
               <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="AccentGlow" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_AccentGlow}" Margin="0,0,6,6">
                 <attached:PseudoClass.Active><Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="AccentGlow"/></attached:PseudoClass.Active>
               </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="Scene" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_Scene}" Margin="0,0,6,6">
+                <attached:PseudoClass.Active><Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="Scene"/></attached:PseudoClass.Active>
+              </Button>
               <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="AlbumArt" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_AlbumArt}" IsEnabled="False" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_AlbumArt_Soon}" Margin="0,0,6,6"/>
             </WrapPanel>
           </StackPanel>
@@ -84,7 +87,7 @@
             <StackPanel Grid.Column="2" Spacing="4">
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Blur}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
-                <TextBlock Grid.Column="1" Text="{Binding WallpaperBlur}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" Text="{Binding WallpaperSoftness}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
               </Grid>
               <Slider Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding WallpaperSoftness, Mode=TwoWay}" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_Blur_Desc}"/>
             </StackPanel>
@@ -113,6 +116,80 @@
           </Border>
         </StackPanel>
       </Grid>
+    </Border>
+
+    <!-- SCENES GALLERY -->
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="0,24,0,12"/>
+    <Border Classes="settings-card">
+      <ItemsControl ItemsSource="{x:Static services:WallpaperScenes.All}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="5" Margin="0"/>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="services:SceneDef">
+            <Button Classes="card-select" Margin="4" Padding="0" Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectWallpaperSceneCommand}" CommandParameter="{Binding Id}">
+              <attached:PseudoClass.Active>
+                <MultiBinding Converter="{x:Static converters:IsSceneActiveConverter.Instance}">
+                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperStyle"/>
+                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperSceneId"/>
+                  <Binding Path="Id"/>
+                </MultiBinding>
+              </attached:PseudoClass.Active>
+              <Grid RowDefinitions="80,Auto">
+                <!-- Thumbnail Preview -->
+                <Border Grid.Row="0" CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True">
+                  <Panel>
+                    <Border Background="{DynamicResource BrushSurface2}"/>
+                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=aurora}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                    </Border>
+                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=horizon}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
+                          <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentDim}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                    </Border>
+                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=spotlight}">
+                      <Border.Background>
+                        <RadialGradientBrush Center="0.5,0.3" RadiusX="0.8" RadiusY="0.8">
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorBase}" Offset="1"/>
+                        </RadialGradientBrush>
+                      </Border.Background>
+                    </Border>
+                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=duotone}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                    </Border>
+                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=dusk}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                    </Border>
+                  </Panel>
+                </Border>
+                
+                <!-- Text Details -->
+                <StackPanel Grid.Row="1" Spacing="2" Margin="8,6">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}" Foreground="{DynamicResource BrushTextPrimary}"/>
+                  <TextBlock Text="{Binding Description}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" MaxLines="2"/>
+                </StackPanel>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </Border>
   </StackPanel>
 </UserControl>
