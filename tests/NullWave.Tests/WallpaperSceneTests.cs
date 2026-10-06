@@ -49,6 +49,31 @@ public class WallpaperSceneRegistryTests
         => Assert.NotNull(WallpaperScenes.Find(WallpaperScenes.DefaultId));
 
     [Fact]
+    public void Scene_labels_notify_when_language_changes()
+    {
+        var scene = WallpaperScenes.All[0];
+        var originalLanguage = LocalizationService.Instance.CurrentLanguage;
+        var nameChanged = false;
+        var descriptionChanged = false;
+        scene.PropertyChanged += (_, args) =>
+        {
+            nameChanged |= args.PropertyName == nameof(scene.Name);
+            descriptionChanged |= args.PropertyName == nameof(scene.Description);
+        };
+
+        try
+        {
+            LocalizationService.Instance.SetLanguage("ru-RU");
+            Assert.True(nameChanged);
+            Assert.True(descriptionChanged);
+        }
+        finally
+        {
+            LocalizationService.Instance.SetLanguage(originalLanguage);
+        }
+    }
+
+    [Fact]
     public void New_preferences_default_to_the_registry_default_scene()
         => Assert.Equal(WallpaperScenes.DefaultId, new Preferences().WallpaperSceneId);
 
