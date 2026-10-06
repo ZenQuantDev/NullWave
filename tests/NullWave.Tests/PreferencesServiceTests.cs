@@ -50,4 +50,27 @@ public class PreferencesServiceTests
             
         Assert.Empty(Directory.GetFiles(NullWavePaths.DataDir, "prefs.json.tmp"));
     }
+
+    [Fact]
+    public void Wallpaper_preferences_round_trip()
+    {
+        using (var first = new PreferencesService())
+        {
+            first.Update(p =>
+            {
+                p.WallpaperStyle = "Custom";
+                p.WallpaperPath = "wallpaper-test.png";
+                p.WallpaperOpacity = 73;
+                p.WallpaperBlur = 12;
+                p.WallpaperFit = "Fit";
+            });
+        }
+
+        using var second = new PreferencesService();
+        Assert.Equal("Custom", second.Current.WallpaperStyle);
+        Assert.Equal("wallpaper-test.png", second.Current.WallpaperPath);
+        Assert.Equal(73, second.Current.WallpaperOpacity);
+        Assert.Equal(12, second.Current.WallpaperBlur);
+        Assert.Equal("Fit", second.Current.WallpaperFit);
+    }
 }

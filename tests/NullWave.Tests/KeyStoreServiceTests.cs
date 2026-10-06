@@ -38,6 +38,24 @@ public class KeyStoreServiceTests : IDisposable
     }
 
     [Fact]
+    public void Saving_replaces_a_read_only_keystore_file()
+    {
+        var store = Create();
+        store.SaveKey("A", "before");
+        File.SetAttributes(StorePath, File.GetAttributes(StorePath) | FileAttributes.ReadOnly);
+
+        try
+        {
+            store.SaveKey("A", "after");
+            Assert.Equal("after", Create().GetKey("A"));
+        }
+        finally
+        {
+            if (File.Exists(StorePath)) File.SetAttributes(StorePath, FileAttributes.Normal);
+        }
+    }
+
+    [Fact]
     public void Unreadable_file_is_moved_aside_and_never_overwritten()
     {
         Create().SaveKey("A", "1");

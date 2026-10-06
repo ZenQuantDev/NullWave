@@ -464,3 +464,6 @@ scripts/publish-artifacts/
 *.nupkg
 *.exe
 *.msi
+# Syncthing conflict artifacts
+*.sync-conflict-*
+.stfolder/

@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using NullWave.Helpers;
 using Serilog;
 
@@ -164,9 +165,42 @@ public class KeyStoreService
         File.WriteAllBytes(tmp, blob);
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        File.Move(tmp, _storePath, overwrite: true);
+        ReplaceStoreFile(tmp);
         _cache = new Dictionary<string, string>(keys);
     }
+
+    private void ReplaceStoreFile(string temporaryPath)
+    {
+        if (OperatingSystem.IsWindows() && File.Exists(_storePath))
+        {
+            var attributes = File.GetAttributes(_storePath);
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+                File.SetAttributes(_storePath, attributes & ~FileAttributes.ReadOnly);
+        }
+
+        const int maxAttempts = 5;
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Move(temporaryPath, _storePath, overwrite: true);
+                return;
+            }
+            catch (IOException ex) when (attempt < maxAttempts && IsTransientReplaceFailure(ex.HResult))
+            {
+                Thread.Sleep(10 << attempt);
+            }
+            catch (UnauthorizedAccessException ex) when (attempt < maxAttempts && IsTransientReplaceFailure(ex.HResult))
+            {
+                Thread.Sleep(10 << attempt);
+            }
+        }
+    }
+
+    private static bool IsTransientReplaceFailure(int hresult) => hresult is
+        unchecked((int)0x80070005) or // Access denied, commonly a read-only or briefly scanned target on Windows.
+        unchecked((int)0x80070020) or // Sharing violation.
+        unchecked((int)0x80070021);   // Lock violation.
 
     // Note: plaintext still exists briefly in managed memory (string and byte[] copies).
     // This protects the file at rest only, not process memory.

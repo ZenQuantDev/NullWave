@@ -12,7 +12,7 @@
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.SidebarView"
         x:DataType="vm:MainViewModel"
-        Background="{StaticResource BrushSurface}"
+        Classes="chrome-heavy"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,0,1,0"
         Width="{Binding SidebarWidth}"
@@ -258,8 +258,8 @@
 
         <Border DockPanel.Dock="Top" Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="12,0,12,8"/>
 
-        <!-- Bottom: profile / rail -->
-        <Border DockPanel.Dock="Bottom" Background="{StaticResource BrushBase}"
+        <!-- Bottom: profile / rail. The opaque profile card remains an island over this heavy tier. -->
+        <Border DockPanel.Dock="Bottom" Classes="chrome-heavy"
                 BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="8,6,8,10">
             <StackPanel Spacing="6">
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,0,0,0"
