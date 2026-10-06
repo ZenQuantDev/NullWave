@@ -7,7 +7,6 @@
         xmlns:attached="using:NullWave.Helpers.Attached"
         x:Class="NullWave.Views.Controls.TrackDetailView"
         x:DataType="vm:MainViewModel"
-        Background="{StaticResource BrushSurface}"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="1,0,0,0"
         ClipToBounds="True">
@@ -96,7 +95,7 @@
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                 </StackPanel>
                 <!-- Source + Favorite -->
-                <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,12,0">
                     <StackPanel Grid.Column="0" Spacing="6">
                         <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Source}" Margin="0"/>
                         <Border CornerRadius="{StaticResource RadiusFull}"

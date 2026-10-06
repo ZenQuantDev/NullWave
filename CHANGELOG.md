@@ -8,6 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **Wallpaper Scenes**: Added five procedural, accent-reactive backgrounds and scene-aware appearance presets. The Minimal effects tier reduces scene layers, skips preset scenes, and displays a low-power hint.
+- **Built-in Wallpaper Collections**: Added the exclusive Starry Night public-domain artwork to the built-in gallery. Unlock it with the 21-tap About ladder; built-in images use the generation-guarded background decoder.
+- **Built-in Wallpaper Collections**: Added the exclusive Starry Night public-domain artwork to the built-in gallery. Unlock it with the 21-tap About ladder; built-in images use the generation-guarded background decoder.
 - **Whole-Window Wallpaper (scope addition)**: Pulled forward from the v0.6.5 visual-audit scope; added class-gated chrome, per-theme readability floors, and ambient wallpaper layers in Settings/Profile. Light's floor was raised to 90% after screenshot review. Blur and album-art sync remain deferred.
 - **Async Hardware Detection**: `HardwareDetector` now runs in the background with strict 5-second timeouts via `ProcessRunner`, preventing startup hangs from wedged GPU drivers.
 - **AVX/ARM64 AI Gating**: AI features are now correctly gated behind AVX/AVX2 instruction sets on x86, and properly enabled for ARM64 (ASIMD/NEON).

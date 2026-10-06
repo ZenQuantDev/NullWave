@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 02-Oct-2026
+> Last updated: 05-Oct-2026
 
 ---
 
@@ -18,18 +18,18 @@
 
 ## Release Plan
 
-| Version     | Codename / Focus       | Key Deliverables                                                                                                                               |
-| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v0.5.1**  | Stability              | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                            |
-| **v0.5.2**  | QoL & Polish           | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                      |
-| **v0.6.0**  | "Oxeye Daisy"          | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish. |
-| **v0.6.1**  | "Stability & Safety"   | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
-| **v0.6.2**  | Correctness            | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                           |
-| **v0.6.3**  | Responsiveness         | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                            |
-| **v0.6.4**  | Discover & Reset       | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                   |
-| **v0.6.5**  | Premium & Performance  | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                               |
-| **v0.6.6**  | Launch Readiness       | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                         |
-| **v0.7.0+** | Ecosystem              | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                            |
+| Version     | Codename / Focus      | Key Deliverables                                                                                                                                       |
+| ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **v0.5.1**  | Stability             | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                    |
+| **v0.5.2**  | QoL & Polish          | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
+| **v0.6.0**  | "Oxeye Daisy"         | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
+| **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
+| **v0.6.2**  | Correctness           | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                                   |
+| **v0.6.3**  | Responsiveness        | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                                    |
+| **v0.6.4**  | Discover & Reset      | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                           |
+| **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
+| **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
+| **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
 ---
 
@@ -477,7 +477,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ **Unified `ProcessRunner` (P9)**: Replace 6+ fragmented `Process.Start` calls (yt-dlp, aria2c, nvidia-smi, hardware detection) with a single, robust helper that reads stdout/stderr concurrently (preventing deadlocks), supports timeouts, and tree-kills on cancel.
 - ✅ **In-App Log Viewer (Help Tab)**: Bind the existing `InAppLogSink` to a UI with text/level filters and a "Copy Diagnostics" button (crucial for handling bug reports from early Reddit users).
 - ✅ **"What's New" Screen**: Render the latest `CHANGELOG.md` section as a markdown popup on first launch after an update.
-- ✅ **UI & Startup Polish (Bugs 0-2, 5)**: 
+- ✅ **UI & Startup Polish (Bugs 0-2, 5)**:
     - Fixed VLC console popup on Windows by reading PE header instead of shelling out (Bug 0).
     - Fixed sidebar drag-arming swallowing clicks on action buttons and removed duplicate persist calls (Bug 1).
     - Fixed Settings header text clipping by adding `TextTrimming` (Bug 2).
@@ -485,14 +485,13 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ **P2P Sharing Foundation**: Introduced `nullwave://` URI scheme generation and smart cross-pollination routing for misplaced paste operations.
 - ✅ **Custom WaveSeekBar**: Replaced standard MiniPlayer slider with a custom OneUI/Material You-style animated wave seek bar (filled shapes, flat bottom, 3-layer organic waves via AM/FM modulation).
 
-
 ---
 
 ## Phase 19 - v0.6.3 "Responsiveness & First Run" 📋
 
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
-- 📋 **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
+- ✅ **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
 - 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
 - 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
 
@@ -511,6 +510,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 **Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
 
+- ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets, and live thumbnail shipped ahead of this phase. Wallpaper blur and album-art sync remain deferred; the old-laptop performance measurement and visual matrix remain open.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
 - 🔄 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.

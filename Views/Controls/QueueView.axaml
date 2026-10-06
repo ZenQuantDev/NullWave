@@ -7,7 +7,6 @@
              xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Controls.QueueView"
              x:DataType="vm:MainViewModel"
-             Background="{StaticResource BrushSurface}"
              BorderBrush="{StaticResource BrushBorder}"
              BorderThickness="1,0,0,0">
 

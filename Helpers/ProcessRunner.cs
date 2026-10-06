@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -54,6 +55,11 @@ public static class ProcessRunner
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+        }
+        catch (Win32Exception wex) when (wex.NativeErrorCode is 2 or 3)
+        {
+            Log.Debug("[ProcessRunner] {Exe} not present on this machine", executable);
+            return new ProcessResult(-1, "", wex.Message, false, false);
         }
         catch (Exception ex)
         {
@@ -120,6 +126,11 @@ public static class ProcessRunner
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+        }
+        catch (Win32Exception wex) when (wex.NativeErrorCode is 2 or 3)
+        {
+            Log.Debug("[ProcessRunner] {Exe} not present on this machine", executable);
+            return new ProcessResult(-1, "", wex.Message, false, false);
         }
         catch (Exception ex)
         {

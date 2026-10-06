@@ -8,7 +8,7 @@
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
         x:CompileBindings="False"
-        Background="{StaticResource BrushSurface}"
+        Classes="chrome-heavy"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,1,0,0"
         Height="{DynamicResource MiniPlayerHeight}"

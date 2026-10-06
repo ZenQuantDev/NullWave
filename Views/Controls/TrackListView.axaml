@@ -27,7 +27,8 @@
     </DockPanel.Resources>
 
     <!-- COLUMN HEADERS -->
-    <Grid DockPanel.Dock="Top" Margin="16,8,16,2">
+        <Border DockPanel.Dock="Top" Classes="wallpaper-row-header">
+            <Grid Margin="16,8,16,2">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="2.6*"  MinWidth="260"/>
@@ -92,7 +93,8 @@
                                        IsVisible="{Binding IsSortedByDate}"/>
             </StackPanel>
         </Button>
-    </Grid>
+            </Grid>
+        </Border>
 
     <!-- List + floating bulk bar -->
     <Panel>
@@ -112,6 +114,9 @@
                 <Style Selector="Grid.track-row:pointerover">
                     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
                 </Style>
+                <Style Selector="ListBoxItem:selected Grid.track-row">
+                    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+                </Style>
             </ListBox.Styles>
 
             <!-- Default VirtualizingStackPanel (CacheLength=0) prevents massive rebind storms on thumb drag -->
@@ -124,8 +129,8 @@
                 <DataTemplate x:DataType="models:Track">
                     <!-- LOCALIZED HOVER: Background and transitions applied directly to the row Grid 
                          to prevent full-viewport invalidation caused by ListBoxItem:pointerover -->
-                    <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}"
-                          Background="Transparent" Classes="track-row">
+                      <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}"
+                          Classes="track-row">
                         <Grid.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
