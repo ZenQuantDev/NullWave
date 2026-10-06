@@ -107,6 +107,8 @@
     </Window.Styles>
 
     <Panel>
+        <controls:WallpaperLayer/>
+        <Border Classes="wallpaper-scrim"/>
         <Grid ColumnDefinitions="Auto,*">
             <!-- SIDEBAR RAIL -->
             <Border Grid.Column="0"

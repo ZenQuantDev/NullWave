@@ -55,6 +55,8 @@
     </Window.KeyBindings>
 
     <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+        <controls:WallpaperLayer/>
+        <Border Classes="wallpaper-scrim"/>
         <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"
                    DisplayMode="Overlay"
                    OpenPaneLength="320"

@@ -22,6 +22,7 @@ public partial class ProfileWindow : Window
     public ProfileWindow()
     {
         InitializeComponent();
+        WallpaperChromeSync.Attach(this);
         Loaded += OnWindowLoaded;
     }
 

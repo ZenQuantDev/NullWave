@@ -1,0 +1,152 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:attached="using:NullWave.Helpers.Attached"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="NullWave.Views.Controls.AppearanceThemeModeView"
+             x:DataType="vm:SettingsViewModel">
+  <UserControl.Resources>
+    <converters:StringEqualsConverter x:Key="StrEq"/>
+  </UserControl.Resources>
+
+  <StackPanel Spacing="0">
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_ThemeMode}" Margin="0,0,0,12"/>
+    <Border Classes="settings-card">
+      <UniformGrid Columns="4">
+        <Button Classes="card-select" Margin="0,0,6,0" Padding="10" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" ToolTip.Tip="{loc:Loc Settings_Appearance_Theme_Dark_Desc}" AutomationProperties.Name="{loc:Loc Settings_Appearance_Theme_Dark}">
+          <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Dark"/></attached:PseudoClass.Active>
+          <StackPanel Spacing="8">
+            <Border Height="56" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#111827" BorderBrush="#2E3D5C" BorderThickness="1">
+              <Grid>
+                <Grid ColumnDefinitions="26,*">
+                  <Border Grid.Column="0" Background="#1C2333"/>
+                  <StackPanel Grid.Column="1" Margin="6,8" Spacing="5" VerticalAlignment="Top">
+                    <Border Height="4" CornerRadius="2" Background="#2E3D5C" Margin="0,0,18,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#2E3D5C" Margin="0,0,34,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#2E3D5C" Margin="0,0,26,0"/>
+                  </StackPanel>
+                </Grid>
+                <Border IsHitTestVisible="False">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#1AFFFFFF" Offset="0"/>
+                      <GradientStop Color="#00FFFFFF" Offset="0.6"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <Border Width="12" Height="12" CornerRadius="6" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,6"/>
+                <Border Width="16" Height="16" CornerRadius="8" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0" IsVisible="{Binding ThemeMode, Converter={StaticResource StrEq}, ConverterParameter=Dark}">
+                  <material:MaterialIcon Kind="Check" Width="10" Height="10" Foreground="{DynamicResource BrushTextOnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </Grid>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+              <material:MaterialIcon Kind="WeatherNight" Width="14" Height="14" Foreground="{DynamicResource BrushTextSecondary}"/>
+              <TextBlock Text="{loc:Loc Settings_Appearance_Theme_Dark}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+          </StackPanel>
+        </Button>
+
+        <Button Classes="card-select" Margin="3,0,3,0" Padding="10" Command="{Binding SetThemeModeCommand}" CommandParameter="TrueBlack" ToolTip.Tip="{loc:Loc Settings_Appearance_Theme_TrueBlack_Desc}" AutomationProperties.Name="{loc:Loc Settings_Appearance_Theme_TrueBlack}">
+          <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="TrueBlack"/></attached:PseudoClass.Active>
+          <StackPanel Spacing="8">
+            <Border Height="56" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#000000" BorderBrush="#1A1A1A" BorderThickness="1">
+              <Grid>
+                <Grid ColumnDefinitions="26,*">
+                  <Border Grid.Column="0" Background="#0A0A0A"/>
+                  <StackPanel Grid.Column="1" Margin="6,8" Spacing="5" VerticalAlignment="Top">
+                    <Border Height="4" CornerRadius="2" Background="#1A1A1A" Margin="0,0,18,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#1A1A1A" Margin="0,0,34,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#1A1A1A" Margin="0,0,26,0"/>
+                  </StackPanel>
+                </Grid>
+                <Border IsHitTestVisible="False">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#0FFFFFFF" Offset="0"/>
+                      <GradientStop Color="#00FFFFFF" Offset="0.5"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <Border Width="12" Height="12" CornerRadius="6" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,6"/>
+                <Border Width="16" Height="16" CornerRadius="8" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0" IsVisible="{Binding ThemeMode, Converter={StaticResource StrEq}, ConverterParameter=TrueBlack}">
+                  <material:MaterialIcon Kind="Check" Width="10" Height="10" Foreground="{DynamicResource BrushTextOnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </Grid>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+              <material:MaterialIcon Kind="Cellphone" Width="14" Height="14" Foreground="{DynamicResource BrushTextSecondary}"/>
+              <TextBlock Text="{loc:Loc Settings_Appearance_Theme_TrueBlack}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+          </StackPanel>
+        </Button>
+
+        <Button Classes="card-select" Margin="3,0,3,0" Padding="10" Command="{Binding SetThemeModeCommand}" CommandParameter="Light" ToolTip.Tip="{loc:Loc Settings_Appearance_Theme_Light_Desc}" AutomationProperties.Name="{loc:Loc Settings_Appearance_Theme_Light}">
+          <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Light"/></attached:PseudoClass.Active>
+          <StackPanel Spacing="8">
+            <Border Height="56" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="1">
+              <Grid>
+                <Grid ColumnDefinitions="26,*">
+                  <Border Grid.Column="0" Background="#F3F4F6"/>
+                  <StackPanel Grid.Column="1" Margin="6,8" Spacing="5" VerticalAlignment="Top">
+                    <Border Height="4" CornerRadius="2" Background="#E5E7EB" Margin="0,0,18,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#E5E7EB" Margin="0,0,34,0"/>
+                    <Border Height="4" CornerRadius="2" Background="#E5E7EB" Margin="0,0,26,0"/>
+                  </StackPanel>
+                </Grid>
+                <Border IsHitTestVisible="False">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#3338BDF8" Offset="0"/>
+                      <GradientStop Color="#0038BDF8" Offset="0.6"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <Border Width="12" Height="12" CornerRadius="6" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,6"/>
+                <Border Width="16" Height="16" CornerRadius="8" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0" IsVisible="{Binding ThemeMode, Converter={StaticResource StrEq}, ConverterParameter=Light}">
+                  <material:MaterialIcon Kind="Check" Width="10" Height="10" Foreground="{DynamicResource BrushTextOnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </Grid>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+              <material:MaterialIcon Kind="WeatherSunny" Width="14" Height="14" Foreground="{DynamicResource BrushAmberDark}"/>
+              <TextBlock Text="{loc:Loc Settings_Appearance_Theme_Light}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+          </StackPanel>
+        </Button>
+
+        <Button Classes="card-select" Margin="6,0,0,0" Padding="10" Command="{Binding SetThemeModeCommand}" CommandParameter="System" ToolTip.Tip="{loc:Loc Settings_Appearance_Theme_System_Desc}" AutomationProperties.Name="{loc:Loc Settings_Appearance_Theme_System}">
+          <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="System"/></attached:PseudoClass.Active>
+          <StackPanel Spacing="8">
+            <Border Height="56" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1">
+              <Grid>
+                <Grid ColumnDefinitions="*,*">
+                  <Border Grid.Column="0" Background="#F4F5F8"/>
+                  <Border Grid.Column="1" Background="#111827"/>
+                </Grid>
+                <Border IsHitTestVisible="False">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#1AFFFFFF" Offset="0"/>
+                      <GradientStop Color="#00FFFFFF" Offset="0.6"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <Border Width="12" Height="12" CornerRadius="6" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,6"/>
+                <Border Width="16" Height="16" CornerRadius="8" Background="{DynamicResource BrushAccent}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0" IsVisible="{Binding ThemeMode, Converter={StaticResource StrEq}, ConverterParameter=System}">
+                  <material:MaterialIcon Kind="Check" Width="10" Height="10" Foreground="{DynamicResource BrushTextOnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </Grid>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+              <material:MaterialIcon Kind="DesktopTower" Width="14" Height="14" Foreground="{DynamicResource BrushTextSecondary}"/>
+              <TextBlock Text="{loc:Loc Settings_Appearance_Theme_System}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}"/>
+            </StackPanel>
+          </StackPanel>
+        </Button>
+      </UniformGrid>
+    </Border>
+  </StackPanel>
+</UserControl>

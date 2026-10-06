@@ -47,6 +47,12 @@
     </Window.Styles>
 
     <Panel>
+        <controls:WallpaperLayer/>
+        <!-- Readability floor: 75% in Dark/True Black, 90% in Light.
+             Dialogs, onboarding, and toast surfaces intentionally remain opaque. -->
+        <Border IsHitTestVisible="False"
+                Background="{DynamicResource BrushWindowScrim}"
+                IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=HasActiveWallpaper}"/>
         <DockPanel>
             <controls:MenuBarView DockPanel.Dock="Top" IsVisible="{Binding IsMenuBarVisible}"/>
             <controls:MiniPlayerView DockPanel.Dock="Bottom"/>
@@ -64,7 +70,7 @@
                 <!-- CENTER: Main Content -->
                 <Grid Grid.Column="1" RowDefinitions="Auto,*">
                     <!-- Top Toolbar -->
-                    <Border Grid.Row="0" Background="{StaticResource BrushSurface}"
+                    <Border Grid.Row="0" Classes="chrome"
                             BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8">
                         <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
                             <TextBox x:Name="GlobalSearchBox" Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
@@ -162,7 +168,7 @@
                 <Border Grid.Column="2"
                         Width="{Binding ActiveRightPanelWidth}"
                         ClipToBounds="True"
-                        Background="{StaticResource BrushSurface}">
+                    Classes="chrome">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Width" Duration="0:0:0.22" Easing="CubicEaseOut"/>

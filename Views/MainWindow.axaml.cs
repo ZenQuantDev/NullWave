@@ -6,6 +6,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using NullWave.Helpers;
 using NullWave.ViewModels;
 using NullWave.Helpers.Diagnostics;
 using Serilog;
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WallpaperChromeSync.Attach(this);
         DataContext = new MainViewModel();
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;

@@ -57,16 +57,19 @@ public class PreferencesService : IDisposable
         }
     }
 
-    public void Save()
+    public bool Save()
     {
         lock (_saveLock)
         {
-            if (_disposed) return;
-            SaveCore();
+            if (_disposed) return false;
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = null;
+            return SaveCore();
         }
     }
 
-    private void SaveCore()
+    private bool SaveCore()
     {
         try
         {
@@ -76,10 +79,12 @@ public class PreferencesService : IDisposable
             File.WriteAllText(tmp, json);
             File.Move(tmp, _prefsPath, overwrite: true);
             Log.Debug("[PreferencesService] Saved preferences to {Path}", _prefsPath);
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to save preferences");
+            return false;
         }
     }
 

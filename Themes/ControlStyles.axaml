@@ -35,6 +35,62 @@
     <Setter Property="FontSize"   Value="{DynamicResource FontSizeBody}"/>
   </Style>
 
+  <Style Selector="Button:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+
+  <!-- Keep all chrome pixel-identical unless WallpaperService activates a window. -->
+  <Style Selector="Border.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active Border.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurfaceTranslucent}"/>
+  </Style>
+  <Style Selector="Border.chrome-heavy">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active Border.chrome-heavy">
+    <Setter Property="Background" Value="{DynamicResource BrushSurfaceHeavyTranslucent}"/>
+  </Style>
+  <Style Selector="Menu.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active Menu.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurfaceTranslucent}"/>
+  </Style>
+  <Style Selector="UserControl.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active UserControl.chrome">
+    <Setter Property="Background" Value="{DynamicResource BrushSurfaceTranslucent}"/>
+  </Style>
+  <Style Selector="UserControl.chrome-heavy">
+    <Setter Property="Background" Value="{DynamicResource BrushSurface}"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active UserControl.chrome-heavy">
+    <Setter Property="Background" Value="{DynamicResource BrushSurfaceHeavyTranslucent}"/>
+  </Style>
+  <Style Selector="Border.wallpaper-row-header">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active Border.wallpaper-row-header">
+    <Setter Property="Background" Value="{DynamicResource BrushRowBackdrop}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  </Style>
+  <Style Selector="Grid.track-row">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="Window.wallpaper-active Grid.track-row">
+    <Setter Property="Background" Value="{DynamicResource BrushRowBackdrop}"/>
+  </Style>
+  <Style Selector="Border.wallpaper-scrim">
+    <Setter Property="Background" Value="{DynamicResource BrushBaseTranslucent}"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+  </Style>
+
   <!--  SECTION LABEL  -->
   <Style Selector="TextBlock.section-label">
     <Setter Property="Foreground"     Value="{StaticResource BrushTextMuted}"/>
@@ -689,4 +745,26 @@
   <Style Selector="Border.dimmable.idle-dim">
     <Setter Property="Opacity" Value="0.35"/>
   </Style>
+
+  <!--  KEYBOARD FOCUS ADORNMENTS: visible ring only during keyboard navigation  -->
+  <Style Selector="Button.card-select:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="Button.duo-chip:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="Button.chip:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
+  </Style>
+  <Style Selector="Button.flat:focus-visible /template/ ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="Button.swatch:focus-visible /template/ ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource BrushTextPrimary}"/>
+    <Setter Property="BorderThickness" Value="3"/>
+  </Style>
+
 </Styles>
