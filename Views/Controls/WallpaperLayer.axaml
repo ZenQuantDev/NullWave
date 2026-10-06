@@ -128,6 +128,127 @@
           </Border>
         </Panel>
       </Panel>
+
+      <!-- forest: canopy wash from top + two undergrowth glows -->
+      <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=forest}">
+        <Border>
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+              <GradientStop Color="#00000000" Offset="0.6"/>
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.30,1.0" GradientOrigin="0.30,1.0" RadiusX="0.6" RadiusY="0.5">
+                <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.75,0.95" GradientOrigin="0.75,0.95" RadiusX="0.5" RadiusY="0.45">
+                <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
+      </Panel>
+
+      <!-- seaside: sky band, sea band, sun glint -->
+      <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=seaside}">
+        <Border>
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
+              <GradientStop Color="#00000000" Offset="0.45"/>
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0,1" EndPoint="0,0.5">
+                <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </LinearGradientBrush>
+            </Border.Background>
+          </Border>
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.7,0.22" GradientOrigin="0.7,0.22" RadiusX="0.35" RadiusY="0.3">
+                <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
+      </Panel>
+
+      <!-- bloom: flower-head glow + two petal glows -->
+      <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=bloom}">
+        <Border>
+          <Border.Background>
+            <RadialGradientBrush Center="0.5,0.42" GradientOrigin="0.5,0.42" RadiusX="0.55" RadiusY="0.55">
+              <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+              <GradientStop Color="#00000000" Offset="1"/>
+            </RadialGradientBrush>
+          </Border.Background>
+        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.28,0.72" GradientOrigin="0.28,0.72" RadiusX="0.45" RadiusY="0.45">
+                <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.74,0.70" GradientOrigin="0.74,0.70" RadiusX="0.4" RadiusY="0.4">
+                <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
+      </Panel>
+
+      <!-- abstract: diagonal duo wash + soft center field -->
+      <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=abstract}">
+        <Border>
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+              <GradientStop Color="#00000000" Offset="0.5"/>
+              <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.9" RadiusY="0.8">
+                <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.1,0.9" GradientOrigin="0.1,0.9" RadiusX="0.5" RadiusY="0.5">
+                <GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
+      </Panel>
     </Panel>
   </Panel>
 </UserControl>

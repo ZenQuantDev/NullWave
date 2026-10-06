@@ -118,81 +118,90 @@
       </Grid>
     </Border>
 
-    <!-- SCENES GALLERY -->
+    <!-- BACKGROUND SCENES: procedural scenes + unlocked built-in art, one grid.
+         Locked exclusives are absent from GalleryItems, so no lock overlay exists. -->
     <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="0,24,0,12"/>
     <Border Classes="settings-card">
       <StackPanel>
-      <ItemsControl ItemsSource="{x:Static services:WallpaperScenes.All}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <UniformGrid Columns="5" Margin="0"/>
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="services:SceneDef">
-            <Button Classes="card-select" Margin="4" Padding="0" Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectWallpaperSceneCommand}" CommandParameter="{Binding Id}">
-              <attached:PseudoClass.Active>
-                <MultiBinding Converter="{x:Static converters:IsSceneActiveConverter.Instance}">
-                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperStyle"/>
-                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperSceneId"/>
-                  <Binding Path="Id"/>
-                </MultiBinding>
-              </attached:PseudoClass.Active>
-              <Grid RowDefinitions="80,Auto">
-                <!-- Thumbnail Preview -->
-                <Border Grid.Row="0" CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True">
-                  <Panel>
-                    <Border Background="{DynamicResource BrushSurface2}"/>
-                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=aurora}">
-                      <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+        <ItemsControl ItemsSource="{Binding GalleryItems}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><UniformGrid Columns="5" Margin="0"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:WallpaperGalleryItem">
+              <Button Classes="card-select" Margin="4" Padding="0"
+                      Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectWallpaperGalleryCommand}"
+                      CommandParameter="{Binding Id}"
+                      AutomationProperties.Name="{Binding Name}">
+                <attached:PseudoClass.Active>
+                  <MultiBinding Converter="{x:Static converters:StringEqualsMultiConverter.Instance}">
+                    <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperSelectionKey"/>
+                    <Binding Path="Id"/>
+                  </MultiBinding>
+                </attached:PseudoClass.Active>
+                <Grid RowDefinitions="80,Auto">
+                  <Border Grid.Row="0" CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True">
+                    <Panel>
+                      <Border Background="{DynamicResource BrushSurface2}"/>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=aurora}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                           <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="1"/>
-                        </LinearGradientBrush>
-                      </Border.Background>
-                    </Border>
-                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=horizon}">
-                      <Border.Background>
-                        <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=horizon}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
                           <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentDim}" Offset="1"/>
-                        </LinearGradientBrush>
-                      </Border.Background>
-                    </Border>
-                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=spotlight}">
-                      <Border.Background>
-                        <RadialGradientBrush Center="0.5,0.3" RadiusX="0.8" RadiusY="0.8">
-                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
-                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0.5"/>
-                          <GradientStop Color="{DynamicResource ColorBase}" Offset="1"/>
-                        </RadialGradientBrush>
-                      </Border.Background>
-                    </Border>
-                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=duotone}">
-                      <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=spotlight}">
+                        <Border.Background><RadialGradientBrush Center="0.5,0" GradientOrigin="0.5,0" RadiusX="0.9" RadiusY="1">
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0.5"/><GradientStop Color="{DynamicResource ColorBase}" Offset="1"/>
+                        </RadialGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=duotone}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                           <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
-                        </LinearGradientBrush>
-                      </Border.Background>
-                    </Border>
-                    <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=dusk}">
-                      <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=dusk}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
                           <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="1"/>
-                        </LinearGradientBrush>
-                      </Border.Background>
-                    </Border>
-                  </Panel>
-                </Border>
-                
-                <!-- Text Details -->
-                <StackPanel Grid.Row="1" Spacing="2" Margin="8,6">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}" Foreground="{DynamicResource BrushTextPrimary}"/>
-                  <TextBlock Text="{Binding Description}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" MaxLines="2"/>
-                </StackPanel>
-              </Grid>
-            </Button>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=forest}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=seaside}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                          <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=bloom}">
+                        <Border.Background><RadialGradientBrush Center="0.5,0.45" GradientOrigin="0.5,0.45" RadiusX="0.7" RadiusY="0.7">
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="1"/>
+                        </RadialGradientBrush></Border.Background>
+                      </Border>
+                      <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=abstract}">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                      </Border>
+                      <Image Source="{Binding AssetPath, Converter={x:Static converters:AssetThumbConverter.Instance}}"
+                             Stretch="UniformToFill"
+                             IsVisible="{Binding AssetPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </Panel>
+                  </Border>
+                  <StackPanel Grid.Row="1" Spacing="2" Margin="8,6">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}" Foreground="{DynamicResource BrushTextPrimary}"/>
+                    <TextBlock Text="{Binding Description}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" MaxLines="2"/>
+                  </StackPanel>
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"
                     IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=MinimalTier}">
           <material:MaterialIcon Kind="AlertCircleOutline" Width="14" Height="14"
@@ -201,59 +210,6 @@
                      Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
         </StackPanel>
       </StackPanel>
-    </Border>
-
-    <!-- BUILT-IN COLLECTIONS -->
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_BuiltIns_Title}" Margin="0,24,0,12"/>
-    <Border Classes="settings-card">
-      <ItemsControl ItemsSource="{x:Static services:WallpaperBuiltIns.All}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <UniformGrid Columns="5" Margin="0"/>
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="services:BuiltInDef">
-            <Button Classes="card-select" Margin="4" Padding="0"
-                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectWallpaperBuiltInCommand}"
-                    CommandParameter="{Binding Id}"
-                    AutomationProperties.Name="{Binding Name}">
-              <attached:PseudoClass.Active>
-                <MultiBinding Converter="{x:Static converters:IsBuiltInActiveConverter.Instance}">
-                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperStyle"/>
-                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperBuiltInId"/>
-                  <Binding Path="Id"/>
-                </MultiBinding>
-              </attached:PseudoClass.Active>
-              <Grid RowDefinitions="80,Auto">
-                <Border Grid.Row="0" CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True">
-                  <Panel>
-                    <Border Background="{DynamicResource BrushSurface2}"/>
-                    <Image Source="{Binding AssetPath, Converter={x:Static converters:AssetThumbConverter.Instance}}" Stretch="UniformToFill"/>
-                    <Border Background="#99000000">
-                      <Border.IsVisible>
-                        <MultiBinding Converter="{x:Static converters:IsBuiltInLockedConverter.Instance}">
-                          <Binding Path="Exclusive"/>
-                          <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).IsExclusiveWallpaperUnlocked"/>
-                        </MultiBinding>
-                      </Border.IsVisible>
-                      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
-                        <material:MaterialIcon Kind="Lock" Width="20" Height="20" Foreground="White" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{loc:Loc Settings_Appearance_BuiltIn_Locked}" Foreground="White"
-                                   FontSize="9" TextWrapping="Wrap" TextAlignment="Center" Margin="6,0"/>
-                      </StackPanel>
-                    </Border>
-                  </Panel>
-                </Border>
-                <StackPanel Grid.Row="1" Spacing="2" Margin="8,6">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}" Foreground="{DynamicResource BrushTextPrimary}"/>
-                  <TextBlock Text="{Binding Description}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" MaxLines="2"/>
-                </StackPanel>
-              </Grid>
-            </Button>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
     </Border>
   </StackPanel>
 </UserControl>

@@ -189,6 +189,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnSelectedLanguageChanged(string value)
     {
         LocalizationService.Instance.SetLanguage(value);
+        OnPropertyChanged(nameof(GalleryItems));
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
     }
 

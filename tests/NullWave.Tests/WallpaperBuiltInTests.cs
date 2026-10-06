@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text.Json;
 using NullWave.Helpers;
@@ -49,6 +50,32 @@ public class WallpaperBuiltInRegistryTests
     {
         Assert.False(WallpaperBuiltIns.IsUnlocked(WallpaperBuiltIns.StarryNight, Enumerable.Empty<string>()));
         Assert.True(WallpaperBuiltIns.IsUnlocked(WallpaperBuiltIns.StarryNight, new[] { "starrynight" }));
+    }
+
+    [Fact]
+    public void Locked_exclusives_are_hidden_from_the_gallery()
+    {
+        Assert.DoesNotContain(WallpaperBuiltIns.StarryNight, WallpaperBuiltIns.Visible(Enumerable.Empty<string>()));
+        Assert.Contains(WallpaperBuiltIns.StarryNight, WallpaperBuiltIns.Visible(new[] { "starrynight" }));
+        Assert.All(WallpaperBuiltIns.Visible(Enumerable.Empty<string>()),
+            definition => Assert.True(WallpaperBuiltIns.IsUnlocked(definition, Enumerable.Empty<string>())));
+    }
+
+    [Theory]
+    [InlineData("Scene", "dusk", "", "dusk")]
+    [InlineData("BuiltIn", "", "starrynight", "starrynight")]
+    [InlineData("Custom", "aurora", "starrynight", "Custom")]
+    [InlineData("None", "aurora", "starrynight", "None")]
+    [InlineData("AccentGlow", "", "", "AccentGlow")]
+    public void Gallery_selection_key_prefers_the_active_family(string style, string sceneId, string builtInId, string expected)
+        => Assert.Equal(expected, WallpaperGuard.SelectionKey(style, sceneId, builtInId));
+
+    [Fact]
+    public void Scene_and_builtin_ids_never_collide()
+    {
+        var sceneIds = WallpaperScenes.All.Select(scene => scene.Id);
+        var builtInIds = WallpaperBuiltIns.All.Select(builtIn => builtIn.Id);
+        Assert.Empty(sceneIds.Intersect(builtInIds, StringComparer.OrdinalIgnoreCase));
     }
 
     [Theory]

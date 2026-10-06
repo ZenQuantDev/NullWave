@@ -59,6 +59,10 @@ public static class WallpaperBuiltIns
     public static bool IsUnlocked(BuiltInDef definition, IEnumerable<string> unlocked) =>
         !definition.Exclusive || unlocked.Contains(definition.Id, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gallery-visible entries: locked exclusives are completely hidden, not teased.</summary>
+    public static IReadOnlyList<BuiltInDef> Visible(IEnumerable<string> unlocked) =>
+        All.Where(definition => IsUnlocked(definition, unlocked)).ToList();
+
     public static TapReward RewardFor(int taps) =>
         new(Lore: taps > 0 && taps % 7 == 0, SignatureAccent: taps == 14, ExclusiveUnlock: taps == 21);
 }

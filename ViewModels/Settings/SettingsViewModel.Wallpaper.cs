@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
@@ -11,12 +12,16 @@ using NullWave.Services;
 
 namespace NullWave.ViewModels;
 
+/// <summary>One card in the unified Background Scenes gallery.
+/// AssetPath == null means "procedural preview keyed by Id".</summary>
+public record WallpaperGalleryItem(string Id, string Name, string Description, string? AssetPath, bool OledSafe);
+
 public partial class SettingsViewModel
 {
     public string WallpaperStyle
     {
         get => _prefsService.Current.WallpaperStyle;
-        set { _prefsService.Update(p => p.WallpaperStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperStatusLabel)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ScheduleSave(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
+        set { _prefsService.Update(p => p.WallpaperStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperSelectionKey)); OnPropertyChanged(nameof(WallpaperStatusLabel)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ScheduleSave(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
     }
     public string WallpaperFit
     {
@@ -46,14 +51,29 @@ public partial class SettingsViewModel
         {
             _prefsService.Update(p => p.WallpaperSceneId = value);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(WallpaperSelectionKey));
             OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
             WallpaperService.Instance.ApplyFrom(_prefsService.Current);
             ScheduleSave();
         }
     }
     public string WallpaperBuiltInId => _prefsService.Current.WallpaperBuiltInId;
+    public string WallpaperSelectionKey =>
+        WallpaperGuard.SelectionKey(WallpaperStyle, WallpaperSceneId, WallpaperBuiltInId);
+    public IReadOnlyList<WallpaperGalleryItem> GalleryItems => BuildGalleryItems();
     public bool IsExclusiveWallpaperUnlocked =>
         WallpaperBuiltIns.IsUnlocked(WallpaperBuiltIns.StarryNight, _prefsService.Current.UnlockedExclusiveWallpapers);
+
+    private IReadOnlyList<WallpaperGalleryItem> BuildGalleryItems()
+    {
+        var loc = LocalizationService.Instance;
+        var items = new List<WallpaperGalleryItem>(WallpaperScenes.All.Count + WallpaperBuiltIns.All.Count);
+        foreach (var scene in WallpaperScenes.All)
+            items.Add(new WallpaperGalleryItem(scene.Id, loc[scene.NameKey], loc[scene.DescriptionKey], null, scene.OledSafe));
+        foreach (var builtIn in WallpaperBuiltIns.Visible(_prefsService.Current.UnlockedExclusiveWallpapers))
+            items.Add(new WallpaperGalleryItem(builtIn.Id, loc[builtIn.NameKey], loc[builtIn.DescriptionKey], builtIn.AssetPath, builtIn.OledSafe));
+        return items;
+    }
 
     public string WallpaperStatusLabel => WallpaperStyle switch
     {
@@ -92,6 +112,7 @@ public partial class SettingsViewModel
         
         OnPropertyChanged(nameof(WallpaperStyle));
         OnPropertyChanged(nameof(WallpaperSceneId));
+        OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ScheduleSave();
@@ -118,10 +139,18 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(WallpaperStyle));
         OnPropertyChanged(nameof(WallpaperPath));
         OnPropertyChanged(nameof(WallpaperBuiltInId));
+        OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ScheduleSave();
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+    }
+
+    [RelayCommand]
+    private void SelectWallpaperGallery(string id)
+    {
+        if (WallpaperScenes.Find(id) != null) { SelectWallpaperScene(id); return; }
+        if (WallpaperBuiltIns.Find(id) != null) { SelectWallpaperBuiltIn(id); return; }
     }
 
     public void UnlockExclusiveWallpaper()
@@ -134,6 +163,7 @@ public partial class SettingsViewModel
 
         _prefsService.Update(p => p.UnlockedExclusiveWallpapers.Add(WallpaperBuiltIns.StarryNight.Id));
         OnPropertyChanged(nameof(IsExclusiveWallpaperUnlocked));
+        OnPropertyChanged(nameof(GalleryItems));
         ScheduleSave();
         ToastService.Instance.Show(L("Settings_Appearance_BuiltIn_UnlockToast"), ToastType.Success, durationMs: 8000);
     }
@@ -173,6 +203,7 @@ public partial class SettingsViewModel
             WallpaperService.PruneWallpaperCache(dest);
         OnPropertyChanged(nameof(WallpaperPath));
         OnPropertyChanged(nameof(WallpaperStyle));
+        OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
         ToastService.Instance.Show(L("Settings_Appearance_Wallpaper_Set"), ToastType.Success);

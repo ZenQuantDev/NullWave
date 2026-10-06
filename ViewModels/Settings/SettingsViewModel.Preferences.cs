@@ -165,6 +165,7 @@ public partial class SettingsViewModel
         {
             OnPropertyChanged(nameof(WallpaperStyle));
             OnPropertyChanged(nameof(WallpaperSceneId));
+            OnPropertyChanged(nameof(WallpaperSelectionKey));
             OnPropertyChanged(nameof(WallpaperOpacity));
             OnPropertyChanged(nameof(WallpaperStatusLabel));
         }
@@ -214,6 +215,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(WallpaperFit));
         OnPropertyChanged(nameof(WallpaperSceneId));
         OnPropertyChanged(nameof(WallpaperBuiltInId));
+        OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ThemeService.Instance.ApplyAll(_prefsService.Current);
