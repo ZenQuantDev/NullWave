@@ -57,6 +57,7 @@
     <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
         <controls:WallpaperLayer/>
         <Border Classes="wallpaper-scrim"/>
+        <!-- Editor pane stays opaque: focused editing surface over the wallpaper. -->
         <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"
                    DisplayMode="Overlay"
                    OpenPaneLength="320"
@@ -250,7 +251,9 @@
             </SplitView.Pane>
 
             <Grid ColumnDefinitions="360,*">
-                <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
+                 <!-- OPAQUE BY DESIGN: this Border is the RenderTargetBitmap export surface for
+                     profile cards (ExportProfileCard). Translucency here would export as garbage. -->
+                 <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
                         DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
                     <Border Classes="settings-card" Margin="0" Padding="0" ClipToBounds="True">
                         <Grid>
@@ -407,7 +410,8 @@
                     </Border>
                 </Border>
 
-                <Border Grid.Column="1" Background="{StaticResource BrushBase}" Padding="0,20,20,20">
+                <!-- Right tab column: heavy-tier chrome so the wallpaper surrounds the stats. -->
+                <Border Grid.Column="1" Classes="chrome-heavy" Padding="0,20,20,20">
                     <TabControl Background="Transparent" BorderThickness="0">
                         <TabItem Header="{loc:Loc Profile_Tab_Board}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">

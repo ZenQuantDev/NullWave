@@ -112,10 +112,9 @@
         <Grid ColumnDefinitions="Auto,*">
             <!-- SIDEBAR RAIL -->
             <Border Grid.Column="0"
-                    Classes="settings-navrail"
+                    Classes="settings-navrail chrome"
                     Classes.collapsed="{Binding IsSettingsSidebarCollapsed}"
                     Width="{Binding SettingsSidebarWidth}"
-                    Background="{StaticResource BrushSurface}"
                     BorderBrush="{StaticResource BrushBorder}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
@@ -257,7 +256,7 @@
             <!-- MAIN CONTENT AREA -->
             <Grid Grid.Column="1" RowDefinitions="Auto,*">
                 <Border Grid.Row="0"
-                        Background="{StaticResource BrushSurface}"
+                    Classes="chrome"
                         BorderBrush="{StaticResource BrushBorder}"
                         BorderThickness="0,0,0,1"
                         Height="{StaticResource SettingsHeaderHeight}"
