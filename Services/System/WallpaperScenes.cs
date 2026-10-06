@@ -47,6 +47,10 @@ public static class WallpaperScenes
         new SceneDef("spotlight", "Scene_spotlight", "Scene_spotlight_Desc", hasLite: false, oledSafe: true),
         new SceneDef("duotone", "Scene_duotone", "Scene_duotone_Desc", hasLite: false, oledSafe: false),
         new SceneDef("dusk", "Scene_dusk", "Scene_dusk_Desc", hasLite: true, oledSafe: true),
+        new SceneDef("forest", "Scene_forest", "Scene_forest_Desc", hasLite: true, oledSafe: false),
+        new SceneDef("seaside", "Scene_seaside", "Scene_seaside_Desc", hasLite: true, oledSafe: false),
+        new SceneDef("bloom", "Scene_bloom", "Scene_bloom_Desc", hasLite: true, oledSafe: false),
+        new SceneDef("abstract", "Scene_abstract", "Scene_abstract_Desc", hasLite: true, oledSafe: false),
     };
 
     public static SceneDef? Find(string? id) =>

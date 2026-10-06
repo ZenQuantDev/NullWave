@@ -945,7 +945,7 @@ public static partial class Locales
         ["BuiltIn_starrynight"] = "Звёздная ночь (эксклюзив)",
         ["BuiltIn_starrynight_Desc"] = "Ван Гог, 1889. Общественное достояние. Награда для любопытных.",
         ["Settings_Appearance_BuiltIn_Locked"] = "Заблокировано - продолжайте нажимать на версию в «О программе»",
-        ["Settings_Appearance_BuiltIn_UnlockToast"] = "Эксклюзивные обои открыты. Подсказка: собственная версия с Мику отлично подойдёт как свой фон.",
+        ["Settings_Appearance_BuiltIn_UnlockToast"] = "Эксклюзивные обои открыты. Ищите их в разделе «Фоновые сцены» в Настройках → Внешний вид. Подсказка: собственная версия с Мику отлично подойдёт как свой фон.",
         ["Settings_About_Tap14"] = "Фирменный акцент применён - Oxeye Daisy навсегда.",
         ["Settings_Appearance_Wallpaper_TrueBlackWarn"] = "Обои поверх True Black снижают контраст чистого чёрного и экономию энергии OLED.",
         ["Settings_Appearance_Density_Compact"] = "Компактная",
@@ -980,6 +980,14 @@ public static partial class Locales
         ["Scene_duotone_Desc"] = "Диагональная заливка из двух цветов акцента.",
         ["Scene_dusk"] = "Сумерки",
         ["Scene_dusk_Desc"] = "Низкая градиентная полоса, мягкая для тёмных комнат.",
+        ["Scene_forest"] = "Лес",
+        ["Scene_forest_Desc"] = "Крона и два проблеска света под ней.",
+        ["Scene_seaside"] = "Морской берег",
+        ["Scene_seaside_Desc"] = "Полосы неба и моря у спокойного горизонта.",
+        ["Scene_bloom"] = "Цветение",
+        ["Scene_bloom_Desc"] = "Три светящихся лепестка, как раскрытый цветок.",
+        ["Scene_abstract"] = "Абстракция",
+        ["Scene_abstract_Desc"] = "Диагональная заливка дуэта с мягким центром.",
 
     };
 }

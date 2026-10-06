@@ -34,19 +34,6 @@ public class AssetThumbConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-public class IsBuiltInActiveConverter : IMultiValueConverter
-{
-    public static readonly IsBuiltInActiveConverter Instance = new();
-
-    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (values.Count >= 3 && values[0] is string style && values[1] is string activeId && values[2] is string targetId)
-            return string.Equals(style, "BuiltIn", StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals(activeId, targetId, StringComparison.OrdinalIgnoreCase);
-        return false;
-    }
-}
-
 public class IsBuiltInLockedConverter : IMultiValueConverter
 {
     public static readonly IsBuiltInLockedConverter Instance = new();

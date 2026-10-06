@@ -967,7 +967,7 @@ public static partial class Locales
         ["BuiltIn_starrynight"] = "Starry Night (Exclusive)",
         ["BuiltIn_starrynight_Desc"] = "Van Gogh, 1889. Public domain. A reward for the curious.",
         ["Settings_Appearance_BuiltIn_Locked"] = "Locked - keep tapping the version in About",
-        ["Settings_Appearance_BuiltIn_UnlockToast"] = "Exclusive wallpaper unlocked. Tip: your own Miku edit works great as a Custom background.",
+        ["Settings_Appearance_BuiltIn_UnlockToast"] = "Exclusive wallpaper unlocked. Find it in Background Scenes under Settings → Appearance. Tip: your own Miku edit works great as a Custom background.",
         ["Settings_About_Tap14"] = "Signature accent applied - Oxeye Daisy, forever.",
         ["Settings_Appearance_Wallpaper_TrueBlackWarn"] = "A wallpaper over True Black reduces pure-black contrast and OLED power savings.",
         ["Settings_Appearance_Density_Compact"] = "Compact",
@@ -1002,6 +1002,14 @@ public static partial class Locales
         ["Scene_duotone_Desc"] = "A diagonal wash pairing both accent colors.",
         ["Scene_dusk"] = "Dusk",
         ["Scene_dusk_Desc"] = "A low gradient band, gentle on dark rooms.",
+        ["Scene_forest"] = "Forest",
+        ["Scene_forest_Desc"] = "A canopy wash with two undergrowth glows.",
+        ["Scene_seaside"] = "Seaside",
+        ["Scene_seaside_Desc"] = "Sky and sea bands meeting at a calm horizon.",
+        ["Scene_bloom"] = "Bloom",
+        ["Scene_bloom_Desc"] = "Three petal glows arranged like an open flower.",
+        ["Scene_abstract"] = "Abstract",
+        ["Scene_abstract_Desc"] = "A diagonal duo wash with a soft center field.",
 
     };
 }

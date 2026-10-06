@@ -10,6 +10,13 @@ internal static class WallpaperGuard
 
     public static int SoftnessForBlur(int blur) => Math.Clamp((blur + 5) / 10, 0, 5);
 
+    /// <summary>Single gallery selection key: the active family's id, else the raw style.
+    /// Pure so the unified gallery's active-ring logic is unit-testable.</summary>
+    public static string SelectionKey(string style, string sceneId, string builtInId) =>
+        string.Equals(style, "Scene", StringComparison.OrdinalIgnoreCase) ? sceneId :
+        string.Equals(style, "BuiltIn", StringComparison.OrdinalIgnoreCase) ? builtInId :
+        style;
+
     public static bool ShouldSkipDecode(string? lastPath, int lastWidth, string? newPath, int newWidth)
     {
         if (string.IsNullOrEmpty(newPath)) return true;
