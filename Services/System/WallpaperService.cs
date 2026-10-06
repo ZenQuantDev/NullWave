@@ -44,6 +44,7 @@ public partial class WallpaperService : ObservableObject
     public bool ShowImage => Style == "Custom" && Image != null;
     public bool ShowScene => Style == "Scene" && WallpaperScenes.Find(SceneId) != null;
     public bool HasActiveWallpaper => ShowGlow || ShowImage || ShowScene || _customSourceReady;
+    public bool MinimalTier { get; set; }
     public double OpacityFraction => Opacity / 100.0;
     public Stretch Stretch => Fit switch
     {
