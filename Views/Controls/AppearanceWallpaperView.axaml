@@ -121,6 +121,7 @@
     <!-- SCENES GALLERY -->
     <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="0,24,0,12"/>
     <Border Classes="settings-card">
+      <StackPanel>
       <ItemsControl ItemsSource="{x:Static services:WallpaperScenes.All}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
@@ -159,7 +160,9 @@
                     <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=spotlight}">
                       <Border.Background>
                         <RadialGradientBrush Center="0.5,0.3" RadiusX="0.8" RadiusY="0.8">
-                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorBase}" Offset="1"/>
+                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0.5"/>
+                          <GradientStop Color="{DynamicResource ColorBase}" Offset="1"/>
                         </RadialGradientBrush>
                       </Border.Background>
                     </Border>
@@ -190,6 +193,14 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"
+                    IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=MinimalTier}">
+          <material:MaterialIcon Kind="AlertCircleOutline" Width="14" Height="14"
+                                 Foreground="{StaticResource BrushAmberDark}" VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc Settings_Appearance_Scenes_LowPowerHint}"
+                     Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </StackPanel>
     </Border>
   </StackPanel>
 </UserControl>

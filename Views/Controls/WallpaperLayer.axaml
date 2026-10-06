@@ -47,22 +47,24 @@
             </RadialGradientBrush>
           </Border.Background>
         </Border>
-        <Border>
-          <Border.Background>
-            <RadialGradientBrush Center="0.85,0.90" GradientOrigin="0.85,0.90" RadiusX="0.60" RadiusY="0.70">
-              <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
-              <GradientStop Color="#00000000" Offset="1"/>
-            </RadialGradientBrush>
-          </Border.Background>
-        </Border>
-        <Border>
-          <Border.Background>
-            <RadialGradientBrush Center="0.55,0.45" GradientOrigin="0.55,0.45" RadiusX="1.0" RadiusY="0.9">
-              <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
-              <GradientStop Color="#00000000" Offset="1"/>
-            </RadialGradientBrush>
-          </Border.Background>
-        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.85,0.90" GradientOrigin="0.85,0.90" RadiusX="0.60" RadiusY="0.70">
+                <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.55,0.45" GradientOrigin="0.55,0.45" RadiusX="1.0" RadiusY="0.9">
+                <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
       </Panel>
 
       <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=horizon}">
@@ -74,20 +76,23 @@
             </LinearGradientBrush>
           </Border.Background>
         </Border>
-        <Border>
-          <Border.Background>
-            <RadialGradientBrush Center="0.5,1.15" GradientOrigin="0.5,1.15" RadiusX="0.9" RadiusY="0.5">
-              <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
-              <GradientStop Color="#00000000" Offset="1"/>
-            </RadialGradientBrush>
-          </Border.Background>
-        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.5,1.15" GradientOrigin="0.5,1.15" RadiusX="0.9" RadiusY="0.5">
+                <GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
       </Panel>
 
       <Border IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=SceneId, Converter={StaticResource StrEq}, ConverterParameter=spotlight}">
         <Border.Background>
           <RadialGradientBrush Center="0.5,-0.05" GradientOrigin="0.5,-0.05" RadiusX="0.85" RadiusY="1.0">
             <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+            <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0.5"/>
             <GradientStop Color="#00000000" Offset="1"/>
           </RadialGradientBrush>
         </Border.Background>
@@ -112,14 +117,16 @@
             </LinearGradientBrush>
           </Border.Background>
         </Border>
-        <Border>
-          <Border.Background>
-            <RadialGradientBrush Center="0.5,1.0" GradientOrigin="0.5,1.0" RadiusX="0.8" RadiusY="0.45">
-              <GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="0"/>
-              <GradientStop Color="#00000000" Offset="1"/>
-            </RadialGradientBrush>
-          </Border.Background>
-        </Border>
+        <Panel IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowFullScenes}">
+          <Border>
+            <Border.Background>
+              <RadialGradientBrush Center="0.5,1.0" GradientOrigin="0.5,1.0" RadiusX="0.8" RadiusY="0.45">
+                <GradientStop Color="{DynamicResource ColorAccent2Dim}" Offset="0"/>
+                <GradientStop Color="#00000000" Offset="1"/>
+              </RadialGradientBrush>
+            </Border.Background>
+          </Border>
+        </Panel>
       </Panel>
     </Panel>
   </Panel>

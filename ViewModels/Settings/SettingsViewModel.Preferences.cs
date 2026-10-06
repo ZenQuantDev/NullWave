@@ -89,6 +89,30 @@ public partial class SettingsViewModel
         set { _prefsService.Update(p => p.ThemeMode = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ThemeService.Instance.ApplyThemeMode(value); ScheduleSave(); }
     }
 
+    public bool AutoEffectsTier
+    {
+        get => _prefsService.Current.AutoEffectsTier;
+        set
+        {
+            _prefsService.Update(p => p.AutoEffectsTier = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            EffectsTierPreferencesChanged?.Invoke();
+        }
+    }
+
+    public string EffectsTier
+    {
+        get => _prefsService.Current.EffectsTier;
+        set
+        {
+            _prefsService.Update(p => p.EffectsTier = value);
+            OnPropertyChanged();
+            ScheduleSave();
+            EffectsTierPreferencesChanged?.Invoke();
+        }
+    }
+
     public string ActivePresetId
     {
         get

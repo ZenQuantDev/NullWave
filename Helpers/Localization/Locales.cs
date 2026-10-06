@@ -960,6 +960,7 @@ public static partial class Locales
         ["Settings_Appearance_Wallpaper_Set"] = "Background updated.",
         ["Settings_Appearance_Wallpaper_Missing"] = "Wallpaper image was not found. Background disabled.",
         ["Settings_Appearance_Scenes_Title"] = "BACKGROUND SCENES",
+        ["Settings_Appearance_Scenes_LowPowerHint"] = "This device is on the low-power tier: backgrounds render with fewer layers and presets skip them.",
         ["Settings_Appearance_Preset_WallpaperSkipped"] = "Background kept as-is: scenes are skipped on the low-power tier.",
         ["Settings_Appearance_Wallpaper_TrueBlackWarn"] = "A wallpaper over True Black reduces pure-black contrast and OLED power savings.",
         ["Settings_Appearance_Density_Compact"] = "Compact",

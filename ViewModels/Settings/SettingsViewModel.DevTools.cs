@@ -37,6 +37,15 @@ public partial class SettingsViewModel
     [ObservableProperty]
     private string _devProbeResult = "Not run yet.";
 
+    [ObservableProperty]
+    private EffectsTier? _devEffectsTierOverride;
+
+    partial void OnDevEffectsTierOverrideChanged(EffectsTier? value)
+    {
+        DevEffectsTierOverrideChanged?.Invoke(value);
+        ToastService.Instance.Show($"Dev Override: Effects Tier set to {(value?.ToString() ?? "Auto")}", ToastType.Info, scope: "dev");
+    }
+
     // Routed through MainViewModel (same pattern as SweepOrphanedFilesRequested etc.)
     public event Action<int>? SeedLibraryRequested;
     public event Action? RemoveSeededRequested;

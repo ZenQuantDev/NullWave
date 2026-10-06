@@ -228,6 +228,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action<int>? MaxConcurrentDownloadsChanged;
     public event Action<string, string, bool>? PowerModelsChanged;
     public event Action<bool>? AIFeaturesEnabledChanged;
+    public event Action<EffectsTier?>? DevEffectsTierOverrideChanged;
+    public event Action? EffectsTierPreferencesChanged;
     public event Action? RepairPathsRequested;
     public event Action? ReimportAssetsRequested;
     public event Action? ForceMetaResyncRequested;

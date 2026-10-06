@@ -10,6 +10,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
+using NullWave.Models;
 using NullWave.ViewModels;
 
 namespace NullWave.Views.Controls;
@@ -18,6 +19,7 @@ public partial class MiniPlayerView : Border
 {
     private bool _isSeeking;
     private CancellationTokenSource? _marqueeCts;
+    private MainViewModel? _observedViewModel;
 
     public MiniPlayerView()
     {
@@ -27,11 +29,29 @@ public partial class MiniPlayerView : Border
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        if (_observedViewModel != null)
+        {
+            _observedViewModel.Player.PropertyChanged -= OnPlayerPropertyChanged;
+            _observedViewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
+        }
+
         if (DataContext is MainViewModel vm)
         {
+            _observedViewModel = vm;
             vm.Player.PropertyChanged += OnPlayerPropertyChanged;
+            vm.PropertyChanged += OnMainViewModelPropertyChanged;
             RestartMarquee();
         }
+        else
+        {
+            _observedViewModel = null;
+        }
+    }
+
+    private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.CurrentEffectsTier))
+            RestartMarquee();
     }
 
     private void OnPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -85,6 +105,7 @@ public partial class MiniPlayerView : Border
 
             var overflow = TitleTextBlock.Bounds.Width - TitleClip.Bounds.Width;
             if (overflow <= 4) return; // fits fine, no scrolling needed
+            if (DataContext is MainViewModel vm && vm.CurrentEffectsTier == EffectsTier.Minimal) return;
 
             while (!cts.IsCancellationRequested)
             {
