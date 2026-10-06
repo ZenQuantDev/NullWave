@@ -31,6 +31,7 @@ public partial class WallpaperService : ObservableObject
     [ObservableProperty] private int _opacity = 40;
     [ObservableProperty] private int _blur;
     [ObservableProperty] private string _fit = "Fill";
+    [ObservableProperty] private string _sceneId = WallpaperScenes.DefaultId;
     [ObservableProperty] private Bitmap? _image;
     private CancellationTokenSource? _reloadCts;
     private int _decodeGeneration;
@@ -41,7 +42,8 @@ public partial class WallpaperService : ObservableObject
 
     public bool ShowGlow => Style == "AccentGlow";
     public bool ShowImage => Style == "Custom" && Image != null;
-    public bool HasActiveWallpaper => ShowGlow || ShowImage || _customSourceReady;
+    public bool ShowScene => Style == "Scene" && WallpaperScenes.Find(SceneId) != null;
+    public bool HasActiveWallpaper => ShowGlow || ShowImage || ShowScene || _customSourceReady;
     public double OpacityFraction => Opacity / 100.0;
     public Stretch Stretch => Fit switch
     {
@@ -53,23 +55,36 @@ public partial class WallpaperService : ObservableObject
     public void ApplyFrom(Preferences p)
     {
         var normalizedStyle = WallpaperGuard.NormalizeStyle(p.WallpaperStyle, p.WallpaperPath, File.Exists(p.WallpaperPath));
+        var scene = WallpaperScenes.Find(p.WallpaperSceneId);
+        if (string.Equals(normalizedStyle, "Scene", StringComparison.OrdinalIgnoreCase) && scene == null)
+            normalizedStyle = "None";
+
+        p.WallpaperSceneId = scene?.Id ?? WallpaperScenes.DefaultId;
         if (!string.Equals(normalizedStyle, p.WallpaperStyle, StringComparison.Ordinal))
         {
+            var missingCustom = string.Equals(p.WallpaperStyle, "Custom", StringComparison.OrdinalIgnoreCase) &&
+                                !File.Exists(p.WallpaperPath);
             p.WallpaperStyle = normalizedStyle;
             p.WallpaperPath = string.Empty;
-            if (!_missingCustomWarningShown)
+            if (missingCustom && !_missingCustomWarningShown)
             {
                 _missingCustomWarningShown = true;
                 Log.Warning("[Wallpaper] Custom wallpaper is missing; disabling wallpaper");
                 ToastService.Instance.Show(LocalizationService.Instance["Settings_Appearance_Wallpaper_Missing"], ToastType.Warning);
             }
+            else
+            {
+                Log.Debug("[Wallpaper] Unknown wallpaper style or scene normalized to {Style}", normalizedStyle);
+            }
         }
 
         bool sourceChanged = p.WallpaperPath != Path || p.WallpaperStyle != Style;
         bool blurChanged = p.WallpaperBlur != Blur;
+        bool sceneChanged = p.WallpaperSceneId != SceneId;
         Opacity = p.WallpaperOpacity;
         Blur = p.WallpaperBlur;
         Fit = p.WallpaperFit;
+        if (sceneChanged) SceneId = p.WallpaperSceneId;
         if (sourceChanged)
         {
             _reloadCts?.Cancel();
@@ -86,6 +101,7 @@ public partial class WallpaperService : ObservableObject
         OnPropertyChanged(nameof(Stretch));
         OnPropertyChanged(nameof(ShowGlow));
         OnPropertyChanged(nameof(ShowImage));
+        OnPropertyChanged(nameof(ShowScene));
         OnPropertyChanged(nameof(HasActiveWallpaper));
     }
 
@@ -185,6 +201,7 @@ public partial class WallpaperService : ObservableObject
         OnPropertyChanged(nameof(Stretch));
         OnPropertyChanged(nameof(ShowGlow));
         OnPropertyChanged(nameof(ShowImage));
+        OnPropertyChanged(nameof(ShowScene));
         OnPropertyChanged(nameof(HasActiveWallpaper));
     }
 

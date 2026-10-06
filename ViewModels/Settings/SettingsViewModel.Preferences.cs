@@ -147,6 +147,7 @@ public partial class SettingsViewModel
             p.WallpaperOpacity = defaults.WallpaperOpacity;
             p.WallpaperBlur = defaults.WallpaperBlur;
             p.WallpaperFit = defaults.WallpaperFit;
+            p.WallpaperSceneId = defaults.WallpaperSceneId;
         });
 
         OnPropertyChanged(nameof(ThemeMode));
@@ -162,6 +163,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(WallpaperOpacity));
         OnPropertyChanged(nameof(WallpaperBlur));
         OnPropertyChanged(nameof(WallpaperFit));
+        OnPropertyChanged(nameof(WallpaperSceneId));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ThemeService.Instance.ApplyAll(_prefsService.Current);

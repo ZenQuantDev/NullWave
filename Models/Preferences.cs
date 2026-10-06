@@ -78,4 +78,5 @@ public class Preferences
     public int WallpaperOpacity { get; set; } = 40;   // percent
     public int WallpaperBlur { get; set; } = 0;
     public string WallpaperFit { get; set; } = "Fill"; // Fill | Fit | Stretch
+    public string WallpaperSceneId { get; set; } = "aurora";
 }
