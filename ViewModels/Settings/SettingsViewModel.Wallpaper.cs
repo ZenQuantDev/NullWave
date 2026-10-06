@@ -46,6 +46,7 @@ public partial class SettingsViewModel
         {
             _prefsService.Update(p => p.WallpaperSceneId = value);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
             WallpaperService.Instance.ApplyFrom(_prefsService.Current);
             ScheduleSave();
         }
@@ -55,10 +56,33 @@ public partial class SettingsViewModel
         ? L("Settings_Appearance_Wallpaper_Off")
         : string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"), WallpaperStyle);
 
-    public bool ShowWallpaperTrueBlackWarning => ThemeMode == "TrueBlack" && WallpaperStyle != "None";
+    public bool ShowWallpaperTrueBlackWarning => WallpaperGuard.TrueBlackWarning(
+        ThemeMode,
+        WallpaperStyle,
+        WallpaperScenes.Find(WallpaperSceneId)?.OledSafe == true);
 
     [RelayCommand] private void SetWallpaperStyle(string style) => WallpaperStyle = style;
     [RelayCommand] private void SetWallpaperFit(string fit) => WallpaperFit = fit;
+
+    [RelayCommand]
+    private void SelectWallpaperScene(string sceneId)
+    {
+        if (string.IsNullOrWhiteSpace(sceneId)) return;
+        
+        // Atomically switch to Scene mode and set the ID
+        _prefsService.Update(p =>
+        {
+            p.WallpaperStyle = "Scene";
+            p.WallpaperSceneId = sceneId;
+        });
+        
+        OnPropertyChanged(nameof(WallpaperStyle));
+        OnPropertyChanged(nameof(WallpaperSceneId));
+        OnPropertyChanged(nameof(WallpaperStatusLabel));
+        OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
+        ScheduleSave();
+        WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+    }
 
     [RelayCommand]
     private async Task SelectWallpaperAsync()

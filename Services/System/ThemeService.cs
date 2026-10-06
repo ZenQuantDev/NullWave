@@ -39,14 +39,14 @@ public partial class ThemeService : ObservableObject
 
     public static readonly AccentDef CodenameAccent = new("Oxeye Daisy", "#EAB308", "#65A30D");
 
-    public record AppearancePresetDef(string Id, string NameKey, string DescriptionKey, string ThemeMode, string AccentColor, string TrackRowStyle, string FontScale);
+    public record AppearancePresetDef(string Id, string NameKey, string DescriptionKey, string ThemeMode, string AccentColor, string TrackRowStyle, string FontScale, string? SceneId = null, int? WallpaperOpacity = null);
 
     public static readonly IReadOnlyList<AppearancePresetDef> AppearancePresets = new[]
     {
-        new AppearancePresetDef("OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic_Desc", "Dark", "Oxeye Daisy", "Comfortable", "Medium"),
-        new AppearancePresetDef("MidnightOled", "Settings_Appearance_Preset_MidnightOled", "Settings_Appearance_Preset_MidnightOled_Desc", "TrueBlack", "Purple", "Compact", "Medium"),
-        new AppearancePresetDef("StudioLight", "Settings_Appearance_Preset_StudioLight", "Settings_Appearance_Preset_StudioLight_Desc", "Light", "Sky", "Comfortable", "Medium"),
-        new AppearancePresetDef("FocusMinimal", "Settings_Appearance_Preset_FocusMinimal", "Settings_Appearance_Preset_FocusMinimal_Desc", "Dark", "Teal", "Compact", "Small"),
+        new AppearancePresetDef("OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic_Desc", "Dark", "Oxeye Daisy", "Comfortable", "Medium", "spotlight", 40),
+        new AppearancePresetDef("MidnightOled", "Settings_Appearance_Preset_MidnightOled", "Settings_Appearance_Preset_MidnightOled_Desc", "TrueBlack", "Purple", "Compact", "Medium", "dusk", 50),
+        new AppearancePresetDef("StudioLight", "Settings_Appearance_Preset_StudioLight", "Settings_Appearance_Preset_StudioLight_Desc", "Light", "Sky", "Comfortable", "Medium", "horizon", 35),
+        new AppearancePresetDef("FocusMinimal", "Settings_Appearance_Preset_FocusMinimal", "Settings_Appearance_Preset_FocusMinimal_Desc", "Dark", "Teal", "Compact", "Small", "none", null),
     };
 
     public static readonly IReadOnlyList<AccentDef> BaseAccents = new[]

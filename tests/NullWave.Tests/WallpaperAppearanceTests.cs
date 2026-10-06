@@ -79,12 +79,17 @@ public class WallpaperAppearanceTests : IDisposable
             "Settings_Appearance_Wallpaper_Mode_None",
             "Settings_Appearance_Wallpaper_Mode_Custom",
             "Settings_Appearance_Wallpaper_Mode_AccentGlow",
+            "Settings_Appearance_Wallpaper_Mode_Scene",
+            "Settings_Appearance_Wallpaper_Mode_Scene",
+            "Settings_Appearance_Scenes_Title",
             "Settings_Appearance_Wallpaper_Mode_AlbumArt",
             "Settings_Appearance_Wallpaper_Opacity",
             "Settings_Appearance_Wallpaper_OpacityTooltip",
             "Settings_Appearance_Wallpaper_Blur",
             "Settings_Appearance_Wallpaper_Blur_Desc",
             "Settings_Appearance_Wallpaper_Missing",
+            "Settings_Appearance_Scenes_Title",
+            "Settings_Appearance_Preset_WallpaperSkipped",
             "Settings_Appearance_Wallpaper_AlbumArt_Soon",
             "Settings_Appearance_Wallpaper_Fit",
             "Settings_Appearance_Wallpaper_Set",
@@ -101,6 +106,7 @@ public class WallpaperAppearanceTests : IDisposable
             "Settings_Appearance_Preset_StudioLight_Desc",
             "Settings_Appearance_Preset_FocusMinimal",
             "Settings_Appearance_Preset_FocusMinimal_Desc",
+            "Settings_Appearance_Preset_WallpaperSkipped",
         };
 
         Assert.All(keys, key =>
@@ -115,6 +121,40 @@ public class WallpaperAppearanceTests : IDisposable
     {
         Assert.Equal(4, ThemeService.AppearancePresets.Count);
         Assert.Equal(ThemeService.AppearancePresets.Count, ThemeService.AppearancePresets.Select(preset => preset.Id).Distinct().Count());
+    }
+
+    [Theory]
+    [InlineData("TrueBlack", "Custom", false, true)]
+    [InlineData("TrueBlack", "AccentGlow", false, true)]
+    [InlineData("TrueBlack", "Scene", true, false)]
+    [InlineData("TrueBlack", "Scene", false, true)]
+    [InlineData("TrueBlack", "None", false, false)]
+    [InlineData("Dark", "Scene", false, false)]
+    public void TrueBlack_warning_follows_the_oled_safe_table(string mode, string style, bool oledSafe, bool expected)
+        => Assert.Equal(expected, WallpaperGuard.TrueBlackWarning(mode, style, oledSafe));
+
+    [Theory]
+    [InlineData("None", "spotlight", false, PresetWallpaperAction.ApplyScene)]
+    [InlineData("AccentGlow", "dusk", false, PresetWallpaperAction.ApplyScene)]
+    [InlineData("Scene", "aurora", false, PresetWallpaperAction.ApplyScene)]
+    [InlineData("Custom", "aurora", false, PresetWallpaperAction.Keep)]
+    [InlineData("Custom", "none", false, PresetWallpaperAction.Keep)]
+    [InlineData("Scene", "none", false, PresetWallpaperAction.TurnOff)]
+    [InlineData("AccentGlow", "none", false, PresetWallpaperAction.TurnOff)]
+    [InlineData("None", "none", false, PresetWallpaperAction.Keep)]
+    [InlineData("None", "spotlight", true, PresetWallpaperAction.Skip)]
+    [InlineData("None", null, false, PresetWallpaperAction.Keep)]
+    public void Preset_wallpaper_action_respects_custom_and_tier(string current, string? sceneId, bool minimal, PresetWallpaperAction expected)
+        => Assert.Equal(expected, WallpaperGuard.PresetWallpaperAction(current, sceneId, minimal));
+
+    [Fact]
+    public void Every_preset_scene_id_exists_in_the_registry()
+    {
+        foreach (var preset in ThemeService.AppearancePresets)
+        {
+            if (preset.SceneId == null || preset.SceneId == "none") continue;
+            Assert.NotNull(WallpaperScenes.Find(preset.SceneId));
+        }
     }
 
     [Theory]
