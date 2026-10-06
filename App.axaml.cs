@@ -29,6 +29,7 @@ public partial class App : Application
         LocalizationService.Instance.Initialize(prefs.Language);
 
         ThemeService.Instance.Initialize(prefs);
+        WallpaperService.Instance.ApplyFrom(prefs);
         RegisterAntiCrashSystem();
     }
 

@@ -8,6 +8,11 @@
     <ResourceDictionary x:Key="Dark">
       <Color x:Key="ColorBase">#111827</Color>
       <Color x:Key="ColorSurface">#1C2333</Color>
+      <Color x:Key="ColorSurfaceTranslucent">#8C1C2333</Color>
+      <Color x:Key="ColorSurfaceHeavyTranslucent">#731C2333</Color>
+      <Color x:Key="ColorRowBackdrop">#CC1C2333</Color>
+      <Color x:Key="ColorBaseTranslucent">#E6111827</Color>
+      <Color x:Key="ColorWindowScrim">#BF111827</Color>
       <Color x:Key="ColorSurface2">#243047</Color>
       <Color x:Key="ColorElevated">#2D3A52</Color>
       <Color x:Key="ColorHover">#344260</Color>
@@ -41,6 +46,11 @@
     <ResourceDictionary x:Key="Light">
       <Color x:Key="ColorBase">#FFFFFF</Color>
       <Color x:Key="ColorSurface">#F9FAFB</Color>
+      <Color x:Key="ColorSurfaceTranslucent">#8CF9FAFB</Color>
+      <Color x:Key="ColorSurfaceHeavyTranslucent">#73F9FAFB</Color>
+      <Color x:Key="ColorRowBackdrop">#CCF9FAFB</Color>
+      <Color x:Key="ColorBaseTranslucent">#E6FFFFFF</Color>
+      <Color x:Key="ColorWindowScrim">#E6FFFFFF</Color>
       <Color x:Key="ColorSurface2">#F3F4F6</Color>
       <Color x:Key="ColorElevated">#FFFFFF</Color>
       <Color x:Key="ColorHover">#E5E7EB</Color>
@@ -77,6 +87,8 @@
   <Color x:Key="ColorAccent">#4E9BFF</Color>
   <Color x:Key="ColorAccentHover">#75B1FF</Color>
   <Color x:Key="ColorAccent2">#B08CFF</Color>
+  <Color x:Key="ColorAccent2Dim">#3E3864</Color>
+  <Color x:Key="ColorAccent2Glow">#594C88</Color>
   <Color x:Key="ColorTextOnAccent">#FFFFFF</Color>
 
   <Color x:Key="ColorBlue">#60A5FA</Color>
@@ -110,6 +122,11 @@
   <!-- BRUSHES (These automatically adapt because they use DynamicResource to the Colors above) -->
   <SolidColorBrush x:Key="BrushBase" Color="{DynamicResource ColorBase}"/>
   <SolidColorBrush x:Key="BrushSurface" Color="{DynamicResource ColorSurface}"/>
+  <SolidColorBrush x:Key="BrushSurfaceTranslucent" Color="{DynamicResource ColorSurfaceTranslucent}"/>
+  <SolidColorBrush x:Key="BrushSurfaceHeavyTranslucent" Color="{DynamicResource ColorSurfaceHeavyTranslucent}"/>
+  <SolidColorBrush x:Key="BrushRowBackdrop" Color="{DynamicResource ColorRowBackdrop}"/>
+  <SolidColorBrush x:Key="BrushWindowScrim" Color="{DynamicResource ColorWindowScrim}"/>
+  <SolidColorBrush x:Key="BrushBaseTranslucent" Color="{DynamicResource ColorBaseTranslucent}"/>
   <SolidColorBrush x:Key="BrushSurface2" Color="{DynamicResource ColorSurface2}"/>
   <SolidColorBrush x:Key="BrushElevated" Color="{DynamicResource ColorElevated}"/>
   <SolidColorBrush x:Key="BrushHover" Color="{DynamicResource ColorHover}"/>
@@ -123,6 +140,8 @@
   <SolidColorBrush x:Key="BrushAccentDim" Color="{DynamicResource ColorAccentDim}"/>
   <SolidColorBrush x:Key="BrushAccentGlow" Color="{DynamicResource ColorAccentGlow}"/>
   <SolidColorBrush x:Key="BrushAccent2" Color="{DynamicResource ColorAccent2}"/>
+  <SolidColorBrush x:Key="BrushAccent2Dim" Color="{DynamicResource ColorAccent2Dim}"/>
+  <SolidColorBrush x:Key="BrushAccent2Glow" Color="{DynamicResource ColorAccent2Glow}"/>
   <SolidColorBrush x:Key="BrushTextOnAccent" Color="{DynamicResource ColorTextOnAccent}"/>
   
   <!-- Semantic brush for inline `code` spans -->

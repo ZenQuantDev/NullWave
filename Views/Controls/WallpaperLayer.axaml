@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="using:NullWave.Services"
+             x:Class="NullWave.Views.Controls.WallpaperLayer"
+             IsHitTestVisible="False" Focusable="False">
+  <Panel>
+    <!-- Accent ambient: pure DynamicResource stops, so it re-mixes with accent AND
+         TrueBlack/Light palettes for free, no code. -->
+    <Border IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowGlow}"
+            Opacity="{Binding Source={x:Static services:WallpaperService.Instance}, Path=OpacityFraction}">
+      <Border.Background>
+        <RadialGradientBrush Center="0.25,0.15" GradientOrigin="0.25,0.15" RadiusX="0.75" RadiusY="0.85">
+          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/>
+          <GradientStop Color="#00000000" Offset="1"/>
+        </RadialGradientBrush>
+      </Border.Background>
+    </Border>
+    <Border IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowGlow}"
+            Opacity="{Binding Source={x:Static services:WallpaperService.Instance}, Path=OpacityFraction}">
+      <Border.Background>
+        <RadialGradientBrush Center="0.85,0.9" GradientOrigin="0.85,0.9" RadiusX="0.6" RadiusY="0.7">
+          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/>
+          <GradientStop Color="#00000000" Offset="1"/>
+        </RadialGradientBrush>
+      </Border.Background>
+    </Border>
+    <Image IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowImage}"
+           Source="{Binding Source={x:Static services:WallpaperService.Instance}, Path=Image}"
+           Stretch="{Binding Source={x:Static services:WallpaperService.Instance}, Path=Stretch}"
+           Opacity="{Binding Source={x:Static services:WallpaperService.Instance}, Path=OpacityFraction}"/>
+  </Panel>
+</UserControl>

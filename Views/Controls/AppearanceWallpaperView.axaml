@@ -1,0 +1,118 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:attached="using:NullWave.Helpers.Attached"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             xmlns:services="using:NullWave.Services"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="NullWave.Views.Controls.AppearanceWallpaperView"
+             x:DataType="vm:SettingsViewModel">
+  <UserControl.Resources>
+    <converters:StringEqualsConverter x:Key="StrEq"/>
+  </UserControl.Resources>
+
+  <StackPanel Spacing="0">
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Wallpaper}" Margin="0,0,0,12"/>
+    <Border Classes="settings-card">
+      <Grid ColumnDefinitions="220,24,*">
+        <Border Grid.Column="0" Height="140" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#0B1020" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1">
+          <Grid>
+            <Border IsHitTestVisible="False">
+              <Border.Background>
+                <RadialGradientBrush Center="0.3,0.3" GradientOrigin="0.3,0.3" RadiusX="0.6" RadiusY="0.7">
+                  <GradientStop Color="#6634D399" Offset="0"/>
+                  <GradientStop Color="#0034D399" Offset="1"/>
+                </RadialGradientBrush>
+              </Border.Background>
+            </Border>
+            <Border IsHitTestVisible="False">
+              <Border.Background>
+                <RadialGradientBrush Center="0.85,0.2" GradientOrigin="0.85,0.2" RadiusX="0.5" RadiusY="0.6">
+                  <GradientStop Color="#5938BDF8" Offset="0"/>
+                  <GradientStop Color="#0038BDF8" Offset="1"/>
+                </RadialGradientBrush>
+              </Border.Background>
+            </Border>
+            <Image Source="{Binding Source={x:Static services:WallpaperService.Instance}, Path=Image}"
+                   Stretch="UniformToFill"
+                   IsVisible="{Binding Source={x:Static services:WallpaperService.Instance}, Path=ShowImage}"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+              <Border Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}" Background="#22FFFFFF" HorizontalAlignment="Center">
+                <material:MaterialIcon Kind="ImageOutline" Width="22" Height="22" Foreground="{DynamicResource BrushTextPrimary}"/>
+              </Border>
+              <Button Classes="chip" Command="{Binding SelectWallpaperCommand}" Padding="10,4">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <material:MaterialIcon Kind="FolderOpenOutline" Width="14" Height="14"/>
+                  <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Browse}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <Border Background="{DynamicResource BrushAccentDim}" CornerRadius="{StaticResource RadiusSm}" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
+              <TextBlock Text="{Binding WallpaperStatusLabel}" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{DynamicResource BrushAccent}"/>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Width="1" Background="{StaticResource BrushBorder}" HorizontalAlignment="Center" Margin="0,4"/>
+
+        <StackPanel Grid.Column="2" Spacing="12" VerticalAlignment="Center">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Source_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+            <WrapPanel>
+              <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="None" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_None}" Margin="0,0,6,6">
+                <attached:PseudoClass.Active><Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="None"/></attached:PseudoClass.Active>
+              </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="Custom" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_Custom}" Margin="0,0,6,6">
+                <attached:PseudoClass.Active><Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="Custom"/></attached:PseudoClass.Active>
+              </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="AccentGlow" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_AccentGlow}" Margin="0,0,6,6">
+                <attached:PseudoClass.Active><Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="AccentGlow"/></attached:PseudoClass.Active>
+              </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperStyleCommand}" CommandParameter="AlbumArt" Content="{loc:Loc Settings_Appearance_Wallpaper_Mode_AlbumArt}" IsEnabled="False" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_AlbumArt_Soon}" Margin="0,0,6,6"/>
+            </WrapPanel>
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,16,*">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Opacity}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                <TextBlock Grid.Column="1" Text="{Binding WallpaperOpacity, StringFormat='{}{0}%'}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+              </Grid>
+              <Slider Minimum="0" Maximum="100" Value="{Binding WallpaperOpacity, Mode=TwoWay}" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_OpacityTooltip}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Blur}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                <TextBlock Grid.Column="1" Text="{Binding WallpaperBlur}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+              </Grid>
+              <Slider Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding WallpaperSoftness, Mode=TwoWay}" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_Blur_Desc}"/>
+            </StackPanel>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+            <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Fit}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fill" Content="Cover">
+                <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Fill"/></attached:PseudoClass.Active>
+              </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fit" Content="Fit">
+                <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Fit"/></attached:PseudoClass.Active>
+              </Button>
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Stretch" Content="Stretch">
+                <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Stretch"/></attached:PseudoClass.Active>
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <Border Classes="settings-banner" Margin="0" IsVisible="{Binding ShowWallpaperTrueBlackWarning}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{StaticResource BrushAmberDark}" VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_TrueBlackWarn}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

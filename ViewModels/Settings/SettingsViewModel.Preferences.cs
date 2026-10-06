@@ -81,25 +81,115 @@ public partial class SettingsViewModel
     }
 
     // Appearance & Layout
+    // NOTE: accent lists are bound in XAML via {x:Static services:ThemeService.BaseAccents},
+    // so no ViewModel proxy properties are needed here.
     public string ThemeMode
     {
         get => _prefsService.Current.ThemeMode;
-        set { _prefsService.Update(p => p.ThemeMode = value); OnPropertyChanged(); ThemeService.Instance.ApplyThemeMode(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.ThemeMode = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ThemeService.Instance.ApplyThemeMode(value); ScheduleSave(); }
     }
+
+    public string ActivePresetId
+    {
+        get
+        {
+            var preferences = _prefsService.Current;
+            foreach (var preset in ThemeService.AppearancePresets)
+            {
+                if (preferences.ThemeMode == preset.ThemeMode &&
+                    preferences.AccentColor == preset.AccentColor &&
+                    preferences.TrackRowStyle == preset.TrackRowStyle &&
+                    preferences.FontScale == preset.FontScale)
+                    return preset.Id;
+            }
+            return string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void ApplyAppearancePreset(string presetId)
+    {
+        var preset = ThemeService.AppearancePresets.FirstOrDefault(item => item.Id == presetId);
+        if (preset == null) return;
+
+        _prefsService.Update(p =>
+        {
+            p.ThemeMode = preset.ThemeMode;
+            p.AccentColor = preset.AccentColor;
+            p.TrackRowStyle = preset.TrackRowStyle;
+            p.FontScale = preset.FontScale;
+        });
+        OnPropertyChanged(nameof(ThemeMode));
+        OnPropertyChanged(nameof(AccentColor));
+        OnPropertyChanged(nameof(TrackRowStyle));
+        OnPropertyChanged(nameof(FontScale));
+        OnPropertyChanged(nameof(ActivePresetId));
+        OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
+        ThemeService.Instance.ApplyAll(_prefsService.Current);
+        ScheduleSave();
+    }
+
+    [RelayCommand]
+    private void ResetAppearance()
+    {
+        var defaults = new Preferences();
+        _prefsService.Update(p =>
+        {
+            p.ThemeMode = defaults.ThemeMode;
+            p.AccentColor = defaults.AccentColor;
+            p.TrackRowStyle = defaults.TrackRowStyle;
+            p.FontScale = defaults.FontScale;
+            p.CompactMode = defaults.CompactMode;
+            p.SidebarWidth = defaults.SidebarWidth;
+            p.ProfileFrameStyle = defaults.ProfileFrameStyle;
+            p.WallpaperStyle = defaults.WallpaperStyle;
+            p.WallpaperPath = defaults.WallpaperPath;
+            p.WallpaperOpacity = defaults.WallpaperOpacity;
+            p.WallpaperBlur = defaults.WallpaperBlur;
+            p.WallpaperFit = defaults.WallpaperFit;
+        });
+
+        OnPropertyChanged(nameof(ThemeMode));
+        OnPropertyChanged(nameof(AccentColor));
+        OnPropertyChanged(nameof(TrackRowStyle));
+        OnPropertyChanged(nameof(FontScale));
+        OnPropertyChanged(nameof(CompactMode));
+        OnPropertyChanged(nameof(SidebarWidth));
+        OnPropertyChanged(nameof(ProfileFrameStyle));
+        OnPropertyChanged(nameof(ActivePresetId));
+        OnPropertyChanged(nameof(WallpaperStyle));
+        OnPropertyChanged(nameof(WallpaperPath));
+        OnPropertyChanged(nameof(WallpaperOpacity));
+        OnPropertyChanged(nameof(WallpaperBlur));
+        OnPropertyChanged(nameof(WallpaperFit));
+        OnPropertyChanged(nameof(WallpaperStatusLabel));
+        OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
+        ThemeService.Instance.ApplyAll(_prefsService.Current);
+        WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+        ScheduleSave();
+    }
+
     public string AccentColor
     {
         get => _prefsService.Current.AccentColor;
-        set { _prefsService.Update(p => p.AccentColor = value); OnPropertyChanged(); ThemeService.Instance.ApplyAccent(value); ScheduleSave(); }
+        set 
+        { 
+            _prefsService.Update(p => p.AccentColor = value); 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(ActivePresetId));
+            ThemeService.Instance.ApplyAccent(value); 
+            ScheduleSave(); 
+        }
     }
     public string TrackRowStyle
     {
         get => _prefsService.Current.TrackRowStyle;
-        set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); ThemeService.Instance.ApplyDensity(_prefsService.Current); ScheduleSave(); }
+        set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyDensity(_prefsService.Current); ScheduleSave(); }
     }
     public string FontScale
     {
         get => _prefsService.Current.FontScale;
-        set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); ThemeService.Instance.ApplyFontScale(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyFontScale(value); ScheduleSave(); }
     }
     public bool CompactMode
     {

@@ -73,4 +73,9 @@ public class Preferences
     public bool AutoEffectsTier { get; set; } = true;
     public string EffectsTier { get; set; } = "Standard"; // Parsed as EffectsTier enum at runtime
     public string ComposeMode { get; set; } = "lowlatency";
+    public string WallpaperStyle { get; set; } = "None";
+    public string WallpaperPath { get; set; } = string.Empty;
+    public int WallpaperOpacity { get; set; } = 40;   // percent
+    public int WallpaperBlur { get; set; } = 0;
+    public string WallpaperFit { get; set; } = "Fill"; // Fill | Fit | Stretch
 }
