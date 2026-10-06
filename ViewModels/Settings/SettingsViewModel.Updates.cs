@@ -164,11 +164,16 @@ public partial class SettingsViewModel
     [RelayCommand] private void TapVersion()
     {
         _versionTapCount++;
-        if (_versionTapCount >= 7)
-        {
-            _versionTapCount = 0;
+        var reward = WallpaperBuiltIns.RewardFor(_versionTapCount);
+        if (reward.Lore)
             ToastService.Instance.Show("🌼 Oxeye Daisy blooms for the curious.", ToastType.Info);
+        if (reward.SignatureAccent)
+        {
+            AccentColor = ThemeService.CodenameAccent.Name;
+            ToastService.Instance.Show(L("Settings_About_Tap14"), ToastType.Success);
         }
+        if (reward.ExclusiveUnlock)
+            UnlockExclusiveWallpaper();
     }
 
     [RelayCommand] private void OpenUrl(string? url)
