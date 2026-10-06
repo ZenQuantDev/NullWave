@@ -1005,9 +1005,9 @@ public static partial class Locales
         ["Scene_forest"] = "Forest",
         ["Scene_forest_Desc"] = "A canopy wash with two undergrowth glows.",
         ["Scene_seaside"] = "Seaside",
-        ["Scene_seaside_Desc"] = "Sky and sea bands meeting at a calm horizon.",
+        ["Scene_seaside_Desc"] = "Sky and sea bands at a calm horizon.",
         ["Scene_bloom"] = "Bloom",
-        ["Scene_bloom_Desc"] = "Three petal glows arranged like an open flower.",
+        ["Scene_bloom_Desc"] = "Three petal glows like an open flower.",
         ["Scene_abstract"] = "Abstract",
         ["Scene_abstract_Desc"] = "A diagonal duo wash with a soft center field.",
 

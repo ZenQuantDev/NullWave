@@ -983,9 +983,9 @@ public static partial class Locales
         ["Scene_forest"] = "Лес",
         ["Scene_forest_Desc"] = "Крона и два проблеска света под ней.",
         ["Scene_seaside"] = "Морской берег",
-        ["Scene_seaside_Desc"] = "Полосы неба и моря у спокойного горизонта.",
+        ["Scene_seaside_Desc"] = "Небо и море у спокойного горизонта.",
         ["Scene_bloom"] = "Цветение",
-        ["Scene_bloom_Desc"] = "Три светящихся лепестка, как раскрытый цветок.",
+        ["Scene_bloom_Desc"] = "Три лепестка-свечения, словно цветок.",
         ["Scene_abstract"] = "Абстракция",
         ["Scene_abstract_Desc"] = "Диагональная заливка дуэта с мягким центром.",
 
