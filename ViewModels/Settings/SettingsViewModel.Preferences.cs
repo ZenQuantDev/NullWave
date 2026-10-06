@@ -112,21 +112,45 @@ public partial class SettingsViewModel
         var preset = ThemeService.AppearancePresets.FirstOrDefault(item => item.Id == presetId);
         if (preset == null) return;
 
+        var action = WallpaperGuard.PresetWallpaperAction(
+            _prefsService.Current.WallpaperStyle, preset.SceneId, WallpaperService.Instance.MinimalTier);
+
         _prefsService.Update(p =>
         {
             p.ThemeMode = preset.ThemeMode;
             p.AccentColor = preset.AccentColor;
             p.TrackRowStyle = preset.TrackRowStyle;
             p.FontScale = preset.FontScale;
+            if (action == PresetWallpaperAction.ApplyScene)
+            {
+                p.WallpaperStyle = "Scene";
+                p.WallpaperSceneId = preset.SceneId!;
+                if (preset.WallpaperOpacity.HasValue) p.WallpaperOpacity = preset.WallpaperOpacity.Value;
+            }
+            else if (action == PresetWallpaperAction.TurnOff)
+            {
+                p.WallpaperStyle = "None";
+            }
         });
         OnPropertyChanged(nameof(ThemeMode));
         OnPropertyChanged(nameof(AccentColor));
         OnPropertyChanged(nameof(TrackRowStyle));
         OnPropertyChanged(nameof(FontScale));
         OnPropertyChanged(nameof(ActivePresetId));
+        if (action != PresetWallpaperAction.Keep)
+        {
+            OnPropertyChanged(nameof(WallpaperStyle));
+            OnPropertyChanged(nameof(WallpaperSceneId));
+            OnPropertyChanged(nameof(WallpaperOpacity));
+            OnPropertyChanged(nameof(WallpaperStatusLabel));
+        }
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ThemeService.Instance.ApplyAll(_prefsService.Current);
+        WallpaperService.Instance.ApplyFrom(_prefsService.Current);
         ScheduleSave();
+
+        if (action == PresetWallpaperAction.Skip)
+            ToastService.Instance.Show(L("Settings_Appearance_Preset_WallpaperSkipped"), ToastType.Info);
     }
 
     [RelayCommand]
