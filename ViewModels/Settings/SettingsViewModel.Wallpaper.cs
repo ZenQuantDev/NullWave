@@ -51,15 +51,29 @@ public partial class SettingsViewModel
             ScheduleSave();
         }
     }
+    public string WallpaperBuiltInId => _prefsService.Current.WallpaperBuiltInId;
+    public bool IsExclusiveWallpaperUnlocked =>
+        WallpaperBuiltIns.IsUnlocked(WallpaperBuiltIns.StarryNight, _prefsService.Current.UnlockedExclusiveWallpapers);
 
-    public string WallpaperStatusLabel => WallpaperStyle == "None"
-        ? L("Settings_Appearance_Wallpaper_Off")
-        : string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"), WallpaperStyle);
+    public string WallpaperStatusLabel => WallpaperStyle switch
+    {
+        "None" => L("Settings_Appearance_Wallpaper_Off"),
+        "BuiltIn" => string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"),
+            WallpaperBuiltIns.Find(WallpaperBuiltInId)?.Name ?? L("Settings_Appearance_Wallpaper_Mode_BuiltIn")),
+        _ => string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"), WallpaperStyle)
+    };
+
+    private bool ActiveWallpaperOledSafe => WallpaperStyle switch
+    {
+        "Scene" => WallpaperScenes.Find(WallpaperSceneId)?.OledSafe == true,
+        "BuiltIn" => WallpaperBuiltIns.Find(WallpaperBuiltInId)?.OledSafe == true,
+        _ => false
+    };
 
     public bool ShowWallpaperTrueBlackWarning => WallpaperGuard.TrueBlackWarning(
         ThemeMode,
         WallpaperStyle,
-        WallpaperScenes.Find(WallpaperSceneId)?.OledSafe == true);
+        ActiveWallpaperOledSafe);
 
     [RelayCommand] private void SetWallpaperStyle(string style) => WallpaperStyle = style;
     [RelayCommand] private void SetWallpaperFit(string fit) => WallpaperFit = fit;
@@ -82,6 +96,46 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ScheduleSave();
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+    }
+
+    [RelayCommand]
+    private void SelectWallpaperBuiltIn(string id)
+    {
+        var definition = WallpaperBuiltIns.Find(id);
+        if (definition == null) return;
+        if (!WallpaperBuiltIns.IsUnlocked(definition, _prefsService.Current.UnlockedExclusiveWallpapers))
+        {
+            ToastService.Instance.Show(L("Settings_Appearance_BuiltIn_Locked"), ToastType.Info, durationMs: 6000);
+            return;
+        }
+
+        _prefsService.Update(p =>
+        {
+            p.WallpaperStyle = "BuiltIn";
+            p.WallpaperPath = string.Empty;
+            p.WallpaperBuiltInId = definition.Id;
+        });
+        OnPropertyChanged(nameof(WallpaperStyle));
+        OnPropertyChanged(nameof(WallpaperPath));
+        OnPropertyChanged(nameof(WallpaperBuiltInId));
+        OnPropertyChanged(nameof(WallpaperStatusLabel));
+        OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
+        ScheduleSave();
+        WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+    }
+
+    public void UnlockExclusiveWallpaper()
+    {
+        if (IsExclusiveWallpaperUnlocked)
+        {
+            ToastService.Instance.Show(L("Settings_Appearance_BuiltIn_UnlockToast"), ToastType.Info);
+            return;
+        }
+
+        _prefsService.Update(p => p.UnlockedExclusiveWallpapers.Add(WallpaperBuiltIns.StarryNight.Id));
+        OnPropertyChanged(nameof(IsExclusiveWallpaperUnlocked));
+        ScheduleSave();
+        ToastService.Instance.Show(L("Settings_Appearance_BuiltIn_UnlockToast"), ToastType.Success, durationMs: 8000);
     }
 
     [RelayCommand]

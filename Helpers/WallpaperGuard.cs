@@ -28,7 +28,8 @@ internal static class WallpaperGuard
         string.Equals(style, "None", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(style, "Custom", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(style, "AccentGlow", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(style, "Scene", StringComparison.OrdinalIgnoreCase);
+        string.Equals(style, "Scene", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(style, "BuiltIn", StringComparison.OrdinalIgnoreCase);
 
     public static bool TrueBlackWarning(string themeMode, string style, bool sceneIsOledSafe)
     {

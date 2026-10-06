@@ -202,5 +202,58 @@
         </StackPanel>
       </StackPanel>
     </Border>
+
+    <!-- BUILT-IN COLLECTIONS -->
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_BuiltIns_Title}" Margin="0,24,0,12"/>
+    <Border Classes="settings-card">
+      <ItemsControl ItemsSource="{x:Static services:WallpaperBuiltIns.All}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="5" Margin="0"/>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="services:BuiltInDef">
+            <Button Classes="card-select" Margin="4" Padding="0"
+                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectWallpaperBuiltInCommand}"
+                    CommandParameter="{Binding Id}"
+                    AutomationProperties.Name="{Binding Name}">
+              <attached:PseudoClass.Active>
+                <MultiBinding Converter="{x:Static converters:IsBuiltInActiveConverter.Instance}">
+                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperStyle"/>
+                  <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).WallpaperBuiltInId"/>
+                  <Binding Path="Id"/>
+                </MultiBinding>
+              </attached:PseudoClass.Active>
+              <Grid RowDefinitions="80,Auto">
+                <Border Grid.Row="0" CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True">
+                  <Panel>
+                    <Border Background="{DynamicResource BrushSurface2}"/>
+                    <Image Source="{Binding AssetPath, Converter={x:Static converters:AssetThumbConverter.Instance}}" Stretch="UniformToFill"/>
+                    <Border Background="#99000000">
+                      <Border.IsVisible>
+                        <MultiBinding Converter="{x:Static converters:IsBuiltInLockedConverter.Instance}">
+                          <Binding Path="Exclusive"/>
+                          <Binding Path="$parent[UserControl].((vm:SettingsViewModel)DataContext).IsExclusiveWallpaperUnlocked"/>
+                        </MultiBinding>
+                      </Border.IsVisible>
+                      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
+                        <material:MaterialIcon Kind="Lock" Width="20" Height="20" Foreground="White" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{loc:Loc Settings_Appearance_BuiltIn_Locked}" Foreground="White"
+                                   FontSize="9" TextWrapping="Wrap" TextAlignment="Center" Margin="6,0"/>
+                      </StackPanel>
+                    </Border>
+                  </Panel>
+                </Border>
+                <StackPanel Grid.Row="1" Spacing="2" Margin="8,6">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSm}" Foreground="{DynamicResource BrushTextPrimary}"/>
+                  <TextBlock Text="{Binding Description}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" MaxLines="2"/>
+                </StackPanel>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
   </StackPanel>
 </UserControl>

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NullWave.Helpers;
@@ -16,8 +17,8 @@ namespace NullWave.Services;
 /// <summary>
 /// Singleton state for the MainWindow background layer, mirroring the ThemeService
 /// pattern: prefs are the source of truth, views bind via x:Static.
-/// Renders None / AccentGlow / Custom-image with decode-baked blur. AlbumArt sync
-/// remains deferred until player coupling, crossfade, and OLED/tier gates exist.
+/// Renders None / AccentGlow / Scene / BuiltIn / Custom with decode-baked blur.
+/// Built-in assets use the same generation-guarded decode path as Custom files.
 /// </summary>
 public partial class WallpaperService : ObservableObject
 {
@@ -32,19 +33,21 @@ public partial class WallpaperService : ObservableObject
     [ObservableProperty] private int _blur;
     [ObservableProperty] private string _fit = "Fill";
     [ObservableProperty] private string _sceneId = WallpaperScenes.DefaultId;
+    [ObservableProperty] private string _builtInId = string.Empty;
     [ObservableProperty] private Bitmap? _image;
     [ObservableProperty] private bool _minimalTier;
     private CancellationTokenSource? _reloadCts;
     private int _decodeGeneration;
     private bool _customSourceReady;
+    private bool _builtInSourceReady;
     private string? _lastDecodedPath;
     private int _lastDecodedWidth;
     private bool _missingCustomWarningShown;
 
     public bool ShowGlow => Style == "AccentGlow";
-    public bool ShowImage => Style == "Custom" && Image != null;
+    public bool ShowImage => (Style == "Custom" || Style == "BuiltIn") && Image != null;
     public bool ShowScene => Style == "Scene" && WallpaperScenes.Find(SceneId) != null;
-    public bool HasActiveWallpaper => ShowGlow || ShowImage || ShowScene || _customSourceReady;
+    public bool HasActiveWallpaper => ShowGlow || ShowImage || ShowScene || _customSourceReady || _builtInSourceReady;
     public bool ShowFullScenes => !MinimalTier;
     public double OpacityFraction => Opacity / 100.0;
 
@@ -64,6 +67,13 @@ public partial class WallpaperService : ObservableObject
             normalizedStyle = "None";
 
         p.WallpaperSceneId = scene?.Id ?? WallpaperScenes.DefaultId;
+        var builtIn = WallpaperBuiltIns.Find(p.WallpaperBuiltInId);
+        if (string.Equals(normalizedStyle, "BuiltIn", StringComparison.OrdinalIgnoreCase) &&
+            (builtIn == null || !WallpaperBuiltIns.IsUnlocked(builtIn, p.UnlockedExclusiveWallpapers)))
+            normalizedStyle = "None";
+        if (string.Equals(normalizedStyle, "BuiltIn", StringComparison.OrdinalIgnoreCase))
+            p.WallpaperPath = string.Empty;
+        p.WallpaperBuiltInId = builtIn?.Id ?? string.Empty;
         if (!string.Equals(normalizedStyle, p.WallpaperStyle, StringComparison.Ordinal))
         {
             var missingCustom = string.Equals(p.WallpaperStyle, "Custom", StringComparison.OrdinalIgnoreCase) &&
@@ -82,7 +92,7 @@ public partial class WallpaperService : ObservableObject
             }
         }
 
-        bool sourceChanged = p.WallpaperPath != Path || p.WallpaperStyle != Style;
+        bool sourceChanged = p.WallpaperPath != Path || p.WallpaperStyle != Style || p.WallpaperBuiltInId != BuiltInId;
         bool blurChanged = p.WallpaperBlur != Blur;
         bool sceneChanged = p.WallpaperSceneId != SceneId;
         Opacity = p.WallpaperOpacity;
@@ -94,10 +104,12 @@ public partial class WallpaperService : ObservableObject
             _reloadCts?.Cancel();
             Path = p.WallpaperPath;
             Style = p.WallpaperStyle;
+            BuiltInId = p.WallpaperBuiltInId;
             _customSourceReady = Style == "Custom" && !string.IsNullOrEmpty(Path) && File.Exists(Path);
+            _builtInSourceReady = Style == "BuiltIn" && WallpaperBuiltIns.Find(BuiltInId) != null;
             BeginDecode();
         }
-        else if (blurChanged && (ShowImage || _customSourceReady))
+        else if (blurChanged && (ShowImage || _customSourceReady || _builtInSourceReady))
         {
             ScheduleReload();
         }
@@ -134,12 +146,26 @@ public partial class WallpaperService : ObservableObject
     internal static int DecodeWidthForBlur(int blur) =>
         blur <= 0 ? MaxDecodeWidth : Math.Max(160, MaxDecodeWidth / (1 + blur / 10));
 
+    private string? ResolveSourceKey()
+    {
+        if (Style == "Custom" && !string.IsNullOrEmpty(Path) && File.Exists(Path)) return Path;
+        if (Style == "BuiltIn") return WallpaperBuiltIns.Find(BuiltInId)?.AssetPath;
+        return null;
+    }
+
+    private static Stream OpenSource(string key) =>
+        key.StartsWith("avares://", StringComparison.OrdinalIgnoreCase)
+            ? AssetLoader.Open(new Uri(key))
+            : File.OpenRead(key);
+
     private void BeginDecode()
     {
-        if (Style != "Custom" || string.IsNullOrEmpty(Path) || !File.Exists(Path))
+        var sourceKey = ResolveSourceKey();
+        if (sourceKey == null)
         {
             _decodeGeneration++;
             _customSourceReady = false;
+            _builtInSourceReady = false;
             var dropped = Image;
             Image = null;
             NotifyComputed();
@@ -148,9 +174,9 @@ public partial class WallpaperService : ObservableObject
         }
 
         var generation = ++_decodeGeneration;
-        var path = Path;
+        var key = sourceKey;
         var width = DecodeWidthForBlur(Blur);
-        if (Image != null && WallpaperGuard.ShouldSkipDecode(_lastDecodedPath, _lastDecodedWidth, path, width))
+        if (Image != null && WallpaperGuard.ShouldSkipDecode(_lastDecodedPath, _lastDecodedWidth, key, width))
         {
             _customSourceReady = false;
             NotifyComputed();
@@ -163,12 +189,12 @@ public partial class WallpaperService : ObservableObject
             Bitmap? decoded = null;
             try
             {
-                using var stream = File.OpenRead(path);
+                using var stream = OpenSource(key);
                 decoded = Bitmap.DecodeToWidth(stream, width);
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "[Wallpaper] Failed to decode {Path}", path);
+                Log.Warning(ex, "[Wallpaper] Failed to decode {Path}", key);
             }
             stopwatch.Stop();
 
@@ -183,17 +209,19 @@ public partial class WallpaperService : ObservableObject
                 if (decoded == null)
                 {
                     _customSourceReady = false;
+                    _builtInSourceReady = false;
                     NotifyComputed();
                     return;
                 }
 
                 var old = Image;
                 Image = decoded;
-                _lastDecodedPath = path;
+                _lastDecodedPath = key;
                 _lastDecodedWidth = width;
                 _customSourceReady = false;
+                _builtInSourceReady = false;
                 NotifyComputed();
-                Log.Debug("[Wallpaper] decoded {Path} at {Width}px in {Ms}ms", path, width, stopwatch.ElapsedMilliseconds);
+                Log.Debug("[Wallpaper] decoded {Path} at {Width}px in {Ms}ms", key, width, stopwatch.ElapsedMilliseconds);
                 DisposeLater(old);
             });
         });
