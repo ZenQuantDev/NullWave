@@ -18,8 +18,15 @@ internal static class WallpaperGuard
 
     public static string NormalizeStyle(string style, string path, bool fileExists)
     {
-        return string.Equals(style, "Custom", StringComparison.OrdinalIgnoreCase) && !fileExists
-            ? "None"
-            : style;
+        if (string.Equals(style, "Custom", StringComparison.OrdinalIgnoreCase) && !fileExists) return "None";
+
+        return style.ToUpperInvariant() switch
+        {
+            "NONE" => "None",
+            "CUSTOM" => "Custom",
+            "ACCENTGLOW" => "AccentGlow",
+            "SCENE" => "Scene",
+            _ => "None"
+        };
     }
 }

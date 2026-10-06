@@ -39,6 +39,17 @@ public partial class SettingsViewModel
         set => WallpaperBlur = WallpaperGuard.BlurForSoftness(value);
     }
     public string WallpaperPath => _prefsService.Current.WallpaperPath;
+    public string WallpaperSceneId
+    {
+        get => _prefsService.Current.WallpaperSceneId;
+        set
+        {
+            _prefsService.Update(p => p.WallpaperSceneId = value);
+            OnPropertyChanged();
+            WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+            ScheduleSave();
+        }
+    }
 
     public string WallpaperStatusLabel => WallpaperStyle == "None"
         ? L("Settings_Appearance_Wallpaper_Off")

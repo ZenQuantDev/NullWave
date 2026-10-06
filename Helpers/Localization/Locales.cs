@@ -981,5 +981,16 @@ public static partial class Locales
         ["Settings_Appearance_Soon"] = "SOON",
         ["Settings_Appearance_Frame_Experimental"] = "Experimental: Profile Frames are still being polished - Ring and Glow can render inconsistently or glitch, especially after theme or accent changes. If something looks off, switch back to None for now.",
 
+        ["Scene_aurora"] = "Aurora",
+        ["Scene_aurora_Desc"] = "Two soft accent glows crossing a dim field.",
+        ["Scene_horizon"] = "Horizon",
+        ["Scene_horizon_Desc"] = "A calm light line rising from the bottom edge.",
+        ["Scene_spotlight"] = "Spotlight",
+        ["Scene_spotlight_Desc"] = "A single overhead glow, safe for OLED.",
+        ["Scene_duotone"] = "Duotone",
+        ["Scene_duotone_Desc"] = "A diagonal wash pairing both accent colors.",
+        ["Scene_dusk"] = "Dusk",
+        ["Scene_dusk_Desc"] = "A low gradient band, gentle on dark rooms.",
+
     };
 }

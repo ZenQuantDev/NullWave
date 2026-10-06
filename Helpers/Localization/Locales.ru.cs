@@ -959,5 +959,16 @@ public static partial class Locales
         ["Settings_Appearance_Soon"] = "СКОРО",
         ["Settings_Appearance_Frame_Experimental"] = "Экспериментально: рамки профиля ещё дорабатываются - Ring и Glow могут отображаться нестабильно, особенно после смены темы или акцента. Если что-то выглядит не так, вернитесь к None.",
 
+        ["Scene_aurora"] = "Аврора",
+        ["Scene_aurora_Desc"] = "Два мягких акцентных свечения на приглушенном фоне.",
+        ["Scene_horizon"] = "Горизонт",
+        ["Scene_horizon_Desc"] = "Спокойная линия света, поднимающаяся от нижнего края.",
+        ["Scene_spotlight"] = "Прожектор",
+        ["Scene_spotlight_Desc"] = "Одиночное верхнее свечение, безопасно для OLED.",
+        ["Scene_duotone"] = "Дуотон",
+        ["Scene_duotone_Desc"] = "Диагональная заливка из двух цветов акцента.",
+        ["Scene_dusk"] = "Сумерки",
+        ["Scene_dusk_Desc"] = "Низкая градиентная полоса, мягкая для тёмных комнат.",
+
     };
 }
