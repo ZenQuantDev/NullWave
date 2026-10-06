@@ -938,6 +938,7 @@ public static partial class Locales
         ["Settings_Appearance_Wallpaper_Set"] = "Фон обновлён.",
         ["Settings_Appearance_Wallpaper_Missing"] = "Файл фона не найден. Фон отключён.",
         ["Settings_Appearance_Scenes_Title"] = "ФОНОВЫЕ СЦЕНЫ",
+        ["Settings_Appearance_Scenes_LowPowerHint"] = "Устройство в энергосберегающем уровне: фоны рисуются с меньшим числом слоёв, пресеты их пропускают.",
         ["Settings_Appearance_Preset_WallpaperSkipped"] = "Фон оставлен как есть: сцены пропускаются на энергосберегающем уровне.",
         ["Settings_Appearance_Wallpaper_TrueBlackWarn"] = "Обои поверх True Black снижают контраст чистого чёрного и экономию энергии OLED.",
         ["Settings_Appearance_Density_Compact"] = "Компактная",

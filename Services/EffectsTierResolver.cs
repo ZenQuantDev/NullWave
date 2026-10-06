@@ -1,9 +1,11 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using NullWave.Models;
 using NullWave.Services.SmartSorting;
 
 namespace NullWave.Services;
 
-public class EffectsTierResolver
+public class EffectsTierResolver : INotifyPropertyChanged
 {
     private readonly PreferencesService _prefs;
     private EffectsTier? _devOverride;
@@ -11,12 +13,28 @@ public class EffectsTierResolver
 
     public EffectsTierResolver(PreferencesService prefs) => _prefs = prefs;
 
-    // Used by the Dev Tab to force a specific tier for testing
-    public void SetDevOverride(EffectsTier? tier) => _devOverride = tier;
+    public void SetDevOverride(EffectsTier? tier) 
+    { 
+        _devOverride = tier; 
+        OnPropertyChanged(nameof(Current)); 
+    }
     
-    // Used by PowerStateService to force Minimal on battery
-    public void SetBatteryOverride(EffectsTier tier) => _batteryOverride = tier;
-    public void ClearBatteryOverride() => _batteryOverride = null;
+    public void SetBatteryOverride(EffectsTier tier) 
+    { 
+        _batteryOverride = tier; 
+        OnPropertyChanged(nameof(Current)); 
+    }
+
+    public void ClearBatteryOverride() 
+    { 
+        _batteryOverride = null; 
+        OnPropertyChanged(nameof(Current)); 
+    }
+
+    /// <summary>
+    /// Call this when AutoEffectsTier or manual EffectsTier preferences change in the Settings UI.
+    /// </summary>
+    public void NotifyPreferencesChanged() => OnPropertyChanged(nameof(Current));
 
     public EffectsTier Current
     {
@@ -45,5 +63,11 @@ public class EffectsTierResolver
                 ? manual
                 : EffectsTier.Standard;
         }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

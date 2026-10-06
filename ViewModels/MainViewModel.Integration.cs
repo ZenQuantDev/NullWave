@@ -27,6 +27,17 @@ public partial class MainViewModel
         _identity = new IdentityService(_keyStore);
         _prefsService = new PreferencesService();
         _effectsTier = new EffectsTierResolver(_prefsService);
+        _effectsTier.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(EffectsTierResolver.Current)) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(CurrentEffectsTier));
+                OnPropertyChanged(nameof(CanAnimateSeekWave));
+                WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
+            });
+        };
+        WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
 
         ThemeService.Instance.PropertyChanged += (_, e) =>
@@ -70,6 +81,12 @@ public partial class MainViewModel
 
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
+        Settings.DevEffectsTierOverrideChanged += tier => _effectsTier.SetDevOverride(tier);
+        Settings.EffectsTierPreferencesChanged += () =>
+        {
+            ApplyBatteryEffectsTier(_powerState.Current);
+            _effectsTier.NotifyPreferencesChanged();
+        };
     }
 
     private void InitializeChildViewModels()
@@ -486,7 +503,9 @@ public partial class MainViewModel
         {
             _localAI.OnPowerStateChanged(state);
             Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
+            ApplyBatteryEffectsTier(state);
         };
+        ApplyBatteryEffectsTier(_powerState.Current);
         Settings.PowerModelsChanged += (b, p, a) => _localAI.ConfigurePowerModels(b, p, a);
         _localAI.ConfigurePowerModels(Settings.BatteryModel, Settings.PerformanceModel, Settings.AutoPowerModelSwitch);
         _powerState.StartPolling();
@@ -509,21 +528,14 @@ public partial class MainViewModel
             if (PowerStateService.ReadPowerState() != PowerState.Battery) _enrichment.BackfillAsync();
             else { _initialMoodPlaylistRun = true; _ = RunMoodPlaylistAsync(forceRefresh: false); }
         });
-        
-        _powerState.PowerStateChanged += state =>
-        {
-            _localAI.OnPowerStateChanged(state);
-            Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
+    }
 
-            if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
-            {
-                _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
-            }
-            else if (state == PowerState.AC)
-            {
-                _effectsTier.ClearBatteryOverride();
-            }
-        };
+    private void ApplyBatteryEffectsTier(PowerState state)
+    {
+        if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
+            _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
+        else if (state == PowerState.AC)
+            _effectsTier.ClearBatteryOverride();
     }
 
     private void OnClearYtDlpCacheRequested()

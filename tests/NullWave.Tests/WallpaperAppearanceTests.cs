@@ -82,6 +82,7 @@ public class WallpaperAppearanceTests : IDisposable
             "Settings_Appearance_Wallpaper_Mode_Scene",
             "Settings_Appearance_Wallpaper_Mode_Scene",
             "Settings_Appearance_Scenes_Title",
+            "Settings_Appearance_Scenes_LowPowerHint",
             "Settings_Appearance_Wallpaper_Mode_AlbumArt",
             "Settings_Appearance_Wallpaper_Opacity",
             "Settings_Appearance_Wallpaper_OpacityTooltip",

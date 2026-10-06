@@ -98,6 +98,23 @@ public class WallpaperSceneServiceTests : IDisposable
     public void Dispose() => WallpaperService.Instance.ApplyFrom(new Preferences());
 
     [Fact]
+    public void Minimal_tier_hides_full_scene_layers()
+    {
+        var service = WallpaperService.Instance;
+        try
+        {
+            service.MinimalTier = true;
+            Assert.False(service.ShowFullScenes);
+            service.MinimalTier = false;
+            Assert.True(service.ShowFullScenes);
+        }
+        finally
+        {
+            service.MinimalTier = false;
+        }
+    }
+
+    [Fact]
     public void Scene_with_known_id_is_active_without_an_image()
     {
         WallpaperService.Instance.ApplyFrom(new Preferences { WallpaperStyle = "Scene", WallpaperSceneId = "aurora" });

@@ -33,6 +33,7 @@ public partial class WallpaperService : ObservableObject
     [ObservableProperty] private string _fit = "Fill";
     [ObservableProperty] private string _sceneId = WallpaperScenes.DefaultId;
     [ObservableProperty] private Bitmap? _image;
+    [ObservableProperty] private bool _minimalTier;
     private CancellationTokenSource? _reloadCts;
     private int _decodeGeneration;
     private bool _customSourceReady;
@@ -44,8 +45,10 @@ public partial class WallpaperService : ObservableObject
     public bool ShowImage => Style == "Custom" && Image != null;
     public bool ShowScene => Style == "Scene" && WallpaperScenes.Find(SceneId) != null;
     public bool HasActiveWallpaper => ShowGlow || ShowImage || ShowScene || _customSourceReady;
-    public bool MinimalTier { get; set; }
+    public bool ShowFullScenes => !MinimalTier;
     public double OpacityFraction => Opacity / 100.0;
+
+    partial void OnMinimalTierChanged(bool value) => OnPropertyChanged(nameof(ShowFullScenes));
     public Stretch Stretch => Fit switch
     {
         "Fit"     => Stretch.Uniform,
