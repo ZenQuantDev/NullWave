@@ -79,4 +79,6 @@ public class Preferences
     public int WallpaperBlur { get; set; } = 0;
     public string WallpaperFit { get; set; } = "Fill"; // Fill | Fit | Stretch
     public string WallpaperSceneId { get; set; } = "aurora";
+    public string WallpaperBuiltInId { get; set; } = string.Empty;
+    public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
 }
