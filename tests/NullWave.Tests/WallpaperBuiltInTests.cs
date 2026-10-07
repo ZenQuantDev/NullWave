@@ -139,6 +139,18 @@ public class WallpaperBuiltInServiceTests : IDisposable
     }
 
     [Fact]
+    public void Null_unlock_list_in_hand_edited_preferences_does_not_crash_wallpaper_apply()
+    {
+        var preferences = JsonSerializer.Deserialize<Preferences>(
+            "{\"WallpaperStyle\":\"BuiltIn\",\"WallpaperBuiltInId\":\"starrynight\",\"UnlockedExclusiveWallpapers\":null}")!;
+
+        WallpaperService.Instance.ApplyFrom(preferences);
+
+        Assert.NotNull(preferences.UnlockedExclusiveWallpapers);
+        Assert.Equal("None", preferences.WallpaperStyle);
+    }
+
+    [Fact]
     public void Presets_never_touch_a_builtin_wallpaper()
         => Assert.Equal(PresetWallpaperAction.Keep,
             WallpaperGuard.PresetWallpaperAction("BuiltIn", "spotlight", minimalTier: false));

@@ -23,13 +23,17 @@ public partial class App : Application
         // Removed AvaloniaLocator diagnostic block (API changed in this Avalonia version).
         // The Win32PlatformOptions log in Program.cs is sufficient to confirm the GPU path.
         
-        var prefs = new PreferencesService().Current;
+        var preferencesService = new PreferencesService();
+        var prefs = preferencesService.Current;
 
         // Initialize localization with saved preference BEFORE ThemeService
         LocalizationService.Instance.Initialize(prefs.Language);
 
         ThemeService.Instance.Initialize(prefs);
+        var wallpaperBeforeApply = (prefs.WallpaperStyle, prefs.WallpaperPath, prefs.WallpaperSceneId, prefs.WallpaperBuiltInId);
         WallpaperService.Instance.ApplyFrom(prefs);
+        if (wallpaperBeforeApply != (prefs.WallpaperStyle, prefs.WallpaperPath, prefs.WallpaperSceneId, prefs.WallpaperBuiltInId))
+            preferencesService.Save();
         RegisterAntiCrashSystem();
     }
 
