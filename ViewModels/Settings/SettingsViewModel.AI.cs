@@ -76,8 +76,7 @@ public partial class SettingsViewModel
         IsDetectingHardware = true;
         try
         {
-            var detector = new HardwareDetector();
-            var info = await detector.DetectAsync();
+            var info = await HardwareDetector.RefreshAsync();
             
             string modelDisplay = info.RecommendedModel ?? "none";
             HardwareInfo = string.Format(L("Settings_Dynamic_HW_Info"), info.CpuCores, info.RamGB, info.GpuType, info.GpuVramGB, modelDisplay, info.RecommendationReason);

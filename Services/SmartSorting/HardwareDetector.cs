@@ -13,6 +13,25 @@ namespace NullWave.Services.SmartSorting;
 
 public class HardwareDetector
 {
+    internal static Func<CancellationToken, Task<HardwareInfo>>? DetectFactory { get; set; }
+
+    internal static void ResetCacheForTests()
+    {
+        lock (_cacheLock)
+        {
+            _cachedInfoTask = null;
+        }
+    }
+
+    public static async Task<HardwareInfo> RefreshAsync()
+    {
+        lock (_cacheLock)
+        {
+            _cachedInfoTask = null;
+        }
+        return await GetCachedInfoAsync();
+    }
+
     public async Task<HardwareInfo> DetectAsync(CancellationToken ct = default)
     {
         var info = new HardwareInfo
@@ -169,7 +188,7 @@ public class HardwareDetector
     private static Task<HardwareInfo>? _cachedInfoTask;
     private static readonly object _cacheLock = new();
 
-    public static Task<HardwareInfo> GetCachedInfoAsync()
+    public static Task<HardwareInfo> GetCachedInfoAsync(CancellationToken ct = default)
     {
         if (_cachedInfoTask != null && !_cachedInfoTask.IsFaulted && !_cachedInfoTask.IsCanceled) 
             return _cachedInfoTask;
@@ -179,8 +198,9 @@ public class HardwareDetector
             if (_cachedInfoTask != null && !_cachedInfoTask.IsFaulted && !_cachedInfoTask.IsCanceled) 
                 return _cachedInfoTask;
                 
-            var detector = new HardwareDetector();
-            _cachedInfoTask = detector.DetectAsync();
+            _cachedInfoTask = DetectFactory != null
+                ? DetectFactory(ct)
+                : new HardwareDetector().DetectAsync(ct);
             return _cachedInfoTask;
         }
     }
