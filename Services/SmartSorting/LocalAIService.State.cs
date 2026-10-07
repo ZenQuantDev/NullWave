@@ -76,7 +76,7 @@ public partial class LocalAIService
                     await _aiEngineLock.WaitAsync();
                     try
                     {
-                        Log.Warning("[LocalAIService] [Manual Override] Swapping models safely from '{Old}' to '{New}'...", oldModel, newValue);
+                        Log.Information("[LocalAIService] [Manual Override] Swapping models from '{Old}' to '{New}'", oldModel, newValue);
                         if (!string.IsNullOrWhiteSpace(oldModel)) await UnloadModelAsync(oldModel);
                     }
                     finally { _aiEngineLock.Release(); }
@@ -107,7 +107,7 @@ public partial class LocalAIService
             {
                 var oldModel = _currentModel;
                 _currentModel = targetModel;
-                Log.Warning("[LocalAIService] [{Source}] Swapping models safely from '{Old}' to '{New}'...", contextSource, oldModel, targetModel);
+                Log.Information("[LocalAIService] [{Source}] Swapping models from '{Old}' to '{New}'", contextSource, oldModel, targetModel);
                 if (!string.IsNullOrWhiteSpace(oldModel)) await UnloadModelAsync(oldModel);
             }
         }

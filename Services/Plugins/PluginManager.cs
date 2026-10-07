@@ -76,7 +76,7 @@ public class PluginManager
                 plugin.State = success ? PluginState.Available : PluginState.Error;
 
                 if (!success)
-                    _logger.Warning("Plugin {PluginName} initialization returned false", plugin.Name);
+                    _logger.Information("Plugin {Name} initialized without optional configuration - its features stay off until configured", plugin.Name);
             }
             catch (Exception ex)
             {
