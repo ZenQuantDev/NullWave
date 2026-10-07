@@ -61,6 +61,7 @@ public partial class WallpaperService : ObservableObject
 
     public void ApplyFrom(Preferences p)
     {
+        p.UnlockedExclusiveWallpapers ??= new();
         var normalizedStyle = WallpaperGuard.NormalizeStyle(p.WallpaperStyle, p.WallpaperPath, File.Exists(p.WallpaperPath));
         var scene = WallpaperScenes.Find(p.WallpaperSceneId);
         if (string.Equals(normalizedStyle, "Scene", StringComparison.OrdinalIgnoreCase) && scene == null)
