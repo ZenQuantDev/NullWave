@@ -184,9 +184,9 @@
                         </RadialGradientBrush></Border.Background>
                       </Border>
                       <Border IsVisible="{Binding Id, Converter={StaticResource StrEq}, ConverterParameter=abstract}">
-                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                          <GradientStop Color="{DynamicResource ColorAccentGlow}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
-                        </LinearGradientBrush></Border.Background>
+                        <Border.Background><RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.8" RadiusY="0.8">
+                          <GradientStop Color="{DynamicResource ColorAccentDim}" Offset="0"/><GradientStop Color="{DynamicResource ColorAccent2Glow}" Offset="1"/>
+                        </RadialGradientBrush></Border.Background>
                       </Border>
                       <Image Source="{Binding AssetPath, Converter={x:Static converters:AssetThumbConverter.Instance}}"
                              Stretch="UniformToFill"
