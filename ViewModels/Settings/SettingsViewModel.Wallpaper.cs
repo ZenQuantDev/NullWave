@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
+using Serilog;
 
 namespace NullWave.ViewModels;
 
@@ -52,6 +53,7 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.WallpaperSceneId = value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(WallpaperSelectionKey));
+            OnPropertyChanged(nameof(WallpaperStatusLabel));
             OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
             WallpaperService.Instance.ApplyFrom(_prefsService.Current);
             ScheduleSave();
@@ -75,13 +77,17 @@ public partial class SettingsViewModel
         return items;
     }
 
-    public string WallpaperStatusLabel => WallpaperStyle switch
+    public string WallpaperStatusLabel
     {
-        "None" => L("Settings_Appearance_Wallpaper_Off"),
-        "BuiltIn" => string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"),
-            WallpaperBuiltIns.Find(WallpaperBuiltInId)?.Name ?? L("Settings_Appearance_Wallpaper_Mode_BuiltIn")),
-        _ => string.Format(L("Settings_Appearance_Wallpaper_ActiveFmt"), WallpaperStyle)
-    };
+        get
+        {
+            var status = WallpaperStatus.Describe(
+                WallpaperStyle,
+                WallpaperScenes.Find(WallpaperSceneId)?.Name,
+                WallpaperBuiltIns.Find(WallpaperBuiltInId)?.Name);
+            return status.Arg == null ? L(status.FormatKey) : string.Format(L(status.FormatKey), status.Arg);
+        }
+    }
 
     private bool ActiveWallpaperOledSafe => WallpaperStyle switch
     {
@@ -174,38 +180,51 @@ public partial class SettingsViewModel
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
         var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose a background image",
+            Title = L("Settings_Appearance_Wallpaper_Browse"),
             AllowMultiple = false,
             FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp" } } }
         });
         if (files.Count == 0) return;
 
-        // Copy into the managed art cache so a deleted source file cannot break the background.
-        var src = files[0];
-        var ext = Path.GetExtension(src.Name);
-        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-        var dest = WallpaperService.ReserveCachePath(ext);
         try
         {
-            await using var inStream = await src.OpenReadAsync();
-            await using var outStream = File.Create(dest);
-            await inStream.CopyToAsync(outStream);
+            await using var source = await files[0].OpenReadAsync();
+            var result = await WallpaperImport.ImportAsync(
+                source,
+                WallpaperService.ReserveCachePath,
+                stream =>
+                {
+                    using var bitmap = Bitmap.DecodeToWidth(stream, 64);
+                    return bitmap.PixelSize.Width > 0 && bitmap.PixelSize.Height > 0;
+                });
+
+            if (!result.Ok || result.Path == null)
+            {
+                var errorKey = result.Status switch
+                {
+                    WallpaperImportStatus.TooLarge => "Settings_Appearance_Wallpaper_Error_TooLarge",
+                    WallpaperImportStatus.UnsupportedFormat => "Settings_Appearance_Wallpaper_Error_Format",
+                    WallpaperImportStatus.DecodeFailed => "Settings_Appearance_Wallpaper_Error_Decode",
+                    _ => "Settings_Appearance_Wallpaper_Error_Unknown"
+                };
+                ToastService.Instance.Show(L(errorKey), ToastType.Error);
+                return;
+            }
+
+            _prefsService.Update(p => { p.WallpaperPath = result.Path; p.WallpaperStyle = "Custom"; });
+            if (_prefsService.Save())
+                WallpaperService.PruneWallpaperCache(result.Path);
+            OnPropertyChanged(nameof(WallpaperPath));
+            OnPropertyChanged(nameof(WallpaperStyle));
+            OnPropertyChanged(nameof(WallpaperSelectionKey));
+            OnPropertyChanged(nameof(WallpaperStatusLabel));
+            WallpaperService.Instance.ApplyFrom(_prefsService.Current);
+            ToastService.Instance.Show(L("Settings_Appearance_Wallpaper_Set"), ToastType.Success);
         }
         catch (Exception ex)
         {
-            try { File.Delete(dest); } catch { }
-            ToastService.Instance.Show($"Couldn't copy background image: {ex.Message}", ToastType.Error);
-            return;
+            Log.Error(ex, "[Settings] Wallpaper picker failed");
+            ToastService.Instance.Show(L("Settings_Appearance_Wallpaper_Error_Unknown"), ToastType.Error);
         }
-
-        _prefsService.Update(p => { p.WallpaperPath = dest; p.WallpaperStyle = "Custom"; });
-        if (_prefsService.Save())
-            WallpaperService.PruneWallpaperCache(dest);
-        OnPropertyChanged(nameof(WallpaperPath));
-        OnPropertyChanged(nameof(WallpaperStyle));
-        OnPropertyChanged(nameof(WallpaperSelectionKey));
-        OnPropertyChanged(nameof(WallpaperStatusLabel));
-        WallpaperService.Instance.ApplyFrom(_prefsService.Current);
-        ToastService.Instance.Show(L("Settings_Appearance_Wallpaper_Set"), ToastType.Success);
     }
 }

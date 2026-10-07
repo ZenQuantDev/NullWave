@@ -102,6 +102,10 @@ public class WallpaperAppearanceTests : IDisposable
             "Settings_Appearance_Wallpaper_Fit",
             "Settings_Appearance_Wallpaper_Set",
             "Settings_Appearance_Wallpaper_TrueBlackWarn",
+            "Settings_Appearance_Wallpaper_Error_TooLarge",
+            "Settings_Appearance_Wallpaper_Error_Format",
+            "Settings_Appearance_Wallpaper_Error_Decode",
+            "Settings_Appearance_Wallpaper_Error_Unknown",
             "Settings_Appearance_Theme_Dark_Desc",
             "Settings_Appearance_Theme_TrueBlack_Desc",
             "Settings_Appearance_Theme_Light_Desc",
@@ -229,6 +233,74 @@ public class WallpaperAppearanceTests : IDisposable
         {
             File.Delete(first);
         }
+    }
+
+    [Fact]
+    public void Wallpaper_status_uses_the_selected_scene_name()
+    {
+        var status = WallpaperStatus.Describe("Scene", "Aurora", null);
+
+        Assert.Equal("Settings_Appearance_Wallpaper_ActiveFmt", status.FormatKey);
+        Assert.Equal("Aurora", status.Arg);
+    }
+
+    [Fact]
+    public async Task Wallpaper_import_rejects_bad_images_and_removes_failed_decode()
+    {
+        var unsupported = await WallpaperImport.ImportAsync(
+            new MemoryStream(new byte[] { 1, 2, 3 }),
+            _ => throw new Xunit.Sdk.XunitException("Unsupported input must not reserve a destination"),
+            _ => true);
+        Assert.Equal(WallpaperImportStatus.UnsupportedFormat, unsupported.Status);
+
+        var destination = Path.Combine(Path.GetTempPath(), "nw-wallpaper-import-" + Guid.NewGuid().ToString("N") + ".png");
+        var pngHeader = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0 };
+        var decodeFailure = await WallpaperImport.ImportAsync(
+            new MemoryStream(pngHeader),
+            _ => destination,
+            _ => false);
+
+        Assert.Equal(WallpaperImportStatus.DecodeFailed, decodeFailure.Status);
+        Assert.False(File.Exists(destination));
+    }
+
+    [Fact]
+    public async Task Wallpaper_import_copies_a_decodable_image_using_its_detected_extension()
+    {
+        var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0 };
+        var destination = Path.Combine(Path.GetTempPath(), "nw-wallpaper-import-" + Guid.NewGuid().ToString("N") + ".png");
+        string? extension = null;
+        try
+        {
+            var result = await WallpaperImport.ImportAsync(
+                new MemoryStream(bytes),
+                ext => { extension = ext; return destination; },
+                _ => true);
+
+            Assert.True(result.Ok);
+            Assert.Equal(".png", extension);
+            Assert.Equal(bytes, await File.ReadAllBytesAsync(destination));
+        }
+        finally
+        {
+            File.Delete(destination);
+        }
+    }
+
+    [Fact]
+    public async Task Wallpaper_import_rejects_oversized_input_before_reserving_a_destination()
+    {
+        var bytes = new byte[32];
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(bytes, 0);
+        var reserved = false;
+        var result = await WallpaperImport.ImportAsync(
+            new MemoryStream(bytes),
+            _ => { reserved = true; return Path.GetTempFileName(); },
+            _ => true,
+            maxBytes: 16);
+
+        Assert.Equal(WallpaperImportStatus.TooLarge, result.Status);
+        Assert.False(reserved);
     }
 
     [Fact]
