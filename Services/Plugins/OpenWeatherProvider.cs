@@ -45,7 +45,7 @@ public class OpenWeatherProvider : IWeatherProvider
         if (!_inner.IsConfigured)
         {
             State = PluginState.Unavailable;
-            Log.Information("[{Name}] No API key configured - weather features will use fallback", Name);
+            Log.Information("[{Name}] Unavailable (no API key configured); weather features will use fallback", Name);
             return Task.FromResult(false);
         }
 

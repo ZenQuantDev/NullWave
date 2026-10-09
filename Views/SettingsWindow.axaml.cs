@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
 using NullWave.Services;
 
@@ -10,6 +11,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        WallpaperChromeSync.Attach(this);
 
         // CRITICAL: single-host toast routing - while Settings is open,
         // toasts render here ONLY (MainWindow overlay hides itself).

@@ -8,7 +8,7 @@ A personal music organizer with download, playback, and AI-powered smart sorting
 
 ## Version
 
-v0.6.1 "Oxeye Daisy" "Stability & Safety"
+v0.6.3 "Oxeye Daisy" "Responsiveness"
 
 ## About
 
@@ -51,6 +51,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - Spotify-style now-playing bar with "Now Playing" accent indicators
 - Shuffle, Repeat One, Repeat All, and Seek ±5 seconds
 - Autoplay next track on finish
+- **Network Resilience**: Circuit breakers bypass unavailable Last.fm, OpenWeather, and YouTube Data API services during cooldowns.
 
 ### 🎨 UI & Customization
 
@@ -59,7 +60,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - **Profile Window**: Signed & computed badges, custom banner images, consolidated stats, and Install ID.
 - **Localization**: Full English/Russian string tables with live language switching.
 - **Onboarding Wizard**: First-run flow for theme, API keys, and download directory.
-- **Smart Search**: Operators (`artist:`, `title:`, `tag:`, `is:favorite`, `-exclude`) for precise library filtering.
+- **Smart Search**: FTS5-powered prefix search with operators (`artist:`, `title:`, `tag:`, `is:favorite`, `-exclude`) for precise library filtering.
 - **Mood Mix**: Weather-driven playlists (AI or tag-based) with auto-regeneration and pin preservation.
 
 ### 🛠️ Maintenance Suite

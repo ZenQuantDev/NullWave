@@ -228,6 +228,19 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Optimize_Button}" Command="{Binding VacuumDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Rebuild Search Index" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="Rebuilds the full-text index if search results are missing or incorrect.">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="Re-indexes titles, artists, albums, and tags for global search." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="Rebuild Index" Command="{Binding RebuildSearchIndexCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
                 </StackPanel>
             </Border>
             <Border Classes="BottomSpacer"/>

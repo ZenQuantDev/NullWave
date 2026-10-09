@@ -68,9 +68,17 @@ public class Preferences
     public int BackupRetentionCount { get; set; } = 3;
     public bool AutoResumeAudiobooks { get; set; } = true;
     public float AudiobookPlaybackRate { get; set; } = 1.0f;
-    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "True Dark", "System"
+    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "TrueBlack", "System"
     public string LastSeenVersion { get; set; } = string.Empty;
     public bool AutoEffectsTier { get; set; } = true;
     public string EffectsTier { get; set; } = "Standard"; // Parsed as EffectsTier enum at runtime
     public string ComposeMode { get; set; } = "lowlatency";
+    public string WallpaperStyle { get; set; } = "None";
+    public string WallpaperPath { get; set; } = string.Empty;
+    public int WallpaperOpacity { get; set; } = 40;   // percent
+    public int WallpaperBlur { get; set; } = 0;
+    public string WallpaperFit { get; set; } = "Fill"; // Fill | Fit | Stretch
+    public string WallpaperSceneId { get; set; } = "aurora";
+    public string WallpaperBuiltInId { get; set; } = string.Empty;
+    public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
 }

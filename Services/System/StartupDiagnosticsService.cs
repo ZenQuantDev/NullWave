@@ -1,32 +1,32 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NullWave.Helpers;
-using NullWave.Services.Security;
 using NullWave.Helpers.Logging;
-using NullWave.Services;
-using Serilog;
+using NullWave.Services.Security;
 
 namespace NullWave.Services;
 
 /// <summary>
-/// Runs at application startup and logs a full diagnostic summary block.
+/// Runs at application startup and logs a diagnostic summary block.
 ///
 /// Logged output example:
 ///   [STARTUP] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-///   [STARTUP] NullWave v0.4.1 | .NET 8.0.x | OS: Linux 6.x
-///   [STARTUP] Library: 42 tracks | DB: ~/.nullwave/library.db | Load: 18ms
+///   [STARTUP] NullWave v0.6.3 | .NET 8.0.x | OS: Windows 10.0.x (X64)
+///   [STARTUP] Library: 42 tracks | DB: ...\library.db | Load: 18ms
 ///   [STARTUP] Key: YouTube      → loaded
 ///   [STARTUP] Key: LastFm       → loaded
 ///   [STARTUP] Key: SoundCloud   → missing
-///   [STARTUP] Connectivity      → ok (latency: 142ms)
 ///   [STARTUP] VLC               → 3.0.23
-///   [STARTUP] yt-dlp            → 2026.06.09
+///   [STARTUP] yt-dlp            → 2026.08.19
 ///   [STARTUP] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///
+/// Nothing here contacts the network. It used to send a request to last.fm on every launch, even
+/// for people who never configured Last.fm, which does not fit a local-first app. If a connection
+/// test is wanted, make it a button the user presses.
 /// </summary>
 public class StartupDiagnosticsService
 {
@@ -35,9 +35,6 @@ public class StartupDiagnosticsService
 
     private static readonly string[] KeyNames =
         { "YouTube", "LastFm", "SoundCloud", "Spotify:ClientId" };
-
-    private static readonly string ConnectivityUrl =
-        "https://www.last.fm";
 
     public StartupDiagnosticsService(KeyStoreService keyStore, LibraryService library)
     {
@@ -89,103 +86,34 @@ public class StartupDiagnosticsService
             NullActionLogger.StartupLine($"Key: {key,-20}→ {status}");
         }
 
-        //  4. Internet connectivity
-        await CheckConnectivityAsync();
-
-        //  5. Tool versions
-        await LogToolVersionAsync("vlc", "--version", "VLC");
-        await LogToolVersionAsync("yt-dlp", "--version", "yt-dlp");
+        //  4. Tool versions (no network; no process on Windows)
+        NullActionLogger.StartupLine($"{"VLC",-20}→ {await GetVlcVersionAsync() ?? "not found"}");
+        NullActionLogger.StartupLine($"{"yt-dlp",-20}→ {await ToolVersionProbe.GetVersionAsync("yt-dlp") ?? "not found"}");
 
         NullActionLogger.StartupLine(sep);
     }
 
-    //  Helpers
-
-    private static async Task CheckConnectivityAsync()
+    private static async Task<string?> GetVlcVersionAsync()
     {
-        var sw = Stopwatch.StartNew();
-        try
-        {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            var response = await client.SendAsync(
-                new HttpRequestMessage(HttpMethod.Head, ConnectivityUrl));
-            sw.Stop();
-
-            var status = response.IsSuccessStatusCode ? "ok" : $"http {(int)response.StatusCode}";
-            NullActionLogger.StartupLine(
-                $"Connectivity          → {status} (latency: {sw.ElapsedMilliseconds}ms)");
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            NullActionLogger.StartupLine(
-                $"Connectivity          → failed ({ex.GetType().Name})");
-        }
-    }
-
-    private static async Task LogToolVersionAsync(
-    string command, string versionArg, string displayName)
-    {
-        // FIX: VLC on Windows allocates its own console when printing
-        // --version/--help, producing a "Press RETURN to continue..." popup that
-        // also hangs startup until the user presses Enter. Read the version from
-        // the PE header instead — same result, zero console.
-        if (displayName == "VLC" && NullWavePaths.IsWindows)
+        // VLC on Windows allocates its own console when printing --version, producing a
+        // "Press RETURN to continue..." popup that also hangs startup until Enter is pressed.
+        // Read the version from the executable's file properties instead: same answer, no console.
+        if (NullWavePaths.IsWindows)
         {
             var dir = PlatformHelper.ResolveVlcDirectory();
-            if (dir != null)
+            if (dir == null) return null;
+
+            try
             {
-                try
-                {
-                    var fvi = FileVersionInfo.GetVersionInfo(Path.Combine(dir, "vlc.exe"));
-                    var ver = fvi.FileVersion ?? fvi.ProductVersion ?? "unknown";
-                    NullActionLogger.StartupLine($"{displayName,-20}→ {ver}");
-                }
-                catch
-                {
-                    NullActionLogger.StartupLine($"{displayName,-20}→ not found");
-                }
+                var info = FileVersionInfo.GetVersionInfo(Path.Combine(dir, "vlc.exe"));
+                return info.FileVersion ?? info.ProductVersion;
             }
-            else
+            catch
             {
-                NullActionLogger.StartupLine($"{displayName,-20}→ not found");
+                return null;
             }
-            return;
         }
 
-        try
-        {
-            var vlcDirectory = command.Equals("vlc", StringComparison.OrdinalIgnoreCase)
-                ? PlatformHelper.ResolveVlcDirectory()
-                : null;
-            var exe = vlcDirectory == null
-                ? PlatformHelper.ResolveExecutable(command)
-                : Path.Combine(vlcDirectory, "vlc.exe");
-            var psi = new ProcessStartInfo(exe, versionArg)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true   // belt-and-braces for any future tool
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null)
-            {
-                NullActionLogger.StartupLine($"{displayName,-20}→ not found");
-                return;
-            }
-            var standardOutputTask = proc.StandardOutput.ReadToEndAsync();
-            var standardErrorTask  = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            var output = await standardOutputTask;
-            var error  = await standardErrorTask;
-            var ver = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();
-            if (string.IsNullOrWhiteSpace(ver)) ver = "unknown";
-            NullActionLogger.StartupLine($"{displayName,-20}→ {ver}");
-        }
-        catch
-        {
-            NullActionLogger.StartupLine($"{displayName,-20}→ not found");
-        }
+        return await ToolVersionProbe.GetVersionAsync("vlc");
     }
 }
