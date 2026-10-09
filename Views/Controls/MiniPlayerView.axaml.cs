@@ -20,6 +20,7 @@ public partial class MiniPlayerView : Border
     private bool _isSeeking;
     private CancellationTokenSource? _marqueeCts;
     private MainViewModel? _observedViewModel;
+    private PlayerViewModel? _observedPlayer;
 
     public MiniPlayerView()
     {
@@ -27,31 +28,63 @@ public partial class MiniPlayerView : Border
         DataContextChanged += OnDataContextChanged;
     }
 
+    // PHASE-1 SAFE ATTACH: DataContext arrives before Player exists (paint-first
+    // startup). We subscribe to MainViewModel immediately, but only subscribe to
+    // Player once InitializeAsync publishes it via OnPropertyChanged(nameof(Player)).
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_observedViewModel != null)
-        {
-            _observedViewModel.Player.PropertyChanged -= OnPlayerPropertyChanged;
-            _observedViewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
-        }
+        DetachAll();
 
         if (DataContext is MainViewModel vm)
         {
             _observedViewModel = vm;
-            vm.Player.PropertyChanged += OnPlayerPropertyChanged;
             vm.PropertyChanged += OnMainViewModelPropertyChanged;
-            RestartMarquee();
-        }
-        else
-        {
-            _observedViewModel = null;
+            AttachPlayer(vm.Player);   // no-op in Phase 1, real attach in Phase 2
         }
     }
 
     private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainViewModel.Player))
+        {
+            AttachPlayer(_observedViewModel?.Player);
+            return;
+        }
+
         if (e.PropertyName == nameof(MainViewModel.CurrentEffectsTier))
             RestartMarquee();
+    }
+
+    private void AttachPlayer(PlayerViewModel? player)
+    {
+        if (ReferenceEquals(_observedPlayer, player)) return;
+        DetachPlayer();
+
+        _observedPlayer = player;
+        if (_observedPlayer != null)
+        {
+            _observedPlayer.PropertyChanged += OnPlayerPropertyChanged;
+            RestartMarquee();
+        }
+    }
+
+    private void DetachPlayer()
+    {
+        if (_observedPlayer != null)
+        {
+            _observedPlayer.PropertyChanged -= OnPlayerPropertyChanged;
+            _observedPlayer = null;
+        }
+    }
+
+    private void DetachAll()
+    {
+        DetachPlayer();
+        if (_observedViewModel != null)
+        {
+            _observedViewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
+            _observedViewModel = null;
+        }
     }
 
     private void OnPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -71,7 +104,8 @@ public partial class MiniPlayerView : Border
         _isSeeking = false;
 
         // FIX: WaveSeekBar derives from RangeBase, not Slider - cast accordingly.
-        if (sender is RangeBase bar && DataContext is MainViewModel vm)
+        // Null-guard: a drag released during the pre-init second must not NRE.
+        if (sender is RangeBase bar && DataContext is MainViewModel vm && vm.Player != null)
             vm.Player.SeekTo((float)bar.Value);
     }
 
@@ -86,7 +120,7 @@ public partial class MiniPlayerView : Border
         if (!_isSeeking) return;
         _isSeeking = false;
 
-        if (sender is RangeBase bar && DataContext is MainViewModel vm)
+        if (sender is RangeBase bar && DataContext is MainViewModel vm && vm.Player != null)
             vm.Player.SeekTo((float)bar.Value);
     }
 
@@ -105,7 +139,7 @@ public partial class MiniPlayerView : Border
 
             var overflow = TitleTextBlock.Bounds.Width - TitleClip.Bounds.Width;
             if (overflow <= 4) return; // fits fine, no scrolling needed
-            if (DataContext is MainViewModel vm && vm.CurrentEffectsTier == EffectsTier.Minimal) return;
+            if (_observedViewModel != null && _observedViewModel.CurrentEffectsTier == EffectsTier.Minimal) return;
 
             while (!cts.IsCancellationRequested)
             {

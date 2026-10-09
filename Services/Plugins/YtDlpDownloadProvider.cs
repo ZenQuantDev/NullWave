@@ -1,9 +1,6 @@
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -17,7 +14,7 @@ public class YtDlpDownloadProvider : IDownloadProvider
 {
     private readonly DownloadService _inner;
     private readonly PreferencesService _prefs;
-    private static readonly TimeSpan PathCheckTimeout = TimeSpan.FromSeconds(3);
+    private readonly Func<Task<string?>> _versionProbe;
 
     public string Name => "yt-dlp Downloader";
     public string Description => "Downloads audio from YouTube, SoundCloud, and other supported sites";
@@ -28,32 +25,41 @@ public class YtDlpDownloadProvider : IDownloadProvider
     // (PlaylistBatchStarted, etc.) during the migration period.
     public DownloadService Inner => _inner;
 
-    public YtDlpDownloadProvider(DownloadService inner, PreferencesService prefs)
+    /// <param name="versionProbe">
+    /// Asks which yt-dlp version is installed (null = not found). Defaults to the shared
+    /// <see cref="ToolVersionProbe"/>, which the startup diagnostics also use, so yt-dlp is looked
+    /// up once per run instead of being launched again for every check.
+    /// </param>
+    public YtDlpDownloadProvider(DownloadService inner, PreferencesService prefs, Func<Task<string?>>? versionProbe = null)
     {
         _inner = inner;
         _prefs = prefs;
+        _versionProbe = versionProbe ?? (() => ToolVersionProbe.GetVersionAsync("yt-dlp"));
         IsEnabled = prefs.Current.EnableYtDlp;
     }
 
-    public Task<bool> InitializeAsync(CancellationToken ct = default)
+    public async Task<bool> InitializeAsync(CancellationToken ct = default)
     {
         if (!IsEnabled)
         {
             State = PluginState.Disabled;
             Log.Information("[{Name}] Disabled by user preference", Name);
-            return Task.FromResult(false);
+            return false;
         }
 
-        if (!IsYtDlpOnPath())
+        ct.ThrowIfCancellationRequested();
+        var version = await _versionProbe();
+
+        if (version is null)
         {
             State = PluginState.Unavailable;
-            Log.Warning("[{Name}] yt-dlp not found on PATH - download features disabled", Name);
-            return Task.FromResult(false);
+            Log.Warning("[{Name}] yt-dlp not found - download features disabled", Name);
+            return false;
         }
 
         State = PluginState.Available;
-        Log.Information("[{Name}] yt-dlp detected - download provider ready", Name);
-        return Task.FromResult(true);
+        Log.Information("[{Name}] yt-dlp {Version} detected - download provider ready", Name, version);
+        return true;
     }
 
     public Task ShutdownAsync(CancellationToken ct = default)
@@ -95,28 +101,5 @@ public class YtDlpDownloadProvider : IDownloadProvider
         // here because the real result arrives via the ProgressChanged/DownloadCompleted
         // events on the Inner service.
         return Task.FromResult(DownloadResult.Succeeded(string.Empty));
-    }
-
-    private static bool IsYtDlpOnPath()
-    {
-        try
-        {
-            var exe = PlatformHelper.ResolveExecutable("yt-dlp");
-            var psi = new ProcessStartInfo
-            {
-                FileName = exe,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            return proc?.WaitForExit((int)PathCheckTimeout.TotalMilliseconds) == true && proc.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

@@ -2,19 +2,20 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:attached="using:NullWave.Helpers.Attached"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:controls="using:NullWave.Views.Controls"
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
         x:CompileBindings="False"
+        attached:PixelShiftBehavior.IsEnabled="True"
         Classes="chrome-heavy"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,1,0,0"
         Height="{DynamicResource MiniPlayerHeight}"
         Padding="16,0">
     <Border.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:MediaTypeToIconKindConverter x:Key="MediaTypeToIconKind"/>
         <converters:BoolNegationConverter x:Key="BoolNegation"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
@@ -71,7 +72,9 @@
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
             <Border Width="{DynamicResource MiniArtSize}" Height="{DynamicResource MiniArtSize}" CornerRadius="{StaticResource RadiusSm}" Background="{StaticResource BrushSurface2}" ClipToBounds="True">
                 <Panel>
-                    <Image Source="{Binding Player.AlbumArtPath, Converter={StaticResource PathToBitmap}}" IsVisible="{Binding Player.HasAlbumArt}" Stretch="UniformToFill"/>
+                          <Image attached:AsyncImage.SourcePath="{Binding Player.AlbumArtPath}"
+                              attached:AsyncImage.DecodeWidth="96"
+                              IsVisible="{Binding Player.HasAlbumArt}" Stretch="UniformToFill"/>
                     <material:MaterialIcon Kind="{Binding Player.ArtPlaceholderKind}" IsVisible="{Binding !Player.HasAlbumArt}" Foreground="{StaticResource BrushTextMuted}" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Panel>
             </Border>

@@ -38,6 +38,9 @@ public partial class SettingsViewModel
     private string _devProbeResult = "Not run yet.";
 
     [ObservableProperty]
+    private string _circuitBreakerStatus = "No network circuit breakers have recorded requests yet.";
+
+    [ObservableProperty]
     private EffectsTier? _devEffectsTierOverride;
 
     partial void OnDevEffectsTierOverrideChanged(EffectsTier? value)
@@ -64,6 +67,21 @@ public partial class SettingsViewModel
     }
 
     #region DevTools Commands
+
+    [RelayCommand]
+    private void RefreshCircuitBreakers()
+    {
+        var breakers = CircuitBreakerRegistry.GetAll();
+        CircuitBreakerStatus = breakers.Count == 0
+            ? "No network circuit breakers have recorded requests yet."
+            : string.Join(Environment.NewLine, breakers.Select(breaker =>
+            {
+                var status = $"{breaker.Name}: {breaker.State} ({breaker.FailureCount}/{breaker.FailureThreshold})";
+                return breaker.RetryAfter is { } retryAfter
+                    ? $"{status} - retry in {retryAfter.TotalSeconds:F0}s"
+                    : status;
+            }));
+    }
 
     [RelayCommand]
     private void DevTriggerToast(string type)

@@ -43,7 +43,7 @@ public class AsyncImage
         var path = e.NewValue as string;
         if (string.IsNullOrEmpty(path)) { image.Source = null; return; }
 
-        var width = GetDecodeWidth(image);
+        var width = EffectiveWidth(image);
 
         var cached = BitmapCacheService.TryGet(path, width);
         if (cached != null)
@@ -67,6 +67,13 @@ public class AsyncImage
             Apply(image, path, bmp);
         else
             Dispatcher.UIThread.Post(() => Apply(image, path, bmp), DispatcherPriority.Background);
+    }
+
+    private static int EffectiveWidth(Image image)
+    {
+        var width = GetDecodeWidth(image);
+        var scale = TopLevel.GetTopLevel(image)?.RenderScaling ?? 1.0;
+        return scale <= 1.0 ? width : (int)Math.Ceiling(width * scale);
     }
 
     private static void Apply(Image image, string path, IImage bmp)

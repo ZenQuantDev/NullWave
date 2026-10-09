@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Models;
 using Serilog;
 
 namespace NullWave.Services.SmartSorting;
@@ -63,10 +64,8 @@ public partial class LocalAIService
                 Log.Debug("[LocalAIService] Ignoring CurrentModel override to '{Requested}' because system is on Battery power.", value);
                 return;
             }
-
             var newValue = value?.Trim();
             if (string.IsNullOrEmpty(newValue)) return;
-
             if (!string.Equals(_currentModel, newValue, StringComparison.OrdinalIgnoreCase))
             {
                 var oldModel = _currentModel;
@@ -105,6 +104,14 @@ public partial class LocalAIService
 
             if (!string.Equals(_currentModel, targetModel, StringComparison.OrdinalIgnoreCase))
             {
+                // FIX: Only swap if we have actually probed Ollama and it is reachable.
+                // Prevents phantom "Swapping models" INF logs on cold start before the first ping completes.
+                if (_reachabilityProbed && !_isReachable)
+                {
+                    Log.Debug("[LocalAIService] [{Source}] Skipping model swap to '{New}' because Ollama is unreachable.", contextSource, targetModel);
+                    return;
+                }
+
                 var oldModel = _currentModel;
                 _currentModel = targetModel;
                 Log.Information("[LocalAIService] [{Source}] Swapping models from '{Old}' to '{New}'", contextSource, oldModel, targetModel);

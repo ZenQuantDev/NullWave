@@ -1019,5 +1019,6 @@ public static partial class Locales
         ["Scene_abstract"] = "Abstract",
         ["Scene_abstract_Desc"] = "A diagonal duo wash with a soft center field.",
 
+        ["MainWindow_Startup_Loading"] = "Waking the library…",
     };
 }

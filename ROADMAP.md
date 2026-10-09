@@ -492,8 +492,8 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
 - ✅ **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
-- 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
-- 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
+- 🔄 **Library Performance (P5, P6)**: Added SQLite FTS5 global search, disk thumbnail sidecars, in-flight decode deduplication, and HiDPI-aware async image loading. `GetAll()` snapshot/dictionary refactoring, `BackfillAlbumArt` lock/I/O work, and playback text throttling remain open.
+- 🔄 **First-Run Friction (P7, P8)**: Added VLC location probing, cached tool-version checks, post-first-frame audio initialization, and parallel plugin startup with per-plugin timeouts. Onboarding dependency checks and keyless API fallbacks (Open-Meteo, MusicBrainz) remain open.
 
 ---
 
@@ -512,7 +512,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 - ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets, and live thumbnail shipped ahead of this phase. Wallpaper blur and album-art sync remain deferred; the old-laptop performance measurement and visual matrix remain open.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
-- 🔄 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
+- 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, `FrameGlowConverter`, and the `TrackListView` virtualization audit remain open.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
 ---

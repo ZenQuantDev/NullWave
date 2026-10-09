@@ -18,6 +18,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **SQLite FTS5 Full-Text Search**: Replaced linear `Contains()` scans with a native FTS5 virtual table and triggers for instant global search. Added a "Rebuild Index" tool to the Maintenance tab.
+- **SkiaSharp Image Pipeline**: Implemented disk-level sidecars (`.nws.jpg`), in-flight decode deduplication, and HiDPI-aware scaling to significantly reduce cold-start decode times and memory footprint during library scrolling.
+- **Network Circuit Breakers**: Added a state-machine pattern (Closed/Open/HalfOpen) to `LastFmService`, `WeatherService`, and `YouTubeMetadataFetcher`. Dead APIs now trip after 3 failures and bypass network calls for 15 minutes, preventing UI hangs and background thread leaks.
+- **Lazy Audio Engine**: `PlaybackService` no longer initializes LibVLC in the constructor. The engine warms up in the background after the first frame paints, shaving ~200ms off cold startup times.
+- **OLED Pixel Shift**: Replaced the inert stub with a working weak-reference registry that nudges the Sidebar and MiniPlayer by 1-2px every 4 minutes to prevent burn-in, without triggering layout passes.
+- **Preferences Singleton**: Consolidated `PreferencesService` into a process-wide singleton (`PreferencesService.Shared`) to eliminate debounce timer races and duplicate disk writes during startup.
+- **Startup Timeline & Plugin Timeouts**: Added `StartupTimeline` for exact millisecond boot metrics. `PluginManager` now initializes all plugins in parallel with an 8-second timeout, preventing a hung external tool from blocking the UI.
 - **AI Catalog Budgets**: Replaced fragile parameter-count if-ladders with transparent weight-based budgets (50% CPU / 85% GPU) and explicit Q4_K_M sizes.
 - **Ollama Registry Verification**: Audited and corrected model IDs (e.g., `phi4-mini`) against the official Ollama registry and relaxed ID validation regex.
 

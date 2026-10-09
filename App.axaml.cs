@@ -6,6 +6,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using NullWave.Views;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
@@ -23,8 +24,7 @@ public partial class App : Application
         // Removed AvaloniaLocator diagnostic block (API changed in this Avalonia version).
         // The Win32PlatformOptions log in Program.cs is sufficient to confirm the GPU path.
         
-        var preferencesService = new PreferencesService();
-        var prefs = preferencesService.Current;
+        var prefs = PreferencesService.Shared.Current;
 
         // Initialize localization with saved preference BEFORE ThemeService
         LocalizationService.Instance.Initialize(prefs.Language);
@@ -33,8 +33,10 @@ public partial class App : Application
         var wallpaperBeforeApply = (prefs.WallpaperStyle, prefs.WallpaperPath, prefs.WallpaperSceneId, prefs.WallpaperBuiltInId);
         WallpaperService.Instance.ApplyFrom(prefs);
         if (wallpaperBeforeApply != (prefs.WallpaperStyle, prefs.WallpaperPath, prefs.WallpaperSceneId, prefs.WallpaperBuiltInId))
-            preferencesService.Save();
+            PreferencesService.Shared.Save();
         RegisterAntiCrashSystem();
+        
+        StartupTimeline.Mark("App initialized");
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -47,7 +49,7 @@ public partial class App : Application
             // raced with the MainViewModel instance, which then wrote its stale
             // in-memory LastSeenVersion back to disk, re-triggering the dialog
             // on every single launch.
-            var prefs = new PreferencesService();
+            var prefs = PreferencesService.Shared;
             var currentVersion = GetAppVersion();
             bool showWhatsNew = prefs.Current.LastSeenVersion != currentVersion;
 
@@ -58,6 +60,7 @@ public partial class App : Application
             }
 
             var mainWindow = new MainWindow();
+            StartupTimeline.Mark("MainWindow constructed");
             desktop.MainWindow = mainWindow;
 
             // "What's New" screen: shown as an owned modal dialog AFTER the main window

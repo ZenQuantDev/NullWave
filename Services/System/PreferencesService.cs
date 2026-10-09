@@ -11,9 +11,17 @@ namespace NullWave.Services;
 
 public class PreferencesService : IDisposable
 {
+    // ONE process-wide instance. Four call sites each news'd their own service, so the
+    // startup log showed three "Loaded preferences" lines and, worse, four in-memory
+    // copies with four debounce timers that could overwrite each other's saves (the
+    // old What's-New race). Tests keep constructing their own instances against a
+    // temp NULLWAVE_HOME; only the app uses Shared.
+    private static readonly Lazy<PreferencesService> _shared = new(() => new PreferencesService());
+    public static PreferencesService Shared => _shared.Value;
+
     private readonly string _prefsPath;
     private Preferences _prefs;
-    
+
     private CancellationTokenSource? _debounceCts;
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(2);
     private readonly object _saveLock = new object();
@@ -33,13 +41,13 @@ public class PreferencesService : IDisposable
         {
             if (!File.Exists(_prefsPath))
                 return new Preferences { DownloadDirectory = NullWavePaths.DownloadsDir };
-                
+
             var json = File.ReadAllText(_prefsPath);
             var prefs = JsonSerializer.Deserialize<Preferences>(json) ?? new Preferences();
-            
+
             if (string.IsNullOrEmpty(prefs.DownloadDirectory))
                 prefs.DownloadDirectory = NullWavePaths.DownloadsDir;
-                
+
             Log.Debug("[PreferencesService] Loaded preferences from {Path}", _prefsPath);
             return prefs;
         }
@@ -93,11 +101,11 @@ public class PreferencesService : IDisposable
         lock (_saveLock)
         {
             if (_disposed) return;
-            
+
             updater(_prefs);
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();
-            
+
             _debounceCts = new CancellationTokenSource();
             var token = _debounceCts.Token;
 
@@ -118,11 +126,11 @@ public class PreferencesService : IDisposable
         lock (_saveLock)
         {
             if (_disposed) return;
-            
+
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();
             _debounceCts = null;
-            
+
             SaveCore();          // final synchronous save; runs before the disposed flag is set
             _disposed = true;
         }
