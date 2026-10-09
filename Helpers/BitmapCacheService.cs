@@ -1,10 +1,12 @@
+using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Serilog;
 
 namespace NullWave.Helpers;
 
@@ -30,6 +32,7 @@ public static class BitmapCacheService
 
     private static string Key(string path, int width) => width <= 0 ? path : $"{path}@{width}";
     private static readonly System.Threading.SemaphoreSlim DecodeGate = new(4, 4);
+    private static readonly ConcurrentDictionary<string, Lazy<Task<IImage?>>> InFlight = new();
 
     /// <summary>Drops every decoded bitmap (after purge/re-crop). Never Disposes:
     /// live Image controls may still hold wrappers as Source.</summary>
@@ -49,6 +52,7 @@ public static class BitmapCacheService
     /// </summary>
     public static void InvalidatePath(string path)
     {
+        ThumbSidecar.DeleteFor(path);
         lock (Lock)
         {
             var keys = Cache.Keys
@@ -79,27 +83,48 @@ public static class BitmapCacheService
         }
     }
 
-    public static async Task<IImage?> GetOrDecodeAsync(string path, int width)
+    public static Task<IImage?> GetOrDecodeAsync(string path, int width)
     {
-        // 1. Fast path: already in cache
         var cached = TryGet(path, width);
-        if (cached != null) return cached;
+        if (cached != null) return Task.FromResult<IImage?>(cached);
 
-        // 2. Slow path: decode off-thread, gated to prevent completion bursts
+        var key = Key(path, width);
+        var flight = InFlight.GetOrAdd(key, _ => new Lazy<Task<IImage?>>(
+            () => DecodeAndInsertAsync(path, width),
+            LazyThreadSafetyMode.ExecutionAndPublication));
+        return AwaitFlightAsync(key, flight);
+    }
+
+    private static async Task<IImage?> AwaitFlightAsync(string key, Lazy<Task<IImage?>> flight)
+    {
         try
         {
-            var bmp = await Task.Run(async () =>
+            return await flight.Value.ConfigureAwait(false);
+        }
+        finally
+        {
+            if (InFlight.TryGetValue(key, out var current) && ReferenceEquals(current, flight))
+                InFlight.TryRemove(key, out _);
+        }
+    }
+
+    private static async Task<IImage?> DecodeAndInsertAsync(string path, int width)
+    {
+        try
+        {
+            return await Task.Run(async () =>
             {
                 await DecodeGate.WaitAsync().ConfigureAwait(false);
-                try { return Decode(path, width); }
+                try
+                {
+                    var raced = TryGet(path, width);
+                    if (raced != null) return raced;
+
+                    var bitmap = Decode(path, width);
+                    return bitmap == null ? null : Insert(path, width, bitmap);
+                }
                 finally { DecodeGate.Release(); }
             }).ConfigureAwait(false);
-
-            if (bmp == null) return null;
-
-            // Insert creates the wrapper under the lock; on a duplicate-decode race
-            // it disposes the NEW bitmap and returns the canonical live wrapper.
-            return Insert(path, width, bmp);
         }
         catch
         {
@@ -126,6 +151,21 @@ public static class BitmapCacheService
         {
             if (width > 0)
             {
+                var sidecar = ThumbSidecar.UsableSidecar(path, width);
+                if (sidecar != null)
+                {
+                    try
+                    {
+                        using var sidecarStream = File.OpenRead(sidecar);
+                        var sidecarBitmap = Bitmap.DecodeToWidth(sidecarStream, width);
+                        if (sidecarBitmap != null) return sidecarBitmap;
+                    }
+                    catch { }
+
+                    ThumbSidecar.DeleteFor(path);
+                }
+
+                ThumbSidecar.ScheduleBuild(path);
                 using var fs = File.OpenRead(path);
                 return Bitmap.DecodeToWidth(fs, width);
             }

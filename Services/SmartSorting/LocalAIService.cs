@@ -15,9 +15,8 @@ public partial class LocalAIService : IDisposable
     private static readonly HttpClient _genClient = new() { Timeout = Timeout.InfiniteTimeSpan };
     private static readonly SemaphoreSlim _aiEngineLock = new(1, 1);
 
-    // FIX (C10): Read OLLAMA_HOST environment variable
-    private readonly string _ollamaUrl; 
-    
+    private readonly string _ollamaUrl;
+
     private readonly Channel<Func<Task>> _stateQueue = Channel.CreateUnbounded<Func<Task>>(new UnboundedChannelOptions
     {
         SingleReader = true,
@@ -34,6 +33,9 @@ public partial class LocalAIService : IDisposable
     private volatile bool _isReachable = true;
     public bool IsReachable => _isReachable;
 
+    // FIX: Track if we have actually probed Ollama at least once.
+    private volatile bool _reachabilityProbed;
+
     private volatile bool _isModelLoaded;
     public bool IsModelLoaded => _isModelLoaded;
 
@@ -41,23 +43,22 @@ public partial class LocalAIService : IDisposable
 
     private readonly CancellationTokenSource _cts = new();
 
-    // SINGLE UNIFIED CONSTRUCTOR
     public LocalAIService()
     {
-        var host = Environment.GetEnvironmentVariable("OLLAMA_HOST");
-        _ollamaUrl = string.IsNullOrWhiteSpace(host) ? "http://localhost:11434" : host.TrimEnd('/');
-        
+        _ollamaUrl = OllamaEndpoint.Normalize(Environment.GetEnvironmentVariable("OLLAMA_HOST"));
+
         _ = StartQueueProcessorAsync();
         _ = StartHealingPingAsync(_cts.Token);
     }
 
+    public string OllamaUrl => _ollamaUrl;
+
     public void Shutdown() => _cts.Cancel();
 
-    // FIX (C10): Complete the channel writer so the background processor loop exits cleanly
     public void Dispose()
     {
         _cts.Cancel();
-        _stateQueue.Writer.TryComplete(); 
+        _stateQueue.Writer.TryComplete();
         _cts.Dispose();
     }
 }

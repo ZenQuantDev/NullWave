@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
 
@@ -37,6 +38,16 @@ public partial class ThemeService : ObservableObject
     }
 
     public static readonly AccentDef CodenameAccent = new("Oxeye Daisy", "#EAB308", "#65A30D");
+
+    public record AppearancePresetDef(string Id, string NameKey, string DescriptionKey, string ThemeMode, string AccentColor, string TrackRowStyle, string FontScale, string? SceneId = null, int? WallpaperOpacity = null);
+
+    public static readonly IReadOnlyList<AppearancePresetDef> AppearancePresets = new[]
+    {
+        new AppearancePresetDef("OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic", "Settings_Appearance_Preset_OxeyeClassic_Desc", "Dark", "Oxeye Daisy", "Comfortable", "Medium", "spotlight", 40),
+        new AppearancePresetDef("MidnightOled", "Settings_Appearance_Preset_MidnightOled", "Settings_Appearance_Preset_MidnightOled_Desc", "TrueBlack", "Purple", "Compact", "Medium", "dusk", 50),
+        new AppearancePresetDef("StudioLight", "Settings_Appearance_Preset_StudioLight", "Settings_Appearance_Preset_StudioLight_Desc", "Light", "Sky", "Comfortable", "Medium", "horizon", 35),
+        new AppearancePresetDef("FocusMinimal", "Settings_Appearance_Preset_FocusMinimal", "Settings_Appearance_Preset_FocusMinimal_Desc", "Dark", "Teal", "Compact", "Small", "none", null),
+    };
 
     public static readonly IReadOnlyList<AccentDef> BaseAccents = new[]
     {
@@ -86,6 +97,11 @@ public partial class ThemeService : ObservableObject
     {
         ["ColorBase"]          = "#000000",
         ["ColorSurface"]       = "#000000",
+        ["ColorSurfaceTranslucent"] = "#8C000000",
+        ["ColorSurfaceHeavyTranslucent"] = "#73000000",
+        ["ColorRowBackdrop"] = "#CC000000",
+        ["ColorBaseTranslucent"] = "#E6000000",
+        ["ColorWindowScrim"] = "#BF000000",
         ["ColorSurface2"]      = "#0A0A0A",
         ["ColorElevated"]      = "#0A0A0A",
         ["ColorHover"]         = "#141414",
@@ -95,7 +111,7 @@ public partial class ThemeService : ObservableObject
         ["ColorPlayerIcon"]    = "#A8B4CC",
         ["ColorTextPrimary"]   = "#F0F0F0",
         ["ColorTextSecondary"] = "#9BA3AF",
-        ["ColorTextMuted"]     = "#5C6470",
+        ["ColorTextMuted"]     = "#7A8599",  
         ["ColorStarOn"]        = "#F59E0B",
         ["ColorStarOff"]       = "#4B5563",
         ["ColorAmberDark"]     = "#D97706",
@@ -120,6 +136,11 @@ public partial class ThemeService : ObservableObject
     private string _lastAccentName = "Oxeye Daisy";
     private string _appliedAccentName = string.Empty;
     private string _appliedAccentMode = string.Empty;
+    private bool _paletteWasRewritten;
+
+    // FIX (profile frame stale brush): remember the requested frame style so every
+    // accent/theme remix can re-resolve its brush from the live resources.
+    private string _currentProfileFrame = "None";
 
     public void Initialize(Preferences prefs)
     {
@@ -199,22 +220,28 @@ public partial class ThemeService : ObservableObject
         var modeKey = AccentModeKey(light);
 
         // Skip only TRUE no-ops: same accent already written for the same mode.
-        if (_appliedAccentName == def.Name && _appliedAccentMode == modeKey) return;
+        if (!ThemeGuard.ShouldRemixAccent(_appliedAccentName, _appliedAccentMode, def.Name, modeKey, _paletteWasRewritten)) return;
         _appliedAccentName = def.Name;
         _appliedAccentMode = modeKey;
+        _paletteWasRewritten = false;
 
-        // True Black mixes accent tints against pure black, not navy.
-        var mixTarget = light ? Colors.White
-            : _currentMode == "TrueBlack" ? Colors.Black
-            : Color.Parse("#111827");
+        var kind = light ? ThemeKind.Light : _currentMode == "TrueBlack" ? ThemeKind.TrueBlack : ThemeKind.Dark;
+        var palette = AccentPalette.Compute(primary, secondary, kind);
 
-        SetColor("ColorAccent",      primary);
-        SetColor("ColorAccentHover", light ? Mix(primary, Colors.Black, 0.15) : Mix(primary, Colors.White, 0.22));
-        SetColor("ColorAccentDim",   Mix(primary, mixTarget, light ? 0.85 : 0.72));
-        SetColor("ColorAccentGlow",  Mix(primary, mixTarget, light ? 0.65 : 0.55));
-        SetColor("ColorAccent2",     light ? Mix(secondary, Colors.Black, 0.35) : secondary);
-        SetColor("ColorTextOnAccent", Luminance(primary) > 0.55 ? Color.Parse("#111827") : Colors.White);
+        SetColor("ColorAccent", palette.Accent);
+        SetColor("ColorAccentHover", palette.AccentHover);
+        SetColor("ColorAccentDim", palette.AccentDim);
+        SetColor("ColorAccentGlow", palette.AccentGlow);
+        SetColor("ColorAccent2", palette.Accent2);
+        SetColor("ColorAccent2Dim", palette.Accent2Dim);
+        SetColor("ColorAccent2Glow", palette.Accent2Glow);
+        SetColor("ColorTextOnAccent", palette.TextOnAccent);
         AdoptFluentSlider(primary, secondary);
+
+        // FIX (profile frame stale brush): Ring/Glow capture a brush reference; re-resolve
+        // it after every remix so frames never keep a pre-flip brush instance.
+        ApplyProfileFrame(_currentProfileFrame);
+
         Log.Debug("[ThemeService] Accent applied: {Accent} ({Mode})", def.Name, modeKey);
     }
 
@@ -222,12 +249,12 @@ public partial class ThemeService : ObservableObject
     {
         if (Application.Current == null) return;
         var res = Application.Current.Resources;
-        var light = Mix(primary, Colors.White, 0.25);
+        var light = AccentPalette.Mix(primary, Colors.White, 0.25);
 
         res["SliderTrackValueFill"] = new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+            EndPoint   = new RelativePoint(1, 0.5, RelativeUnit.Relative),
             GradientStops = new GradientStops { new GradientStop(primary, 0), new GradientStop(secondary, 1) }
         };
         res["SliderTrackValueFillPointerOver"] = new SolidColorBrush(light);
@@ -310,22 +337,26 @@ public partial class ThemeService : ObservableObject
 
     public void ApplyProfileFrame(string style)
     {
-        switch (style)
+        _currentProfileFrame = style;
+        RunOnUi(() =>
         {
-            case "Ring":
-                AvatarFrameThickness = new Thickness(3);
-                AvatarFrameBrush = (IBrush)Application.Current!.Resources["BrushAccent"]!;
-                break;
-            case "Glow":
-                AvatarFrameThickness = new Thickness(2);
-                AvatarFrameBrush = (IBrush)Application.Current!.Resources["BrushAccentGlow"]!;
-                break;
-            default:
-                AvatarFrameThickness = new Thickness(0);
-                AvatarFrameBrush = Avalonia.Media.Brushes.Transparent;
-                break;
-        }
-        Log.Debug("[ThemeService] Profile frame applied: {Style}", style);
+            switch (style)
+            {
+                case "Ring":
+                    AvatarFrameThickness = new Thickness(3);
+                    AvatarFrameBrush = (IBrush)Application.Current!.Resources["BrushAccent"]!;
+                    break;
+                case "Glow":
+                    AvatarFrameThickness = new Thickness(2);
+                    AvatarFrameBrush = (IBrush)Application.Current!.Resources["BrushAccentGlow"]!;
+                    break;
+                default:
+                    AvatarFrameThickness = new Thickness(0);
+                    AvatarFrameBrush = Avalonia.Media.Brushes.Transparent;
+                    break;
+            }
+            Log.Debug("[ThemeService] Profile frame applied: {Style}", style);
+        });
     }
 
     private static void SetColor(string key, Color color) =>
@@ -342,13 +373,6 @@ public partial class ThemeService : ObservableObject
         if (Dispatcher.UIThread.CheckAccess()) action();
         else Dispatcher.UIThread.Post(action);
     }
-
-    private static Color Mix(Color a, Color b, double t) => new Color(255,
-        (byte)Math.Round(a.R + (b.R - a.R) * t),
-        (byte)Math.Round(a.G + (b.G - a.G) * t),
-        (byte)Math.Round(a.B + (b.B - a.B) * t));
-
-    private static double Luminance(Color c) => (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
 
     public void ApplyThemeMode(string mode)
     {
@@ -375,8 +399,9 @@ public partial class ThemeService : ObservableObject
                 foreach (var kv in TrueBlackPalette)
                     SetColor(kv.Key, Color.Parse(kv.Value));
 
+            _paletteWasRewritten = true;
             UpdateThemeDependentArt();
-            ApplyAccent(_lastAccentName); // re-mix accent tints for the new mode
+            ApplyAccent(_lastAccentName); // re-mix accent tints for the new mode (also re-resolves profile frame)
         }
         Log.Information("[ThemeService] Theme mode applied: {Mode}", mode);
     }

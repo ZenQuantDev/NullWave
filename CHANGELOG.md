@@ -3,11 +3,43 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.3] - 09-Oct-2026 🚀 "Responsiveness"
+
+### Added
+
+- **Wallpaper Scenes**: Added five procedural, accent-reactive backgrounds and scene-aware appearance presets. The Minimal effects tier reduces scene layers, skips preset scenes, and displays a low-power hint.
+- **Built-in Wallpaper Collections**: Added the exclusive Starry Night public-domain artwork to the built-in gallery. Unlock it with the 21-tap About ladder; built-in images use the generation-guarded background decoder.
+- **Built-in Wallpaper Collections**: Added the exclusive Starry Night public-domain artwork to the built-in gallery. Unlock it with the 21-tap About ladder; built-in images use the generation-guarded background decoder.
+- **Whole-Window Wallpaper (scope addition)**: Pulled forward from the v0.6.5 visual-audit scope; added class-gated chrome, per-theme readability floors, and ambient wallpaper layers in Settings/Profile. Light's floor was raised to 90% after screenshot review. Blur and album-art sync remain deferred.
+- **Async Hardware Detection**: `HardwareDetector` now runs in the background with strict 5-second timeouts via `ProcessRunner`, preventing startup hangs from wedged GPU drivers.
+- **AVX/ARM64 AI Gating**: AI features are now correctly gated behind AVX/AVX2 instruction sets on x86, and properly enabled for ARM64 (ASIMD/NEON).
+- **Testable Power State**: Extracted Linux `sysfs` battery parsing into a pure, cross-platform testable function that correctly ignores peripheral batteries (mice/keyboards).
+- **Comprehensive AI & Power Tests**: Added xUnit coverage for the new AI recommendation matrix and sysfs power parsing.
+
+### Changed
+
+- **SQLite FTS5 Full-Text Search**: Replaced linear `Contains()` scans with a native FTS5 virtual table and triggers for instant global search. Added a "Rebuild Index" tool to the Maintenance tab.
+- **SkiaSharp Image Pipeline**: Implemented disk-level sidecars (`.nws.jpg`), in-flight decode deduplication, and HiDPI-aware scaling to significantly reduce cold-start decode times and memory footprint during library scrolling.
+- **Network Circuit Breakers**: Added a state-machine pattern (Closed/Open/HalfOpen) to `LastFmService`, `WeatherService`, and `YouTubeMetadataFetcher`. Dead APIs now trip after 3 failures and bypass network calls for 15 minutes, preventing UI hangs and background thread leaks.
+- **Lazy Audio Engine**: `PlaybackService` no longer initializes LibVLC in the constructor. The engine warms up in the background after the first frame paints, shaving ~200ms off cold startup times.
+- **OLED Pixel Shift**: Replaced the inert stub with a working weak-reference registry that nudges the Sidebar and MiniPlayer by 1-2px every 4 minutes to prevent burn-in, without triggering layout passes.
+- **Preferences Singleton**: Consolidated `PreferencesService` into a process-wide singleton (`PreferencesService.Shared`) to eliminate debounce timer races and duplicate disk writes during startup.
+- **Startup Timeline & Plugin Timeouts**: Added `StartupTimeline` for exact millisecond boot metrics. `PluginManager` now initializes all plugins in parallel with an 8-second timeout, preventing a hung external tool from blocking the UI.
+- **AI Catalog Budgets**: Replaced fragile parameter-count if-ladders with transparent weight-based budgets (50% CPU / 85% GPU) and explicit Q4_K_M sizes.
+- **Ollama Registry Verification**: Audited and corrected model IDs (e.g., `phi4-mini`) against the official Ollama registry and relaxed ID validation regex.
+
+### Fixed
+
+- **WMI VRAM Overflow**: Bypassed the 32-bit `AdapterRAM` WMI limit by looking for discrete GPU signatures (`Radeon RX`, `Arc`, `GeForce`) and assigning safe baseline VRAM budgets.
+- **APU False Positives**: Integrated Ryzen APUs ("AMD Radeon Graphics") no longer trick the app into enabling the `Full` effects tier or recommending massive AI models.
+- **GPU-to-CPU Fallback**: Systems with weak dedicated GPUs now correctly fall through to the CPU RAM path instead of being bottlenecked by the smallest AI model.
+
 ---
 
 ## [0.6.2] - 02-Oct-2026 🧩 "Correctness"
 
 ### Added
+
 - **Custom WaveSeekBar (MiniPlayer)**: Replaced the standard Avalonia `Slider` with a custom `WaveSeekBar` control. Features a Samsung OneUI / Material You-style animated multi-layer squiggle with flat bottoms, organic crest variation (AM/FM modulation), and side-flanking timestamps.
 - **P2P Track Sharing Foundation**: Introduced `nullwave://` URI scheme generation for tracks and profiles. Added a "Share Link" button to the Track Detail panel and smart cross-pollination routing (pasting a profile link in the track box or vice versa now shows a helpful routing toast instead of failing).
 - **Unified Changelog Control**: Created a shared `ChangelogView` control that renders release notes with section-level icons (Added/Changed/Fixed), replacing duplicated markdown parsers and hand-written About tab bullets (Bug 5).
@@ -54,7 +86,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Dev Tab art purge** no longer blocks the UI thread and no longer orphans `AlbumArtPath` rows (routes through the Maintenance pipeline).
 - **Crossfade/Pause Desync**: Fixed a critical bug in `PlaybackService` where pausing during a crossfade left the incoming player silent at volume 0. The engine now correctly aborts the fade, promotes the incoming player, and pauses it.
 - **Volume Slider Drops**: Fixed an issue where `FadeAndPauseAsync` would overwrite the global `_targetVolume` with the mid-fade value (e.g., ~40%), causing the volume slider to drop and stay stuck until manually adjusted.
-- **Seek Bar Desync**: Bound the MiniPlayer's position/duration properties and seek bar to the *incoming* player during a crossfade so the UI reflects the correct track and time mid-fade.
+- **Seek Bar Desync**: Bound the MiniPlayer's position/duration properties and seek bar to the _incoming_ player during a crossfade so the UI reflects the correct track and time mid-fade.
 - **Double Play-Count Bug**: Removed duplicate `NullActionLogger.TrackPlayed` calls from `LibraryViewModel.PlayTrack` to prevent tracks from being counted twice in the database per play.
 - **Redundant Search Bar**: Removed the duplicate, non-functional local search bar from `PlaylistsView` in favor of the unified global search.
 - **Null Reference Warnings**: Resolved `CS8602` warnings in `PlaylistsView.axaml.cs` by applying proper null-guard chains to event handlers.

@@ -22,6 +22,7 @@ public partial class ProfileWindow : Window
     public ProfileWindow()
     {
         InitializeComponent();
+        WallpaperChromeSync.Attach(this);
         Loaded += OnWindowLoaded;
     }
 
@@ -124,7 +125,7 @@ public partial class ProfileWindow : Window
             if (ext is ".jpg" or ".jpeg")
             {
                 using var pngMs = new MemoryStream();
-                bitmap.Save(pngMs);
+                bitmap.Save(pngMs, PngBitmapEncoderOptions.Default);
                 pngMs.Position = 0;
                 using var sk = SkiaSharp.SKBitmap.Decode(pngMs);
                 using var jpg = sk.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 92);
@@ -132,7 +133,7 @@ public partial class ProfileWindow : Window
             }
             else
             {
-                bitmap.Save(outStream);
+                bitmap.Save(outStream, PngBitmapEncoderOptions.Default);
             }
 
             vm.TriggerExportSuccessToast();

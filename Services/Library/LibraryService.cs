@@ -219,6 +219,10 @@ public partial class LibraryService : IDisposable
         return (ascending ? sorted : sorted.Reverse()).ToList();
     }
 
+    public HashSet<Guid>? SearchFts(string query) => _db.SearchFts(query);
+
+    public void RebuildFtsIndex() => _db.RebuildFtsIndex();
+
     public IReadOnlyList<Track> FilterBySource(TrackSource source) => GetAll().Where(t => t.Source == source).ToList();
     public IReadOnlyList<Track> GetFavorites() => GetAll().Where(t => t.IsFavorite).ToList();
     public IReadOnlyList<Track> GetRecentlyAdded(int count = 20) => GetAll().OrderByDescending(t => t.DateAdded).Take(count).ToList();

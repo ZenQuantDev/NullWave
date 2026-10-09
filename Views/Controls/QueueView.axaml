@@ -2,18 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:models="using:NullWave.Models"
-             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:attached="using:NullWave.Helpers.Attached"
              xmlns:material="using:Material.Icons.Avalonia"
              xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Controls.QueueView"
              x:DataType="vm:MainViewModel"
-             Background="{StaticResource BrushSurface}"
              BorderBrush="{StaticResource BrushBorder}"
              BorderThickness="1,0,0,0">
-
-    <UserControl.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-    </UserControl.Resources>
 
     <Grid RowDefinitions="Auto,*">
         <!-- Header -->
@@ -97,7 +92,8 @@
                                         Background="{StaticResource BrushSurface2}"
                                         ClipToBounds="True">
                                     <Panel>
-                                        <Image Source="{Binding Track.AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                             <Image attached:AsyncImage.SourcePath="{Binding Track.AlbumArtPath}"
+                                                 attached:AsyncImage.DecodeWidth="96"
                                                Stretch="UniformToFill"
                                                IsVisible="{Binding Track.AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                         <material:MaterialIcon Kind="MusicNote"

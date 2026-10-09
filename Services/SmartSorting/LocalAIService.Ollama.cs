@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -14,13 +15,66 @@ public partial class LocalAIService
 {
     public async Task<bool> PingAsync()
     {
+        if (string.Equals(_ollamaUrl, OllamaEndpoint.Default, StringComparison.OrdinalIgnoreCase) && !IsOllamaInstalled())
+        {
+            _isReachable = false;
+            _reachabilityProbed = true;
+            return false;
+        }
+
         try
         {
             var response = await _pingClient.GetAsync($"{_ollamaUrl}/");
-            if (response.IsSuccessStatusCode) { _isReachable = true; return true; }
+            if (response.IsSuccessStatusCode) 
+            { 
+                _isReachable = true; 
+                _reachabilityProbed = true; 
+                return true; 
+            }
+            _reachabilityProbed = true;
             return false;
         }
-        catch (Exception ex) { Log.Warning("[LocalAIService] Ping failed: {Message}", ex.Message); return false; }
+        catch (Exception ex) when (ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException)
+        {
+            _isReachable = false;
+            _reachabilityProbed = true;
+            Log.Information("[LocalAIService] Ollama not reachable at {Url} ({Reason}); AI features stay off until it is",
+                _ollamaUrl, ex.GetType().Name);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _isReachable = false;
+            _reachabilityProbed = true;
+            Log.Warning(ex, "[LocalAIService] Ping failed unexpectedly");
+            return false;
+        }
+    }
+
+    private static bool IsOllamaInstalled()
+    {
+        var executableName = OperatingSystem.IsWindows() ? "ollama.exe" : "ollama";
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var normalizedDirectory = directory.Trim('"');
+                if (File.Exists(Path.Combine(normalizedDirectory, executableName))) return true;
+            }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            return !string.IsNullOrWhiteSpace(localAppData)
+                && File.Exists(Path.Combine(localAppData, "Programs", "Ollama", "ollama.exe"));
+        }
+
+        if (OperatingSystem.IsMacOS())
+            return File.Exists("/Applications/Ollama.app/Contents/Resources/ollama");
+
+        return false;
     }
 
     public async Task<bool> IsOllamaRunningAsync()

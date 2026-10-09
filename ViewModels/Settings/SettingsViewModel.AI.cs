@@ -1,29 +1,14 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input.Platform;
 using Avalonia.Media;
-using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NullWave.Helpers;
-using NullWave.Helpers.Logging;
-using NullWave.Models;
 using NullWave.Services;
-using NullWave.Services.Plugins;
-using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
-using NullWave.ViewModels.Settings;
+using NullWave.Services.Plugins;
 using Serilog;
-using Serilog.Events;
 
 namespace NullWave.ViewModels;
 
@@ -32,11 +17,10 @@ public partial class SettingsViewModel
     [ObservableProperty] private string _hardwareInfo = LocalizationService.Instance["Settings_Dynamic_HW_NotDetected"];
     [ObservableProperty] private bool _isDetectingHardware;
     [ObservableProperty] private string _powerStateLabel = LocalizationService.Instance["Settings_Dynamic_Power_Detecting"];
-
     [ObservableProperty] private bool _isDownloadingModel;
     [ObservableProperty] private double _modelDownloadProgress;
     [ObservableProperty] private string _modelDownloadStatus = string.Empty;
-    
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AIStatusLabel))]
     [NotifyPropertyChangedFor(nameof(AIStatusDescription))]
@@ -62,94 +46,157 @@ public partial class SettingsViewModel
 
     public IBrush AIStatusDotBrush => AiServiceState switch
     {
-        AIServiceState.Running => (IBrush)Avalonia.Application.Current!.Resources["BrushGreen"]!,
-        AIServiceState.Starting => (IBrush)Avalonia.Application.Current!.Resources["BrushAmber"]!,
-        AIServiceState.Error => (IBrush)Avalonia.Application.Current!.Resources["BrushRed"]!,
-        _ => (IBrush)Avalonia.Application.Current!.Resources["BrushTextMuted"]!
+        AIServiceState.Running => (IBrush)Application.Current!.Resources["BrushGreen"]!,
+        AIServiceState.Starting => (IBrush)Application.Current!.Resources["BrushAmber"]!,
+        AIServiceState.Error => (IBrush)Application.Current!.Resources["BrushRed"]!,
+        _ => (IBrush)Application.Current!.Resources["BrushTextMuted"]!
     };
 
-    public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running ? L("Settings_Dynamic_AI_Stop") : L("Settings_Dynamic_AI_Start");
+    public string AIToggleButtonLabel => AiServiceState == AIServiceState.Running
+        ? L("Settings_Dynamic_AI_Stop")
+        : L("Settings_Dynamic_AI_Start");
 
     [RelayCommand]
-    private void DetectHardware()
+    private async Task DetectHardwareAsync()
     {
         IsDetectingHardware = true;
         try
         {
-            var detector = new HardwareDetector();
-            var info = detector.Detect();
-            HardwareInfo = string.Format(L("Settings_Dynamic_HW_Info"), info.CpuCores, info.RamGB, info.GpuType, info.GpuVramGB, info.RecommendedModel, info.RecommendationReason);
+            var info = await HardwareDetector.RefreshAsync();
+            var recommendedModel = info.RecommendedModel ?? "none";
+            HardwareInfo = string.Format(
+                L("Settings_Dynamic_HW_Info"),
+                info.CpuCores,
+                info.RamGB,
+                info.GpuType,
+                info.GpuVramGB,
+                recommendedModel,
+                info.RecommendationReason);
+
             var currentPrefs = _prefsService.Current;
-            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel)) SelectedModel = info.RecommendedModel;
-            else OnPropertyChanged(nameof(SelectedModel));
-            
-            var suggestedBattery = AIModelCatalog.SuggestBatteryModel(info.RamGB);
-            var suggestedPerf = AIModelCatalog.SuggestPerformanceModel(info.RamGB, info.GpuVramGB, info.HasNvidia || info.HasAmd);
-            
-            if (string.IsNullOrEmpty(currentPrefs.BatteryModel)) BatteryModel = suggestedBattery;
+            if (string.IsNullOrEmpty(currentPrefs.SelectedAIModel))
+                SelectedModel = info.RecommendedModel ?? "qwen2.5:0.5b";
+            else
+                OnPropertyChanged(nameof(SelectedModel));
+
+            var batteryModel = AIModelCatalog.SuggestBatteryModel(info.RamGB);
+            var performanceModel = AIModelCatalog.SuggestPerformanceModel(
+                info.RamGB,
+                info.GpuVramGB,
+                info.HasNvidia || info.HasAmd,
+                info.HasAvx,
+                info.HasAvx2,
+                info.IsArm64) ?? "qwen2.5:0.5b";
+
+            if (string.IsNullOrEmpty(currentPrefs.BatteryModel)) BatteryModel = batteryModel;
             else OnPropertyChanged(nameof(BatteryModel));
-            if (string.IsNullOrEmpty(currentPrefs.PerformanceModel)) PerformanceModel = suggestedPerf;
+            if (string.IsNullOrEmpty(currentPrefs.PerformanceModel)) PerformanceModel = performanceModel;
             else OnPropertyChanged(nameof(PerformanceModel));
-            
+
             UpdatePowerState();
         }
-        catch (Exception ex) { HardwareInfo = string.Format(L("Settings_Dynamic_HW_Failed"), ex.Message); }
-        finally { IsDetectingHardware = false; }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Hardware detection failed");
+            HardwareInfo = string.Format(L("Settings_Dynamic_HW_Failed"), ex.Message);
+        }
+        finally
+        {
+            IsDetectingHardware = false;
+        }
     }
 
     [RelayCommand]
     private async Task DownloadModelAsync()
     {
         if (IsDownloadingModel) return;
+
         IsDownloadingModel = true;
         ModelDownloadProgress = 0;
         ModelDownloadStatus = string.Format(L("Settings_Dynamic_Model_Downloading"), SelectedModel);
         try
         {
-            var progress = new Progress<double>(pct =>
+            var progress = new Progress<double>(percentage =>
             {
-                ModelDownloadProgress = pct * 100;
-                ModelDownloadStatus = string.Format(L("Settings_Dynamic_Model_DownloadingPct"), SelectedModel, pct);
+                ModelDownloadProgress = percentage * 100;
+                ModelDownloadStatus = string.Format(
+                    L("Settings_Dynamic_Model_DownloadingPct"), SelectedModel, percentage);
             });
             await _localAI.DownloadModelAsync(SelectedModel, progress);
             ModelDownloadStatus = string.Format(L("Settings_Dynamic_Model_Success"), SelectedModel);
             await ToggleAIServiceAsync();
         }
-        catch (Exception ex) { ModelDownloadStatus = string.Format(L("Settings_Dynamic_Model_Failed"), ex.Message); }
-        finally { IsDownloadingModel = false; }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Model download failed");
+            ModelDownloadStatus = string.Format(L("Settings_Dynamic_Model_Failed"), ex.Message);
+        }
+        finally
+        {
+            IsDownloadingModel = false;
+        }
     }
 
     [RelayCommand]
     private async Task ToggleAIServiceAsync()
     {
-        if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
-        if (AiServiceState == AIServiceState.Running) { AiServiceState = AIServiceState.Stopped; return; }
+        if (!AIFeaturesEnabled)
+        {
+            AiServiceState = AIServiceState.Stopped;
+            return;
+        }
+
+        if (AiServiceState == AIServiceState.Running)
+        {
+            AiServiceState = AIServiceState.Stopped;
+            return;
+        }
+
         AiServiceState = AIServiceState.Starting;
         try
         {
             _localAI.CurrentModel = SelectedModel;
-            bool ok = await _localAI.PingAsync();
-            AiServiceState = ok ? AIServiceState.Running : AIServiceState.Error;
+            var reachable = await _localAI.PingAsync();
+            AiServiceState = reachable ? AIServiceState.Running : AIServiceState.Error;
         }
-        catch { AiServiceState = AIServiceState.Error; }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Failed to start local AI");
+            AiServiceState = AIServiceState.Error;
+        }
     }
 
     private async Task ProbeOllamaOnStartupAsync()
     {
         try
         {
-            if (!AIFeaturesEnabled) { AiServiceState = AIServiceState.Stopped; return; }
-            bool running = await _localAI.PingAsync();
-            if (AiServiceState == AIServiceState.Stopped) AiServiceState = running ? AIServiceState.Running : AIServiceState.Stopped;
+            if (!AIFeaturesEnabled)
+            {
+                AiServiceState = AIServiceState.Stopped;
+                return;
+            }
+
+            var reachable = await _localAI.PingAsync();
+            if (AiServiceState == AIServiceState.Stopped)
+                AiServiceState = reachable ? AIServiceState.Running : AIServiceState.Stopped;
+
             if (_plugins.Get<OllamaAIProvider>() is { } ollama)
-                ollama.State = running ? PluginState.Available : PluginState.Unavailable;
+                ollama.State = reachable ? PluginState.Available : PluginState.Unavailable;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Settings] Ollama startup probe failed");
+        }
     }
 
     public void StartAIHealthCheck()
     {
-        _aiHealthTimer = new System.Threading.Timer(async _ => await HealthCheckTickAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        StopHealthCheck();
+        _aiHealthTimer = new System.Threading.Timer(
+            async _ => await HealthCheckTickAsync(),
+            null,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(30));
     }
 
     private async Task HealthCheckTickAsync()
@@ -157,17 +204,20 @@ public partial class SettingsViewModel
         try
         {
             if (!AIFeaturesEnabled || AiServiceState == AIServiceState.Stopped) return;
-            bool reachable = await _localAI.PingAsync();
+
+            var reachable = await _localAI.PingAsync();
             var newState = reachable ? AIServiceState.Running : AIServiceState.Error;
-            if (AiServiceState != newState) AiServiceState = newState;
+            Dispatcher.UIThread.Post(() => AiServiceState = newState);
+
             if (_plugins.Get<OllamaAIProvider>() is { } ollama)
                 ollama.State = reachable ? PluginState.Available : PluginState.Error;
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[Settings] AI Health check error");
-            AiServiceState = AIServiceState.Error;
-            if (_plugins.Get<OllamaAIProvider>() is { } ollama) ollama.State = PluginState.Error;
+            Log.Warning(ex, "[Settings] AI health check failed");
+            Dispatcher.UIThread.Post(() => AiServiceState = AIServiceState.Error);
+            if (_plugins.Get<OllamaAIProvider>() is { } ollama)
+                ollama.State = PluginState.Error;
         }
     }
 
@@ -175,29 +225,27 @@ public partial class SettingsViewModel
     {
         try
         {
-            if (OperatingSystem.IsLinux())
-            {
-                bool onBattery = true;
-                const string sysfsPath = "/sys/class/power_supply";
-                if (Directory.Exists(sysfsPath))
-                {
-                    foreach (var dir in Directory.GetDirectories(sysfsPath))
-                    {
-                        if (dir.Contains("AC") || dir.Contains("ADP") || dir.Contains("ACAD"))
-                        {
-                            var onlineFile = Path.Combine(dir, "online");
-                            if (File.Exists(onlineFile) && File.ReadAllText(onlineFile).Trim() == "1") { onBattery = false; break; }
-                        }
-                    }
-                }
-                PowerStateLabel = onBattery ? L("Settings_Dynamic_Power_Battery") : L("Settings_Dynamic_Power_AC_Perf");
-            }
-            else if (OperatingSystem.IsWindows()) { PowerStateLabel = L("Settings_Dynamic_Power_AC_Connected"); }
-            else { PowerStateLabel = L("Settings_Dynamic_Power_AC_Source"); }
+            var state = PowerStateService.ReadPowerState();
+            PowerStateLabel = state == PowerState.Battery
+                ? L("Settings_Dynamic_Power_Battery")
+                : L("Settings_Dynamic_Power_AC_Connected");
         }
-        catch { PowerStateLabel = L("Settings_Dynamic_Power_Unknown"); }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[Settings] Power state detection failed");
+            PowerStateLabel = L("Settings_Dynamic_Power_Unknown");
+        }
     }
 
-    public void StopHealthCheck() { _aiHealthTimer?.Dispose(); _aiHealthTimer = null; }
-    public void SetAIServiceState(AIServiceState state) => AiServiceState = state;
+    public void StopHealthCheck()
+    {
+        _aiHealthTimer?.Dispose();
+        _aiHealthTimer = null;
+    }
+
+    public void SetAIServiceState(AIServiceState state)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) AiServiceState = state;
+        else Dispatcher.UIThread.Post(() => AiServiceState = state);
+    }
 }

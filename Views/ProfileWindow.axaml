@@ -18,7 +18,6 @@
         Background="{StaticResource BrushBase}"
         KeyDown="OnWindowKeyDown">
     <Window.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:HexToBrushConverter x:Key="HexToBrush"/>
         <converters:StringEqualsConverter x:Key="StrEq"/>
         <converters:ProfileIdentityMarginConverter x:Key="ProfileIdentityMargin"/>
@@ -55,6 +54,9 @@
     </Window.KeyBindings>
 
     <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+        <controls:WallpaperLayer/>
+        <Border Classes="wallpaper-scrim"/>
+        <!-- Editor pane stays opaque: focused editing surface over the wallpaper. -->
         <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"
                    DisplayMode="Overlay"
                    OpenPaneLength="320"
@@ -248,13 +250,16 @@
             </SplitView.Pane>
 
             <Grid ColumnDefinitions="360,*">
-                <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
+                 <!-- OPAQUE BY DESIGN: this Border is the RenderTargetBitmap export surface for
+                     profile cards (ExportProfileCard). Translucency here would export as garbage. -->
+                 <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
                         DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
                     <Border Classes="settings-card" Margin="0" Padding="0" ClipToBounds="True">
                         <Grid>
                             <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top" ClipToBounds="True"
                                     IsVisible="{Binding HasBannerImage}">
-                                <Image Source="{Binding BannerImagePath, Converter={StaticResource PathToBitmap}}"
+                                    <Image attached:AsyncImage.SourcePath="{Binding BannerImagePath}"
+                                        attached:AsyncImage.DecodeWidth="512"
                                        Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                             </Border>
                             <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top"
@@ -405,7 +410,8 @@
                     </Border>
                 </Border>
 
-                <Border Grid.Column="1" Background="{StaticResource BrushBase}" Padding="0,20,20,20">
+                <!-- Right tab column: heavy-tier chrome so the wallpaper surrounds the stats. -->
+                <Border Grid.Column="1" Classes="chrome-heavy" Padding="0,20,20,20">
                     <TabControl Background="Transparent" BorderThickness="0">
                         <TabItem Header="{loc:Loc Profile_Tab_Board}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
@@ -421,7 +427,8 @@
                                                     <Border Grid.Column="0" Width="56" Height="56" CornerRadius="{StaticResource RadiusArt}"
                                                             Background="{StaticResource BrushSurface}" ClipToBounds="True">
                                                         <Panel>
-                                                            <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                <Image attached:AsyncImage.SourcePath="{Binding MostPlayedTrackArtPath}"
+                                                                    attached:AsyncImage.DecodeWidth="96"
                                                                    IsVisible="{Binding HasMostPlayedTrackArt}" Stretch="UniformToFill"
                                                                    RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                                             <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding !HasMostPlayedTrackArt}"
@@ -564,7 +571,8 @@
                                                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusArt}"
                                                                     Background="{StaticResource BrushSurface}" ClipToBounds="True">
                                                                 <Panel>
-                                                                    <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                         <Image attached:AsyncImage.SourcePath="{Binding AlbumArtPath}"
+                                                                             attached:AsyncImage.DecodeWidth="64"
                                                                            IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                                            Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                                                     <material:MaterialIcon Kind="MusicNote"

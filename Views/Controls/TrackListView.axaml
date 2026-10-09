@@ -3,6 +3,7 @@
            xmlns:vm="using:NullWave.ViewModels"
            xmlns:models="using:NullWave.Models"
            xmlns:converters="using:NullWave.Helpers.Converters"
+           xmlns:services="using:NullWave.Services"
            xmlns:material="using:Material.Icons.Avalonia"
            xmlns:attached="using:NullWave.Helpers.Attached"
            xmlns:helpers="using:NullWave.Helpers"
@@ -10,8 +11,6 @@
            x:Class="NullWave.Views.Controls.TrackListView"
            x:DataType="vm:LibraryViewModel">
     <DockPanel.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
         <converters:BoolToBrushConverter x:Key="StarBrush" TrueBrush="{StaticResource BrushStarOn}" FalseBrush="{StaticResource BrushStarOff}"/>
@@ -27,72 +26,80 @@
     </DockPanel.Resources>
 
     <!-- COLUMN HEADERS -->
-    <Grid DockPanel.Dock="Top" Margin="16,8,16,2">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="2.6*"  MinWidth="260"/>
-            <ColumnDefinition Width="0.9*"  MinWidth="120"/>
-            <ColumnDefinition Width="0.5*"  MinWidth="64"/>
-            <ColumnDefinition Width="0.5*"  MinWidth="70"/>
-            <ColumnDefinition Width="0.5*"  MinWidth="80"/>
-            <ColumnDefinition Width="0.8*"  MinWidth="110"/>
-            <ColumnDefinition Width="0.35*" MinWidth="36"/>
-            <ColumnDefinition Width="0.35*" MinWidth="36"/>
-        </Grid.ColumnDefinitions>
-        
-        <TextBlock Grid.Column="0" Classes="section-label"
-                   Text="{Binding ResultCountLabel}"
-                   FontSize="{DynamicResource FontSizeXs}"
-                   Margin="4,0,0,0"/>
-        <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" Command="{Binding SortByTitleCommand}"
-                HorizontalContentAlignment="Left" Margin="10,0,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_TitleArtist}" Margin="0"/>
-                <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                       Width="12" Height="12"
-                                       IsVisible="{Binding IsSortedByTitle}"/>
-            </StackPanel>
-        </Button>
-        <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" Command="{Binding SortBySourceCommand}"
-                HorizontalContentAlignment="Left">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Source}" Margin="0"/>
-                <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                       Width="12" Height="12"
-                                       IsVisible="{Binding IsSortedBySource}"/>
-            </StackPanel>
-        </Button>
-        <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" Command="{Binding SortByPlayCountCommand}"
-                HorizontalContentAlignment="Center">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Plays}" Margin="0"/>
-                <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                       Width="12" Height="12"
-                                       IsVisible="{Binding IsSortedByPlayCount}"/>
-            </StackPanel>
-        </Button>
-        <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" HorizontalContentAlignment="Center">
-            <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Length}" Margin="0"/>
-        </Button>
-        <Button Grid.Column="5" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" HorizontalContentAlignment="Center">
-            <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Status}" Margin="0"/>
-        </Button>
-        <Button Grid.Column="6" Background="Transparent" BorderThickness="0" Padding="0"
-                Cursor="Hand" Command="{Binding SortByDateCommand}"
-                HorizontalContentAlignment="Left">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Added}" Margin="0"/>
-                <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
-                                       Width="12" Height="12"
-                                       IsVisible="{Binding IsSortedByDate}"/>
-            </StackPanel>
-        </Button>
-    </Grid>
+    <Border DockPanel.Dock="Top" Classes="wallpaper-row-header">
+        <Grid Margin="16,8,16,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="2.6*"  MinWidth="260"/>
+                <ColumnDefinition Width="0.9*"  MinWidth="120"/>
+                <ColumnDefinition Width="0.5*"  MinWidth="64"/>
+                <ColumnDefinition Width="0.5*"  MinWidth="70"/>
+                <ColumnDefinition Width="0.5*"  MinWidth="80"/>
+                <ColumnDefinition Width="0.8*"  MinWidth="110"/>
+                <ColumnDefinition Width="0.35*" MinWidth="36"/>
+                <ColumnDefinition Width="0.35*" MinWidth="36"/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Grid.Column="0" Classes="section-label"
+                       Text="{Binding ResultCountLabel}"
+                       FontSize="{DynamicResource FontSizeXs}"
+                       Margin="4,0,0,0"/>
+                       
+            <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" Command="{Binding SortByTitleCommand}"
+                    HorizontalContentAlignment="Left" Margin="10,0,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_TitleArtist}" Margin="0"/>
+                    <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                           Width="12" Height="12"
+                                           IsVisible="{Binding IsSortedByTitle}"/>
+                </StackPanel>
+            </Button>
+            
+            <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" Command="{Binding SortBySourceCommand}"
+                    HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Source}" Margin="0"/>
+                    <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                           Width="12" Height="12"
+                                           IsVisible="{Binding IsSortedBySource}"/>
+                </StackPanel>
+            </Button>
+            
+            <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" Command="{Binding SortByPlayCountCommand}"
+                    HorizontalContentAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Plays}" Margin="0"/>
+                    <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                           Width="12" Height="12"
+                                           IsVisible="{Binding IsSortedByPlayCount}"/>
+                </StackPanel>
+            </Button>
+            
+            <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" HorizontalContentAlignment="Center">
+                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Length}" Margin="0"/>
+            </Button>
+            
+            <Button Grid.Column="5" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" HorizontalContentAlignment="Center">
+                <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Status}" Margin="0"/>
+            </Button>
+            
+            <Button Grid.Column="6" Background="Transparent" BorderThickness="0" Padding="0"
+                    Cursor="Hand" Command="{Binding SortByDateCommand}"
+                    HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Added}" Margin="0"/>
+                    <material:MaterialIcon Kind="{Binding SortAscending, Converter={StaticResource BoolToSortIcon}}"
+                                           Width="12" Height="12"
+                                           IsVisible="{Binding IsSortedByDate}"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+    </Border>
 
     <!-- List + floating bulk bar -->
     <Panel>
@@ -106,32 +113,32 @@
                  SelectionChanged="OnTrackSelected"
                  DoubleTapped="OnTrackDoubleTapped"
                  ContextRequested="OnListContextRequested">
-            
-            <!-- Hoisted to ListBox.Styles to prevent per-container style instantiation overhead -->
+                 
             <ListBox.Styles>
                 <Style Selector="Grid.track-row:pointerover">
-                    <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+                    <Setter Property="Background" Value="{StaticResource BrushRowHover}"/>
+                </Style>
+                <Style Selector="ListBoxItem:selected Grid.track-row">
+                    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
                 </Style>
             </ListBox.Styles>
-
-            <!-- Default VirtualizingStackPanel (CacheLength=0) prevents massive rebind storms on thumb drag -->
+            
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <VirtualizingStackPanel />
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
+            
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">
-                    <!-- LOCALIZED HOVER: Background and transitions applied directly to the row Grid 
-                         to prevent full-viewport invalidation caused by ListBoxItem:pointerover -->
                     <Grid Margin="{DynamicResource RowMargin}" MinHeight="{DynamicResource TrackRowHeight}"
-                          Background="Transparent" Classes="track-row">
+                          Classes="track-row">
                         <Grid.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                             </Transitions>
                         </Grid.Transitions>
-
+                        
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="2.6*"  MinWidth="260"/>
@@ -158,7 +165,7 @@
                                 </MultiBinding>
                             </Border.IsVisible>
                         </Border>
-
+                        
                         <Border Grid.Column="0"
                                 Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
                                 CornerRadius="{StaticResource RadiusArt}"
@@ -172,8 +179,7 @@
                                        Stretch="UniformToFill"
                                        IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
                                        RenderOptions.BitmapInterpolationMode="MediumQuality"/>
-                                
-                                <!-- Lightweight Path icon (size-baked, Stretch="None") -->
+                                       
                                 <Path Data="{Binding MediaType, Converter={StaticResource MediaTypeToGeom}}"
                                       Stretch="None" Width="18" Height="18"
                                       Fill="{StaticResource BrushTextMuted}"
@@ -181,7 +187,7 @@
                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Panel>
                         </Border>
-
+                        
                         <StackPanel Grid.Column="1"
                                     VerticalAlignment="Center"
                                     Spacing="2"
@@ -195,7 +201,6 @@
                                        Foreground="{StaticResource BrushTextSecondary}"
                                        FontSize="{DynamicResource RowSubSize}"
                                        TextTrimming="CharacterEllipsis"/>
-                               
                             <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Player.NowPlayingDisplay}"
                                        Foreground="{StaticResource BrushAccent}"
                                        FontSize="{DynamicResource RowSubSize}"
@@ -209,19 +214,26 @@
                                 </TextBlock.IsVisible>
                             </TextBlock>
                         </StackPanel>
-
+                        
+                        <!-- UPDATED: Tinted Source Badges via Pure MultiBinding Converter -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4"
                                     IsVisible="{Binding !IsRadio}">
                                 <Border.Background>
-                                    <SolidColorBrush Color="{Binding Source, Converter={StaticResource SourceToBg}}"/>
+                                    <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Bg">
+                                        <Binding Path="Source"/>
+                                        <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                    </MultiBinding>
                                 </Border.Background>
-                                <TextBlock Text="{Binding Source}"
-                                           Foreground="White"
-                                           FontSize="{DynamicResource FontSizeXs}"
-                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding Source}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold">
+                                    <TextBlock.Foreground>
+                                        <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Fg">
+                                            <Binding Path="Source"/>
+                                            <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                        </MultiBinding>
+                                    </TextBlock.Foreground>
+                                </TextBlock>
                             </Border>
-
                             <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4" Background="{StaticResource BrushRedDim}"
                                     IsVisible="{Binding IsRadio}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
@@ -230,14 +242,14 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
-
+                        
                         <TextBlock Grid.Column="3"
                                    Text="{Binding PlayCount}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{DynamicResource FontSizeSm}"
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Center"/>
-
+                                   
                         <StackPanel Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding DisplayDuration}" Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center"
@@ -246,34 +258,31 @@
                                        HorizontalAlignment="Center" IsVisible="{Binding IsRadio}"
                                        ToolTip.Tip="{loc:Loc Radio_Live_Stream}"/>
                         </StackPanel>
-
+                        
                         <StackPanel Grid.Column="5"
                                     Orientation="Horizontal"
                                     Spacing="4"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center">
-                            <!-- Size-baked: AccessPoint16, Stretch="None" -->
                             <Path Data="{x:Static helpers:RowIcons.AccessPoint16}" Stretch="None" Width="16" Height="16"
                                   Fill="{StaticResource BrushBlue}"
                                   IsVisible="{Binding IsRadio}" ToolTip.Tip="{loc:Loc Radio_Live_Stream}"/>
                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsRadio}">
-                                <!-- Size-baked: CheckCircle16, Stretch="None" -->
                                 <Path Data="{x:Static helpers:RowIcons.CheckCircle16}" Stretch="None" Width="16" Height="16"
                                       Fill="{StaticResource BrushGreen}"
                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                <!-- Size-baked: CloudOff16, Stretch="None" -->
                                 <Path Data="{x:Static helpers:RowIcons.CloudOff16}" Stretch="None" Width="16" Height="16"
                                       Fill="{StaticResource BrushTextMuted}"
                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
                             </StackPanel>
                         </StackPanel>
-
+                        
                         <TextBlock Grid.Column="6"
                                    Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{DynamicResource FontSizeSm}"
                                    VerticalAlignment="Center"/>
-
+                                   
                         <Button Grid.Column="7"
                                 Classes="icon-btn"
                                 CommandParameter="{Binding}"
@@ -284,13 +293,12 @@
                                   Stretch="None" Width="18" Height="18"
                                   Fill="{Binding IsFavorite, Converter={StaticResource StarBrush}}"/>
                         </Button>
-
+                        
                         <Button Grid.Column="8"
                                 Classes="icon-btn"
                                 VerticalAlignment="Center"
                                 Click="OnRowMenuClick"
                                 ToolTip.Tip="{loc:Loc Library_Tooltip_MoreOptions}">
-                            <!-- Size-baked: DotsVertical18, Stretch="None" -->
                             <Path Data="{x:Static helpers:RowIcons.DotsVertical18}" Stretch="None" Width="18" Height="18"
                                   Fill="{StaticResource BrushTextSecondary}"/>
                         </Button>
@@ -298,7 +306,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-
+        
         <!-- FLOATING BULK ACTION BAR (multi-select) -->
         <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12"
                 Background="{StaticResource BrushElevated}" BorderBrush="{StaticResource BrushBorder}"
@@ -321,6 +329,5 @@
                 </Button>
             </StackPanel>
         </Border>
-
     </Panel>
 </DockPanel>

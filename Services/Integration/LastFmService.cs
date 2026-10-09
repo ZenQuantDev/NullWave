@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Services.Integration;
 using Serilog;
 
@@ -55,7 +56,8 @@ public class LastFmAuthService
             var sig = Sign(parameters);
             var url = $"{BaseUrl}?method=auth.getToken&api_key={_apiKey}&api_sig={sig}&format=json";
 
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return null;
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -97,7 +99,8 @@ public class LastFmAuthService
             var sig = Sign(parameters);
             var url = $"{BaseUrl}?method=auth.getSession&api_key={_apiKey}&token={token}&api_sig={sig}&format=json";
 
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return new LastFmSessionResult { Success = false, Error = "Last.fm is temporarily unavailable" };
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -168,7 +171,8 @@ public class LastFmService
         try
         {
             var url = $"{BaseUrl}?method=track.search&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json&limit=1";
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return (title, artist);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -196,7 +200,8 @@ public class LastFmService
         try
         {
             var url = $"{BaseUrl}?method=track.getInfo&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json";
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return null;
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -270,7 +275,8 @@ public class LastFmService
         try
         {
             var url = $"{BaseUrl}?method=artist.getInfo&artist={Uri.EscapeDataString(artist)}&api_key={_apiKey}&format=json";
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return null;
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
@@ -369,7 +375,8 @@ public class LastFmService
                 new KeyValuePair<string, string>("format", "json")
             });
 
-            var response = await _http.PostAsync(BaseUrl, formContent);
+            using var response = await CircuitBreakerRegistry.Get("Last.fm").ExecuteHttpAsync(() => _http.PostAsync(BaseUrl, formContent));
+            if (response == null) return false;
             if (!response.IsSuccessStatusCode)
             {
                 var responseJson = await response.Content.ReadAsStringAsync();

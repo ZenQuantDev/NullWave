@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Win32;
 using NullWave.Views;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
 using NullWave.Services;
 using Serilog;
@@ -20,6 +21,8 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        StartupTimeline.Mark("Main entered");
+
         VelopackApp.Build().Run();
 
         NullWavePaths.EnsureDirectories();
@@ -45,8 +48,7 @@ class Program
             return;
         }
 
-        var prefsService = new PreferencesService();
-        NullWaveLogConfig.Initialize(prefsService.Current.VerboseLogging);
+        NullWaveLogConfig.Initialize(PreferencesService.Shared.Current.VerboseLogging);
 
         try
         {
