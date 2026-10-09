@@ -18,7 +18,6 @@
         Background="{StaticResource BrushBase}"
         KeyDown="OnWindowKeyDown">
     <Window.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:HexToBrushConverter x:Key="HexToBrush"/>
         <converters:StringEqualsConverter x:Key="StrEq"/>
         <converters:ProfileIdentityMarginConverter x:Key="ProfileIdentityMargin"/>
@@ -259,7 +258,8 @@
                         <Grid>
                             <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top" ClipToBounds="True"
                                     IsVisible="{Binding HasBannerImage}">
-                                <Image Source="{Binding BannerImagePath, Converter={StaticResource PathToBitmap}}"
+                                    <Image attached:AsyncImage.SourcePath="{Binding BannerImagePath}"
+                                        attached:AsyncImage.DecodeWidth="512"
                                        Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                             </Border>
                             <Border Height="{DynamicResource ProfileBannerHeight}" VerticalAlignment="Top"
@@ -427,7 +427,8 @@
                                                     <Border Grid.Column="0" Width="56" Height="56" CornerRadius="{StaticResource RadiusArt}"
                                                             Background="{StaticResource BrushSurface}" ClipToBounds="True">
                                                         <Panel>
-                                                            <Image Source="{Binding MostPlayedTrackArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                <Image attached:AsyncImage.SourcePath="{Binding MostPlayedTrackArtPath}"
+                                                                    attached:AsyncImage.DecodeWidth="96"
                                                                    IsVisible="{Binding HasMostPlayedTrackArt}" Stretch="UniformToFill"
                                                                    RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                                             <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding !HasMostPlayedTrackArt}"
@@ -570,7 +571,8 @@
                                                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusArt}"
                                                                     Background="{StaticResource BrushSurface}" ClipToBounds="True">
                                                                 <Panel>
-                                                                    <Image Source="{Binding AlbumArtPath, Converter={StaticResource PathToBitmap}}"
+                                                                         <Image attached:AsyncImage.SourcePath="{Binding AlbumArtPath}"
+                                                                             attached:AsyncImage.DecodeWidth="64"
                                                                            IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                                            Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                                                     <material:MaterialIcon Kind="MusicNote"

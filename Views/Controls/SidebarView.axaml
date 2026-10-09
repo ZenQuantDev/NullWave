@@ -13,6 +13,7 @@
         x:Class="NullWave.Views.Controls.SidebarView"
         x:DataType="vm:MainViewModel"
         x:Name="SidebarRoot"
+        attached:PixelShiftBehavior.IsEnabled="True"
         Classes="chrome-heavy"
         BorderBrush="{StaticResource BrushBorder}"
         BorderThickness="0,0,1,0"
@@ -29,7 +30,6 @@
     </Border.Transitions>
 
     <Border.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:BoolToRotateTransformConverter x:Key="BoolToRotate"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
         <converters:BoolToBrushConverter x:Key="StarBrush" TrueBrush="{StaticResource BrushStarOn}" FalseBrush="{StaticResource BrushStarOff}"/>

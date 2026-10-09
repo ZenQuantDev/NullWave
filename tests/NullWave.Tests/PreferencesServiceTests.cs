@@ -73,4 +73,8 @@ public class PreferencesServiceTests
         Assert.Equal(12, second.Current.WallpaperBlur);
         Assert.Equal("Fit", second.Current.WallpaperFit);
     }
+
+    [Fact]
+    public void Shared_instance_is_a_singleton()
+        => Assert.Same(PreferencesService.Shared, PreferencesService.Shared);
 }

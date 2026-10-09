@@ -21,18 +21,23 @@ public class DependencyInfo
 
 public class DependencyUpdateService
 {
+    // Asking a tool for its version should take a moment. Installing or updating one can take minutes.
+    private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan ActionTimeout = TimeSpan.FromMinutes(2);
+
     private readonly HttpClient _http;
 
     public DependencyUpdateService()
     {
-        _http = new HttpClient();
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
     }
 
     // ===== YT-DLP =====
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
-        var installed = await RunCommandAsync("yt-dlp", "--version");
+        // Shared with the startup diagnostics and the yt-dlp plugin: one lookup per run.
+        var installed = await ToolVersionProbe.GetVersionAsync("yt-dlp");
         if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "yt-dlp", IsInstalled = false };
 
@@ -56,6 +61,19 @@ public class DependencyUpdateService
     }
 
     public async Task<string> UpdateYtDlpAsync()
+    {
+        try
+        {
+            return await UpdateYtDlpCoreAsync();
+        }
+        finally
+        {
+            // Whatever happened, the installed version may have changed: forget the cached answer.
+            ToolVersionProbe.Invalidate("yt-dlp");
+        }
+    }
+
+    private static async Task<string> UpdateYtDlpCoreAsync()
     {
         // 1. ALWAYS try yt-dlp's native self-updater first.
         // This works for standalone .exe, pip, and most package managers.
@@ -92,47 +110,65 @@ public class DependencyUpdateService
     // ===== VLC MEDIA PLAYER =====
     public async Task<DependencyInfo> GetVlcInfoAsync()
     {
-        // 1. Try CLI (works on Linux/macOS or if added to Windows PATH)
-        var installed = await RunCommandAsync("vlc", "--version");
+        if (OperatingSystem.IsWindows())
+        {
+            // NEVER run "vlc --version" on Windows: VLC opens its own console window, shows
+            // "Press RETURN to continue..." and waits. Read the version from vlc.exe instead.
+            var found = FindWindowsVlcVersion();
+            return found != null
+                ? new DependencyInfo
+                {
+                    Name = "VLC",
+                    InstalledVersion = found,
+                    LatestVersion = "Check videolan.org",
+                    CanSelfUpdate = false,
+                    IsInstalled = true
+                }
+                : new DependencyInfo { Name = "VLC", IsInstalled = false };
+        }
+
+        // Linux / macOS: the command line is safe and is how VLC is normally found.
+        var installed = await ToolVersionProbe.GetVersionAsync("vlc");
         if (!string.IsNullOrWhiteSpace(installed))
         {
-            var firstLine = installed.Split('\n')[0].Trim();
             return new DependencyInfo
             {
                 Name = "VLC",
-                InstalledVersion = firstLine,
+                InstalledVersion = installed.Trim(),
                 LatestVersion = "Check videolan.org",
                 CanSelfUpdate = false,
                 IsInstalled = true
             };
         }
 
-        // 2. Fallback: Check standard Windows installation paths via FileVersionInfo
-        if (OperatingSystem.IsWindows())
-        {
-            string[] standardPaths = {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VideoLAN", "VLC", "vlc.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VideoLAN", "VLC", "vlc.exe")
-            };
+        return new DependencyInfo { Name = "VLC", IsInstalled = false };
+    }
 
-            foreach (var path in standardPaths)
+    private static string? FindWindowsVlcVersion()
+    {
+        var candidates = new System.Collections.Generic.List<string>();
+
+        var resolved = PlatformHelper.ResolveVlcDirectory();
+        if (resolved != null) candidates.Add(Path.Combine(resolved, "vlc.exe"));
+
+        candidates.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VideoLAN", "VLC", "vlc.exe"));
+        candidates.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VideoLAN", "VLC", "vlc.exe"));
+
+        foreach (var path in candidates)
+        {
+            try
             {
-                if (File.Exists(path))
-                {
-                    var versionInfo = FileVersionInfo.GetVersionInfo(path);
-                    return new DependencyInfo
-                    {
-                        Name = "VLC",
-                        InstalledVersion = versionInfo.FileVersion ?? versionInfo.ProductVersion ?? "Installed",
-                        LatestVersion = "Check videolan.org",
-                        CanSelfUpdate = false,
-                        IsInstalled = true
-                    };
-                }
+                if (!File.Exists(path)) continue;
+                var info = FileVersionInfo.GetVersionInfo(path);
+                return info.FileVersion ?? info.ProductVersion ?? "Installed";
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[DependencyUpdate] Could not read VLC version from {Path}", path);
             }
         }
 
-        return new DependencyInfo { Name = "VLC", IsInstalled = false };
+        return null;
     }
 
     public async Task<string> InstallVlcAsync()
@@ -145,6 +181,7 @@ public class DependencyUpdateService
         if (ok != null)
         {
             Log.Information("[DependencyUpdate] VLC installed via winget");
+            VlcLocator.Invalidate();   // next ResolveVlcDirectory() sees the fresh install
             return "VLC installed via winget";
         }
         return "winget install failed - install VLC manually";
@@ -153,7 +190,7 @@ public class DependencyUpdateService
     // ===== FFMPEG & .NET =====
     public async Task<DependencyInfo> GetFfmpegInfoAsync()
     {
-        var installed = await RunCommandAsync("ffmpeg", "-version");
+        var installed = await RunQueryAsync("ffmpeg", "-version");
         if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "FFmpeg", IsInstalled = false };
 
@@ -168,29 +205,45 @@ public class DependencyUpdateService
         };
     }
 
-    public async Task<DependencyInfo> GetDotNetInfoAsync()
+    public Task<DependencyInfo> GetDotNetInfoAsync()
     {
-        var installed = await RunCommandAsync("dotnet", "--version");
-        return new DependencyInfo
+        // NullWave ships with its own .NET runtime, so there is nothing to install. Report the one
+        // that is running instead of looking for a "dotnet" command that most users do not have.
+        return Task.FromResult(new DependencyInfo
         {
             Name = ".NET",
-            InstalledVersion = installed?.Trim() ?? "unknown",
+            InstalledVersion = Environment.Version.ToString(),
             LatestVersion = "Check dot.net",
             CanSelfUpdate = false,
-            IsInstalled = !string.IsNullOrWhiteSpace(installed)
-        };
+            IsInstalled = true
+        });
     }
 
     // ===== HELPERS =====
-    private static async Task<string?> RunCommandAsync(string cmd, params string[] args)
+
+    /// <summary>For "what version is this?" questions: short timeout.</summary>
+    private static Task<string?> RunQueryAsync(string cmd, params string[] args)
+        => RunWithTimeoutAsync(QueryTimeout, cmd, args);
+
+    /// <summary>For installs and updates: long timeout.</summary>
+    private static Task<string?> RunCommandAsync(string cmd, params string[] args)
+        => RunWithTimeoutAsync(ActionTimeout, cmd, args);
+
+    private static async Task<string?> RunWithTimeoutAsync(TimeSpan timeout, string cmd, string[] args)
     {
         try
         {
-            // FIX (P9): Route through ProcessRunner to prevent stderr deadlocks 
-            // and enforce a 2-minute timeout for hung package managers.
-            var result = await ProcessRunner.RunAsync(cmd, args, timeout: TimeSpan.FromMinutes(2));
+            // FIX (P9): Route through ProcessRunner to prevent stderr deadlocks
+            // and enforce a timeout for hung tools and package managers.
+            var result = await ProcessRunner.RunAsync(cmd, args, timeout: timeout);
 
-            if (result.ExitCode == 0) 
+            if (result.TimedOut)
+            {
+                Log.Warning("[DependencyUpdate] {Cmd} timed out after {Seconds:F0}s", cmd, timeout.TotalSeconds);
+                return null;
+            }
+
+            if (result.ExitCode == 0)
                 return result.StandardOutput;
 
             // Special case: yt-dlp -U might exit non-zero in some environments but still report "up to date"

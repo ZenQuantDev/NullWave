@@ -240,6 +240,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ClearYtDlpCacheRequested;
     public event Action<bool>? SweepOrphanedFilesRequested;
     public event Action? VacuumDatabaseRequested;
+    public event Action? RebuildSearchIndexRequested;
     public event Action? VerifyLinksRequested;
     public event Action? ForceCleanTitlesRequested;
     public event Action? MergeSimilarArtistsRequested;

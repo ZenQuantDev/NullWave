@@ -12,6 +12,9 @@ namespace NullWave.Services.Plugins;
 /// </summary>
 public class PluginManager
 {
+    /// <summary>How long one plugin may take to initialize before the app carries on without it.</summary>
+    public static readonly TimeSpan DefaultInitTimeout = TimeSpan.FromSeconds(8);
+
     private readonly List<IPlugin> _plugins = new();
     private readonly ILogger _logger;
 
@@ -63,26 +66,74 @@ public class PluginManager
             p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Initialize every enabled plugin. Failures are logged, not thrown.</summary>
-    public async Task InitializeAllAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Initialize every enabled plugin at the same time. Total start-up time is the slowest plugin,
+    /// not the sum. A plugin that does not finish within <paramref name="perPluginTimeout"/> is marked
+    /// Error and the app carries on without it. Failures are logged, not thrown.
+    /// Each plugin's own start-up code runs on a pool thread, so a plugin that blocks (for example
+    /// while waiting for a process) cannot freeze the window.
+    /// </summary>
+    public async Task InitializeAllAsync(CancellationToken ct = default, TimeSpan? perPluginTimeout = null)
     {
-        foreach (var plugin in _plugins.Where(p => p.IsEnabled))
-        {
-            try
-            {
-                _logger.Information("Initializing plugin: {PluginName}", plugin.Name);
-                plugin.State = PluginState.Loading;
-                var success = await plugin.InitializeAsync(ct);
-                plugin.State = success ? PluginState.Available : PluginState.Error;
+        var timeout = perPluginTimeout ?? DefaultInitTimeout;
+        var enabled = _plugins.Where(p => p.IsEnabled).ToList();
+        await Task.WhenAll(enabled.Select(p => InitializeOneAsync(p, timeout, ct)));
+    }
 
-                if (!success)
-                    _logger.Information("Plugin {Name} initialized without optional configuration - its features stay off until configured", plugin.Name);
-            }
-            catch (Exception ex)
+    private async Task InitializeOneAsync(IPlugin plugin, TimeSpan timeout, CancellationToken ct)
+    {
+        try
+        {
+            _logger.Information("Initializing plugin: {PluginName}", plugin.Name);
+            plugin.State = PluginState.Loading;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+
+            var init = Task.Run(() => plugin.InitializeAsync(cts.Token));
+            var finished = await Task.WhenAny(init, Task.Delay(timeout, cts.Token));
+
+            if (!ReferenceEquals(finished, init))
             {
+                // The plugin ignored its cancellation token (or app shutdown cancelled us).
+                // Observe any late failure so it does not surface as an unobserved task exception.
+                _ = init.ContinueWith(t => { _ = t.Exception; },
+                    CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+
+                if (ct.IsCancellationRequested)
+                {
+                    plugin.State = PluginState.Unavailable;
+                    return;
+                }
+
                 plugin.State = PluginState.Error;
-                _logger.Error(ex, "Failed to initialize plugin: {PluginName}", plugin.Name);
+                _logger.Warning("Plugin {PluginName} did not finish initializing within {Seconds:F1}s; continuing without it",
+                    plugin.Name, timeout.TotalSeconds);
+                return;
             }
+
+            var success = await init;
+            cts.Cancel();   // releases the timeout timer
+            plugin.State = success ? PluginState.Available : PluginState.Error;
+
+            if (!success)
+                _logger.Information("Plugin {Name} initialized without optional configuration - its features stay off until configured", plugin.Name);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // The plugin honoured the timeout token.
+            plugin.State = PluginState.Error;
+            _logger.Warning("Plugin {PluginName} did not finish initializing within {Seconds:F1}s; continuing without it",
+                plugin.Name, timeout.TotalSeconds);
+        }
+        catch (OperationCanceledException)
+        {
+            plugin.State = PluginState.Unavailable;
+        }
+        catch (Exception ex)
+        {
+            plugin.State = PluginState.Error;
+            _logger.Error(ex, "Failed to initialize plugin: {PluginName}", plugin.Name);
         }
     }
 

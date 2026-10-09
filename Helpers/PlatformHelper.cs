@@ -65,27 +65,13 @@ public static class PlatformHelper
     /// <summary>
     /// Resolves the directory containing LibVLC native libraries (libvlc.dll).
     /// Required for LibVLCSharp.Core.Initialize() on Windows.
-    /// Returns null on Linux/Mac (LibVLCSharp finds it automatically there).
+    /// Returns null on Linux/Mac (LibVLCSharp finds it automatically there), and on Windows when no
+    /// folder passes the checks in <see cref="VlcLocator"/> (then LibVLCSharp is left to find its own copy).
+    /// The answer is looked up once and cached; call <see cref="VlcLocator.Invalidate"/> after installing VLC.
     /// </summary>
     public static string? ResolveVlcDirectory()
     {
         if (!NullWavePaths.IsWindows) return null;
-
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-
-        var candidates = new[]
-        {
-            Path.Combine(programFiles, "VideoLAN", "VLC"),
-            Path.Combine(programFilesX86, "VideoLAN", "VLC")
-        };
-
-        foreach (var dir in candidates)
-        {
-            if (Directory.Exists(dir) && File.Exists(Path.Combine(dir, "libvlc.dll")))
-                return dir;
-        }
-
-        return null;
+        return VlcLocator.Current.Directory;
     }
 }

@@ -35,7 +35,6 @@ NullWave uses the following third-party libraries and tools. We are grateful for
 - **Open-Meteo API**
 - **MusicBrainz / Cover Art Archive**
 
-
 ## Bundled artwork
 
 - **The Starry Night** (1889) — Vincent van Gogh. Public domain worldwide.

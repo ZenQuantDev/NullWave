@@ -25,7 +25,7 @@ public partial class MainViewModel
     private void InitializeServices()
     {
         _identity = new IdentityService(_keyStore);
-        _prefsService = new PreferencesService();
+        _prefsService = PreferencesService.Shared;
         _effectsTier = new EffectsTierResolver(_prefsService);
         _effectsTier.PropertyChanged += (_, args) =>
         {
@@ -127,6 +127,7 @@ public partial class MainViewModel
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
+
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);
         Queue = new QueueViewModel(_library);
 
@@ -178,12 +179,9 @@ public partial class MainViewModel
         Profile.PlayTrackByIdRequested += id =>
         {
             var t = _library.GetAll().FirstOrDefault(t => t.Id == id);
-            if (t != null) Player.PlayTrack(t);
+            if (t != null && Player != null) Player.PlayTrack(t);
         };
 
-        Queue.PlayTrackRequested += Player.PlayTrack;
-        RadioLibrary.PlayTrackRequested += Player.PlayTrack;
-        AudiobookLibrary.PlayTrackRequested += Player.PlayTrack;
         RadioLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
         AudiobookLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
         Playlist.TrackDetailRequested += track => Detail.OpenFor(track); // Wire playlist row clicks
@@ -208,7 +206,7 @@ public partial class MainViewModel
 
         Playlist.PinRequested += p => Nav.PinPlaylist(p.Id, p.Name);
         Playlist.UnpinRequested += p => Nav.UnpinPlaylist(p.Id);
-        Playlist.PlayAllRequested += playlist => { if (playlist?.Tracks.Count > 0) Player.PlayPlaylist(playlist); };
+        Playlist.PlayAllRequested += playlist => { if (playlist?.Tracks.Count > 0 && Player != null) Player.PlayPlaylist(playlist); };
         Playlist.PlaylistsChanged += () => Nav.Rebuild();
         Playlist.AttachNavigation(Nav);
         
@@ -226,15 +224,8 @@ public partial class MainViewModel
 
         Library.NavigateToLibraryRequested += () => CurrentPage = "Library";
         Library.TrackDetailRequested += track => Detail.OpenFor(track);
-        Library.PlayTrackRequested += Player.PlayTrack;
         Import.ImportCompleted += () => { Library.Refresh(); Library.RefreshArtistGroups(); };
         Input.TrackMetadataUpdated += Library.Refresh;
-
-        Player.PlaySelectedTrackRequested += () =>
-        {
-            if (Library.SelectedTrack != null) Player.PlayTrack(Library.SelectedTrack);
-            else if (Library.Tracks.Count > 0) Player.PlayTrack(Library.Tracks[0]);
-        };
 
         Settings.SeedLibraryRequested += count =>
         {
@@ -389,14 +380,6 @@ public partial class MainViewModel
             Dispatcher.UIThread.Post(() => Library.Refresh());
         };
 
-        Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
-        {
-            if (!Settings.ScrobbleToLastFm) return;
-            if (_plugins.Get<LastFmMetadataProvider>() is not { } lastFmProvider || !lastFmProvider.IsConfiguredForScrobbling) return;
-            if (!await lastFmProvider.ScrobbleAsync(title, artist, playedAt))
-                ToastService.Instance.Show($"Scrobble failed for '{title}'.", ToastType.Warning, scope: "scrobble");
-        };
-
         Settings.LastFmConnectRequested += async () =>
         {
             try
@@ -512,7 +495,6 @@ public partial class MainViewModel
 
         Settings.MaxConcurrentDownloadsChanged += limit => _downloadService.UpdateConcurrencyLimit(limit);
         _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
-        Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
 
         _enrichment.BackfillCompleted += () =>
         {

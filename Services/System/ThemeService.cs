@@ -111,7 +111,7 @@ public partial class ThemeService : ObservableObject
         ["ColorPlayerIcon"]    = "#A8B4CC",
         ["ColorTextPrimary"]   = "#F0F0F0",
         ["ColorTextSecondary"] = "#9BA3AF",
-        ["ColorTextMuted"]     = "#5C6470",
+        ["ColorTextMuted"]     = "#7A8599",  
         ["ColorStarOn"]        = "#F59E0B",
         ["ColorStarOff"]       = "#4B5563",
         ["ColorAmberDark"]     = "#D97706",

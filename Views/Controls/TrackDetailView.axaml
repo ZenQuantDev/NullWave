@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:converters="using:NullWave.Helpers.Converters"
+        xmlns:services="using:NullWave.Services"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:loc="using:NullWave.Helpers.Localization"
         xmlns:attached="using:NullWave.Helpers.Attached"
@@ -11,11 +12,8 @@
         BorderThickness="1,0,0,0"
         ClipToBounds="True">
     <Border.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
-        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
     </Border.Resources>
-    <!-- LOCAL STYLE OVERRIDES: Boost section-label contrast within this inspector. -->
     <Border.Styles>
         <Style Selector="TextBlock.section-label">
             <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
@@ -23,10 +21,6 @@
         </Style>
     </Border.Styles>
     <Grid RowDefinitions="Auto,Auto,*">
-            <!-- ROW 0: Adaptive art header. Backdrop = 24px decode upscaled to fill the
-             full width (reads as a soft blur, kills the mat-bar look for square art).
-             Foreground = centered square card, UniformToFill crops any residual
-             baked bars. Works for square, 4:3 and 16:9 sources alike. -->
         <Border Grid.Row="0" Height="{DynamicResource DetailArtHeight}"
                 Background="{StaticResource BrushSurface2}"
                 ClipToBounds="True">
@@ -60,7 +54,6 @@
             </Panel>
         </Border>
         
-        <!-- ROW 1: Fixed Header -->
         <StackPanel Grid.Row="1" Spacing="0" Margin="16,16,16,0">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0"
@@ -79,21 +72,19 @@
             <Separator Background="{StaticResource BrushBorder}" Margin="0,12,0,0"/>
         </StackPanel>
         
-        <!-- ROW 2: Scrollable Content Area -->
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16" Margin="16,12,16,20">
-                <!-- Title -->
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Title}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditTitle, Mode=TwoWay}"/>
                 </StackPanel>
-                <!-- Artist -->
                 <StackPanel Spacing="5">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Artist}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditArtist, Mode=TwoWay}"/>
                 </StackPanel>
+                
                 <!-- Source + Favorite -->
                 <Grid ColumnDefinitions="*,Auto" Margin="0,0,12,0">
                     <StackPanel Grid.Column="0" Spacing="6">
@@ -102,12 +93,21 @@
                                 Padding="10,4"
                                 HorizontalAlignment="Left">
                             <Border.Background>
-                                <SolidColorBrush Color="{Binding Detail.DisplaySource, Converter={StaticResource SourceToBg}}"/>
+                                <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Bg">
+                                    <Binding Path="Detail.DisplaySource"/>
+                                    <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                </MultiBinding>
                             </Border.Background>
                             <TextBlock Text="{Binding Detail.DisplaySource}"
-                                       Foreground="White"
                                        FontSize="{DynamicResource FontSizeXs}"
-                                       FontWeight="SemiBold"/>
+                                       FontWeight="SemiBold">
+                                <TextBlock.Foreground>
+                                    <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Fg">
+                                        <Binding Path="Detail.DisplaySource"/>
+                                        <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                    </MultiBinding>
+                                </TextBlock.Foreground>
+                            </TextBlock>
                         </Border>
                     </StackPanel>
                     <Button Grid.Column="1"
@@ -122,7 +122,6 @@
                     </Button>
                 </Grid>
                 
-                <!-- Stats (FIX: Added ColumnSpacing="12" to prevent header collision) -->
                 <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Spacing="4">
                         <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Plays}" Margin="0"/>
@@ -147,7 +146,6 @@
                     </StackPanel>
                 </Grid>
                 
-                <!-- Date added -->
                 <StackPanel Spacing="4">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_DateAdded}" Margin="0"/>
                     <TextBlock Text="{Binding Detail.DisplayDateAdded}"
@@ -155,7 +153,6 @@
                                FontSize="{DynamicResource FontSizeBody}"/>
                 </StackPanel>
                 
-                <!-- URL / Path: monospace code-chip with inline copy button -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_UrlPath}" Margin="0"/>
                     <Border Background="{StaticResource BrushSurface2}"
@@ -183,7 +180,6 @@
                         </Grid>
                     </Border>
                     
-                    <!-- Action Buttons: Relink + Share Link -->
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                         <Button Classes="ghost"
                                 Content="{loc:Loc Detail_Button_Relink}"
@@ -206,11 +202,11 @@
                 
                 <StackPanel Spacing="12">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_ArtistInfo}" Margin="0"/>
-                    <!-- Spotify-style Artist Hero -->
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
                         <Border Width="100" Height="100" CornerRadius="50" ClipToBounds="True" Background="{StaticResource BrushSurface2}">
                             <Panel>
-                                <Image Source="{Binding Detail.ArtistImagePath, Converter={StaticResource PathToBitmap}}"
+                                    <Image attached:AsyncImage.SourcePath="{Binding Detail.ArtistImagePath}"
+                                        attached:AsyncImage.DecodeWidth="128"
                                        Stretch="UniformToFill"
                                        IsVisible="{Binding Detail.ArtistImagePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                 <material:MaterialIcon Kind="AccountMusic"
@@ -228,7 +224,6 @@
                                    TextTrimming="CharacterEllipsis"
                                    MaxWidth="280"/>
                     </StackPanel>
-                    <!-- Bio Card -->
                     <Border Background="{StaticResource BrushSurface2}"
                             BorderBrush="{StaticResource BrushBorder}"
                             BorderThickness="1"
@@ -259,7 +254,6 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
-                    <!-- Similar Artists -->
                     <StackPanel Spacing="8" IsVisible="{Binding Detail.HasSimilarArtists}">
                         <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_FansAlsoLike}" Margin="0"/>
                         <ItemsControl ItemsSource="{Binding Detail.SimilarArtists}">
@@ -288,7 +282,6 @@
                     </StackPanel>
                 </StackPanel>
                 <Separator Background="{StaticResource BrushBorder}"/>
-                <!-- Tags -->
                 <StackPanel Spacing="8">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Tags}" Margin="0"/>
                     <ItemsControl ItemsSource="{Binding Detail.Tags}">
@@ -352,7 +345,6 @@
                     </Grid>
                 </StackPanel>
                 <Separator Background="{StaticResource BrushBorder}"/>
-                <!-- Notes -->
                 <StackPanel Spacing="6">
                     <TextBlock Classes="section-label" Text="{loc:Loc Detail_Section_Notes}" Margin="0"/>
                     <TextBox Text="{Binding Detail.EditNotes, Mode=TwoWay}"
@@ -360,7 +352,6 @@
                              AcceptsReturn="True"
                              Height="80"/>
                 </StackPanel>
-                <!-- Save -->
                 <Button Classes="primary"
                         Content="{loc:Loc Detail_Button_Save}"
                         Command="{Binding Detail.SaveCommand}"

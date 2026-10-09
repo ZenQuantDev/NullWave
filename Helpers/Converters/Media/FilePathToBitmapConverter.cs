@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.IO;
 using Avalonia;
 using Avalonia.Data.Converters;
 
@@ -13,9 +12,9 @@ public class FilePathToBitmapConverter : IValueConverter
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not string path || string.IsNullOrEmpty(path) || !File.Exists(path))
-            return null;
-        return BitmapCacheService.DecodeSync(path, DecodeWidth);
+        return value is string path && !string.IsNullOrEmpty(path)
+            ? BitmapCacheService.TryGet(path, DecodeWidth)
+            : null;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

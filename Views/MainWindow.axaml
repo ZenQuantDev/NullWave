@@ -160,15 +160,11 @@
                     </Grid>
                 </Grid>
 
-                <!-- RIGHT: Detail / Queue Panel.
-                     RESTORED SLIDE: DoubleTransition on Width (the supported transition type;
-                     Avalonia ships no GridLength transition). The inner Panel is pinned at 320px
-                     and right-aligned so content lays out ONCE and is revealed by the clipping
-                     host - no text re-wrap mid-animation. -->
+                <!-- RIGHT: Detail / Queue Panel. -->
                 <Border Grid.Column="2"
                         Width="{Binding ActiveRightPanelWidth}"
                         ClipToBounds="True"
-                    Classes="chrome">
+                        Classes="chrome">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Width" Duration="0:0:0.22" Easing="CubicEaseOut"/>

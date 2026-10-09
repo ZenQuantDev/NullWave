@@ -4,13 +4,14 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services.Metadata;
 
 public partial class YouTubeMetadataFetcher
 {
-    private readonly HttpClient _http = new();
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
     private readonly string _apiKey;
 
     public YouTubeMetadataFetcher(string apiKey) { _apiKey = apiKey; }
@@ -48,7 +49,9 @@ public partial class YouTubeMetadataFetcher
         try
         {
             var requestUrl = $"https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id={id}&key={_apiKey}";
-            var response = await _http.GetAsync(requestUrl);
+            using var response = await CircuitBreakerRegistry.Get("YouTube Data API").ExecuteHttpAsync(() => _http.GetAsync(requestUrl));
+            if (response == null)
+                return ("Unknown Title", "Unknown Artist", thumbnailPath, TimeSpan.Zero);
             if (!response.IsSuccessStatusCode)
             {
                 Log.Warning("YouTube API returned {StatusCode} for {Url}", response.StatusCode, url);

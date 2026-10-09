@@ -32,7 +32,7 @@ public static class ProfileCardExporter
             if (file == null) return null;
 
             await using var stream = await file.OpenWriteAsync();
-            rtb.Save(stream);
+            rtb.Save(stream, PngBitmapEncoderOptions.Default);
             return file.Path.LocalPath;
         }
         catch (Exception ex)

@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
@@ -24,7 +25,6 @@ namespace NullWave.ViewModels;
 public partial class MainViewModel : ViewModelBase
 {
     // --- Fields & Services ---
-    // FIX: Removed 'readonly' from fields initialized in MainViewModel.Integration.cs
     private readonly KeyStoreService _keyStore = new();
     private SecureDeleteService _secureDelete = null!;
     private ConfigService _config = null!;
@@ -34,7 +34,9 @@ public partial class MainViewModel : ViewModelBase
     private MetadataService _metadata = null!;
     private readonly UrlParserService _urlParser = new();
     private readonly ExportService _export = new();
-    private readonly PlaybackService _playbackService = new();
+
+    private readonly PlaybackService _playbackService = new();   // cheap: LibVLC starts later
+
     private DownloadService _downloadService = null!;
     private SpotifyBridgeService _spotifyBridge = null!;
     private PreferencesService _prefsService = null!;
@@ -46,7 +48,7 @@ public partial class MainViewModel : ViewModelBase
     private EffectsTierResolver _effectsTier = null!;
     private PluginManager _plugins = null!;
     private IdentityService _identity = null!;
-    
+
     private PlaylistFolder? _aiPlaylistsFolder;
     private string? _pendingLastFmToken;
     private LastFmAuthService? _pendingLastFmAuth;
@@ -129,15 +131,15 @@ public partial class MainViewModel : ViewModelBase
 
     public int ActiveTrackCount => ActiveLibraryVM.Tracks.Count;
     public Array ToolbarSortOptions => CurrentPage == "Playlists" ? Playlist.SortOptions : ActiveLibraryVM.SortOptions;
-    
+
     public SortField ToolbarCurrentSort
     {
         get => CurrentPage == "Playlists" ? Playlist.CurrentSort : ActiveLibraryVM.CurrentSort;
         set { if (CurrentPage == "Playlists") Playlist.CurrentSort = value; else ActiveLibraryVM.CurrentSort = value; }
     }
-    
+
     public bool ToolbarSortAscending => CurrentPage == "Playlists" ? Playlist.SortAscending : ActiveLibraryVM.SortAscending;
-    
+
     public ICommand ToolbarToggleSortDirectionCommand =>
         CurrentPage == "Playlists" ? Playlist.ToggleSortDirectionCommand : ActiveLibraryVM.ToggleSortDirectionCommand;
 
@@ -191,18 +193,49 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         InitializeServices();
+        StartupTimeline.Mark("Services built");
         InitializeChildViewModels();
+        StartupTimeline.Mark("Child view models built");
         InitializeCommands();
         WireCoreEvents();
         WireMaintenanceEvents();
         WireIntegrationEvents();
         WireAIAndPowerEvents();
-        
+        WirePlayerEvents();
+
         Nav.SetActivePage(CurrentPage);
         Library.RefreshArtistGroups();
         CurrentPage = "Library";
-        
+
+        StartupTimeline.Mark("ViewModel constructed");
         _ = RunStartupDiagnosticsAsync();
+        Dispatcher.UIThread.Post(() => _ = _playbackService.WarmUpAsync(), DispatcherPriority.Background);
+    }
+
+    /// <summary>Immediate-eval player subscriptions. Lambdas that only touch Player when
+    /// invoked may stay in their original wire methods; these dereference Player at wire time.</summary>
+    private void WirePlayerEvents()
+    {
+        Library.PlayTrackRequested += Player.PlayTrack;
+        RadioLibrary.PlayTrackRequested += Player.PlayTrack;
+        AudiobookLibrary.PlayTrackRequested += Player.PlayTrack;
+        Queue.PlayTrackRequested += Player.PlayTrack;
+
+        Player.PlaySelectedTrackRequested += () =>
+        {
+            if (Library.SelectedTrack != null) Player.PlayTrack(Library.SelectedTrack);
+            else if (Library.Tracks.Count > 0) Player.PlayTrack(Library.Tracks[0]);
+        };
+
+        Player.TrackScrobbleRequested += async (title, artist, playedAt) =>
+        {
+            if (!Settings.ScrobbleToLastFm) return;
+            if (_plugins.Get<LastFmMetadataProvider>() is not { } lastFmProvider || !lastFmProvider.IsConfiguredForScrobbling) return;
+            if (!await lastFmProvider.ScrobbleAsync(title, artist, playedAt))
+                ToastService.Instance.Show($"Scrobble failed for '{title}'.", ToastType.Warning, scope: "scrobble");
+        };
+
+        Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
     }
 
     public void DisposePowerState() => _powerState.Dispose();
@@ -221,6 +254,8 @@ public partial class MainViewModel : ViewModelBase
             var diag = new StartupDiagnosticsService(_keyStore, _library);
             await diag.RunAsync();
             await _plugins.InitializeAllAsync();
+            StartupTimeline.Mark("Plugins initialized");
+            StartupTimeline.LogSummary();
         }
         catch (Exception ex) { NullActionLogger.Error(nameof(MainViewModel), ex, "Startup diagnostics failed"); }
     }

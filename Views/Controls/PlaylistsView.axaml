@@ -9,7 +9,6 @@
            x:Class="NullWave.Views.Controls.PlaylistsView"
            x:DataType="vm:MainViewModel">
     <DockPanel.Resources>
-        <converters:FilePathToBitmapConverter x:Key="PathToBitmap"/>
         <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
         <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>

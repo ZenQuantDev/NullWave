@@ -118,7 +118,7 @@ public partial class MainViewModel
 
     private void PlayPlaylist(Playlist? playlist)
     {
-        if (playlist == null || playlist.Tracks.Count == 0) return;
+        if (playlist == null || playlist.Tracks.Count == 0 || Player == null) return;
         Player.PlayPlaylist(playlist);
     }
 
@@ -183,6 +183,7 @@ public partial class MainViewModel
 
     private void ToggleDetail()
     {
+        if (Player == null) return;
         if (Detail.IsOpen) Detail.IsOpen = false;
         else if (Player.CurrentTrack != null) Detail.OpenFor(Player.CurrentTrack);
     }
