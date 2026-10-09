@@ -3,7 +3,7 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.3] - 05-Oct-2026 🚀 "Responsiveness"
+## [0.6.3] - 09-Oct-2026 🚀 "Responsiveness"
 
 ### Added
 
