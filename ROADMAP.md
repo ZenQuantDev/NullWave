@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 05-Oct-2026
+> Last updated: 09-Oct-2026
 
 ---
 
