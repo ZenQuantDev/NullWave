@@ -1,15 +1,8 @@
-name: Security & CI
-on:
-  push:
-    branches: [ main, 'v0.6.*' ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * 1' # Weekly security scan
-
 jobs:
   build-and-test:
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Setup .NET
