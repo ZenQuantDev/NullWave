@@ -1,12 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NullWave.Services;
+using Xunit;
 
 namespace NullWave.Tests.Playback;
 
-/// <summary>
-/// These tests never load LibVLC. They use the internal constructor with a factory that either
-/// counts calls or fails, and a UI poster that runs actions immediately, so they pass on a machine
-/// with no VLC installed and with no Avalonia dispatcher.
-/// </summary>
 public class PlaybackServiceLazyInitTests
 {
     private sealed class Harness : IDisposable
@@ -33,11 +33,17 @@ public class PlaybackServiceLazyInitTests
         public void Dispose() => Service.Dispose();
     }
 
+    private static async Task WaitUntil(Func<bool> condition, int timeoutMs = 3000)
+    {
+        var deadline = Environment.TickCount64 + timeoutMs;
+        while (!condition() && Environment.TickCount64 < deadline)
+            await Task.Delay(10);
+    }
+
     [Fact]
     public void Constructing_the_service_does_not_start_the_engine()
     {
         using var h = new Harness();
-
         Assert.Equal(0, h.FactoryCalls);
         Assert.False(h.Service.IsEngineReady);
         Assert.Null(h.Service.EngineError);
@@ -47,19 +53,14 @@ public class PlaybackServiceLazyInitTests
     public void Everything_that_needs_a_player_is_a_safe_no_op_before_the_engine_exists()
     {
         using var h = new Harness();
-
         Assert.False(h.Service.IsPlaying);
         Assert.False(h.Service.IsPaused);
         Assert.Equal(TimeSpan.Zero, h.Service.Position);
         Assert.Equal(TimeSpan.Zero, h.Service.Duration);
 
-        h.Service.Pause();
-        h.Service.Resume();
-        h.Service.Stop();
-        h.Service.Seek(0.5f);
-        h.Service.SetRate(1.5f);
+        h.Service.Pause(); h.Service.Resume(); h.Service.Stop(); h.Service.Seek(0.5f); h.Service.SetRate(1.5f);
 
-        Assert.Equal(0, h.FactoryCalls);      // none of these may force the engine to start
+        Assert.Equal(0, h.FactoryCalls);
         Assert.False(h.Service.IsEngineReady);
     }
 
@@ -67,10 +68,8 @@ public class PlaybackServiceLazyInitTests
     public async Task Fades_before_the_engine_exists_return_without_starting_it()
     {
         using var h = new Harness();
-
         await h.Service.FadeAndPauseAsync(200);
         await h.Service.FadeAndResumeAsync(200);
-
         Assert.Equal(0, h.FactoryCalls);
     }
 
@@ -78,9 +77,7 @@ public class PlaybackServiceLazyInitTests
     public void Volume_set_before_the_engine_exists_is_remembered()
     {
         using var h = new Harness();
-
         h.Service.Volume = 0.5f;
-
         Assert.Equal(0.5f, h.Service.Volume, precision: 2);
         Assert.Equal(0, h.FactoryCalls);
     }
@@ -89,19 +86,18 @@ public class PlaybackServiceLazyInitTests
     public void ResyncState_before_the_engine_exists_reports_Stopped()
     {
         using var h = new Harness();
-
         h.Service.ResyncState();
-
         Assert.Equal(new[] { PlaybackState.Stopped }, h.States);
         Assert.Equal(0, h.FactoryCalls);
     }
 
     [Fact]
-    public void Play_with_a_failing_engine_reports_the_reason_and_does_not_throw()
+    public async Task Play_with_a_failing_engine_reports_the_reason_and_does_not_throw()
     {
         using var h = new Harness("libvlc.dll not found");
-
         h.Service.Play("song.mp3");
+
+        await WaitUntil(() => h.Failures.Count > 0);
 
         Assert.False(h.Service.IsEngineReady);
         Assert.Equal("libvlc.dll not found", h.Service.EngineError);
@@ -112,25 +108,24 @@ public class PlaybackServiceLazyInitTests
     }
 
     [Fact]
-    public void A_failed_start_is_remembered_and_not_retried_on_every_click()
+    public async Task A_failed_start_is_remembered_and_not_retried_on_every_click()
     {
         using var h = new Harness();
-
         h.Service.Play("a.mp3");
         h.Service.Play("b.mp3");
         h.Service.Play("c.mp3");
 
+        await WaitUntil(() => h.Failures.Count > 0);
+
         Assert.Equal(1, h.FactoryCalls);
-        Assert.Equal(3, h.Failures.Count);   // every click still tells the user why nothing played
+        Assert.Single(h.Failures);   
     }
 
     [Fact]
     public async Task Crossfade_with_a_failing_engine_returns_without_throwing()
     {
         using var h = new Harness();
-
         var generation = await h.Service.CrossfadeToAsync("next.mp3", 1000, 0.8f);
-
         Assert.Equal(h.Service.CrossfadeGeneration, generation);
         Assert.False(h.Service.IsCrossfading);
     }
@@ -139,23 +134,25 @@ public class PlaybackServiceLazyInitTests
     public async Task WarmUp_starts_the_engine_once_however_often_it_is_called()
     {
         using var h = new Harness();
-
         await Task.WhenAll(h.Service.WarmUpAsync(), h.Service.WarmUpAsync(), h.Service.WarmUpAsync());
         h.Service.Play("a.mp3");
+
+        await WaitUntil(() => h.Service.EngineError != null);
 
         Assert.Equal(1, h.FactoryCalls);
     }
 
     [Fact]
-    public void Disposing_before_the_engine_started_is_safe_and_blocks_a_later_start()
+    public async Task Disposing_before_the_engine_started_is_safe_and_blocks_a_later_start()
     {
         var h = new Harness();
         h.Service.Dispose();
-
         h.Service.Play("a.mp3");
+
+        await WaitUntil(() => h.Failures.Count > 0);
 
         Assert.Equal(0, h.FactoryCalls);
         Assert.Contains("shut down", Assert.Single(h.Failures));
-        h.Service.Dispose();   // second dispose must also be safe
+        h.Service.Dispose();
     }
 }

@@ -22,10 +22,100 @@ if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 New-Item -ItemType Directory -Path $publishDir | Out-Null
 
 $releasesDir = "./releases"
-if (-not (Test-Path $releasesDir)) { New-Item -ItemType Directory -Path $releasesDir | Out-Null }
+if (Test-Path $releasesDir) { Remove-Item $releasesDir -Recurse -Force }
+New-Item -ItemType Directory -Path $releasesDir | Out-Null
 
 function Get-DirSizeMB($p) { 
     [math]::Round((Get-ChildItem $p -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1) 
+}
+
+function Prune-VlcPlugins {
+    param([string]$WinX64)
+    if ($env:NULLWAVE_VLC_PRUNE -eq "off") {
+        Write-Host "   VLC plugin pruning DISABLED (NULLWAVE_VLC_PRUNE=off)" -ForegroundColor DarkGray
+        return
+    }
+    $plugins = Join-Path $WinX64 "plugins"
+    if (-not (Test-Path $plugins)) { return }
+
+    $beforeMb   = Get-DirSizeMB $WinX64
+    $beforeDlls = (Get-ChildItem $plugins -Recurse -Filter *.dll).Count
+
+    # 1. Folders an audio-only player can never load (video/subtitle/OSD/streaming-out/lua).
+    $dropFolders = @(
+        "lua", "hrtfs",
+        "plugins\lua", "plugins\keystore", "plugins\meta_engine",
+        "plugins\visualization", "plugins\services_discovery",
+        "plugins\video_chroma", "plugins\video_filter", "plugins\video_output", "plugins\video_splitter",
+        "plugins\spu", "plugins\text_renderer",
+        "plugins\stream_out", "plugins\stream_extractor", "plugins\mux", "plugins\access_output",
+        "plugins\d3d9", "plugins\d3d11"
+    )
+    foreach ($rel in $dropFolders) {
+        $p = Join-Path $WinX64 $rel
+        if (Test-Path $p) { Remove-Item $p -Recurse -Force }
+    }
+
+    # 2. Import libraries are build-time only; the runtime never maps them.
+    Get-ChildItem $WinX64 -Filter *.lib -File | Remove-Item -Force
+
+    # 3. Whitelist per folder: keep only what audio playback can actually reach.
+    $keep = @{
+        "access" = @(
+            "libfilesystem_plugin.dll", "libhttp_plugin.dll", "libhttps_plugin.dll",
+            "libtcp_plugin.dll", "libudp_plugin.dll", "libimem_plugin.dll",
+            "libattachment_plugin.dll", "libconcat_plugin.dll" )
+        "demux" = @(
+            "libadaptive_plugin.dll", "libmp4_plugin.dll", "libogg_plugin.dll", "libflacsys_plugin.dll",
+            "libwav_plugin.dll", "libes_plugin.dll", "libplaylist_plugin.dll", "libasf_plugin.dll",
+            "libaiff_plugin.dll", "libau_plugin.dll", "libcaf_plugin.dll", "libtta_plugin.dll",
+            "libvoc_plugin.dll", "libxa_plugin.dll" )
+        "codec" = @(
+            "libavcodec_plugin.dll", "libmpg123_plugin.dll", "libflac_plugin.dll", "libopus_plugin.dll",
+            "libvorbis_plugin.dll", "libspeex_plugin.dll", "libg711_plugin.dll", "liblpcm_plugin.dll",
+            "libaraw_plugin.dll", "libadpcm_plugin.dll", "libmft_plugin.dll", "libdmo_plugin.dll",
+            "libspdif_plugin.dll", "libddummy_plugin.dll" )
+        "audio_filter" = @(
+            "libaudio_format_plugin.dll", "libscaletempo_plugin.dll", "libscaletempo_pitch_plugin.dll",
+            "libequalizer_plugin.dll", "libgain_plugin.dll", "libnormvol_plugin.dll",
+            "libspeex_resampler_plugin.dll", "libugly_resampler_plugin.dll",
+            "libtrivial_channel_mixer_plugin.dll", "libsimple_channel_mixer_plugin.dll" )
+        "audio_mixer"  = @( "libfloat_mixer_plugin.dll", "libinteger_mixer_plugin.dll" )
+        "audio_output" = @(
+            "libdirectsound_plugin.dll", "libmmdevice_plugin.dll", "libwasapi_plugin.dll", "libwaveout_plugin.dll", "libadummy_plugin.dll" )
+        "misc"          = @( "libxml_plugin.dll", "libgnutls_plugin.dll" )
+        "stream_filter" = @(
+            "libcache_read_plugin.dll", "libcache_block_plugin.dll", "libprefetch_plugin.dll",
+            "libinflate_plugin.dll", "libskiptags_plugin.dll" )
+        "packetizer" = @(
+            "libpacketizer_mpegaudio_plugin.dll", "libpacketizer_mpeg4audio_plugin.dll",
+            "libpacketizer_flac_plugin.dll", "libpacketizer_copy_plugin.dll" )
+    }
+    foreach ($folder in $keep.Keys) {
+        $dir = Join-Path $plugins $folder
+        if (-not (Test-Path $dir)) { continue }
+        Get-ChildItem $dir -File | Where-Object { $_.Name -notin $keep[$folder] } | Remove-Item -Force
+    }
+
+    # 4. Fail the build loudly if a playback-critical file vanished (whitelist typo guard).
+    $mustSurvive = @(
+        "libvlc.dll", "libvlccore.dll",
+        "plugins\access\libhttp_plugin.dll", "plugins\access\libfilesystem_plugin.dll",
+        "plugins\demux\libes_plugin.dll", "plugins\demux\libmp4_plugin.dll", "plugins\demux\libadaptive_plugin.dll",
+        "plugins\codec\libmpg123_plugin.dll", "plugins\codec\libavcodec_plugin.dll",
+        "plugins\audio_filter\libaudio_format_plugin.dll",
+        "plugins\audio_output\libmmdevice_plugin.dll",
+        "plugins\audio_mixer\libfloat_mixer_plugin.dll"
+    )
+    foreach ($rel in $mustSurvive) {
+        if (-not (Test-Path (Join-Path $WinX64 $rel))) {
+            Write-Error "VLC prune removed a playback-critical file: $rel"
+        }
+    }
+
+    $afterMb   = Get-DirSizeMB $WinX64
+    $afterDlls = (Get-ChildItem $plugins -Recurse -Filter *.dll).Count
+    Write-Host ("   VLC pruned: {0} -> {1} plugin dlls | {2} MB -> {3} MB" -f $beforeDlls, $afterDlls, $beforeMb, $afterMb) -ForegroundColor DarkGray
 }
 
 function Trim-Publish($dir) {
@@ -37,6 +127,9 @@ function Trim-Publish($dir) {
             Write-Host "   Removing LibVLC $($_.Name)" -ForegroundColor DarkGray
             Remove-Item $_.FullName -Recurse -Force
         }
+        
+        # CALL THE PRUNER HERE!
+        Prune-VlcPlugins (Join-Path $vlc "win-x64")
     }
     
     $rt = Join-Path $dir "runtimes"

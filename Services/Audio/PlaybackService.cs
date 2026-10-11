@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using Serilog;
 
 namespace NullWave.Services;
@@ -20,7 +21,6 @@ public class PlaybackService : IDisposable
     private MediaPlayer _playerB = null!;
     private MediaPlayer _activePlayer = null!;
     private MediaPlayer _standbyPlayer = null!;
-
     private readonly Func<NativeEngine> _engineFactory;
     private readonly Action<Action> _uiPost;
     private readonly object _initLock = new();
@@ -28,11 +28,10 @@ public class PlaybackService : IDisposable
     private string? _engineError;          // guarded by _initLock
     private float? _pendingRate;           // guarded by _initLock; applied when the engine comes up
     private int _warmUpStarted;
-
+    private string? _deferredPlayPath;
     private readonly object _standbyLock = new();
     private Media? _currentMedia;
     private bool _disposed;                // guarded by _initLock
-
     private CancellationTokenSource? _fadeCts;
     private CancellationTokenSource? _crossfadeCts;
     private volatile bool _isCrossfading;
@@ -43,6 +42,7 @@ public class PlaybackService : IDisposable
 
     public int CrossfadeGeneration => Volatile.Read(ref _crossfadeGeneration);
     public bool IsCrossfading => _isCrossfading;
+    public bool PausePending => _pausePending;
 
     /// <summary>True once LibVLC and both players exist.</summary>
     public bool IsEngineReady => _ready;
@@ -78,9 +78,7 @@ public class PlaybackService : IDisposable
         {
             _targetVolume = (int)Math.Clamp(value * 100, 0, 100);
             if (!_ready) return;     // applied by Play(), which always sets the volume before starting
-
             _activePlayer.Volume = _targetVolume;
-
             if (_isCrossfading)
             {
                 lock (_standbyLock)
@@ -92,7 +90,6 @@ public class PlaybackService : IDisposable
     }
 
     private MediaPlayer PositionSource => _isCrossfading ? _standbyPlayer : _activePlayer;
-
     public TimeSpan Position => _ready ? TimeSpan.FromMilliseconds(PositionSource.Time) : TimeSpan.Zero;
     public TimeSpan Duration => _ready ? TimeSpan.FromMilliseconds(PositionSource.Length) : TimeSpan.Zero;
 
@@ -157,12 +154,10 @@ public class PlaybackService : IDisposable
     private bool EnsureReady()
     {
         if (_ready) return true;
-
         lock (_initLock)
         {
             if (_ready) return true;
             if (_disposed || _engineError != null) return false;
-
             try
             {
                 var engine = _engineFactory();
@@ -199,7 +194,6 @@ public class PlaybackService : IDisposable
         {
             detail = _disposed ? "the audio service was shut down" : _engineError ?? "VLC could not be loaded";
         }
-
         var message = $"Audio engine unavailable: {detail}. Install VLC, then restart NullWave.";
         Log.Warning("[PlaybackService] Playback requested but the audio engine is unavailable: {Detail}", detail);
         _uiPost(() =>
@@ -221,9 +215,16 @@ public class PlaybackService : IDisposable
 
     private void OnPositionChanged(MediaPlayer player, MediaPlayerPositionChangedEventArgs e)
     {
-        bool isActive = ReferenceEquals(player, _activePlayer);
-        bool isIncomingDuringFade = _isCrossfading && ReferenceEquals(player, _standbyPlayer);
-        if (!isActive && !isIncomingDuringFade) return;
+        // During a fade only the incoming player's position is meaningful to the UI;
+        // forwarding the outgoing player's fraction too makes the seekbar oscillate.
+        if (_isCrossfading)
+        {
+            if (!ReferenceEquals(player, _standbyPlayer)) return;
+        }
+        else
+        {
+            if (!ReferenceEquals(player, _activePlayer)) return;
+        }
         _uiPost(() => PositionChanged?.Invoke(e.Position));
     }
 
@@ -235,7 +236,7 @@ public class PlaybackService : IDisposable
             if (!isActive) return;
             if (_pausePending)
             {
-                player.Pause();
+                player.SetPause(true);
                 return;
             }
             if (!_isCrossfading)
@@ -282,23 +283,39 @@ public class PlaybackService : IDisposable
 
     public void Play(string path)
     {
-        if (!EnsureReady())
+        if (!_ready)
         {
-            ReportEngineUnavailable();
+            // Engine still starting: never wait on the init lock from the UI thread.
+            // Remember the latest request and start it once the engine is up.
+            Volatile.Write(ref _deferredPlayPath, path);
+            _ = Task.Run(() =>
+            {
+                var ok = EnsureReady();
+                _uiPost(() =>
+                {
+                    var pending = Interlocked.Exchange(ref _deferredPlayPath, null);
+                    if (pending == null) return;      // a newer request already ran
+                    if (ok) Play(pending); else ReportEngineUnavailable();
+                });
+            });
             return;
         }
 
         try
         {
+            var t = new StepTimer("PlaybackService.Play");
             var playRequest = Interlocked.Increment(ref _playRequestGeneration);
             AbortCrossfade();
             _pausePending = false;
-
             _fadeCts?.Cancel();
+            t.Step("abort");
 
             _activePlayer.Stop();
+            t.Step("stop");
+
             _currentMedia?.Dispose();
             _currentMedia = null;
+            t.Step("disposeMedia");
 
             _icyTimer?.Dispose();
             _icyTimer = null;
@@ -307,12 +324,15 @@ public class PlaybackService : IDisposable
 
             var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                         path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-
             _currentMedia = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
+            t.Step("newMedia");
 
             _activePlayer.Media = _currentMedia;
             _activePlayer.Volume = _targetVolume;
             _activePlayer.Play();
+            t.Step("play");
+            t.Done();
+
             Log.Information("Playback started: {Path}", path);
 
             _ = Task.Run(async () =>
@@ -343,11 +363,9 @@ public class PlaybackService : IDisposable
                     try
                     {
                         if (_currentMedia == null) return;
-
                         var nowPlaying = _currentMedia.Meta(MetadataType.NowPlaying);
                         var titleMeta = _currentMedia.Meta(MetadataType.Title);
                         var artistMeta = _currentMedia.Meta(MetadataType.Artist);
-
                         var title = nowPlaying ?? titleMeta ?? string.Empty;
                         var artist = artistMeta ?? string.Empty;
 
@@ -381,7 +399,6 @@ public class PlaybackService : IDisposable
     public void Pause()
     {
         if (!_ready) return;
-
         _pausePending = true;
         _fadeCts?.Cancel();
 
@@ -391,20 +408,17 @@ public class PlaybackService : IDisposable
             _crossfadeCts?.Dispose();
             _crossfadeCts = null;
             _isCrossfading = false;
-
+            Interlocked.Increment(ref _crossfadeGeneration);   // Invalidate any in-flight fade task
             lock (_standbyLock)
             {
                 var incoming = _standbyPlayer;
                 var outgoing = _activePlayer;
-
                 _activePlayer = incoming;
                 _standbyPlayer = outgoing;
                 _currentMedia = incoming.Media;
-
                 try { outgoing.Stop(); } catch { }
-
                 incoming.Volume = _targetVolume;
-                incoming.Pause();
+                incoming.SetPause(true);
             }
             Log.Debug("Crossfade aborted and paused");
             return;
@@ -412,7 +426,7 @@ public class PlaybackService : IDisposable
 
         if (_activePlayer.Media != null)
         {
-            _activePlayer.Pause();
+            _activePlayer.SetPause(true);
             Log.Debug("Playback paused");
         }
     }
@@ -420,7 +434,6 @@ public class PlaybackService : IDisposable
     public void Resume()
     {
         if (!_ready) return;
-
         _pausePending = false;
         if (!_activePlayer.IsPlaying && _activePlayer.Media != null)
         {
@@ -434,7 +447,6 @@ public class PlaybackService : IDisposable
     public void Stop()
     {
         if (!_ready) return;
-
         Interlocked.Increment(ref _playRequestGeneration);
         _fadeCts?.Cancel();
         _pausePending = false;
@@ -451,6 +463,7 @@ public class PlaybackService : IDisposable
         _crossfadeCts?.Dispose();
         _crossfadeCts = null;
         _isCrossfading = false;
+        Interlocked.Increment(ref _crossfadeGeneration);   // Invalidate any in-flight fade task
         lock (_standbyLock)
         {
             try { _standbyPlayer.Stop(); _standbyPlayer.Volume = 0; } catch { }
@@ -473,7 +486,6 @@ public class PlaybackService : IDisposable
                 return;
             }
         }
-
         try { _activePlayer.SetRate(rate); } catch { /* ignore native teardown */ }
     }
 
@@ -494,7 +506,6 @@ public class PlaybackService : IDisposable
     public async Task FadeAndPauseAsync(int durationMs)
     {
         if (!_ready) return;
-
         _pausePending = true;
 
         if (_isCrossfading)
@@ -503,33 +514,30 @@ public class PlaybackService : IDisposable
             _crossfadeCts?.Dispose();
             _crossfadeCts = null;
             _isCrossfading = false;
-
+            Interlocked.Increment(ref _crossfadeGeneration);   // Invalidate any in-flight fade task
             lock (_standbyLock)
             {
                 var incoming = _standbyPlayer;
                 var outgoing = _activePlayer;
-
                 _activePlayer = incoming;
                 _standbyPlayer = outgoing;
                 _currentMedia = incoming.Media;
-
                 try { outgoing.Stop(); } catch { }
-
                 incoming.Volume = _targetVolume;
             }
         }
 
         _fadeCts?.Cancel();
-        _fadeCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();   // keep a local: _fadeCts may be replaced while we await
+        _fadeCts = cts;
 
         try
         {
             float currentFadeVolume = _activePlayer.Volume / 100f;
-            await FadeVolumeAsync(_activePlayer, currentFadeVolume, 0f, durationMs, _fadeCts.Token);
-
-            if (!_fadeCts.Token.IsCancellationRequested)
+            await FadeVolumeAsync(_activePlayer, currentFadeVolume, 0f, durationMs, cts.Token);
+            if (!cts.Token.IsCancellationRequested)
             {
-                _activePlayer.Pause();
+                _activePlayer.SetPause(true);
                 _activePlayer.Volume = _targetVolume;
             }
         }
@@ -539,18 +547,26 @@ public class PlaybackService : IDisposable
     public async Task FadeAndResumeAsync(int durationMs)
     {
         if (!_ready) return;
-
         _pausePending = false;
         _fadeCts?.Cancel();
-        _fadeCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _fadeCts = cts;
 
         try
         {
             float targetVolume = _targetVolume / 100f;
-            _activePlayer.Volume = 0;
-            _activePlayer.Play();
-
-            await FadeVolumeAsync(_activePlayer, 0f, targetVolume, durationMs, _fadeCts.Token);
+            float startVolume;
+            if (_activePlayer.IsPlaying)
+            {
+                startVolume = _activePlayer.Volume / 100f;   // resumed in the middle of a fade-out
+            }
+            else
+            {
+                startVolume = 0f;
+                _activePlayer.Volume = 0;
+                _activePlayer.Play();
+            }
+            await FadeVolumeAsync(_activePlayer, startVolume, targetVolume, durationMs, cts.Token);
         }
         catch (OperationCanceledException) { }
     }
@@ -571,7 +587,6 @@ public class PlaybackService : IDisposable
 
         AbortCrossfade();
         int generation = Interlocked.Increment(ref _crossfadeGeneration);
-
         MediaPlayer incoming;
         lock (_standbyLock)
         {
@@ -595,7 +610,6 @@ public class PlaybackService : IDisposable
 
             var fadeOutTask = FadeVolumeAsync(outgoing, outgoing.Volume / 100f, 0f, durationMs, ct);
             var fadeInTask = FadeVolumeAsync(incoming, 0f, targetVolume, durationMs, ct);
-
             await Task.WhenAll(fadeOutTask, fadeInTask);
 
             var promoted = false;
@@ -667,15 +681,11 @@ public class PlaybackService : IDisposable
         for (int i = 1; i <= steps; i++)
         {
             if (ct.IsCancellationRequested) return;
-
             float progress = (float)i / steps;
             float ease = (float)Math.Pow(progress, 2);
             float current = start + (end - start) * ease;
-
             await Task.Delay(stepDelay, ct);
-
             if (ct.IsCancellationRequested) return;
-
             p.Volume = (int)Math.Clamp(current * 100, 0, 100);
         }
 
@@ -707,6 +717,7 @@ public class PlaybackService : IDisposable
             _playerA.Media?.Dispose();
         if (!ReferenceEquals(_playerB.Media, _currentMedia))
             _playerB.Media?.Dispose();
+
         _playerA.Dispose();
         _playerB.Dispose();
         _libVlc.Dispose();
