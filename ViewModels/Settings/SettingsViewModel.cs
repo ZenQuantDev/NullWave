@@ -77,7 +77,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _lastFmState = LastFmConnectionState.Connected;
         }
 
-        DetectHardware();
+        _ = DetectHardwareAsync();
         _ = ProbeOllamaOnStartupAsync();
         StartAIHealthCheck();
         
@@ -189,6 +189,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnSelectedLanguageChanged(string value)
     {
         LocalizationService.Instance.SetLanguage(value);
+        OnPropertyChanged(nameof(GalleryItems));
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
     }
 
@@ -228,6 +229,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action<int>? MaxConcurrentDownloadsChanged;
     public event Action<string, string, bool>? PowerModelsChanged;
     public event Action<bool>? AIFeaturesEnabledChanged;
+    public event Action<EffectsTier?>? DevEffectsTierOverrideChanged;
+    public event Action? EffectsTierPreferencesChanged;
     public event Action? RepairPathsRequested;
     public event Action? ReimportAssetsRequested;
     public event Action? ForceMetaResyncRequested;
@@ -237,6 +240,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ClearYtDlpCacheRequested;
     public event Action<bool>? SweepOrphanedFilesRequested;
     public event Action? VacuumDatabaseRequested;
+    public event Action? RebuildSearchIndexRequested;
     public event Action? VerifyLinksRequested;
     public event Action? ForceCleanTitlesRequested;
     public event Action? MergeSimilarArtistsRequested;

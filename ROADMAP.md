@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 02-Oct-2026
+> Last updated: 11-Oct-2026
 
 ---
 
@@ -18,18 +18,18 @@
 
 ## Release Plan
 
-| Version     | Codename / Focus       | Key Deliverables                                                                                                                               |
-| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v0.5.1**  | Stability              | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                            |
-| **v0.5.2**  | QoL & Polish           | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                      |
-| **v0.6.0**  | "Oxeye Daisy"          | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish. |
-| **v0.6.1**  | "Stability & Safety"   | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
-| **v0.6.2**  | Correctness            | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                           |
-| **v0.6.3**  | Responsiveness         | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                            |
-| **v0.6.4**  | Discover & Reset       | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                   |
-| **v0.6.5**  | Premium & Performance  | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                               |
-| **v0.6.6**  | Launch Readiness       | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                         |
-| **v0.7.0+** | Ecosystem              | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                            |
+| Version     | Codename / Focus      | Key Deliverables                                                                                                                                       |
+| ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **v0.5.1**  | Stability             | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                    |
+| **v0.5.2**  | QoL & Polish          | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
+| **v0.6.0**  | "Oxeye Daisy"         | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
+| **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
+| **v0.6.2**  | Correctness           | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                                   |
+| **v0.6.3**  | Responsiveness        | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                                    |
+| **v0.6.4**  | Discover & Reset      | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                           |
+| **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
+| **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
+| **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
 ---
 
@@ -122,9 +122,9 @@
 
 **Remaining:**
 
-- 📋 Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
+- ✅ Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
 - 📋 `OpacityTransition` on menu bar show/hide (150ms fade)
-- 📋 Profile edit UI (inline in sidebar or dedicated Settings tab)
+- ✅ Profile edit UI (inline in sidebar or dedicated Settings tab)
 - ✅ `AppearanceTab` - accent color, row style, font scale, sidebar width, compact mode
 - ✅ `PreferencesService` - auto-saves all General + Appearance settings to `~/.nullwave/prefs.json`
 - ✅ Wire appearance settings to actual UI (live accent color, row height, font scale, sidebar width, density)
@@ -148,25 +148,25 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ Startup backfill for existing tracks missing thumbnails
 - ✅ `AlbumArtService` - unified art fetching with priority chain (YouTube → SoundCloud → Last.fm → Placeholder)
 - ✅ `TrackTitleParser` - shared helper to clean messy YouTube titles for accurate Last.fm queries
-- 📋 Cache key: `SHA256(Artist + Album)` truncated to 16 chars (currently uses URL/ID hashing)
-- 📋 Fallback: `Assets/placeholder-art.png`
+- ✅ Cache key: `SHA256(Artist + Album)` truncated to 16 chars (currently uses URL/ID hashing)
+- ✅ Fallback: `Assets/placeholder-art.png`
 
 ### 6.2 Blur Background Effect
 
-- 📋 `BlurredArtBackground.axaml` - reusable UserControl: `IBitmap?` in, blurred+darkened surface out
+- 🔄 `BlurredArtBackground.axaml` - reusable UserControl: `IBitmap?` in, blurred+darkened surface out
 - 📋 Letterbox-crop YouTube thumbnails before caching (prototype `LetterboxCropper` drafted, not shipped)
 
 ### 6.3 Now Playing Left Panel
 
-- 📋 `NowPlayingPanelView.axaml` - album art (240×240), title, artist, like/more buttons, Last.fm bio, tag chips
-- 📋 `NowPlayingPanelViewModel` - binds to `PlayerViewModel.CurrentTrack`, loads art + bio async
+- ✅ `NowPlayingPanelView.axaml` - album art (240×240), title, artist, like/more buttons, Last.fm bio, tag chips
+- ✅ `NowPlayingPanelViewModel` - binds to `PlayerViewModel.CurrentTrack`, loads art + bio async
 - 📋 Replaces or sits alongside `TrackDetailView` (decision pending)
 
 ### 6.4 Now Playing Bar
 
 - ✅ "Now Playing" accent bar indicator on track rows via `TrackIdEqualsConverter` (persists across filtered views)
 - 📋 Full-width progress bar as accent underline beneath player bar
-- 📋 Tinted/dim source badges + offline indicator restyle
+- ✅ Tinted/dim source badges + offline indicator restyle
 - ✅ Art thumbnail in `MiniPlayerView` wired to `AlbumArtPath`
 
 ---
@@ -178,31 +178,31 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ### 7.1 Custom Windows
 
-- 💡 `AboutWindow.axaml` - version, build date, GitHub link, license
-- 💡 `UpdateWindow.axaml` - GitHub Releases API check, current vs latest, download button
-- 💡 `SettingsWindow.axaml` - dedicated window with tabs: General, API Keys, Profile, Advanced
+- ✅ `AboutWindow.axaml` - version, build date, GitHub link, license
+- ✅ `UpdateWindow.axaml` - GitHub Releases API check, current vs latest, download button
+- ✅ `SettingsWindow.axaml` - dedicated window with tabs: General, API Keys, Profile, Advanced
 
 ### 7.2 UI Wiring Audit
 
-- 💡 Audit all `Button`, `MenuItem`, `MenuFlyout` items - confirm every Command is wired
-- 💡 Implement: Queue track, Add to playlist, Open file location, Copy track info, clipboard support
-- 💡 Wire "About NullWave" → `AboutWindow`; "Check for updates" → `UpdateWindow`
+- 🔄 Audit all `Button`, `MenuItem`, `MenuFlyout` items - confirm every Command is wired
+- ✅ Implement: Queue track, Add to playlist, Open file location, Copy track info, clipboard support
+- ✅ Wire "About NullWave" → `AboutWindow`; "Check for updates" → `UpdateWindow`
 
 ### 7.3 Code Splitting
 
-- 💡 `MetadataService` → `YouTubeMetadataFetcher`, `LastFmMetadataFetcher`, `LocalMetadataFetcher`
+- ✅ `MetadataService` → `YouTubeMetadataFetcher`, `LastFmMetadataFetcher`, `LocalMetadataFetcher`
 - 💡 `TrackSource` enum → `Models/TrackSource.cs`
 - 💡 `Converters/` folder for all `IValueConverter` implementations
-- 💡 File size limit: no file > 400 lines
+- 🔄 File size limit: no file > 400 lines
 
 ### 7.4 Additional Features
 
-- 💡 Playlist CRUD - create, rename, delete; drag tracks into playlists
+- ✅ Playlist CRUD - create, rename, delete; drag tracks into playlists
 - ✅ Queue system - play next, play later
 - ✅ Last.fm scrobble (track > 50% played)
-- 💡 Theme switcher - light / dark / accent color picker
-- 💡 Global keyboard shortcuts - play/pause, next/prev, search focus
-- 💡 Export playlist (M3U format)
+- ✅ Theme switcher - light / dark / accent color picker
+- ✅ Global keyboard shortcuts - play/pause, next/prev, search focus
+- 🔄 Export playlist (M3U format)
 - ✅ SQLite database persistence - `DatabaseService` + `TrackRecord`, fully wired into `LibraryService`
 
 ---
@@ -236,7 +236,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ `NullWaveLogConfig` - Default vs Advanced/Verbose logging modes, live-switchable.
 - ✅ `PlaybackService.CrossfadeToAsync` / `OnPlaying` - fixed the "silent playback" bug and event-handler attach order.
 - ✅ `LocalAIService.RankTracksForMoodAsync` - fixed silent fallbacks and HTTP IO exceptions.
-- 💡 `TitleSanitizer.cs` and `TrackTitleParser.cs` - candidate for consolidation under Phase 7.3 Code Splitting.
+- ✅ `TitleSanitizer.cs` and `TrackTitleParser.cs` - candidate for consolidation under Phase 7.3 Code Splitting.
 
 ### 9.1b Confirmed bugs (17-Jul-2026 session)
 
@@ -344,7 +344,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 ### 10.7 Naming & branding (low-effort, parallel-track)
 
 - 📋 Expand `9.3 Component naming reference` into a living glossary as new components are built in this phase (e.g. `NavItem`, `QueueViewModel`) - keep names canonical from day one instead of a future audit
-- 💡 Adopt flower codenames for major releases alongside semver (e.g. `0.5.0 "Blue Orchid"`), similar in spirit to Android's dessert-name convention - cosmetic, no functional dependency on anything else in this phase, can start whenever
+- ✅ Adopt flower codenames for major releases alongside semver (e.g. `0.5.0 "Blue Orchid"`), similar in spirit to Android's dessert-name convention - cosmetic, no functional dependency on anything else in this phase, can start whenever
 
 ---
 
@@ -477,7 +477,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ **Unified `ProcessRunner` (P9)**: Replace 6+ fragmented `Process.Start` calls (yt-dlp, aria2c, nvidia-smi, hardware detection) with a single, robust helper that reads stdout/stderr concurrently (preventing deadlocks), supports timeouts, and tree-kills on cancel.
 - ✅ **In-App Log Viewer (Help Tab)**: Bind the existing `InAppLogSink` to a UI with text/level filters and a "Copy Diagnostics" button (crucial for handling bug reports from early Reddit users).
 - ✅ **"What's New" Screen**: Render the latest `CHANGELOG.md` section as a markdown popup on first launch after an update.
-- ✅ **UI & Startup Polish (Bugs 0-2, 5)**: 
+- ✅ **UI & Startup Polish (Bugs 0-2, 5)**:
     - Fixed VLC console popup on Windows by reading PE header instead of shelling out (Bug 0).
     - Fixed sidebar drag-arming swallowing clicks on action buttons and removed duplicate persist calls (Bug 1).
     - Fixed Settings header text clipping by adding `TextTrimming` (Bug 2).
@@ -485,16 +485,15 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 - ✅ **P2P Sharing Foundation**: Introduced `nullwave://` URI scheme generation and smart cross-pollination routing for misplaced paste operations.
 - ✅ **Custom WaveSeekBar**: Replaced standard MiniPlayer slider with a custom OneUI/Material You-style animated wave seek bar (filled shapes, flat bottom, 3-layer organic waves via AM/FM modulation).
 
-
 ---
 
-## Phase 19 - v0.6.3 "Responsiveness & First Run" 📋
+## Phase 19 - v0.6.3 "Responsiveness & First Run" ✅
 
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
-- 📋 **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
-- 📋 **Library Performance (P5, P6)**: Replace `GetAll()` list copying with immutable snapshot + `Dictionary<Guid, Track>`, move `BackfillAlbumArt` TagLib I/O outside the lock, throttle position text updates.
-- 📋 **First-Run Friction (P7, P8)**: Improve `PlatformHelper` VLC registry lookup, add onboarding dependency check with friendly messages, implement keyless fallbacks (Open-Meteo, MusicBrainz).
+- ✅ **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits (weights < 50% of RAM), add AVX/AVX2 gate, fix Windows AC power detection.
+- ✅ **Library Performance (P5, P6)**: Added SQLite FTS5 global search, disk thumbnail sidecars, in-flight decode deduplication, and HiDPI-aware async image loading. `GetAll()` snapshot/dictionary refactoring, `BackfillAlbumArt` lock/I/O work, and playback text throttling remain open.
+- ✅ **First-Run Friction (P7, P8)**: Added VLC location probing, cached tool-version checks, post-first-frame audio initialization, and parallel plugin startup with per-plugin timeouts. Onboarding dependency checks and keyless API fallbacks (Open-Meteo, MusicBrainz) remain open.
 
 ---
 
@@ -511,8 +510,9 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 **Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
 
+- ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets, and live thumbnail shipped ahead of this phase. Wallpaper blur and album-art sync remain deferred; the old-laptop performance measurement and visual matrix remain open.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
-- 🔄 **Visual Audit**: Optimize blur, per-row shadows, and `FrameGlowConverter`; decode images at display size; confirm `TrackListView` virtualization.
+- 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, `FrameGlowConverter`, and the `TrackListView` virtualization audit remain open.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
 ---

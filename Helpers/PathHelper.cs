@@ -39,6 +39,12 @@ public static class PathHelper
         return absolutePath;
     }
 
+    /// <summary>
+    /// Turns a stored path back into a real one. A path stored with the data token must stay inside
+    /// the data folder: "&lt;NW_DATA&gt;/../../somewhere" (from a damaged or hand-edited database or a
+    /// shared profile) returns null instead of pointing at a file elsewhere on the disk.
+    /// Paths without the token are returned unchanged.
+    /// </summary>
     public static string? Resolve(string? storedPath)
     {
         if (string.IsNullOrWhiteSpace(storedPath)) return storedPath;
@@ -47,7 +53,11 @@ public static class PathHelper
         {
             string relative = storedPath.Substring(DataToken.Length).TrimStart('/');
             relative = relative.Replace('/', Path.DirectorySeparatorChar);
-            return Path.Combine(NullWavePaths.DataDir, relative);
+
+            var dataDir = Path.GetFullPath(NullWavePaths.DataDir);
+            var combined = Path.GetFullPath(Path.Combine(dataDir, relative));
+
+            return IsInside(combined, dataDir) ? combined : null;
         }
 
         return storedPath;

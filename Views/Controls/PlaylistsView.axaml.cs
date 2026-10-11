@@ -18,7 +18,7 @@ public partial class PlaylistsView : DockPanel
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is not ListBox list) return;
-        if (list.SelectedItems.Count != 1) return;
+        if (list.SelectedItems?.Count != 1) return;
         if (list.SelectedItem is not Track track) return;
         if (DataContext is not MainViewModel vm) return;
         vm.Playlist.OpenTrackDetail(track);

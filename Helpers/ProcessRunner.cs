@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -19,23 +21,25 @@ public static class ProcessRunner
 {
     /// <summary>
     /// The Workhorse. Safely captures all stdout/stderr to strings without deadlocking.
+    /// SECURITY: Uses ArgumentList to prevent command injection via shell metacharacters.
     /// </summary>
     public static async Task<ProcessResult> RunAsync(
         string executable,
-        string arguments = "",
+        IList<string> arguments,
         TimeSpan? timeout = null,
         CancellationToken ct = default,
         bool resolveViaPath = true)
     {
         var exePath = resolveViaPath ? PlatformHelper.ResolveExecutable(executable) : executable;
         
-        var psi = new ProcessStartInfo(exePath, arguments)
+        var psi = new ProcessStartInfo(exePath)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        foreach (var argument in arguments) psi.ArgumentList.Add(argument);
 
         var stdout = new StringBuilder();
         var stderr = new StringBuilder();
@@ -51,6 +55,11 @@ public static class ProcessRunner
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+        }
+        catch (Win32Exception wex) when (wex.NativeErrorCode is 2 or 3)
+        {
+            Log.Debug("[ProcessRunner] {Exe} not present on this machine", executable);
+            return new ProcessResult(-1, "", wex.Message, false, false);
         }
         catch (Exception ex)
         {
@@ -88,7 +97,7 @@ public static class ProcessRunner
     /// </summary>
     public static async Task<ProcessResult> RunWithStreamingAsync(
         string executable,
-        string arguments,
+        IList<string> arguments,
         Action<string>? onStdOutLine = null,
         Action<string>? onStdErrLine = null,
         TimeSpan? timeout = null,
@@ -97,13 +106,14 @@ public static class ProcessRunner
     {
         var exePath = resolveViaPath ? PlatformHelper.ResolveExecutable(executable) : executable;
         
-        var psi = new ProcessStartInfo(exePath, arguments)
+        var psi = new ProcessStartInfo(exePath)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        foreach (var argument in arguments) psi.ArgumentList.Add(argument);
 
         using var process = new Process { StartInfo = psi };
         
@@ -116,6 +126,11 @@ public static class ProcessRunner
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+        }
+        catch (Win32Exception wex) when (wex.NativeErrorCode is 2 or 3)
+        {
+            Log.Debug("[ProcessRunner] {Exe} not present on this machine", executable);
+            return new ProcessResult(-1, "", wex.Message, false, false);
         }
         catch (Exception ex)
         {
@@ -150,13 +165,13 @@ public static class ProcessRunner
     /// The Quick Check. Fire-and-forget, discards output, just checks exit code.
     /// </summary>
     public static async Task<bool> CheckExistsAsync(
-        string executable, 
-        string arguments = "--version", 
+        string executable,
+        IList<string>? arguments = null,
         int timeoutMs = 3000)
     {
         var result = await RunAsync(
             executable, 
-            arguments, 
+            arguments ?? new[] { "--version" },
             TimeSpan.FromMilliseconds(timeoutMs), 
             CancellationToken.None, 
             resolveViaPath: true);

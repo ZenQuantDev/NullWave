@@ -6,12 +6,18 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <Version>0.6.2</Version>
+    
+    <!-- Strip all localized NuGet resources except English and Russian -->
+    <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
+    
+    <Version>0.6.3</Version>
     <Company>ZenQuant</Company>
     <Product>NullWave</Product>
   </PropertyGroup>
   <ItemGroup>
-    <AvaloniaResource Include="Assets/Art/**" />
+    <AvaloniaResource Include="Assets/Art/oxeye_daisy_dark.png" />
+    <AvaloniaResource Include="Assets/Art/oxeye_daisy_light.png" />
+    <AvaloniaResource Include="Assets/Art/starry-night.jpg" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests/**" />
@@ -20,7 +26,7 @@
   <ItemGroup>
     <EmbeddedResource Include="CHANGELOG.md" />
   </ItemGroup>
-  <!-- NuGet packages -->
+    <!-- NuGet packages -->
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
@@ -35,10 +41,10 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" />
     <PackageReference Include="Material.Icons.Avalonia" />
     <PackageReference Include="QRCoder" />
+    <PackageReference Include="System.Drawing.Common" ExcludeAssets="all" PrivateAssets="all" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
-    <PackageReference Include="Serilog.Filters.Expressions" />
     <PackageReference Include="sqlite-net-pcl" />
     <PackageReference Include="SQLitePCLRaw.bundle_green" />
     <PackageReference Include="TagLibSharp" />

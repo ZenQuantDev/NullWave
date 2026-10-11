@@ -20,7 +20,7 @@ public class WeatherInfo
 
 public class WeatherService
 {
-    private readonly HttpClient _http = new();
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
     private readonly KeyStoreService _keyStore;
     private readonly string _cachePath;
     private WeatherInfo? _cachedWeather;
@@ -92,7 +92,8 @@ public class WeatherService
         try
         {
             var url = $"https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={apiKey}&units=metric";
-            var response = await _http.GetAsync(url);
+            using var response = await CircuitBreakerRegistry.Get("OpenWeather").ExecuteHttpAsync(() => _http.GetAsync(url));
+            if (response == null) return _cachedWeather;
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();

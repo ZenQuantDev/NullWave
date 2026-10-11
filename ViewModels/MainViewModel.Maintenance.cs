@@ -31,6 +31,19 @@ public partial class MainViewModel
             return () => Settings.ReportVacuumComplete(before, after);
         });
 
+        Settings.RebuildSearchIndexRequested += () => RunMaintenanceTask("RebuildSearchIndex", false, async () =>
+        {
+            try
+            {
+                await Task.Run(_library.RebuildFtsIndex);
+                return () => Settings.ReportSearchIndexRebuildComplete();
+            }
+            catch (Exception ex)
+            {
+                return () => Settings.ReportSearchIndexRebuildFailed(ex.Message);
+            }
+        });
+
         Settings.VerifyLinksRequested += () => RunMaintenanceTask("VerifyLinks", false, async () =>
         {
             var (checkedCount, mismatches) = await Task.Run(() => _library.VerifyLinks());

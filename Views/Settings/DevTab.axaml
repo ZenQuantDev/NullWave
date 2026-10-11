@@ -69,6 +69,25 @@
                 </StackPanel>
             </Border>
 
+            <!-- NETWORK CIRCUIT BREAKERS -->
+            <TextBlock Classes="section-label" Text="NETWORK CIRCUIT BREAKERS" Margin="0,16,0,12"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="External service circuit states. Open circuits temporarily skip requests until their cooldown expires."
+                                   TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}"
+                                   FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="Refresh"
+                                Command="{Binding RefreshCircuitBreakersCommand}"/>
+                    </Grid>
+                    <Border Background="{StaticResource BrushSurface}" CornerRadius="{StaticResource RadiusMd}" Padding="10,8">
+                        <TextBlock Text="{Binding CircuitBreakerStatus}" FontFamily="Consolas, monospace"
+                                   FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextSecondary}"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- LIBRARY STRESS -->
             <TextBlock Classes="section-label" Text="LIBRARY STRESS" Margin="0,16,0,12"/>
             <Border Classes="settings-card">
