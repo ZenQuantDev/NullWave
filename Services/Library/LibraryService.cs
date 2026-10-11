@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using NullWave.Helpers;
@@ -29,12 +30,13 @@ public partial class LibraryService : IDisposable
     private readonly List<QueueEntry> _queue = new();
     private readonly List<Track> _history = new();
 
+    private System.Threading.Timer? _changeTimer;
+    private int _changePending;
+
     public event EventHandler? LibraryChanged;
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
-    // FIX (C8): Added startBackgroundWork parameter so tests can instantiate the service
-    // without triggering background TagLib I/O and network calls.
     public LibraryService(DatabaseService db, MetadataService? metadata = null, PreferencesService? prefs = null, bool startBackgroundWork = true)
     {
         _db = db;
@@ -50,12 +52,9 @@ public partial class LibraryService : IDisposable
         _ = Task.Run(BackfillYouTubeThumbnails);
         _ = Task.Run(BackfillSoundCloudThumbnails);
         
-        // PERF: warm CPU decodes for the WHOLE library (not just 50), then force GPU
-        // texture uploads before the user scrolls. Decode width 40 must match the
-        // row Image's attached:AsyncImage.DecodeWidth so keys collide on purpose.
         _ = Task.Run(async () =>
         {
-            await Task.Delay(1500); // let the window finish its first paints
+            await Task.Delay(1500); 
 
             List<Track> targets;
             lock (_tracksLock)
@@ -121,7 +120,6 @@ public partial class LibraryService : IDisposable
 
         if (IsDuplicate(track)) return;
 
-        // FIX: Offload synchronous TagLib I/O to a background thread to prevent UI blocking during import
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
         {
             _ = Task.Run(async () =>
@@ -132,7 +130,7 @@ public partial class LibraryService : IDisposable
                     if (!string.IsNullOrEmpty(artPath))
                     {
                         track.AlbumArtPath = artPath;
-                        Update(track); // Safely updates the DB and UI
+                        Update(track); 
                     }
                 }
                 catch (Exception ex)
@@ -175,10 +173,7 @@ public partial class LibraryService : IDisposable
 
     public void Update(Track track)
     {
-        Task.Run(() => {
-            try { _db.Update(track); }
-            catch (Exception ex) { Log.Error(ex, "DB Update failed for {Title}", track.Title); }
-        });
+        _db.UpdateAsync(track);
 
         lock (_tracksLock)
         {
@@ -193,7 +188,7 @@ public partial class LibraryService : IDisposable
     {
         return Task.Run(() =>
         {
-            _db.Update(track);
+            _db.UpdateAsync(track);
             lock (_tracksLock)
             {
                 var idx = _tracks.FindIndex(t => t.Id == track.Id);
@@ -247,7 +242,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.IsFavorite = !track.IsFavorite;
-        _db.Update(track);
+        _db.UpdateAsync(track);
         StateVersion++;
     }
 
@@ -258,7 +253,7 @@ public partial class LibraryService : IDisposable
         if (track == null) return;
         track.PlayCount++;
         track.LastPlayed = DateTime.Now;
-        _db.Update(track);
+        _db.UpdateAsync(track);
         StateVersion++;
         _history.Add(track);
         if (_history.Count > 200) _history.RemoveAt(0);
@@ -274,7 +269,6 @@ public partial class LibraryService : IDisposable
              string.Equals(t.Title, newTrack.Title, StringComparison.OrdinalIgnoreCase) && string.Equals(t.Artist, newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
     }
 
-    // --- Queue Methods ---
     public IReadOnlyList<QueueEntry> GetQueue() => _queue.AsReadOnly();
     public void AddToQueue(Guid id)
     {
@@ -308,6 +302,20 @@ public partial class LibraryService : IDisposable
         QueueChanged?.Invoke(this, EventArgs.Empty); return true;
     }
 
-    public void Dispose() => _db.Dispose();
-    private void OnLibraryChanged() => LibraryChanged?.Invoke(this, EventArgs.Empty);
+    private void OnLibraryChanged()
+    {
+        if (Interlocked.Exchange(ref _changePending, 1) == 1) return;
+        _changeTimer ??= new System.Threading.Timer(_ =>
+        {
+            Interlocked.Exchange(ref _changePending, 0);
+            Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+        });
+        _changeTimer.Change(250, Timeout.Infinite);
+    }
+
+    public void Dispose() 
+    { 
+        _changeTimer?.Dispose(); 
+        _db.Dispose(); 
+    }
 }

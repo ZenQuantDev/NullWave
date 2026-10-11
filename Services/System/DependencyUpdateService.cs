@@ -115,16 +115,33 @@ public class DependencyUpdateService
             // NEVER run "vlc --version" on Windows: VLC opens its own console window, shows
             // "Press RETURN to continue..." and waits. Read the version from vlc.exe instead.
             var found = FindWindowsVlcVersion();
-            return found != null
-                ? new DependencyInfo
+            if (found != null)
+            {
+                return new DependencyInfo
                 {
                     Name = "VLC",
                     InstalledVersion = found,
                     LatestVersion = "Check videolan.org",
                     CanSelfUpdate = false,
                     IsInstalled = true
-                }
-                : new DependencyInfo { Name = "VLC", IsInstalled = false };
+                };
+            }
+
+            // Bundled LibVLC ships no vlc.exe; VlcLocator already validated its DLLs, plugins and CPU arch.
+            var resolution = VlcLocator.Current;
+            if (resolution.Chosen != null)
+            {
+                return new DependencyInfo
+                {
+                    Name = "VLC",
+                    InstalledVersion = $"bundled ({resolution.Chosen.Source})",
+                    LatestVersion = "Ships with NullWave",
+                    CanSelfUpdate = false,
+                    IsInstalled = true
+                };
+            }
+
+            return new DependencyInfo { Name = "VLC", IsInstalled = false };
         }
 
         // Linux / macOS: the command line is safe and is how VLC is normally found.

@@ -182,8 +182,19 @@ public partial class LibraryViewModel : ObservableObject
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     if (token.IsCancellationRequested) return;
+
+                    var list = results as IList<Track> ?? results.ToList();
+                    bool same = Tracks.Count == list.Count;
+                    for (int i = 0; same && i < list.Count; i++)
+                        same = ReferenceEquals(Tracks[i], list[i]);
+                    if (same)
+                    {
+                        OnPropertyChanged(nameof(ResultCountLabel));
+                        return;
+                    }
+
                     Guid? previousSelectedId = SelectedTrack?.Id;
-                    Tracks.ReplaceAll(results);
+                    Tracks.ReplaceAll(list);
                     OnPropertyChanged(nameof(ResultCountLabel));
 
                     if (previousSelectedId.HasValue)

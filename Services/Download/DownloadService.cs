@@ -58,8 +58,6 @@ public class DownloadService
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) AddJob();
         else
         {
-            // FIX: Headless test fallback. Modifying ObservableCollection from a background 
-            // thread throws in a live app, safely triggering Post(). In tests, it succeeds directly.
             try { AddJob(); }
             catch { Avalonia.Threading.Dispatcher.UIThread.Post(AddJob); }
         }
@@ -127,6 +125,10 @@ public class DownloadService
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
 
+    // 🧹 W9: Cached ffmpeg detection to conditionally enable post-processing
+    private static bool? _ffmpegAvailable;
+    private static readonly object _ffmpegLock = new();
+
     private volatile int _backoffMultiplier = 1;
     private volatile bool _rateLimitTriggered = false;
 
@@ -191,6 +193,41 @@ public class DownloadService
         }
     }
 
+    private static bool IsFfmpegAvailable()
+    {
+        if (_ffmpegAvailable.HasValue) return _ffmpegAvailable.Value;
+        lock (_ffmpegLock)
+        {
+            if (_ffmpegAvailable.HasValue) return _ffmpegAvailable.Value;
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = PlatformHelper.ResolveExecutable("ffmpeg"),
+                    Arguments = "-version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(2000);
+                _ffmpegAvailable = proc != null && proc.ExitCode == 0;
+            }
+            catch
+            {
+                _ffmpegAvailable = false;
+            }
+
+            if (!_ffmpegAvailable.Value)
+                Log.Information("[DownloadService] ffmpeg not found on PATH - downloading native audio streams without embedding metadata/thumbnails");
+            else
+                Log.Information("[DownloadService] ffmpeg detected - enabling metadata and thumbnail embedding");
+
+            return _ffmpegAvailable.Value;
+        }
+    }
+
     private void AppendSpeedAndAuthArgs(List<string> args)
     {
         if (_prefsService.Current.UseAria2c && IsAria2cAvailable())
@@ -219,7 +256,7 @@ public class DownloadService
     public async Task DownloadAsync(
         string trackId,
         string url,
-        string audioFormat = "mp3",
+        string audioFormat = "best",
         string audioQuality = "best",
         bool allowPlaylist = false,
         bool isInteractive = true,
@@ -259,14 +296,35 @@ public class DownloadService
             "best" => "0", "320"  => "0", "192"  => "2", "128"  => "4", "96"   => "6", _ => "0"
         };
 
+        // 🧹 W9: Removed hard dependency on Node.js (--js-runtimes) and ffmpeg (--extract-audio).
+        // Downloads the best native audio stream (m4a/opus) which LibVLC plays natively.
         var args = new List<string>
         {
-            url, "--extract-audio", "--audio-format", audioFormat, "--audio-quality", qualityValue,
-            "-f", "bestaudio/best", "--output", outputTemplate, "--print", "after_move:filepath",
-            "--ignore-errors", "--js-runtimes", "node", "--remote-components", "ejs:github",
-            "--embed-metadata", "--embed-thumbnail", "--write-thumbnail",
+            url, "-f", "bestaudio/best", "--output", outputTemplate, "--print", "after_move:filepath",
+            "--ignore-errors",
             "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
         };
+
+        // Conditionally enable post-processing only if ffmpeg is installed
+        if (IsFfmpegAvailable())
+        {
+            args.Add("--embed-metadata");
+            args.Add("--embed-thumbnail");
+            
+            // Only transcode if explicitly requested (e.g. "mp3") and ffmpeg is present
+            if (!string.Equals(audioFormat, "best", StringComparison.OrdinalIgnoreCase))
+            {
+                args.Add("--extract-audio");
+                args.Add("--audio-format");
+                args.Add(audioFormat);
+                args.Add("--audio-quality");
+                args.Add(qualityValue);
+            }
+        }
+        else
+        {
+            Log.Warning("[DownloadService] ffmpeg missing: skipping metadata/thumbnail embedding and audio transcoding.");
+        }
 
         AppendSpeedAndAuthArgs(args);
 
@@ -485,8 +543,7 @@ public class DownloadService
                     "--dump-json",
                     "--ignore-errors",
                     "--no-download",
-                    "--js-runtimes", "node",
-                    "--remote-components", "ejs:github",
+                    // 🧹 W9: Removed Node.js dependency
                     playlistUrl
                 },
                 RedirectStandardOutput = true,
@@ -665,7 +722,7 @@ public class DownloadService
                     DownloadCompleted += OnCompleted;
                     DownloadFailed    += OnFailed;
 
-                    await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "mp3", audioQuality: "best", 
+                    await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "best", audioQuality: "best", 
                                         allowPlaylist: false, isInteractive: false, 
                                         title: title, artist: artist, ct: ct);
 

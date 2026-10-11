@@ -95,22 +95,24 @@ public class StartupDiagnosticsService
 
     private static async Task<string?> GetVlcVersionAsync()
     {
-        // VLC on Windows allocates its own console when printing --version, producing a
-        // "Press RETURN to continue..." popup that also hangs startup until Enter is pressed.
-        // Read the version from the executable's file properties instead: same answer, no console.
+        // VLC on Windows allocates its own console when printing --version, so never run it.
+        // Read file properties instead. A bundled LibVLC has no vlc.exe, so fall back to libvlc.dll.
         if (NullWavePaths.IsWindows)
         {
-            var dir = PlatformHelper.ResolveVlcDirectory();
-            if (dir == null) return null;
+            var resolution = VlcLocator.Current;
+            if (resolution.Chosen == null) return null;
 
             try
             {
-                var info = FileVersionInfo.GetVersionInfo(Path.Combine(dir, "vlc.exe"));
-                return info.FileVersion ?? info.ProductVersion;
+                var exe = Path.Combine(resolution.Chosen.Directory, "vlc.exe");
+                var file = File.Exists(exe) ? exe : Path.Combine(resolution.Chosen.Directory, "libvlc.dll");
+                var info = FileVersionInfo.GetVersionInfo(file);
+                var version = info.FileVersion ?? info.ProductVersion ?? "unknown";
+                return $"{version} ({resolution.Chosen.Source})";
             }
             catch
             {
-                return null;
+                return resolution.Chosen.Source.ToString();
             }
         }
 
