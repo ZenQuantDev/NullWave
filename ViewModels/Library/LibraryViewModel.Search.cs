@@ -124,9 +124,17 @@ public partial class LibraryViewModel
         }
         FlushPending();
 
+        HashSet<Guid>? ftsMatches = null;
+        if (globalTerms.Count > 0)
+        {
+            ftsMatches = _library.SearchFts(string.Join(' ', globalTerms));
+            if (ftsMatches is { Count: 0 }) return Enumerable.Empty<Track>();
+        }
+
         return tracks.Where(t =>
         {
             if (!filters.All(f => f(t))) return false;
+            if (ftsMatches != null) return ftsMatches.Contains(t.Id);
             if (globalTerms.Count > 0) return globalTerms.Any(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
             return true;
         });

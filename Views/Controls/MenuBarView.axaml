@@ -4,7 +4,7 @@
       xmlns:loc="using:NullWave.Helpers.Localization"
       x:Class="NullWave.Views.Controls.MenuBarView"
       x:DataType="vm:MainViewModel"
-      Background="{StaticResource BrushSurface}"
+      Classes="chrome"
       Foreground="{StaticResource BrushTextSecondary}"
       FontSize="{DynamicResource FontSizeBase}"
       Padding="6,3">

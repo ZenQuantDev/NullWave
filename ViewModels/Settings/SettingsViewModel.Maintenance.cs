@@ -45,6 +45,7 @@ public partial class SettingsViewModel
     [RelayCommand] private void PreviewOrphanedFiles() { IsRepairing = true; SweepStatus = "Scanning for orphaned files..."; SweepOrphanedFilesRequested?.Invoke(true); }
     [RelayCommand] private void SweepOrphanedFiles() { IsRepairing = true; SweepStatus = "Deleting orphaned files..."; SweepOrphanedFilesRequested?.Invoke(false); }
     [RelayCommand] private void VacuumDatabase() { IsRepairing = true; VacuumStatus = "Optimizing database..."; VacuumDatabaseRequested?.Invoke(); }
+    [RelayCommand] private void RebuildSearchIndex() { IsRepairing = true; RebuildSearchIndexRequested?.Invoke(); }
     [RelayCommand] private void VerifyLinks() { IsRepairing = true; VerifyLinksStatus = "Checking file links against embedded metadata..."; VerifyLinksRequested?.Invoke(); }
     [RelayCommand] private void ForceCleanTitles() { IsRepairing = true; ForceCleanStatus = "Re-parsing track titles for embedded artist names..."; ForceCleanTitlesRequested?.Invoke(); }
     [RelayCommand] private void MergeSimilarArtists() => MergeSimilarArtistsRequested?.Invoke();
@@ -74,6 +75,17 @@ public partial class SettingsViewModel
         var saved = beforeKB - afterKB;
         VacuumStatus = saved > 0 ? $"✓ Optimized: {beforeKB}KB → {afterKB}KB ({saved}KB reclaimed)" : $"✓ Database already optimal ({afterKB}KB)";
         ToastService.Instance.Show(VacuumStatus, ToastType.Success, scope: "maintenance");
+    }
+    public void ReportSearchIndexRebuildComplete()
+    {
+        IsRepairing = false;
+        ToastService.Instance.Show("Search index rebuilt successfully.", ToastType.Success, scope: "maintenance");
+    }
+    public void ReportSearchIndexRebuildFailed(string reason)
+    {
+        IsRepairing = false;
+        Log.Error("[Settings] Search index rebuild failed: {Reason}", reason);
+        ToastService.Instance.Show("Search index rebuild failed.", ToastType.Error, scope: "maintenance");
     }
     public void ReportVerifyLinksComplete(int checkedCount, int mismatchCount)
     {

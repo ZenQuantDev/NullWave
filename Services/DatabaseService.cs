@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
@@ -16,7 +18,15 @@ public class DatabaseService : IDisposable
     private readonly SQLiteConnection _db;
     private readonly PreferencesService? _prefs;
     private bool _disposed;
+    private bool _ftsAvailable;
     public string DbPath { get; }
+
+    private readonly object _dbLock = new();
+    private readonly object _writeLock = new();
+    private readonly Dictionary<Guid, Track> _pendingWrites = new();
+    private readonly Channel<Guid> _writeSignal = Channel.CreateUnbounded<Guid>(
+        new UnboundedChannelOptions { SingleReader = true });
+    private Task? _writerTask;
 
     public DatabaseService(PreferencesService? prefs = null)
     {
@@ -24,22 +34,16 @@ public class DatabaseService : IDisposable
         var path = NullWavePaths.DatabasePath;
         DbPath = path;
 
-        // Ensure the target directory exists before any file operations
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        // 0. Apply pending restore (if user clicked "Restore" in UI and restarted)
         ApplyPendingRestore(path);
-
-        // 1. Safety Net: Migrate from legacy path if current DB is missing
         MigrateLegacyDatabaseIfNeeded(path);
-
-        // 2. Time Machine: Create a rolling backup before opening/migrating
         CreateRollingBackupIfNeeded(path);
 
         _db = new SQLiteConnection(path);
 
-        // FIX: Use ExecuteScalar instead of Execute because this PRAGMA returns a row ("wal")
         _db.ExecuteScalar<string>("PRAGMA journal_mode=WAL;");
+        _db.Execute("PRAGMA synchronous=NORMAL;");
 
         _db.CreateTable<TrackRecord>();
         _db.CreateTable<PlaylistRecord>();
@@ -47,8 +51,196 @@ public class DatabaseService : IDisposable
         _db.CreateTable<PlaylistFolderRecord>();
 
         MigrateSchema();
+        EnsureFts5Index();
 
         Log.Information("[DatabaseService] Opened DB at {Path} with WAL mode enabled", path);
+        
+        _writerTask = Task.Run(WriterLoop);
+    }
+
+    public void UpdateAsync(Track track)
+    {
+        bool signal;
+        lock (_writeLock)
+        {
+            signal = !_pendingWrites.ContainsKey(track.Id);
+            _pendingWrites[track.Id] = track;
+        }
+        if (signal) _writeSignal.Writer.TryWrite(track.Id);
+    }
+
+    private async Task WriterLoop()
+    {
+        await foreach (var id in _writeSignal.Reader.ReadAllAsync())
+        {
+            lock (_dbLock)
+            {
+                Track? track;
+                lock (_writeLock) _pendingWrites.Remove(id, out track);
+                if (track == null) continue;
+                try { SaveTrackRecord(TrackRecord.FromTrack(track)); }
+                catch (Exception ex) { Log.Error(ex, "[DatabaseService] Queued write failed for {Id}", id); }
+            }
+        }
+    }
+
+    public void FlushWrites()
+    {
+        while (true)
+        {
+            lock (_writeLock) { if (_pendingWrites.Count == 0) break; }
+            Thread.Sleep(5);
+        }
+        lock (_dbLock) { }
+    }
+
+    private void EnsureFts5Index()
+    {
+        lock (_dbLock)
+        {
+            try
+            {
+                var exists = _db.ExecuteScalar<int>(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='TracksFts';") > 0;
+
+                _db.RunInTransaction(() =>
+                {
+                    CreateFtsTableIfMissing();
+                    CreateFtsTriggers();
+                    if (!exists) BackfillFtsIndex();
+                });
+
+                _ftsAvailable = true;
+                if (!exists) Log.Information("[DatabaseService] FTS5 search index created and backfilled");
+            }
+            catch (Exception ex)
+            {
+                _ftsAvailable = false;
+                Log.Warning(ex, "[DatabaseService] FTS5 index initialization failed; search will use in-memory matching");
+            }
+        }
+    }
+
+    private void CreateFtsTableIfMissing()
+    {
+        _db.Execute(@"
+            CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(
+                Title,
+                Artist,
+                Album,
+                TagsRaw,
+                content='Tracks',
+                content_rowid='rowid'
+            );");
+    }
+
+    private void CreateFtsTriggers()
+    {
+        _db.Execute(@"
+            CREATE TRIGGER IF NOT EXISTS TracksFts_Insert AFTER INSERT ON Tracks BEGIN
+                INSERT INTO TracksFts (rowid, Title, Artist, Album, TagsRaw)
+                VALUES (new.rowid, new.Title, new.Artist, new.Album, new.TagsRaw);
+            END;");
+
+        _db.Execute(@"
+            CREATE TRIGGER IF NOT EXISTS TracksFts_Update AFTER UPDATE ON Tracks BEGIN
+                INSERT INTO TracksFts (TracksFts, rowid, Title, Artist, Album, TagsRaw)
+                VALUES ('delete', old.rowid, old.Title, old.Artist, old.Album, old.TagsRaw);
+                INSERT INTO TracksFts (rowid, Title, Artist, Album, TagsRaw)
+                VALUES (new.rowid, new.Title, new.Artist, new.Album, new.TagsRaw);
+            END;");
+
+        _db.Execute(@"
+            CREATE TRIGGER IF NOT EXISTS TracksFts_Delete AFTER DELETE ON Tracks BEGIN
+                INSERT INTO TracksFts (TracksFts, rowid, Title, Artist, Album, TagsRaw)
+                VALUES ('delete', old.rowid, old.Title, old.Artist, old.Album, old.TagsRaw);
+            END;");
+    }
+
+    private void BackfillFtsIndex()
+    {
+        _db.Execute(@"
+            INSERT INTO TracksFts (TracksFts) VALUES ('rebuild');");
+    }
+
+    private sealed class FtsResult
+    {
+        public string Id { get; set; } = string.Empty;
+    }
+
+    public bool HasFtsIndex()
+    {
+        lock (_dbLock)
+        {
+            return _db.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='TracksFts';") > 0;
+        }
+    }
+
+    public HashSet<Guid>? SearchFts(string query)
+    {
+        if (!_ftsAvailable) return null;
+        var matchQuery = BuildFtsQuery(query);
+        if (string.IsNullOrEmpty(matchQuery)) return null;
+
+        lock (_dbLock)
+        {
+            try
+            {
+                var results = _db.Query<FtsResult>(@"
+                    SELECT Tracks.Id AS Id
+                    FROM TracksFts
+                    JOIN Tracks ON Tracks.rowid = TracksFts.rowid
+                    WHERE TracksFts MATCH ?", matchQuery);
+                return results
+                    .Select(result => Guid.TryParse(result.Id, out var id) ? id : Guid.Empty)
+                    .Where(id => id != Guid.Empty)
+                    .ToHashSet();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[DatabaseService] FTS5 search failed for query {Query}", query);
+                return null;
+            }
+        }
+    }
+
+    private static string BuildFtsQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return string.Empty;
+
+        var words = new string(query.Select(character => char.IsLetterOrDigit(character) ? character : ' ').ToArray())
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var terms = words.Select(term => $"\"{term}\"*");
+
+        return string.Join(" OR ", terms);
+    }
+
+    public void RebuildFtsIndex()
+    {
+        lock (_dbLock)
+        {
+            try
+            {
+                _db.RunInTransaction(() =>
+                {
+                    _db.Execute("DROP TRIGGER IF EXISTS TracksFts_Insert;");
+                    _db.Execute("DROP TRIGGER IF EXISTS TracksFts_Update;");
+                    _db.Execute("DROP TRIGGER IF EXISTS TracksFts_Delete;");
+                    _db.Execute("DROP TABLE IF EXISTS TracksFts;");
+                    CreateFtsTableIfMissing();
+                    CreateFtsTriggers();
+                    BackfillFtsIndex();
+                });
+                _ftsAvailable = true;
+                Log.Information("[DatabaseService] FTS5 search index rebuilt");
+            }
+            catch
+            {
+                _ftsAvailable = false;
+                throw;
+            }
+        }
     }
 
     private void ApplyPendingRestore(string currentPath)
@@ -69,7 +261,6 @@ public class DatabaseService : IDisposable
 
             if (File.Exists(currentPath))
             {
-                // Keep the previous database instead of deleting it
                 File.Move(currentPath, preRestore, overwrite: true);
                 MoveIfExists(currentPath + "-wal", preRestore + "-wal");
                 MoveIfExists(currentPath + "-shm", preRestore + "-shm");
@@ -83,7 +274,6 @@ public class DatabaseService : IDisposable
             Log.Error(ex, "[DatabaseService] Failed to apply pending restore.");
             try
             {
-                // Roll back if we had already moved the current database away
                 if (!File.Exists(currentPath) && File.Exists(preRestore))
                 {
                     File.Move(preRestore, currentPath);
@@ -124,11 +314,10 @@ public class DatabaseService : IDisposable
     {
         try
         {
-            if (File.Exists(currentPath)) return; // Current DB exists, no migration needed
+            if (File.Exists(currentPath)) return;
 
             string legacyPath = NullWavePaths.LegacyDatabasePath;
 
-            // Ensure we aren't comparing the exact same path (e.g. on Linux where DataDir == LegacyDataDir)
             if (File.Exists(legacyPath) &&
                 !string.Equals(Path.GetFullPath(legacyPath), Path.GetFullPath(currentPath), StringComparison.OrdinalIgnoreCase))
             {
@@ -136,7 +325,6 @@ public class DatabaseService : IDisposable
 
                 File.Copy(legacyPath, currentPath, overwrite: false);
 
-                // Also copy WAL and SHM if they exist to prevent corruption
                 if (File.Exists(legacyPath + "-wal")) File.Copy(legacyPath + "-wal", currentPath + "-wal", overwrite: false);
                 if (File.Exists(legacyPath + "-shm")) File.Copy(legacyPath + "-shm", currentPath + "-shm", overwrite: false);
 
@@ -179,7 +367,6 @@ public class DatabaseService : IDisposable
         }
     }
 
-    /// <summary>A backup is due if none exists, or the newest is over 24 hours old AND the database changed since.</summary>
     internal static bool BackupIsDue(string dbPath, string backupDir, DateTime now)
     {
         var newest = Directory.GetFiles(backupDir, "library-*.db")
@@ -200,7 +387,7 @@ public class DatabaseService : IDisposable
 
     internal static DateTime? TryParseBackupTime(string path)
     {
-        var name = Path.GetFileNameWithoutExtension(path);          // library-20260920-093000
+        var name = Path.GetFileNameWithoutExtension(path);
         const string prefix = "library-";
         if (!name.StartsWith(prefix, StringComparison.Ordinal)) return null;
         
@@ -216,7 +403,7 @@ public class DatabaseService : IDisposable
         {
             var backupFiles = Directory.GetFiles(backupDir, "library-*.db")
                 .Select(f => new FileInfo(f))
-                .OrderByDescending(f => f.Name, StringComparer.Ordinal)   // Prune by filename timestamp, not CreationTime
+                .OrderByDescending(f => f.Name, StringComparer.Ordinal)
                 .ToList();
 
             if (backupFiles.Count > retentionCount)
@@ -237,100 +424,102 @@ public class DatabaseService : IDisposable
         }
     }
 
-    /// <summary>SQLite-net CreateTable does NOT add columns to existing tables; add new columns manually.</summary>
     private void MigrateSchema()
     {
-        try
-        {
-            var cols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);");
-            if (!cols.Any(c => string.Equals(c.Name, "CustomArtPath", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
-                Log.Information("[DatabaseService] Migration: added Playlists.CustomArtPath column");
-            }
-
-            var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);");
-            if (!trackCols.Any(c => string.Equals(c.Name, "DurationMs", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.DurationMs column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "MediaType", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';");
-                Log.Information("[DatabaseService] Migration: added Tracks.MediaType column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "PlaybackPositionTicks", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.PlaybackPositionTicks column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "Album", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN Album VARCHAR;");
-                Log.Information("[DatabaseService] Migration: added Tracks.Album column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "TrackNumber", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.TrackNumber column");
-            }
-
-            // NEW: Migration for PlaylistTracks DateAdded
-            var playlistTrackCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);");
-            if (!playlistTrackCols.Any(c => string.Equals(c.Name, "DateAdded", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;");
-                Log.Information("[DatabaseService] Migration: added PlaylistTracks.DateAdded column");
-            }
-
-            // FIX: Rescue existing radio stations that were misclassified as Music due to the missing column
-            _db.Execute("UPDATE Tracks SET MediaType = 'Radio' WHERE MediaType = 'Music' AND Url IS NOT NULL AND (Url LIKE '%somafm%' OR Url LIKE '%icecast%' OR Url LIKE '%stream%' OR Url LIKE '%radio%');");
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[DatabaseService] Schema migration check failed");
-        }
-
-        // 3. Migrate absolute paths to portable tokens (Deferred to prevent UI freeze)
-        _ = Task.Run(() =>
+        lock (_dbLock)
         {
             try
             {
-                bool dbUpdated = false;
-                var rawTracks = _db.Table<TrackRecord>().ToList();
-                foreach (var r in rawTracks)
+                var cols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);");
+                if (!cols.Any(c => string.Equals(c.Name, "CustomArtPath", StringComparison.OrdinalIgnoreCase)))
                 {
-                    bool changed = false;
-                    var tokFilePath = PathHelper.Tokenize(r.FilePath);
-                    if (tokFilePath != r.FilePath) { r.FilePath = tokFilePath; changed = true; }
-
-                    var tokArtPath = PathHelper.Tokenize(r.AlbumArtPath);
-                    if (tokArtPath != r.AlbumArtPath) { r.AlbumArtPath = tokArtPath; changed = true; }
-
-                    if (changed) { _db.InsertOrReplace(r); dbUpdated = true; }
+                    _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
+                    Log.Information("[DatabaseService] Migration: added Playlists.CustomArtPath column");
                 }
 
-                var rawPlaylists = _db.Table<PlaylistRecord>().ToList();
-                foreach (var p in rawPlaylists)
+                var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);");
+                if (!trackCols.Any(c => string.Equals(c.Name, "DurationMs", StringComparison.OrdinalIgnoreCase)))
                 {
-                    var tokArt = PathHelper.Tokenize(p.CustomArtPath);
-                    if (tokArt != p.CustomArtPath)
-                    {
-                        p.CustomArtPath = tokArt;
-                        _db.InsertOrReplace(p);
-                        dbUpdated = true;
-                    }
+                    _db.Execute("ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;");
+                    Log.Information("[DatabaseService] Migration: added Tracks.DurationMs column");
                 }
-                if (dbUpdated) Log.Information("[DatabaseService] Migrated absolute paths to portable tokens.");
+
+                if (!trackCols.Any(c => string.Equals(c.Name, "MediaType", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _db.Execute("ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';");
+                    Log.Information("[DatabaseService] Migration: added Tracks.MediaType column");
+                }
+
+                if (!trackCols.Any(c => string.Equals(c.Name, "PlaybackPositionTicks", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _db.Execute("ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;");
+                    Log.Information("[DatabaseService] Migration: added Tracks.PlaybackPositionTicks column");
+                }
+
+                if (!trackCols.Any(c => string.Equals(c.Name, "Album", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _db.Execute("ALTER TABLE Tracks ADD COLUMN Album VARCHAR;");
+                    Log.Information("[DatabaseService] Migration: added Tracks.Album column");
+                }
+
+                if (!trackCols.Any(c => string.Equals(c.Name, "TrackNumber", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _db.Execute("ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;");
+                    Log.Information("[DatabaseService] Migration: added Tracks.TrackNumber column");
+                }
+
+                var playlistTrackCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);");
+                if (!playlistTrackCols.Any(c => string.Equals(c.Name, "DateAdded", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _db.Execute("ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;");
+                    Log.Information("[DatabaseService] Migration: added PlaylistTracks.DateAdded column");
+                }
+
+                _db.Execute("UPDATE Tracks SET MediaType = 'Radio' WHERE MediaType = 'Music' AND Url IS NOT NULL AND (Url LIKE '%somafm%' OR Url LIKE '%icecast%' OR Url LIKE '%stream%' OR Url LIKE '%radio%');");
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "[DatabaseService] Path tokenization migration failed");
+                Log.Warning(ex, "[DatabaseService] Schema migration check failed");
+            }
+        }
+
+        _ = Task.Run(() =>
+        {
+            lock (_dbLock)
+            {
+                try
+                {
+                    bool dbUpdated = false;
+                    var rawTracks = _db.Table<TrackRecord>().ToList();
+                    foreach (var r in rawTracks)
+                    {
+                        bool changed = false;
+                        var tokFilePath = PathHelper.Tokenize(r.FilePath);
+                        if (tokFilePath != r.FilePath) { r.FilePath = tokFilePath; changed = true; }
+
+                        var tokArtPath = PathHelper.Tokenize(r.AlbumArtPath);
+                        if (tokArtPath != r.AlbumArtPath) { r.AlbumArtPath = tokArtPath; changed = true; }
+
+                        if (changed) { SaveTrackRecord(r); dbUpdated = true; }
+                    }
+
+                    var rawPlaylists = _db.Table<PlaylistRecord>().ToList();
+                    foreach (var p in rawPlaylists)
+                    {
+                        var tokArt = PathHelper.Tokenize(p.CustomArtPath);
+                        if (tokArt != p.CustomArtPath)
+                        {
+                            p.CustomArtPath = tokArt;
+                            _db.InsertOrReplace(p);
+                            dbUpdated = true;
+                        }
+                    }
+                    if (dbUpdated) Log.Information("[DatabaseService] Migrated absolute paths to portable tokens.");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[DatabaseService] Path tokenization migration failed");
+                }
             }
         });
     }
@@ -342,187 +531,229 @@ public class DatabaseService : IDisposable
 
     public void Vacuum()
     {
-        var sizeBefore = new FileInfo(DbPath).Length;
-        _db.Execute("VACUUM;");
-        var sizeAfter = new FileInfo(DbPath).Length;
-        Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
-            sizeBefore / 1024, sizeAfter / 1024);
+        lock (_dbLock)
+        {
+            var sizeBefore = new FileInfo(DbPath).Length;
+            _db.Execute("VACUUM;");
+            var sizeAfter = new FileInfo(DbPath).Length;
+            Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
+                sizeBefore / 1024, sizeAfter / 1024);
+        }
     }
 
     public List<Track> LoadAll()
     {
-        try
+        lock (_dbLock)
         {
-            return _db.Table<TrackRecord>().ToList().Select(r => r.ToTrack()).ToList();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[DatabaseService] Failed to load tracks");
-            return new List<Track>();
+            try
+            {
+                return _db.Table<TrackRecord>().ToList().Select(r => r.ToTrack()).ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[DatabaseService] Failed to load tracks");
+                return new List<Track>();
+            }
         }
     }
 
     public void Insert(Track track)
     {
-        try { _db.InsertOrReplace(TrackRecord.FromTrack(track)); }
+        try { SaveTrackRecord(TrackRecord.FromTrack(track)); }
         catch (Exception ex) { Log.Error(ex, "[DatabaseService] Insert failed for {Title}", track.Title); }
     }
 
     public void Update(Track track)
     {
-        try { _db.InsertOrReplace(TrackRecord.FromTrack(track)); }
+        try { SaveTrackRecord(TrackRecord.FromTrack(track)); }
         catch (Exception ex) { Log.Error(ex, "[DatabaseService] Update failed for {Title}", track.Title); }
+    }
+
+    private void SaveTrackRecord(TrackRecord record)
+    {
+        lock (_dbLock)
+        {
+            _db.RunInTransaction(() =>
+            {
+                if (_db.Find<TrackRecord>(record.Id) == null) _db.Insert(record);
+                else _db.Update(record);
+            });
+        }
     }
 
     public void Delete(Guid id)
     {
-        try { _db.Delete<TrackRecord>(id.ToString()); }
-        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id); }
+        lock (_dbLock)
+        {
+            try { _db.Delete<TrackRecord>(id.ToString()); }
+            catch (Exception ex) { Log.Error(ex, "[DatabaseService] Delete failed for {Id}", id); }
+        }
     }
 
     public void RunInTransaction(Action action)
     {
-        try { _db.RunInTransaction(action); }
-        catch (Exception ex) { Log.Error(ex, "[DatabaseService] Transaction failed"); }
+        lock (_dbLock)
+        {
+            try { _db.RunInTransaction(action); }
+            catch (Exception ex) { Log.Error(ex, "[DatabaseService] Transaction failed"); }
+        }
     }
 
     public void SavePlaylist(Playlist playlist)
     {
-        try
+        lock (_dbLock)
         {
-            var syncDb = _db;
-            syncDb.RunInTransaction(() =>
+            try
             {
-                syncDb.InsertOrReplace(new PlaylistRecord
+                var syncDb = _db;
+                syncDb.RunInTransaction(() =>
                 {
-                    Id = playlist.Id.ToString(),
-                    Name = playlist.Name,
-                    Description = playlist.Description,
-                    FolderId = playlist.FolderId?.ToString(),
-                    CustomArtPath = playlist.CustomArtPath
-                });
-                syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
-
-                for (int i = 0; i < playlist.Tracks.Count; i++)
-                {
-                    var trackId = playlist.Tracks[i].Id;
-                    syncDb.Insert(new PlaylistTrackRecord
+                    syncDb.InsertOrReplace(new PlaylistRecord
                     {
-                        PlaylistId = playlist.Id.ToString(),
-                        TrackId = trackId.ToString(),
-                        SortOrder = i,
-                        DateAdded = playlist.TrackDateAdded.TryGetValue(trackId, out var d) ? d : playlist.DateCreated
+                        Id = playlist.Id.ToString(),
+                        Name = playlist.Name,
+                        Description = playlist.Description,
+                        FolderId = playlist.FolderId?.ToString(),
+                        CustomArtPath = playlist.CustomArtPath
                     });
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to save playlist to database.");
+                    syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
+
+                    for (int i = 0; i < playlist.Tracks.Count; i++)
+                    {
+                        var trackId = playlist.Tracks[i].Id;
+                        syncDb.Insert(new PlaylistTrackRecord
+                        {
+                            PlaylistId = playlist.Id.ToString(),
+                            TrackId = trackId.ToString(),
+                            SortOrder = i,
+                            DateAdded = playlist.TrackDateAdded.TryGetValue(trackId, out var d) ? d : playlist.DateCreated
+                        });
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to save playlist to database.");
+            }
         }
     }
 
     public List<Playlist> LoadPlaylists(List<Track> entireLibrary)
     {
         var playlists = new List<Playlist>();
-        try
+        lock (_dbLock)
         {
-            var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
-            var syncDb = _db;
-
-            foreach (var plRecord in syncDb.Table<PlaylistRecord>().ToList())
+            try
             {
-                var pList = new Playlist
-                {
-                    Id = Guid.Parse(plRecord.Id),
-                    Name = plRecord.Name,
-                    Description = plRecord.Description,
-                    FolderId = string.IsNullOrWhiteSpace(plRecord.FolderId)
-                        ? null
-                        : Guid.TryParse(plRecord.FolderId, out var folderId) ? folderId : null,
-                    CustomArtPath = plRecord.CustomArtPath
-                };
+                var trackMap = entireLibrary.ToDictionary(t => t.Id.ToString());
+                var syncDb = _db;
 
-                var dbTracks = syncDb.Table<PlaylistTrackRecord>()
-                    .Where(pt => pt.PlaylistId == plRecord.Id)
-                    .OrderBy(pt => pt.SortOrder)
-                    .ToList();
-
-                foreach (var pt in dbTracks)
+                foreach (var plRecord in syncDb.Table<PlaylistRecord>().ToList())
                 {
-                    if (trackMap.TryGetValue(pt.TrackId, out var track))
+                    var pList = new Playlist
                     {
-                        pList.Tracks.Add(track);
-                        pList.TrackDateAdded[track.Id] = pt.DateAdded == default ? pList.DateCreated : pt.DateAdded;
-                    }
-                }
+                        Id = Guid.Parse(plRecord.Id),
+                        Name = plRecord.Name,
+                        Description = plRecord.Description,
+                        FolderId = string.IsNullOrWhiteSpace(plRecord.FolderId)
+                            ? null
+                            : Guid.TryParse(plRecord.FolderId, out var folderId) ? folderId : null,
+                        CustomArtPath = plRecord.CustomArtPath
+                    };
 
-                playlists.Add(pList);
+                    var dbTracks = syncDb.Table<PlaylistTrackRecord>()
+                        .Where(pt => pt.PlaylistId == plRecord.Id)
+                        .OrderBy(pt => pt.SortOrder)
+                        .ToList();
+
+                    foreach (var pt in dbTracks)
+                    {
+                        if (trackMap.TryGetValue(pt.TrackId, out var track))
+                        {
+                            pList.Tracks.Add(track);
+                            pList.TrackDateAdded[track.Id] = pt.DateAdded == default ? pList.DateCreated : pt.DateAdded;
+                        }
+                    }
+
+                    playlists.Add(pList);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to load playlists from database.");
             }
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to load playlists from database.");
-        }
-
         return playlists;
     }
 
     public void SavePlaylistFolder(PlaylistFolder folder)
     {
-        try
+        lock (_dbLock)
         {
-            _db.InsertOrReplace(new PlaylistFolderRecord
+            try
             {
-                Id = folder.Id.ToString(),
-                Name = folder.Name,
-                CreatedAt = folder.DateCreated
-            });
+                _db.InsertOrReplace(new PlaylistFolderRecord
+                {
+                    Id = folder.Id.ToString(),
+                    Name = folder.Name,
+                    CreatedAt = folder.DateCreated
+                });
+            }
+            catch (Exception ex) { Log.Error(ex, "Failed to save playlist folder to database."); }
         }
-        catch (Exception ex) { Log.Error(ex, "Failed to save playlist folder to database."); }
     }
 
     public List<PlaylistFolder> LoadPlaylistFolders()
     {
         var folders = new List<PlaylistFolder>();
-        try
+        lock (_dbLock)
         {
-            foreach (var record in _db.Table<PlaylistFolderRecord>().ToList())
+            try
             {
-                folders.Add(new PlaylistFolder
+                foreach (var record in _db.Table<PlaylistFolderRecord>().ToList())
                 {
-                    Id = Guid.TryParse(record.Id, out var id) ? id : Guid.NewGuid(),
-                    Name = record.Name,
-                    DateCreated = record.CreatedAt
-                });
+                    folders.Add(new PlaylistFolder
+                    {
+                        Id = Guid.TryParse(record.Id, out var id) ? id : Guid.NewGuid(),
+                        Name = record.Name,
+                        DateCreated = record.CreatedAt
+                    });
+                }
             }
+            catch (Exception ex) { Log.Error(ex, "Failed to load playlist folders from database."); }
         }
-        catch (Exception ex) { Log.Error(ex, "Failed to load playlist folders from database."); }
-
         return folders;
     }
 
     public void DeletePlaylistFolder(Guid id)
     {
-        try { _db.Delete<PlaylistFolderRecord>(id.ToString()); }
-        catch (Exception ex) { Log.Error(ex, "Failed to delete playlist folder from database."); }
+        lock (_dbLock)
+        {
+            try { _db.Delete<PlaylistFolderRecord>(id.ToString()); }
+            catch (Exception ex) { Log.Error(ex, "Failed to delete playlist folder from database."); }
+        }
     }
 
     public void DeletePlaylist(Guid id)
     {
-        try
+        lock (_dbLock)
         {
-            var strId = id.ToString();
-            _db.Delete<PlaylistRecord>(strId);
-            _db.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
+            try
+            {
+                var strId = id.ToString();
+                _db.Delete<PlaylistRecord>(strId);
+                _db.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", strId);
+            }
+            catch (Exception ex) { Log.Error(ex, "Failed to delete playlist from database."); }
         }
-        catch (Exception ex) { Log.Error(ex, "Failed to delete playlist from database."); }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _writeSignal.Writer.TryComplete();
+        try { _writerTask?.Wait(2000); } catch { }
         _db.Close();
     }
 }

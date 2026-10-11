@@ -3,7 +3,6 @@ using System.IO;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
-using Serilog.Filters;
 
 namespace NullWave.Helpers.Logging;
 
@@ -16,7 +15,6 @@ public static class NullWaveLogConfig
         LevelSwitch.MinimumLevel = useVerbose ? LogEventLevel.Debug : LogEventLevel.Information;
 
         // FIX: Use the same centralized path manager as the rest of the app!
-        // (Use AppDataDir, DataDir, or BaseDir depending on what your NullWavePaths class exposes)
         var logDir = Path.Combine(NullWavePaths.DataDir, "logs"); 
         
         Directory.CreateDirectory(logDir);
@@ -42,7 +40,11 @@ public static class NullWaveLogConfig
             .WriteTo.Console(outputTemplate: outputTemplate)
 
             .WriteTo.Logger(lc => lc
-                .Filter.ByIncludingOnly(Matching.WithProperty<string>("Channel", v => v == "UserAction"))
+                .Filter.ByIncludingOnly(evt => 
+                    evt.Properties.TryGetValue("Channel", out var prop) &&
+                    prop is ScalarValue sv && 
+                    sv.Value is string channel && 
+                    channel == "UserAction")
                 .WriteTo.File(
                     path: Path.Combine(logDir, "UserActions-.log"),
                     rollingInterval: RollingInterval.Day,
@@ -60,8 +62,13 @@ public static class NullWaveLogConfig
                     fileSizeLimitBytes: 5 * 1024 * 1024,
                     rollOnFileSizeLimit: true,
                     outputTemplate: outputTemplate))
+
             .WriteTo.Logger(lc => lc
-                .Filter.ByIncludingOnly(Matching.WithProperty<string>("Channel", v => v == "Perf"))
+                .Filter.ByIncludingOnly(evt => 
+                    evt.Properties.TryGetValue("Channel", out var prop) &&
+                    prop is ScalarValue sv && 
+                    sv.Value is string channel && 
+                    channel == "Perf")
                 .WriteTo.File(
                     path: Path.Combine(logDir, "Perf-.log"),
                     rollingInterval: RollingInterval.Day,

@@ -37,6 +37,18 @@ public partial class SettingsViewModel
     [ObservableProperty]
     private string _devProbeResult = "Not run yet.";
 
+    [ObservableProperty]
+    private string _circuitBreakerStatus = "No network circuit breakers have recorded requests yet.";
+
+    [ObservableProperty]
+    private EffectsTier? _devEffectsTierOverride;
+
+    partial void OnDevEffectsTierOverrideChanged(EffectsTier? value)
+    {
+        DevEffectsTierOverrideChanged?.Invoke(value);
+        ToastService.Instance.Show($"Dev Override: Effects Tier set to {(value?.ToString() ?? "Auto")}", ToastType.Info, scope: "dev");
+    }
+
     // Routed through MainViewModel (same pattern as SweepOrphanedFilesRequested etc.)
     public event Action<int>? SeedLibraryRequested;
     public event Action? RemoveSeededRequested;
@@ -55,6 +67,21 @@ public partial class SettingsViewModel
     }
 
     #region DevTools Commands
+
+    [RelayCommand]
+    private void RefreshCircuitBreakers()
+    {
+        var breakers = CircuitBreakerRegistry.GetAll();
+        CircuitBreakerStatus = breakers.Count == 0
+            ? "No network circuit breakers have recorded requests yet."
+            : string.Join(Environment.NewLine, breakers.Select(breaker =>
+            {
+                var status = $"{breaker.Name}: {breaker.State} ({breaker.FailureCount}/{breaker.FailureThreshold})";
+                return breaker.RetryAfter is { } retryAfter
+                    ? $"{status} - retry in {retryAfter.TotalSeconds:F0}s"
+                    : status;
+            }));
+    }
 
     [RelayCommand]
     private void DevTriggerToast(string type)
@@ -111,7 +138,7 @@ public partial class SettingsViewModel
 
         foreach (var tool in new[] { "yt-dlp", "aria2c", "ffmpeg", "vlc" })
         {
-            var result = await ProcessRunner.RunAsync(tool, "--version", TimeSpan.FromSeconds(3));
+            var result = await ProcessRunner.RunAsync(tool, new[] { "--version" }, TimeSpan.FromSeconds(3));
             var firstLine = result.StandardOutput
                 .Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim();
             bool ok = result.ExitCode == 0 && !string.IsNullOrWhiteSpace(firstLine);
