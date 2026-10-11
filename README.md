@@ -105,6 +105,7 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 - .NET 8 SDK
 - libVLC - `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
 - yt-dlp - `pip install yt-dlp`
+- FFmpeg (Optional, required only for audio transcoding/embedding metadata)
 
 **Windows note:** Requires .NET 8 SDK (or .NET 10 with `<RollForward>Major</RollForward>` in csproj). LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
 
