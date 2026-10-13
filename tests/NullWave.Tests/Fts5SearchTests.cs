@@ -45,14 +45,14 @@ public sealed class Fts5SearchTests : IDisposable
         }
 
         using var database = new DatabaseService();
-        var id = database.LoadAll().Single().Id;
+        var id = database.LoadAll().Single(t => t.Title == "Daft Punk").Id;
 
         Assert.True(database.HasFtsIndex());
         Assert.Contains(id, database.SearchFts("Daft")!);
     }
 
     [Fact]
-    public void Fts_search_supports_prefix_and_or_matching()
+    public void Fts_search_supports_prefix_and_multi_word_matching()
     {
         var bohemian = NewTrack("Bohemian Rhapsody", "Queen");
         var anotherQueenTrack = NewTrack("Killer Queen", "Queen");
@@ -60,11 +60,17 @@ public sealed class Fts5SearchTests : IDisposable
         _database.Insert(anotherQueenTrack);
 
         var prefixResults = _database.SearchFts("Bohe")!;
-        var orResults = _database.SearchFts("Rhapsody Killer")!;
-
         Assert.Contains(bohemian.Id, prefixResults);
-        Assert.Contains(bohemian.Id, orResults);
-        Assert.Contains(anotherQueenTrack.Id, orResults);
+
+        // Multi-word uses AND logic now
+        var andResults = _database.SearchFts("Bohemian Rhapsody")!;
+        Assert.Contains(bohemian.Id, andResults);
+        Assert.DoesNotContain(anotherQueenTrack.Id, andResults);
+        
+        // Single word still matches both
+        var queenResults = _database.SearchFts("Queen")!;
+        Assert.Contains(bohemian.Id, queenResults);
+        Assert.Contains(anotherQueenTrack.Id, queenResults);
     }
 
     [Fact]
@@ -82,7 +88,13 @@ public sealed class Fts5SearchTests : IDisposable
 
         Assert.Contains(track.Id, _database.SearchFts("Oper")!);
         Assert.Contains(track.Id, _database.SearchFts("Progress")!);
-        Assert.Contains(track.Id, _database.SearchFts("Oper\"* OR")!);
+        
+        // Punctuation is sanitized to spaces. "Oper\"* OR" becomes "Oper OR".
+        // With AND logic, it requires BOTH words. The track doesn't have "OR", so it shouldn't match.
+        Assert.DoesNotContain(track.Id, _database.SearchFts("Oper\"* OR")!);
+        
+        // Searching for two words that ARE in the album should match (AND logic)
+        Assert.Contains(track.Id, _database.SearchFts("Night Oper")!);
     }
 
     [Fact]
@@ -133,5 +145,33 @@ public sealed class Fts5SearchTests : IDisposable
             try { File.Delete(file); }
             catch { }
         }
+    }
+
+    [Fact]
+    public void Fts_search_two_words_uses_AND_logic()
+    {
+        var both = NewTrack("Pastel Ghost", "Artist A");
+        var onlyFirst = NewTrack("Pastel", "Artist B");
+        var onlySecond = NewTrack("Ghost", "Artist C");
+        var neither = NewTrack("Something Else", "Artist D");
+
+        _database.Insert(both);
+        _database.Insert(onlyFirst);
+        _database.Insert(onlySecond);
+        _database.Insert(neither);
+
+        // Two-word query should require BOTH words (AND logic)
+        var twoWordResults = _database.SearchFts("pastel ghost")!;
+        Assert.Contains(both.Id, twoWordResults);
+        Assert.DoesNotContain(onlyFirst.Id, twoWordResults);
+        Assert.DoesNotContain(onlySecond.Id, twoWordResults);
+        Assert.DoesNotContain(neither.Id, twoWordResults);
+
+        // One-word query should still prefix-match
+        var oneWordResults = _database.SearchFts("pastel")!;
+        Assert.Contains(both.Id, oneWordResults);
+        Assert.Contains(onlyFirst.Id, oneWordResults);
+        Assert.DoesNotContain(onlySecond.Id, oneWordResults);
+        Assert.DoesNotContain(neither.Id, oneWordResults);
     }
 }

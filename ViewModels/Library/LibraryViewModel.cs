@@ -27,6 +27,7 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _stateCts;
     private CancellationTokenSource? _aiPromptCts;
     private string? _selectedArtistFilter;
+    private bool _isProgrammaticClear;
     private MediaType? _mediaTypeFilter;
     private List<Track> _currentSelection = new();
 
@@ -61,6 +62,7 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
     [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
     [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByLength))]
     private SortField _currentSort = SortField.DateAdded;
 
     [ObservableProperty]
@@ -69,6 +71,7 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsSortedBySource))]
     [NotifyPropertyChangedFor(nameof(IsSortedByPlayCount))]
     [NotifyPropertyChangedFor(nameof(IsSortedByDate))]
+    [NotifyPropertyChangedFor(nameof(IsSortedByLength))]
     private bool _sortAscending = true;
 
     [ObservableProperty]
@@ -100,7 +103,9 @@ public partial class LibraryViewModel : ObservableObject
     public enum LibraryView { All, Favorites, Recent, Source }
 
     public BulkObservableCollection<Track> Tracks { get; } = new();
-    public Array SortOptions => Enum.GetValues(typeof(SortField));
+
+    /// <summary>Only the sorts that make sense outside a playlist (never "Custom").</summary>
+    public Array SortOptions => SortFieldCatalog.Library;
     
     public bool IsFavoritesView => CurrentView == LibraryView.Favorites;
     public bool IsRecentView => CurrentView == LibraryView.Recent;
@@ -117,8 +122,11 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsSortedBySource => CurrentSort == SortField.Source;
     public bool IsSortedByPlayCount => CurrentSort == SortField.PlayCount;
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
+    public bool IsSortedByLength => CurrentSort == SortField.Length;
 
     public string ResultCountLabel => Tracks.Count == 1 ? "1 track" : $"{Tracks.Count} tracks";
+    /// <summary>Only the main Library VM should trigger the AI playlist generation prompt.</summary>
+    public bool IsAiPromptEnabled { get; set; }
 
     public ObservableCollection<ArtistGroup> ArtistGroups { get; } = new();
     

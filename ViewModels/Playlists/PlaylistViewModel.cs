@@ -46,11 +46,15 @@ public class PlaylistViewModel : ViewModelBase
         set { _sortAscending = value; OnPropertyChanged(); RefreshFilteredTracks(); }
     }
 
-    public Array SortOptions => Enum.GetValues(typeof(SortField));
+    /// <summary>Playlist sorts. "Custom" first because it is the default and enables drag reorder.</summary>
+    public Array SortOptions => SortFieldCatalog.Playlist;
+
     public bool IsSortedByTitle => CurrentSort == SortField.Title;
     public bool IsSortedByArtist => CurrentSort == SortField.Artist;
     public bool IsSortedBySource => CurrentSort == SortField.Source;
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
+    public bool IsSortedByPlayCount => CurrentSort == SortField.PlayCount;
+    public bool IsSortedByLastPlayed => CurrentSort == SortField.LastPlayed;
 
     public bool IsSortedByCustom => CurrentSort == SortField.Custom;
     public bool IsDragReorderEnabled => CurrentSort == SortField.Custom && string.IsNullOrEmpty(SearchQuery);
@@ -358,6 +362,8 @@ public class PlaylistViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSortedByArtist));
         OnPropertyChanged(nameof(IsSortedBySource));
         OnPropertyChanged(nameof(IsSortedByDate));
+        OnPropertyChanged(nameof(IsSortedByPlayCount));
+        OnPropertyChanged(nameof(IsSortedByLastPlayed));
         OnPropertyChanged(nameof(IsSortedByCustom));
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
@@ -384,23 +390,40 @@ public class PlaylistViewModel : ViewModelBase
                 t.Artist.ToLowerInvariant().Contains(q));
         }
 
-        IEnumerable<Track> sorted = (CurrentSort, SortAscending) switch
-        {
-            (SortField.Custom, _)          => tracks,
-            (SortField.Title, true)        => tracks.OrderBy(t => t.Title).ThenBy(t => t.Artist),
-            (SortField.Title, false)       => tracks.OrderByDescending(t => t.Title).ThenByDescending(t => t.Artist),
-            (SortField.Artist, true)       => tracks.OrderBy(t => t.Artist).ThenBy(t => t.Title),
-            (SortField.Artist, false)      => tracks.OrderByDescending(t => t.Artist).ThenByDescending(t => t.Title),
-            (SortField.Source, true)       => tracks.OrderBy(t => t.Source).ThenBy(t => t.Title),
-            (SortField.Source, false)      => tracks.OrderByDescending(t => t.Source).ThenByDescending(t => t.Title),
-            (SortField.DateAdded, true)    => tracks.OrderBy(t => SelectedPlaylist!.GetDateAdded(t.Id)).ThenBy(t => t.Title),
-            (SortField.DateAdded, false)   => tracks.OrderByDescending(t => SelectedPlaylist!.GetDateAdded(t.Id)).ThenByDescending(t => t.Title),
-            (_, true)                      => tracks.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),
-            (_, false)                     => tracks.OrderByDescending(t => t.DateAdded).ThenByDescending(t => t.Title),
-        };
+        var sorted = SortTracks(tracks, SelectedPlaylist, CurrentSort, SortAscending);
 
         FilteredTracks.ReplaceAll(sorted);
         OnPropertyChanged(nameof(ResultCountLabel));
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
+
+    /// <summary>
+    /// Pure sort function: every option offered by <see cref="SortFieldCatalog.Playlist"/> is
+    /// handled explicitly so none can silently fall through to "date added".
+    /// Kept static and internal so each case is unit-testable without a database.
+    /// Phase 7.2 merges this with the Library sort into one shared factory.
+    /// </summary>
+    internal static IEnumerable<Track> SortTracks(
+        IEnumerable<Track> tracks, Playlist? playlist, SortField sort, bool ascending)
+        => (sort, ascending) switch
+        {
+            (SortField.Custom, _)         => tracks,
+            (SortField.Title, true)       => tracks.OrderBy(t => t.Title).ThenBy(t => t.Artist),
+            (SortField.Title, false)      => tracks.OrderByDescending(t => t.Title).ThenByDescending(t => t.Artist),
+            (SortField.Artist, true)      => tracks.OrderBy(t => t.Artist).ThenBy(t => t.Title),
+            (SortField.Artist, false)     => tracks.OrderByDescending(t => t.Artist).ThenByDescending(t => t.Title),
+            (SortField.Source, true)      => tracks.OrderBy(t => t.Source).ThenBy(t => t.Title),
+            (SortField.Source, false)     => tracks.OrderByDescending(t => t.Source).ThenByDescending(t => t.Title),
+            (SortField.DateAdded, true)   => tracks.OrderBy(t => playlist?.GetDateAdded(t.Id) ?? t.DateAdded).ThenBy(t => t.Title),
+            (SortField.DateAdded, false)  => tracks.OrderByDescending(t => playlist?.GetDateAdded(t.Id) ?? t.DateAdded).ThenByDescending(t => t.Title),
+            (SortField.PlayCount, true)   => tracks.OrderBy(t => t.PlayCount).ThenBy(t => t.Title),
+            (SortField.PlayCount, false)  => tracks.OrderByDescending(t => t.PlayCount).ThenByDescending(t => t.Title),
+            (SortField.LastPlayed, true)  => tracks.OrderBy(t => t.LastPlayed).ThenBy(t => t.Title),
+            (SortField.LastPlayed, false) => tracks.OrderByDescending(t => t.LastPlayed).ThenByDescending(t => t.Title),
+            // Safety net for future enum values - never a silent no-op.
+            (SortField.Length, true)      => tracks.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenBy(t => t.Duration).ThenBy(t => t.Title),
+            (SortField.Length, false)     => tracks.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenByDescending(t => t.Duration).ThenByDescending(t => t.Title),
+            (_, true)                     => tracks.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),
+            (_, false)                    => tracks.OrderByDescending(t => t.DateAdded).ThenByDescending(t => t.Title)
+        };
 }

@@ -94,6 +94,7 @@ public partial class MainViewModel
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, new AlbumArtService(_lastFm));
         
         Library = new LibraryViewModel(_library, _localAI, _prefsService, _identity);
+        Library.IsAiPromptEnabled = true;
         Library.ExcludedMediaTypes.Add(MediaType.Radio);
         Library.ExcludedMediaTypes.Add(MediaType.Audiobook);
         Library.Refresh();
