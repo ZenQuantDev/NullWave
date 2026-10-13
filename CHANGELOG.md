@@ -3,7 +3,33 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.3] - 09-Oct-2026 🚀 "Responsiveness"
+## [0.6.4] - 14-Oct-2026 🏗️ "Foundations"
+
+### Added
+
+- **Length Sort with Zero-Sinking**: New sort option orders tracks by duration. Radio streams and unscanned files (zero duration) always sink to the bottom regardless of sort direction, preventing them from cluttering the top of "shortest" lists.
+- **Honest Column Headers**: The Length header is now fully sortable with a visual indicator. The Status and Plays headers are now plain text (no hand cursor) since they cannot be sorted.
+- **Global Search Persistence**: The global search query now follows you across all pages (Library, Radio, Audiobooks, Playlists). Switching pages no longer clears your search.
+- **Clipboard Pre-fill**: Opening the "Add Track" flyout automatically pre-fills the URL box if you have a valid HTTP/HTTPS URL on your clipboard.
+- **Sort Field Catalog**: New `SortFieldCatalog` system ensures each page only shows valid sort options (e.g., "Custom" drag-order is only available in Playlists, not the main Library).
+
+### Changed
+
+- **FTS5 Multi-Word Search**: Search queries with multiple words now use **AND logic** instead of OR. Searching "pastel ghost" now requires both words, while single-word queries still prefix-match as before.
+- **Artist Filter Persistence**: Clicking an artist in the sidebar now properly clears the search box while preserving the artist filter. Typing a new search afterwards still clears the artist filter as expected.
+- **AI Prompt Guard**: The `ai:` prompt for generating playlists now only triggers on the main Library page, preventing accidental AI generation on Radio or Audiobooks pages.
+- **Playlist Sort Options**: Play Count and Last Played sort options in the Playlist view now actually reorder tracks instead of silently falling through to Date Added.
+
+### Fixed
+
+- **Column Alignment**: Fixed persistent misalignment between column headers and track rows. Removed the track-count label from the header grid and inserted invisible spacers that exactly match the album art dimensions.
+- **ComboBox Reset Hijacking**: Fixed a bug where switching pages would cause the sort dropdown to reset and overwrite the active page's sort order.
+- **Global Search Isolation**: Fixed an issue where the global search box only updated the main Library, leaving Radio and Audiobooks unfiltered.
+- **Test Pollution**: Fixed intermittent test failures in `Fts5SearchTests` caused by SQLite WAL file locking during rapid test execution.
+
+---
+
+## [0.6.3] - 11-Oct-2026 🚀 "Responsiveness"
 
 ### Added
 
@@ -210,7 +236,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **VerifyLinks False Positives**: Drastically reduced (27 > 6) by adding `FeatureArtistRegex` and `BracketContentRegex` to `TitlesLooselyMatch`, and properly handling "Artist - Title" splits.
 - **Stale Scrobble Metadata**: Fixed an issue where Last.fm scrobbles used stale cached track data instead of fetching the latest metadata from the database.
 
-## [0.5.0] - 09-Aug-2026 � "Blue Orchid"
+## [0.5.0] - 09-Aug-2026 🌸 "Blue Orchid"
 
 ### Added
 

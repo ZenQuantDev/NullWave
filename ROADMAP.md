@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 09-Oct-2026
+> Last updated: 14-Oct-2026
 
 ---
 
@@ -26,7 +26,7 @@
 | **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
 | **v0.6.2**  | Correctness           | DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                                   |
 | **v0.6.3**  | Responsiveness        | Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                                    |
-| **v0.6.4**  | Discover & Reset      | Factory reset mechanism, Discover MVP (legal free sources, `featured.json`).                                                                           |
+| **v0.6.4**  | Foundations           | Phase 1-6: Quick wins (search/sort polish), data safety, settings foundation, notifications, M3U import/export, audio foundation.                      |
 | **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
@@ -487,7 +487,7 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 19 - v0.6.3 "Responsiveness & First Run" 📋
+## Phase 19 - v0.6.3 "Responsiveness & First Run" ✅
 
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
 
@@ -497,12 +497,69 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 20 - v0.6.4 "Factory Reset & Discover MVP" 📋
+## Phase 1.5 - v0.6.4 "Quick Wins" ✅
 
-**Goal:** Safe data wiping and curated, legal source discovery.
+**Branch:** `fix/ui-search-quick-wins`
+**Goal:** Small, visible, low-risk UI and search improvements that ship immediate value.
 
-- 📋 **Factory Reset**: "Reset on next start" mechanism via `reset.pending` marker, allowlist-based deletion, three tiers (Settings, Library, Factory).
-- 📋 **Discover / Featured**: Bundled `featured.json` (radio, audiobooks, free tracks), on-device ranking by library tags/weather, reuse `RadioBrowserProvider` and `LibriVoxProvider`.
+- ✅ **1.1 Multi-word search AND logic**: `BuildFtsQuery` and `ApplySmartSearch` fallback both require all terms to match.
+- ✅ **1.2 Artist filter persistence**: Guard flag prevents `OnSearchQueryChanged` from clearing the artist filter during programmatic clears.
+- ✅ **1.3 Valid sorts per view**: `SortFieldCatalog` ensures each page only offers valid sort options; Playlist sort switch now handles all cases.
+- ✅ **1.4 Length sort & honest headers**: New `SortField.Length` with zero-duration sinking; Length header is now sortable; Status header is plain text.
+- ✅ **1.5 Column alignment**: Header and row grids now share identical margins and column 0 spacer dimensions.
+- ✅ **1.6 Global search routing**: Query reaches Library, Radio, Audiobooks, and Playlist VMs; `ai:` prompt guarded to main Library only.
+- ✅ **1.7 Clipboard pre-fill**: Add Track flyout pre-fills HTTP/HTTPS URLs from clipboard.
+
+---
+
+## Phase 2 - v0.6.4 "Data Safety" 🔄
+
+**Branch:** `fix/data-safety`
+**Goal:** Protect user data with non-destructive merges, schema versioning, and safe backups.
+
+- 🔄 **2.1 Playlist rename must not cause deletion**: Block renames to existing names; make `Deduplicate` merge tracks instead of deleting.
+- 📋 **2.2 Migration runner**: Introduce schema version via `user_version`; run migrations once in order.
+- 📋 **2.3 Safe manual backup**: Use `VACUUM INTO` for consistent backups; validate with integrity check.
+- 📋 **2.4 Playlist persistence**: Tokenize cover paths on save; resolve on load.
+- 📋 **2.5 Removing a track cleans everything**: Remove from queue and playlists; capture memberships for Undo.
+- 📋 **2.6 Radio detection**: One-time repair migration for misclassified tracks.
+- 📋 **2.7 Small fixes**: Write flush on dispose; rebuild FTS after vacuum.
+
+---
+
+## Phase 3 - v0.6.4 "Settings Foundation" 📋
+
+**Branch:** `feature/20-settings-foundation`
+**Goal:** Adding a setting becomes cheap; every setting can be wired the same way.
+
+- 📋 **One save path**: `Update(...)` is the only way to change a setting; immediate `Save()` only on exit.
+- 📋 **Single "changed" signal**: `Changed` event tells subscribers which setting names changed.
+- 📋 **Preferences versioning**: Define version 2; migrate on load with backup.
+- 📋 **Setting descriptors**: Generic row templates (toggle, segmented, slider) for new pages.
+
+---
+
+## Phase 4 - v0.6.4 "Notifications" 📋
+
+**Branch:** `feature/20-notifications`
+**Goal:** Configurable, localized notifications with in-app and native OS support.
+
+- 📋 **Categories and preferences**: Global and per-category settings.
+- 📋 **Router in front of ToastService**: `NotificationService` decides which sinks to use.
+- 📋 **Native sink**: Windows and Linux native toasts with focus rule.
+- 📋 **Settings page**: Control all notification settings with a Test button.
+
+---
+
+## Phase 8 - v0.6.4 "Factory Reset" 📋
+
+**Branch:** `feature/20-factory-reset`
+**Goal:** Safe wipe with three tiers (Settings, Library, Factory).
+
+- 📋 **Reset on next start**: Marker file; delete according to allowlist at very start of launch.
+- 📋 **Always take backup**: Unless user opts out.
+
+---
 
 ---
 
