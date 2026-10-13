@@ -163,7 +163,8 @@ public class DatabaseService : IDisposable
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var terms = words.Select(term => $"\"{term}\"*");
 
-        return string.Join(" OR ", terms);
+        // FTS5 treats space-separated terms as AND
+        return string.Join(" ", terms);
     }
 
     public void RebuildFtsIndex()

@@ -61,6 +61,8 @@ public partial class MainViewModel : ViewModelBase
     public bool IsMenuBarVisible { get => _isMenuBarVisible; set { _isMenuBarVisible = value; OnPropertyChanged(); } }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
+        private bool _isChangingPage;
+
     private bool _isCustomizingSidebar;
     public bool IsCustomizingSidebar { get => _isCustomizingSidebar; set { _isCustomizingSidebar = value; OnPropertyChanged(); } }
 
@@ -94,7 +96,11 @@ public partial class MainViewModel : ViewModelBase
             _globalSearchQuery = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasGlobalSearchQuery));
+            
+            // Route to all VMs so the query persists across page switches
             Library.SearchQuery = value;
+            RadioLibrary.SearchQuery = value;
+            AudiobookLibrary.SearchQuery = value;
             Playlist.SearchQuery = value;
         }
     }
@@ -106,7 +112,10 @@ public partial class MainViewModel : ViewModelBase
         get => _currentPage;
         set
         {
+            if (_currentPage == value) return;
             _currentPage = value;
+            _isChangingPage = true; // Ignore ComboBox resets during this transition
+            
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsOnLibraryPage));
             OnPropertyChanged(nameof(IsOnRadioPage));
@@ -115,6 +124,14 @@ public partial class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(ToolbarCurrentSort));
             OnPropertyChanged(nameof(ToolbarSortAscending));
             OnPropertyChanged(nameof(ToolbarToggleSortDirectionCommand));
+            
+            // 1.6: Re-apply the global query to the newly active page
+            ActiveLibraryVM.SearchQuery = _globalSearchQuery;
+            if (_currentPage == "Playlists") Playlist.SearchQuery = _globalSearchQuery;
+
+            // Reset the flag after the UI has processed the ItemsSource change
+            Dispatcher.UIThread.Post(() => _isChangingPage = false, DispatcherPriority.Background);
+            
             _prefsService.Update(p => p.LastPage = value);
             Nav?.SetActivePage(value);
         }
@@ -135,7 +152,16 @@ public partial class MainViewModel : ViewModelBase
     public SortField ToolbarCurrentSort
     {
         get => CurrentPage == "Playlists" ? Playlist.CurrentSort : ActiveLibraryVM.CurrentSort;
-        set { if (CurrentPage == "Playlists") Playlist.CurrentSort = value; else ActiveLibraryVM.CurrentSort = value; }
+        set
+        {
+            if (_isChangingPage) return; // Protect against ComboBox reset hijacking the sort
+            
+            var clamped = SortFieldCatalog.Clamp(CurrentPage, value);
+            if (CurrentPage == "Playlists") Playlist.CurrentSort = clamped;
+            else ActiveLibraryVM.CurrentSort = clamped;
+
+            if (clamped != value) OnPropertyChanged(nameof(ToolbarCurrentSort));
+        }
     }
 
     public bool ToolbarSortAscending => CurrentPage == "Playlists" ? Playlist.SortAscending : ActiveLibraryVM.SortAscending;

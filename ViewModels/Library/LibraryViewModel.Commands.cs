@@ -140,6 +140,7 @@ public partial class LibraryViewModel
     [RelayCommand] private void SortByPlayCount() => SetSort(SortField.PlayCount);
     [RelayCommand] private void SortBySource() => SetSort(SortField.Source);
     [RelayCommand] private void SortByLastPlayed() => SetSort(SortField.LastPlayed);
+    [RelayCommand] private void SortByLength() => SetSort(SortField.Length); // Phase 1.4 Length Sort
     [RelayCommand] private void FocusSearch() => SearchQuery = string.Empty;
     [RelayCommand] private void ClearSearchText() => SearchQuery = string.Empty;
     [RelayCommand] private void ToggleSortDirection() => SortAscending = !SortAscending;

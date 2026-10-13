@@ -6,5 +6,6 @@ public enum SortField
     Source,
     PlayCount,
     LastPlayed,
+    Length,
     Custom // Used for manual playlist drag-and-drop ordering
 }

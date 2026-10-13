@@ -42,18 +42,26 @@ public partial class LibraryViewModel
     {
         if (group == null) return;
         _selectedArtistFilter = group.Name;
+        
+        _isProgrammaticClear = true;
         SearchQuery = string.Empty;
+        _isProgrammaticClear = false;
+        
         NavigateToLibraryRequested?.Invoke();
         TriggerRefresh(debounce: false);
     }
 
     partial void OnSearchQueryChanged(string value)
     {
-        _selectedArtistFilter = null;
+        if (!_isProgrammaticClear)
+        {
+            _selectedArtistFilter = null;
+        }
+        
         try { _aiPromptCts?.Cancel(); _aiPromptCts?.Dispose(); }
         catch (ObjectDisposedException) { Log.Verbose("[LibraryViewModel] CTS already disposed"); }
 
-        if (value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
+        if (IsAiPromptEnabled && value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
         {
             _aiPromptCts = new CancellationTokenSource();
             var token = _aiPromptCts.Token;
@@ -135,7 +143,7 @@ public partial class LibraryViewModel
         {
             if (!filters.All(f => f(t))) return false;
             if (ftsMatches != null) return ftsMatches.Contains(t.Id);
-            if (globalTerms.Count > 0) return globalTerms.Any(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
+            if (globalTerms.Count > 0) return globalTerms.All(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
             return true;
         });
     }
@@ -172,6 +180,7 @@ public partial class LibraryViewModel
             SortField.Source     => baseSet.OrderBy(t => t.Source).ThenBy(t => t.Title),
             SortField.PlayCount  => baseSet.OrderBy(t => t.PlayCount).ThenBy(t => t.Title),
             SortField.LastPlayed => baseSet.OrderBy(t => t.LastPlayed).ThenBy(t => t.Title),
+            SortField.Length     => baseSet.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenBy(t => t.Duration).ThenBy(t => t.Title),
             _ => baseSet
         };
 
