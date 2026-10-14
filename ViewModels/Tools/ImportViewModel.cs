@@ -79,15 +79,19 @@ public class ImportViewModel : ViewModelBase
             {
                 var filePath = files[i];
                 var (rawTitle, rawArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                var (sanitizedArtist, sanitizedTitle) =
-                    NullWave.Services.Metadata.TitleSanitizer.Sanitize(rawTitle);
-
-                string title = string.IsNullOrWhiteSpace(sanitizedTitle) ? rawTitle : sanitizedTitle;
+                
+                // Use TrackNormalizer to extract artist from title if needed
+                string title = rawTitle;
                 string artist = rawArtist;
-                if ((string.IsNullOrWhiteSpace(artist) || artist == "Unknown") &&
-                    !string.IsNullOrWhiteSpace(sanitizedArtist))
+                
+                if (string.IsNullOrWhiteSpace(artist) || artist == "Unknown")
                 {
-                    artist = sanitizedArtist;
+                    var split = NullWave.Helpers.TrackNormalizer.TrySplit(rawTitle);
+                    if (split != null)
+                    {
+                        artist = split.Value.Artist;
+                        title = split.Value.Title;
+                    }
                 }
 
                 var track = new Track

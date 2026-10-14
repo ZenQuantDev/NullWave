@@ -29,6 +29,7 @@ public static partial class TrackTitleParser
     };
 
     /// <summary>True if the title is a known placeholder that should be overwritten by real metadata.</summary>
+    [Obsolete("Use TrackNormalizer.IsPlaceholderTitle instead")]
     public static bool IsPlaceholderTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title)) return true;
@@ -39,6 +40,7 @@ public static partial class TrackTitleParser
         return false;
     }
 
+    [Obsolete("Use TrackNormalizer.IsPlaceholderArtist instead")]
     public static bool IsPlaceholderArtist(string? artist)
     {
         if (string.IsNullOrWhiteSpace(artist)) return true;
@@ -57,7 +59,7 @@ public static partial class TrackTitleParser
         if (!string.IsNullOrWhiteSpace(track.Artist) && track.Artist != "Unknown" && track.Artist != "Unknown Artist")
             return (track.Title, track.Artist);
 
-        var parsed = TryParseArtistTitle(track.Title);
+        var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(track.Title);
         if (parsed != null)
             return (parsed.Value.Title, parsed.Value.Artist);
 
@@ -67,6 +69,7 @@ public static partial class TrackTitleParser
     /// <summary>
     /// Comprehensive sanitization pipeline for raw YouTube/SC metadata.
     /// </summary>
+    [Obsolete("Use TrackNormalizer.CleanArtist + TrackNormalizer.TrySplit instead")]
     public static (string CleanArtist, string CleanTitle) CleanYouTubeMetadata(string rawTitle, string rawArtist)
     {
         string title = rawTitle ?? string.Empty;
@@ -98,6 +101,7 @@ public static partial class TrackTitleParser
     /// <summary>
     /// Strips common YouTube title clutter, then splits on exotic or classic separators.
     /// </summary>
+    [Obsolete("Use TrackNormalizer.TrySplit instead")]
     public static (string Artist, string Title)? TryParseArtistTitle(string rawTitle)
     {
         if (string.IsNullOrWhiteSpace(rawTitle)) return null;

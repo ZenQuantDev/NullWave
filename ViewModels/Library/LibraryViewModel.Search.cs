@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -20,9 +20,9 @@ public partial class LibraryViewModel
         foreach (var track in _library.GetAll())
         {
             if (string.IsNullOrWhiteSpace(track.Artist) || track.Artist == "Unknown") continue;
-            foreach (var name in LibraryService.SplitArtistCredits(track.Artist))
+            foreach (var name in NullWave.Helpers.TrackNormalizer.SplitArtistCredits(track.Artist))
             {
-                var key = LibraryService.NormalizeArtistKey(name);
+                var key = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name);
                 if (!buckets.TryGetValue(key, out var bucket))
                 {
                     bucket = (name, new HashSet<Guid>());
@@ -166,8 +166,8 @@ public partial class LibraryViewModel
 
         if (!string.IsNullOrEmpty(artistFilter))
         {
-            var normalizedFilter = LibraryService.NormalizeArtistKey(artistFilter);
-            baseSet = baseSet.Where(t => LibraryService.SplitArtistCredits(t.Artist).Any(name => LibraryService.NormalizeArtistKey(name) == normalizedFilter));
+            var normalizedFilter = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(artistFilter);
+            baseSet = baseSet.Where(t => NullWave.Helpers.TrackNormalizer.SplitArtistCredits(t.Artist).Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedFilter));
         }
 
         bool wasSearch = false;
