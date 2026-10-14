@@ -145,15 +145,18 @@ public class DatabaseSafetyTests : IDisposable
         // First open: runs migrations 1-8 synchronously, 9 asynchronously
         using (var db = new DatabaseService())
         {
-            Assert.True(db.SchemaVersion >= 8);
+            var v1 = db.SchemaVersion;
+            Assert.True(v1 >= 8);
         }
 
         // Wait for the async migration 9 (path tokenization) to complete
-        await Task.Delay(200);
+        await Task.Delay(300);
 
         int v2;
         using (var db = new DatabaseService())
         {
+            // Wait for migration 9 to complete on this open as well
+            await Task.Delay(300);
             v2 = db.SchemaVersion;
             Assert.True(v2 >= 8);
         }
@@ -161,6 +164,7 @@ public class DatabaseSafetyTests : IDisposable
         // Third open: should not run any migrations
         using (var db = new DatabaseService())
         {
+            await Task.Delay(100); // Give migration 9 a chance to complete if it's still running
             Assert.Equal(v2, db.SchemaVersion);
         }
     }

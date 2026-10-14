@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -396,7 +396,7 @@ public class TrackDetailViewModel : ViewModelBase
         var trackId = track.Id;
         IsLoadingArtistInfo = true;
 
-        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
+        var primaryArtist = NullWave.Helpers.TrackNormalizer.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
 
         // Memoize: skip the Last.fm round-trip entirely for artists we've already resolved.
         LastFmArtistInfo? info = null;
@@ -427,10 +427,10 @@ public class TrackDetailViewModel : ViewModelBase
         }
         else
         {
-            var normalizedTarget = LibraryService.NormalizeArtistKey(primaryArtist);
+            var normalizedTarget = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(primaryArtist);
             LibraryArtistTrackCount = _library.GetAll()
-                .Count(t => LibraryService.SplitArtistCredits(t.Artist)
-                    .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedTarget));
+                .Count(t => NullWave.Helpers.TrackNormalizer.SplitArtistCredits(t.Artist)
+                    .Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedTarget));
         }
 
         ResolveArtistImageAsync(info, primaryArtist, track, trackId);
