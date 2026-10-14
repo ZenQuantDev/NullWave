@@ -60,18 +60,14 @@ public partial class MainViewModel
 
         OpenDataFolderCommand = new RelayCommand(() =>
         {
-            var dir = NullWavePaths.DataDir;
-            Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            Log.Information("[{Source}] Opened data folder: {Dir}", nameof(MainViewModel), dir);
+            ShellHelper.OpenFolder(NullWavePaths.DataDir);
+            Log.Information("[{Source}] Opened data folder: {Dir}", nameof(MainViewModel), NullWavePaths.DataDir);
         });
 
         OpenLogsCommand = new RelayCommand(() =>
         {
-            var dir = NullWavePaths.LogsDir;
-            Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), dir);
+            ShellHelper.OpenFolder(NullWavePaths.LogsDir);
+            Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), NullWavePaths.LogsDir);
         });
 
         NavigateLibraryCommand = new RelayCommand(() => { Library.ShowAll(); CurrentPage = "Library"; LogNav("Library"); });

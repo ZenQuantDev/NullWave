@@ -146,14 +146,13 @@ public partial class LibraryService : IDisposable
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
-            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
-            var parsed = TrackTitleParser.TryParseArtistTitle(titleToParse);
-            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Artist) && !string.IsNullOrWhiteSpace(parsed.Value.Title))
+            var split = NullWave.Helpers.TrackNormalizer.TrySplit(track.Title);
+            if (split != null && !string.IsNullOrWhiteSpace(split.Value.Artist) && !string.IsNullOrWhiteSpace(split.Value.Title))
             {
-                if (track.Artist == "Unknown" || track.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(track.Artist))
-                    track.Artist = parsed.Value.Artist;
-                if (track.Title == track.Url || track.Title == "Unknown Title" || string.IsNullOrWhiteSpace(track.Title))
-                    track.Title = parsed.Value.Title;
+                if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist))
+                    track.Artist = split.Value.Artist;
+                if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))
+                    track.Title = split.Value.Title;
             }
         }
 
@@ -264,7 +263,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.PlayCount++;
-        track.LastPlayed = DateTime.Now;
+        track.LastPlayed = DateTime.UtcNow; // Standardize on UTC
         _db.Update(track);
         StateVersion++;
         _history.Add(track);
