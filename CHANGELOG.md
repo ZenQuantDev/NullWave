@@ -7,7 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Length Sort with Zero-Sinking**: New sort option orders tracks by duration. Radio streams and unscanned files (zero duration) always sink to the bottom regardless of sort direction, preventing them from cluttering the top of "shortest" lists.
+- **Safe Manual Backup**: The "Backup Database" button in Settings now uses SQLite's `VACUUM INTO` to create a perfectly consistent, compacted copy of the database, validating it with an integrity check before finishing.
+- **Cascading Track Deletion**: Deleting a track from the Library now automatically removes it from the playback Queue and all Playlists. The "Undo" button perfectly restores the track to its original playlists.
+- **Schema Versioning**: Introduced SQLite `user_version` tracking. Migrations now run exactly once, in order, preventing redundant startup checks and allowing safe, forward-only schema evolution.
+- **Length Sort with Zero-Sinking**: New sort option orders tracks by duration. Radio streams and unscanned files (zero duration) always sink to the bottom regardless of sort direction.
 - **Honest Column Headers**: The Length header is now fully sortable with a visual indicator. The Status and Plays headers are now plain text (no hand cursor) since they cannot be sorted.
 - **Global Search Persistence**: The global search query now follows you across all pages (Library, Radio, Audiobooks, Playlists). Switching pages no longer clears your search.
 - **Clipboard Pre-fill**: Opening the "Add Track" flyout automatically pre-fills the URL box if you have a valid HTTP/HTTPS URL on your clipboard.
@@ -15,6 +18,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Non-Destructive Playlist Merging**: The startup `Deduplicate` sweep no longer deletes duplicate playlists. Instead, it merges their unique tracks into the primary playlist, preventing accidental data loss.
+- **Playlist Cover Art**: Changing or clearing a playlist cover now properly deletes the old image file from the cache and invalidates the bitmap cache to prevent ghost images. New covers use timestamped filenames to prevent cache collisions.
+- **AI Playlist Generation**: The `ai:` prompt now filters out Radio streams and Audiobooks from candidates, preventing accidental inclusion of live streams in mood playlists. Empty prompts now show a helpful hint toast.
 - **FTS5 Multi-Word Search**: Search queries with multiple words now use **AND logic** instead of OR. Searching "pastel ghost" now requires both words, while single-word queries still prefix-match as before.
 - **Artist Filter Persistence**: Clicking an artist in the sidebar now properly clears the search box while preserving the artist filter. Typing a new search afterwards still clears the artist filter as expected.
 - **AI Prompt Guard**: The `ai:` prompt for generating playlists now only triggers on the main Library page, preventing accidental AI generation on Radio or Audiobooks pages.
@@ -22,6 +28,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Playlist Rename Safety**: Attempting to rename a playlist to a name that already exists now blocks the action with a warning toast instead of creating a duplicate that would be destroyed on restart.
+- **Radio Misclassification**: Added a one-time repair migration that fixes tracks wrongly marked as "Radio" (e.g., tracks with "radio" in the URL like Radiohead) back to "Music".
+- **Test Runner Crashes**: Fixed `AccessViolationException` crashes during rapid test execution by properly cancelling background migration tasks when the `DatabaseService` is disposed.
+- **WAL Flush on Exit**: The database now explicitly flushes the Write-Ahead Log (WAL) to the main file on app exit, ensuring all pending writes are safely persisted.
+- **FTS Index Corruption**: The FTS5 search index is now automatically rebuilt after running the `VACUUM` maintenance command as cheap insurance.
 - **Column Alignment**: Fixed persistent misalignment between column headers and track rows. Removed the track-count label from the header grid and inserted invisible spacers that exactly match the album art dimensions.
 - **ComboBox Reset Hijacking**: Fixed a bug where switching pages would cause the sort dropdown to reset and overwrite the active page's sort order.
 - **Global Search Isolation**: Fixed an issue where the global search box only updated the main Library, leaving Radio and Audiobooks unfiltered.

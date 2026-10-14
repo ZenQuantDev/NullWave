@@ -63,6 +63,11 @@ public partial class LibraryViewModel
 
         if (IsAiPromptEnabled && value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
         {
+            // "ai:" is a command, not a filter: refresh now so stale filter results
+            // never linger while the prompt is typed. The ai: prefix is treated as
+            // "no constraint" below, so the list honestly shows the full library.
+            TriggerRefresh(debounce: true);
+
             _aiPromptCts = new CancellationTokenSource();
             var token = _aiPromptCts.Token;
             _ = Task.Run(async () =>
@@ -166,7 +171,8 @@ public partial class LibraryViewModel
         }
 
         bool wasSearch = false;
-        if (!string.IsNullOrWhiteSpace(query)) { baseSet = ApplySmartSearch(baseSet, query); wasSearch = true; }
+        if (!string.IsNullOrWhiteSpace(query) && !query.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
+        { baseSet = ApplySmartSearch(baseSet, query); wasSearch = true; }
         else if (!string.IsNullOrEmpty(artistFilter)) wasSearch = true;
 
         if (mediaTypeFilter.HasValue) baseSet = baseSet.Where(t => t.MediaType == mediaTypeFilter.Value);
@@ -190,7 +196,14 @@ public partial class LibraryViewModel
     private async Task HandleAIPromptAsync(string prompt)
     {
         var query = prompt.Substring(3).Trim();
-        if (string.IsNullOrWhiteSpace(query)) return;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // TODO(localization): move to key AI_Prompt_Hint in the Locales pass
+            ToastService.Instance.Show(
+                "Type a mood after ai: - for example  ai: chill hip-hop",
+                ToastType.Info, durationMs: 4000, scope: "ai-prompt");
+            return;
+        }
 
         LiveNotification? activity = null;
         await Dispatcher.UIThread.InvokeAsync(() =>
@@ -200,7 +213,9 @@ public partial class LibraryViewModel
 
         try
         {
-            var allTracks = _library.GetAll().ToArray();
+            // ai: playlists are music playlists: never pull radio streams or audiobooks
+            // into them (keyword matches like "pop" -> "Indie Pop Rocks" station).
+            var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToArray();
             var keywords = query.ToLowerInvariant().Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Where(k => k.Length > 2).ToArray();
             var candidateTracks = allTracks.Where(t =>
             {

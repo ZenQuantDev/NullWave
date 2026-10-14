@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
@@ -17,7 +18,11 @@ public class DatabaseService : IDisposable
     private readonly PreferencesService? _prefs;
     private bool _disposed;
     private bool _ftsAvailable;
+    private readonly CancellationTokenSource _migrationCts = new();
     public string DbPath { get; }
+    
+    /// <summary>Current schema version stored in SQLite's user_version pragma.</summary>
+    public int SchemaVersion => _db.ExecuteScalar<int>("PRAGMA user_version;");
 
     public DatabaseService(PreferencesService? prefs = null)
     {
@@ -377,70 +382,65 @@ public class DatabaseService : IDisposable
         }
     }
 
-    /// <summary>SQLite-net CreateTable does NOT add columns to existing tables; add new columns manually.</summary>
+    /* <summary>
+       Schema migrations run exactly once, in order, tracked by SQLite's user_version.
+    </summary>  */
     private void MigrateSchema()
     {
         try
         {
-            var cols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);");
-            if (!cols.Any(c => string.Equals(c.Name, "CustomArtPath", StringComparison.OrdinalIgnoreCase)))
+            int currentVersion = _db.ExecuteScalar<int>("PRAGMA user_version;");
+            
+            // If version is 0, this might be an existing DB from before we introduced versioning.
+            // Detect the current state based on which columns already exist.
+            if (currentVersion == 0)
             {
-                _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
-                Log.Information("[DatabaseService] Migration: added Playlists.CustomArtPath column");
+                currentVersion = DetectCurrentVersion();
+                if (currentVersion > 0)
+                {
+                    _db.Execute($"PRAGMA user_version = {currentVersion};");
+                    Log.Information("[DatabaseService] Detected existing legacy schema at version {Version}", currentVersion);
+                }
             }
 
-            var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);");
-            if (!trackCols.Any(c => string.Equals(c.Name, "DurationMs", StringComparison.OrdinalIgnoreCase)))
+            if (currentVersion < 1) { _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;"); currentVersion = 1; _db.Execute("PRAGMA user_version = 1;"); Log.Information("[DatabaseService] Migration 1: added Playlists.CustomArtPath"); }
+            if (currentVersion < 2) { _db.Execute("ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;"); currentVersion = 2; _db.Execute("PRAGMA user_version = 2;"); Log.Information("[DatabaseService] Migration 2: added Tracks.DurationMs"); }
+            if (currentVersion < 3) { _db.Execute("ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';"); currentVersion = 3; _db.Execute("PRAGMA user_version = 3;"); Log.Information("[DatabaseService] Migration 3: added Tracks.MediaType"); }
+            if (currentVersion < 4) { _db.Execute("ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;"); currentVersion = 4; _db.Execute("PRAGMA user_version = 4;"); Log.Information("[DatabaseService] Migration 4: added Tracks.PlaybackPositionTicks"); }
+            if (currentVersion < 5) { _db.Execute("ALTER TABLE Tracks ADD COLUMN Album VARCHAR;"); currentVersion = 5; _db.Execute("PRAGMA user_version = 5;"); Log.Information("[DatabaseService] Migration 5: added Tracks.Album"); }
+            if (currentVersion < 6) { _db.Execute("ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;"); currentVersion = 6; _db.Execute("PRAGMA user_version = 6;"); Log.Information("[DatabaseService] Migration 6: added Tracks.TrackNumber"); }
+            if (currentVersion < 7) { _db.Execute("ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;"); currentVersion = 7; _db.Execute("PRAGMA user_version = 7;"); Log.Information("[DatabaseService] Migration 7: added PlaylistTracks.DateAdded"); }
+
+            // 2.6 FIX: Radio repair migration. 
+            // REMOVED the old buggy logic that guessed Radio based on URL containing "radio" or "stream".
+            // NEW: Any track marked as Radio that actually has a local file or a known non-radio source is a misclassified music track.
+            if (currentVersion < 8)
             {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.DurationMs column");
+                var repaired = _db.Execute("UPDATE Tracks SET MediaType = 'Music' WHERE MediaType = 'Radio' AND (FilePath IS NOT NULL OR Source IN ('YouTube', 'SoundCloud', 'Local', 'Spotify', 'LastFm'));");
+                if (repaired > 0) Log.Information("[DatabaseService] Migration 8: Repaired {Count} misclassified Radio tracks back to Music", repaired);
+                currentVersion = 8;
+                _db.Execute("PRAGMA user_version = 8;");
             }
 
-            if (!trackCols.Any(c => string.Equals(c.Name, "MediaType", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';");
-                Log.Information("[DatabaseService] Migration: added Tracks.MediaType column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "PlaybackPositionTicks", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.PlaybackPositionTicks column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "Album", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN Album VARCHAR;");
-                Log.Information("[DatabaseService] Migration: added Tracks.Album column");
-            }
-
-            if (!trackCols.Any(c => string.Equals(c.Name, "TrackNumber", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;");
-                Log.Information("[DatabaseService] Migration: added Tracks.TrackNumber column");
-            }
-
-            // NEW: Migration for PlaylistTracks DateAdded
-            var playlistTrackCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);");
-            if (!playlistTrackCols.Any(c => string.Equals(c.Name, "DateAdded", StringComparison.OrdinalIgnoreCase)))
-            {
-                _db.Execute("ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;");
-                Log.Information("[DatabaseService] Migration: added PlaylistTracks.DateAdded column");
-            }
-
-            // FIX: Rescue existing radio stations that were misclassified as Music due to the missing column
-            _db.Execute("UPDATE Tracks SET MediaType = 'Radio' WHERE MediaType = 'Music' AND Url IS NOT NULL AND (Url LIKE '%somafm%' OR Url LIKE '%icecast%' OR Url LIKE '%stream%' OR Url LIKE '%radio%');");
+            Log.Information("[DatabaseService] Schema is at version {Version}", currentVersion);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[DatabaseService] Schema migration check failed");
         }
 
-        // 3. Migrate absolute paths to portable tokens (Deferred to prevent UI freeze)
+        // Path tokenization (Version 9) runs in the background to avoid UI freezes
         _ = Task.Run(() =>
         {
             try
             {
+                var token = _migrationCts.Token;
+                if (token.IsCancellationRequested || _disposed) return;
+
+                int currentVersion = _db.ExecuteScalar<int>("PRAGMA user_version;");
+                if (currentVersion >= 9) return; // Already tokenized
+
+                token.ThrowIfCancellationRequested();
                 bool dbUpdated = false;
                 var rawTracks = _db.Table<TrackRecord>().ToList();
                 foreach (var r in rawTracks)
@@ -466,13 +466,35 @@ public class DatabaseService : IDisposable
                         dbUpdated = true;
                     }
                 }
+                
                 if (dbUpdated) Log.Information("[DatabaseService] Migrated absolute paths to portable tokens.");
+                
+                _db.Execute("PRAGMA user_version = 9;");
+                Log.Information("[DatabaseService] Schema advanced to version 9 (path tokenization complete)");
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "[DatabaseService] Path tokenization migration failed");
             }
         });
+    }
+
+    /// <summary>Inspects existing columns to determine the baseline schema version for legacy databases.</summary>
+    private int DetectCurrentVersion()
+    {
+        var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+        var plCols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+        var ptCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+
+        int version = 0;
+        if (plCols.Contains("customartpath")) version = 1;
+        if (trackCols.Contains("durationms")) version = 2;
+        if (trackCols.Contains("mediatype")) version = 3;
+        if (trackCols.Contains("playbackpositionticks")) version = 4;
+        if (trackCols.Contains("album")) version = 5;
+        if (trackCols.Contains("tracknumber")) version = 6;
+        if (ptCols.Contains("dateadded")) version = 7;
+        return version;
     }
 
     private class ColumnInfo
@@ -487,6 +509,25 @@ public class DatabaseService : IDisposable
         var sizeAfter = new FileInfo(DbPath).Length;
         Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
             sizeBefore / 1024, sizeAfter / 1024);
+            
+        // 2.7 FIX: Rebuild FTS index after VACUUM (cheap insurance against index corruption)
+        if (_ftsAvailable)
+        {
+            try { _db.Execute("INSERT INTO TracksFts(TracksFts) VALUES('rebuild');"); }
+            catch (Exception ex) { Log.Warning(ex, "[DatabaseService] FTS rebuild after VACUUM failed"); }
+        }
+    }
+
+    public void BackupToPath(string targetPath)
+    {
+        if (File.Exists(targetPath)) File.Delete(targetPath);
+        // VACUUM INTO requires SQLite 3.27+. sqlite-net-pcl bundles a recent version.
+        _db.Execute($"VACUUM INTO '{targetPath.Replace("'", "''")}';");
+        if (!IsValidDatabase(targetPath))
+        {
+            try { File.Delete(targetPath); } catch { }
+            throw new InvalidOperationException("Backup validation failed.");
+        }
     }
 
     public List<Track> LoadAll()
@@ -542,14 +583,7 @@ public class DatabaseService : IDisposable
             var syncDb = _db;
             syncDb.RunInTransaction(() =>
             {
-                syncDb.InsertOrReplace(new PlaylistRecord
-                {
-                    Id = playlist.Id.ToString(),
-                    Name = playlist.Name,
-                    Description = playlist.Description,
-                    FolderId = playlist.FolderId?.ToString(),
-                    CustomArtPath = playlist.CustomArtPath
-                });
+                syncDb.InsertOrReplace(PlaylistRecord.FromPlaylist(playlist));
                 syncDb.Execute("DELETE FROM PlaylistTracks WHERE PlaylistId = ?", playlist.Id.ToString());
 
                 for (int i = 0; i < playlist.Tracks.Count; i++)
@@ -672,6 +706,15 @@ public class DatabaseService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        
+        // Stop background migrations before closing the connection to prevent AccessViolationExceptions in tests
+        _migrationCts.Cancel();
+        _migrationCts.Dispose();
+        
+        // 2.7 FIX: Flush WAL to main DB file before closing to ensure all writes are persisted
+        try { _db.ExecuteScalar<string>("PRAGMA wal_checkpoint(TRUNCATE);"); }
+        catch { /* best effort */ }
+        
         _db.Close();
     }
 }

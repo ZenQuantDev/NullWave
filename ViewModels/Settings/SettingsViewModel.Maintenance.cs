@@ -54,7 +54,10 @@ public partial class SettingsViewModel
     [RelayCommand] private void PreviewSyncFiles() { IsRepairing = true; SyncFilesStatus = "Scanning files..."; SyncFilesRequested?.Invoke(true); }
     [RelayCommand] private void SyncFiles() { IsRepairing = true; SyncFilesStatus = "Syncing files..."; SyncFilesRequested?.Invoke(false); }
     [RelayCommand] private void RequestBackfillDurations() => BackfillDurationsRequested?.Invoke();
-    [RelayCommand] private void RestoreDatabase() => RestoreDatabaseRequested?.Invoke();
+    public event Action<string>? BackupDatabaseRequested;
+    [RelayCommand] private void RequestBackup(string path) => BackupDatabaseRequested?.Invoke(path);
+
+    [RelayCommand] private void RestoreDatabase() => RestoreDatabaseRequested?.Invoke();   
 
     #region Reporters
     public void ReportDedupeComplete(int scanned, int groups, int removed, bool wasDryRun)
@@ -142,6 +145,17 @@ public partial class SettingsViewModel
         IsRepairing = false;
         RepairStatus = $"✗ {operation} failed: {reason}";
         ToastService.Instance.Show(RepairStatus, ToastType.Error, scope: "maintenance");
+    }
+
+    public void ReportBackupComplete(string fileName)
+    {
+        IsRepairing = false;
+        ToastService.Instance.Show($"✓ Database backed up successfully to {fileName}.", ToastType.Success, scope: "maintenance");
+    }
+    public void ReportBackupFailed(string reason)
+    {
+        IsRepairing = false;
+        ToastService.Instance.Show($"✗ Backup failed: {reason}", ToastType.Error, scope: "maintenance");
     }
     #endregion
 }

@@ -151,6 +151,12 @@ public partial class MainViewModel
             File.Copy(selectedFile, tempPath, overwrite: true);
             return () => ToastService.Instance.Show("Backup staged! Please restart NullWave to apply.", ToastType.Success, 10000, scope: "maintenance");
         });
+
+        Settings.BackupDatabaseRequested += path => RunMaintenanceTask("BackupDatabase", false, async () =>
+        {
+            await Task.Run(() => _library.BackupDatabase(path));
+            return () => Settings.ReportBackupComplete(Path.GetFileName(path));
+        });
     }
 
     private void RunMaintenanceTask(string taskName, bool dryRun, Func<Task<Action>> taskFactory)
