@@ -390,7 +390,7 @@ public partial class MainViewModel
                 var token = await auth.GetRequestTokenAsync();
                 if (string.IsNullOrEmpty(token)) { Settings.ReportLastFmAuthFailed("Token request failed."); return; }
                 
-                Process.Start(new ProcessStartInfo { FileName = auth.GetAuthUrl(token), UseShellExecute = true });
+                ShellHelper.OpenUrl(auth.GetAuthUrl(token));
                 Settings.ReportLastFmAwaitingAuth();
                 _pendingLastFmToken = token; _pendingLastFmAuth = auth;
             }
@@ -521,20 +521,33 @@ public partial class MainViewModel
             _effectsTier.ClearBatteryOverride();
     }
 
-    private void OnClearYtDlpCacheRequested()
+    private async void OnClearYtDlpCacheRequested()
     {
         try
         {
-            var psi = new ProcessStartInfo("yt-dlp", "--rm-cache-dir") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            using var process = Process.Start(psi);
-            if (process != null)
+            var ytDlpPath = PlatformHelper.ResolveExecutable("yt-dlp");
+            var result = await ProcessRunner.RunAsync(ytDlpPath, new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
+            
+            if (result.ExitCode == 0)
             {
-                process.WaitForExit();
-                if (process.ExitCode == 0) ToastService.Instance.Show("yt-dlp cache cleared!", ToastType.Success, 5000, scope: "maintenance");
-                else ToastService.Instance.Show($"Cache clear failed: {process.StandardError.ReadToEnd()}", ToastType.Error, 5000, scope: "maintenance");
+                ToastService.Instance.Show("yt-dlp cache cleared!", ToastType.Success, 5000, scope: "maintenance");
+            }
+            else if (result.TimedOut)
+            {
+                ToastService.Instance.Show("Cache clear timed out after 30 seconds.", ToastType.Error, 5000, scope: "maintenance");
+            }
+            else
+            {
+                var errorOutput = string.IsNullOrWhiteSpace(result.StandardError) 
+                    ? "Unknown error" 
+                    : result.StandardError.Split('\n')[0].Trim();
+                ToastService.Instance.Show($"Cache clear failed: {errorOutput}", ToastType.Error, 5000, scope: "maintenance");
             }
         }
-        catch (Exception ex) { ToastService.Instance.Show($"Cache clear failed: {ex.Message}", ToastType.Error, 5000, scope: "maintenance"); }
+        catch (Exception ex)
+        {
+            ToastService.Instance.Show($"Cache clear failed: {ex.Message}", ToastType.Error, 5000, scope: "maintenance");
+        }
     }
 
     private async Task RunMoodPlaylistAsync(bool forceRefresh, bool forceTags = false)

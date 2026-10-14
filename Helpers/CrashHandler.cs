@@ -37,8 +37,8 @@ public static class CrashHandler
             // Append so we don't overwrite previous crashes if it loops
             File.AppendAllText(crashFile, sb.ToString() + Environment.NewLine + Environment.NewLine);
             
-            // Open the file with the default OS application (usually a browser or text editor)
-            Process.Start(new ProcessStartInfo(crashFile) { UseShellExecute = true });
+            // Open the file with the default OS application
+            ShellHelper.OpenFile(crashFile);
         }
         catch (Exception handlerEx)
         {
