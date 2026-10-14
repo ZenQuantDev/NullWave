@@ -128,6 +128,12 @@ public partial class LibraryViewModel : ObservableObject
     /// <summary>Only the main Library VM should trigger the AI playlist generation prompt.</summary>
     public bool IsAiPromptEnabled { get; set; }
 
+    /// <summary>2.5: Callback to capture which playlists a track belongs to before deletion.</summary>
+    public Func<Guid, List<Guid>>? GetPlaylistMemberships { get; set; }
+    
+    /// <summary>2.5: Callback to restore a track to its playlists after an Undo.</summary>
+    public Action<Track, List<Guid>>? RestorePlaylistMemberships { get; set; }
+
     public ObservableCollection<ArtistGroup> ArtistGroups { get; } = new();
     
     public event Action? NavigateToLibraryRequested;

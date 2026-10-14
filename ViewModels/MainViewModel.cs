@@ -61,7 +61,7 @@ public partial class MainViewModel : ViewModelBase
     public bool IsMenuBarVisible { get => _isMenuBarVisible; set { _isMenuBarVisible = value; OnPropertyChanged(); } }
     public void ToggleMenuBar() => IsMenuBarVisible = !IsMenuBarVisible;
 
-        private bool _isChangingPage;
+    private bool _isChangingPage;
 
     private bool _isCustomizingSidebar;
     public bool IsCustomizingSidebar { get => _isCustomizingSidebar; set { _isCustomizingSidebar = value; OnPropertyChanged(); } }
@@ -97,10 +97,8 @@ public partial class MainViewModel : ViewModelBase
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasGlobalSearchQuery));
             
-            // Route to all VMs so the query persists across page switches
-            Library.SearchQuery = value;
-            RadioLibrary.SearchQuery = value;
-            AudiobookLibrary.SearchQuery = value;
+            // Route only to the visible library page + playlists.
+            ActiveLibraryVM.SearchQuery = value;
             Playlist.SearchQuery = value;
         }
     }
@@ -238,8 +236,7 @@ public partial class MainViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() => _ = _playbackService.WarmUpAsync(), DispatcherPriority.Background);
     }
 
-    /// <summary>Immediate-eval player subscriptions. Lambdas that only touch Player when
-    /// invoked may stay in their original wire methods; these dereference Player at wire time.</summary>
+    /// <summary>Immediate-eval player subscriptions.</summary>
     private void WirePlayerEvents()
     {
         Library.PlayTrackRequested += Player.PlayTrack;

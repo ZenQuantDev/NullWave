@@ -287,7 +287,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task BackupDatabaseAsync()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-        var dbPath = NullWavePaths.DatabasePath;
         var file = await desktop.MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Backup Library Database",
@@ -296,12 +295,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         });
         if (file != null)
         {
-            try
-            {
-                File.Copy(dbPath, file.Path.LocalPath, overwrite: true);
-                ToastService.Instance.Show($"Database backed up successfully to {file.Name}.", ToastType.Success);
-            }
-            catch (Exception ex) { ToastService.Instance.Show($"Backup failed: {ex.Message}", ToastType.Error); }
+            BackupDatabaseRequested?.Invoke(file.Path.LocalPath);
         }
     }
 

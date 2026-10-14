@@ -36,12 +36,21 @@ public partial class LibraryViewModel
         if (SelectedTrack?.Id == targetId) SelectedTrack = null;
         var undoTrack = target;
 
+        // 2.5 FIX: Capture playlist memberships BEFORE removing the track
+        var memberships = GetPlaylistMemberships?.Invoke(targetId) ?? new List<Guid>();
+
         await Task.Run(() => _library.Remove(targetId));
         NullActionLogger.TrackRemoved(targetId.ToString(), "LibraryViewModel");
         TriggerRefresh(debounce: false);
 
         ToastService.Instance.Show(message: $"Removed '{undoTrack.Title}'", type: ToastType.Warning, durationMs: 6000, actionText: "Undo",
-            actionCallback: () => { _library.Add(undoTrack); TriggerRefresh(debounce: false); ToastService.Instance.Show("Track restored.", ToastType.Success, durationMs: 2000, scope: "library-delete"); },
+            actionCallback: () => 
+            { 
+                _library.Add(undoTrack); 
+                RestorePlaylistMemberships?.Invoke(undoTrack, memberships);
+                TriggerRefresh(debounce: false); 
+                ToastService.Instance.Show("Track restored.", ToastType.Success, durationMs: 2000, scope: "library-delete"); 
+            },
             scope: "library-delete");
     }
 
@@ -50,12 +59,25 @@ public partial class LibraryViewModel
     {
         var targets = _currentSelection.ToList();
         if (targets.Count == 0) return;
+
+        // 2.5 FIX: Capture memberships for all targets BEFORE removing
+        var membershipsMap = targets.ToDictionary(t => t.Id, t => GetPlaylistMemberships?.Invoke(t.Id) ?? new List<Guid>());
+
         await Task.Run(() => { foreach (var t in targets) _library.Remove(t.Id); });
         NullActionLogger.User("BulkRemove", $"count={targets.Count}", "LibraryViewModel");
         TriggerRefresh(debounce: false);
 
         ToastService.Instance.Show(message: $"Removed {targets.Count} track(s)", type: ToastType.Warning, durationMs: 6000, actionText: "Undo",
-            actionCallback: () => { foreach (var t in targets) _library.Add(t); TriggerRefresh(debounce: false); ToastService.Instance.Show("Tracks restored.", ToastType.Success, durationMs: 2000, scope: "library-delete"); },
+            actionCallback: () => 
+            { 
+                foreach (var t in targets) 
+                {
+                    _library.Add(t); 
+                    if (membershipsMap.TryGetValue(t.Id, out var m)) RestorePlaylistMemberships?.Invoke(t, m);
+                }
+                TriggerRefresh(debounce: false); 
+                ToastService.Instance.Show("Tracks restored.", ToastType.Success, durationMs: 2000, scope: "library-delete"); 
+            },
             scope: "library-delete");
     }
 

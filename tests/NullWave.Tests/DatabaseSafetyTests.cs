@@ -19,7 +19,7 @@ public class DatabaseSafetyTests : IDisposable
     {
         if (!NullWavePaths.DataDir.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Refusing to run: data folder is not a temp folder.");
-            
+
         Directory.CreateDirectory(_tempDir);
         Cleanup();
     }
@@ -48,9 +48,9 @@ public class DatabaseSafetyTests : IDisposable
     {
         CreateDbWithTrack(_dbPath, "Current");
         File.WriteAllText(_dbPath + ".restoring", "this is not a database");
-        
+
         using var db = new DatabaseService();
-        
+
         Assert.Equal("Current", db.LoadAll().Single().Title);
         Assert.False(File.Exists(_dbPath + ".restoring"));
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(_dbPath)!, "library.db.restoring.rejected-*"));
@@ -61,9 +61,9 @@ public class DatabaseSafetyTests : IDisposable
     {
         CreateDbWithTrack(_dbPath, "Current");
         CreateDbWithTrack(_dbPath + ".restoring", "Restored");
-        
+
         using var db = new DatabaseService();
-        
+
         Assert.Equal("Restored", db.LoadAll().Single().Title);
         Assert.True(DatabaseService.IsValidDatabase(_dbPath + ".pre-restore"));
     }
@@ -104,5 +104,64 @@ public class DatabaseSafetyTests : IDisposable
         var db = Touch(Path.Combine(_tempDir, "library.db"), new DateTime(2026, 9, 20));
         Touch(Path.Combine(_tempDir, "library-20260915-120000.db"), DateTime.Now);
         Assert.True(DatabaseService.BackupIsDue(db, _tempDir, new DateTime(2026, 9, 21, 9, 0, 0)));
+    }
+
+    [Fact]
+    public void Schema_version_advances_and_misclassified_radio_is_repaired()
+    {
+        // 1. Setup: create a raw DB with a misclassified track and an old schema version
+        Guid trackId = Guid.NewGuid();
+        using (var rawConn = new SQLiteConnection(_dbPath))
+        {
+            rawConn.CreateTable<TrackRecord>();
+            rawConn.Insert(new TrackRecord
+            {
+                Id = trackId.ToString(),
+                Title = "Radiohead - Creep",
+                Artist = "Radiohead",
+                Source = "YouTube",
+                MediaType = "Radio" // Wrongly classified by the old buggy logic
+            });
+            // Simulate an old DB that hasn't run migration 8 yet
+            rawConn.Execute("PRAGMA user_version = 7;");
+        }
+
+        // 2. Re-open via DatabaseService to trigger the repair migration
+        using (var db = new DatabaseService())
+        {
+            Assert.True(db.SchemaVersion >= 8, $"Schema version should be >= 8, but was {db.SchemaVersion}");
+
+            var loaded = db.LoadAll().FirstOrDefault(t => t.Id == trackId);
+            Assert.NotNull(loaded);
+            
+            // 2.6 Verify the repair migration fixed it
+            Assert.Equal(MediaType.Music, loaded.MediaType);
+        }
+    }
+
+    [Fact]
+    public async Task Schema_migrations_run_only_once_across_reopens()
+    {
+        // First open: runs migrations 1-8 synchronously, 9 asynchronously
+        using (var db = new DatabaseService())
+        {
+            Assert.True(db.SchemaVersion >= 8);
+        }
+
+        // Wait for the async migration 9 (path tokenization) to complete
+        await Task.Delay(200);
+
+        int v2;
+        using (var db = new DatabaseService())
+        {
+            v2 = db.SchemaVersion;
+            Assert.True(v2 >= 8);
+        }
+
+        // Third open: should not run any migrations
+        using (var db = new DatabaseService())
+        {
+            Assert.Equal(v2, db.SchemaVersion);
+        }
     }
 }

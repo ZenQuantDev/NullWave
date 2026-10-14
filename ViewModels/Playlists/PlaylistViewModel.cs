@@ -319,6 +319,15 @@ public class PlaylistViewModel : ViewModelBase
             ToastService.Instance.Show("Playlist name can't be empty.", ToastType.Warning);
             return;
         }
+
+        // FIX: Block rename if another playlist already uses this name
+        var existing = Playlists.FirstOrDefault(p => p.Id != SelectedPlaylist.Id && p.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            ToastService.Instance.Show($"A playlist named '{trimmed}' already exists.", ToastType.Warning);
+            return; // Keep the rename box open so the user can fix it
+        }
+
         var oldName = SelectedPlaylist.Name;
         _playlists.Rename(SelectedPlaylist.Id, trimmed);
         Refresh();

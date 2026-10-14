@@ -30,6 +30,8 @@ public partial class LibraryService : IDisposable
     private readonly List<Track> _history = new();
 
     public event EventHandler? LibraryChanged;
+    public event EventHandler<Guid>? TrackRemovedFromLibrary;
+    public void BackupDatabase(string path) => _db.BackupToPath(path);
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
@@ -167,10 +169,15 @@ public partial class LibraryService : IDisposable
         Track? track;
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
+        
+        var queueEntry = _queue.FirstOrDefault(e => e.Track.Id == id);
+        if (queueEntry != null) { _queue.Remove(queueEntry); QueueChanged?.Invoke(this, EventArgs.Empty); }
+        
         lock (_tracksLock) _tracks.Remove(track);
         _db.Delete(id);
         StateVersion++;
         OnLibraryChanged();
+        TrackRemovedFromLibrary?.Invoke(this, id);
     }
 
     public void Update(Track track)

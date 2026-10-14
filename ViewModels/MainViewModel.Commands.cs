@@ -137,13 +137,10 @@ public partial class MainViewModel
         if (files.Count == 0) return;
         var srcFile = files[0];
 
-        // DURABILITY FIX: copy into the managed art cache instead of pointing at the
-        // picker's source file. A Downloads/USB/cloud path can vanish later and silently
-        // break the cover; every other art-write path in the app (ThumbnailDownloader,
-        // AlbumArtService) already copies into ArtCacheDir first.
+        // 2.4 FIX: Unique name with timestamp to prevent cache collisions
         var ext = Path.GetExtension(srcFile.Name);
         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-        var dest = Path.Combine(NullWavePaths.ArtCacheDir, $"pl_{playlist.Id:N}{ext}");
+        var dest = Path.Combine(NullWavePaths.ArtCacheDir, $"pl_{playlist.Id:N}_{DateTime.UtcNow.Ticks}{ext}");
 
         try
         {
@@ -158,14 +155,15 @@ public partial class MainViewModel
             return;
         }
 
+        // 2.4 FIX: Delete old cover file and invalidate cache
+        var oldPath = playlist.CustomArtPath;
+        if (!string.IsNullOrEmpty(oldPath) && File.Exists(oldPath))
+        {
+            try { File.Delete(oldPath); } catch { }
+            BitmapCacheService.InvalidatePath(oldPath);
+        }
+
         playlist.CustomArtPath = dest;
-
-        // DIAGNOSTIC (one run only, then delete): names which leg fails, if any still does.
-        Log.Information("[Playlist] cover set: path={Path} exists={Exists} decoded={Decoded}",
-            playlist.CustomArtPath,
-            File.Exists(playlist.CustomArtPath),
-            BitmapCacheService.DecodeSync(playlist.CustomArtPath, 256) != null);
-
         _playlists.UpdatePlaylist(playlist);
         Playlist.Refresh();
         Nav.RefreshPlaylistLists();
@@ -175,6 +173,15 @@ public partial class MainViewModel
     private void ClearPlaylistCover(Playlist? playlist)
     {
         if (playlist == null) return;
+        
+        // 2.4 FIX: Delete the file and invalidate cache
+        var oldPath = playlist.CustomArtPath;
+        if (!string.IsNullOrEmpty(oldPath) && File.Exists(oldPath))
+        {
+            try { File.Delete(oldPath); } catch { }
+            BitmapCacheService.InvalidatePath(oldPath);
+        }
+
         playlist.CustomArtPath = null;
         _playlists.UpdatePlaylist(playlist);
         Playlist.Refresh();

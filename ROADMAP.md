@@ -512,18 +512,18 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 2 - v0.6.4 "Data Safety" 🔄
+## Phase 2 - v0.6.4 "Data Safety" ✅
 
 **Branch:** `fix/data-safety`
 **Goal:** Protect user data with non-destructive merges, schema versioning, and safe backups.
 
-- 🔄 **2.1 Playlist rename must not cause deletion**: Block renames to existing names; make `Deduplicate` merge tracks instead of deleting.
-- 📋 **2.2 Migration runner**: Introduce schema version via `user_version`; run migrations once in order.
-- 📋 **2.3 Safe manual backup**: Use `VACUUM INTO` for consistent backups; validate with integrity check.
-- 📋 **2.4 Playlist persistence**: Tokenize cover paths on save; resolve on load.
-- 📋 **2.5 Removing a track cleans everything**: Remove from queue and playlists; capture memberships for Undo.
-- 📋 **2.6 Radio detection**: One-time repair migration for misclassified tracks.
-- 📋 **2.7 Small fixes**: Write flush on dispose; rebuild FTS after vacuum.
+- ✅ **2.1 Playlist rename safety**: Blocked renames to existing names in UI; made `Deduplicate` merge tracks instead of deleting.
+- ✅ **2.2 Migration runner**: Introduced schema version via `user_version`; migrations run once in order.
+- ✅ **2.3 Safe manual backup**: Used `VACUUM INTO` for consistent backups; validated with integrity check.
+- ✅ **2.4 Playlist persistence**: Tokenized cover paths on save; unique timestamped filenames; old files deleted and cache invalidated.
+- ✅ **2.5 Cascading deletes**: Removing a track cleans Queue and Playlists; Undo captures and restores memberships.
+- ✅ **2.6 Radio detection**: One-time repair migration for misclassified tracks (e.g., "Radiohead" URLs).
+- ✅ **2.7 Small fixes**: WAL flush on dispose; FTS rebuild after vacuum; background migration cancellation prevents test crashes.
 
 ---
 
