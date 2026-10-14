@@ -139,6 +139,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public bool HasAvatar => _avatar != null;
     public bool IsDirty => _username != _savedUsername || _bio != _savedBio || HasAvatar != _savedHasAvatar || _avatarPath != _savedAvatarPath || _bannerImagePath != _savedBannerImagePath;
     public bool ShowSaveToast { get => _showSaveToast; private set { _showSaveToast = value; OnPropertyChanged(); } }
+    public bool IsExperimentalModeActive => _prefs.Current.EnableExperimentalFeatures || CheckDevAccess();
+
     
     public int TotalTracks => _totalTracks;
     public int TotalFavorites => _totalFavorites;
@@ -267,4 +269,11 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         LocalizationService.Instance.PropertyChanged -= _langHandler;
         if (_library != null) _library.LibraryChanged -= OnLibraryChanged;
     }
+
+    private static bool CheckDevAccess()
+{
+    if (Environment.GetEnvironmentVariable("NULLWAVE_DEV") == "1") return true;
+    if (Environment.GetCommandLineArgs().Any(a => a == "--dev")) return true;
+    return false;
+}
 }

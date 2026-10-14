@@ -19,12 +19,16 @@
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCleanMetadata}" VerticalAlignment="Center"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
+                    
+                    <!-- GATED: Force Clean Titles -->
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_ForceClean_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
+                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                </Border>
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -48,22 +52,30 @@
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Repair_Button}" Command="{Binding RepairPathsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
+                    
+                    <!-- GATED: Verify Links -->
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Verify_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
+                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                </Border>
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Verify_Button}" Command="{Binding VerifyLinksCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
+                    
+                    <!-- GATED: Reimport Assets -->
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Reimport_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
+                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                </Border>
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -103,12 +115,16 @@
                             <Button Classes="danger" Content="{loc:Loc Settings_Maintenance_Remove_Button}" Command="{Binding RemoveDuplicatesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                         </StackPanel>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
+                    
+                    <!-- GATED: Merge Similar Artists -->
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Merge_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
+                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                </Border>
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -132,11 +148,15 @@
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Resync_Button}" Command="{Binding ForceMetaResyncCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    <Grid ColumnDefinitions="*,Auto">
+                    
+                    <!-- GATED: Sync Files -->
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_SyncFiles_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
+                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                </Border>
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -145,6 +165,7 @@
                             <Button Classes="secondary" Content="{loc:Loc Settings_Maintenance_Sync_Button}" Command="{Binding SyncFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                         </StackPanel>
                     </Grid>
+                    
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">

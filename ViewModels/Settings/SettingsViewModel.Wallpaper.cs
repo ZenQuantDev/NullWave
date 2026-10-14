@@ -22,22 +22,22 @@ public partial class SettingsViewModel
     public string WallpaperStyle
     {
         get => _prefsService.Current.WallpaperStyle;
-        set { _prefsService.Update(p => p.WallpaperStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperSelectionKey)); OnPropertyChanged(nameof(WallpaperStatusLabel)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ScheduleSave(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
+        set { _prefsService.Update(p => p.WallpaperStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperSelectionKey)); OnPropertyChanged(nameof(WallpaperStatusLabel)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
     }
     public string WallpaperFit
     {
         get => _prefsService.Current.WallpaperFit;
-        set { _prefsService.Update(p => p.WallpaperFit = value); OnPropertyChanged(); ScheduleSave(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
+        set { _prefsService.Update(p => p.WallpaperFit = value); OnPropertyChanged(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
     }
     public int WallpaperOpacity
     {
         get => _prefsService.Current.WallpaperOpacity;
-        set { _prefsService.Update(p => p.WallpaperOpacity = value); OnPropertyChanged(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); ScheduleSave(); }
+        set { _prefsService.Update(p => p.WallpaperOpacity = value); OnPropertyChanged(); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
     }
     public int WallpaperBlur
     {
         get => _prefsService.Current.WallpaperBlur;
-        set { _prefsService.Update(p => p.WallpaperBlur = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperSoftness)); WallpaperService.Instance.ApplyFrom(_prefsService.Current); ScheduleSave(); }
+        set { _prefsService.Update(p => p.WallpaperBlur = value); OnPropertyChanged(); OnPropertyChanged(nameof(WallpaperSoftness)); WallpaperService.Instance.ApplyFrom(_prefsService.Current); }
     }
     public int WallpaperSoftness
     {
@@ -56,7 +56,7 @@ public partial class SettingsViewModel
             OnPropertyChanged(nameof(WallpaperStatusLabel));
             OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
             WallpaperService.Instance.ApplyFrom(_prefsService.Current);
-            ScheduleSave();
+
         }
     }
     public string WallpaperBuiltInId => _prefsService.Current.WallpaperBuiltInId;
@@ -121,7 +121,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
-        ScheduleSave();
+
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
     }
 
@@ -148,7 +148,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(WallpaperSelectionKey));
         OnPropertyChanged(nameof(WallpaperStatusLabel));
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
-        ScheduleSave();
+
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
     }
 
@@ -170,7 +170,7 @@ public partial class SettingsViewModel
         _prefsService.Update(p => p.UnlockedExclusiveWallpapers.Add(WallpaperBuiltIns.StarryNight.Id));
         OnPropertyChanged(nameof(IsExclusiveWallpaperUnlocked));
         OnPropertyChanged(nameof(GalleryItems));
-        ScheduleSave();
+
         ToastService.Instance.Show(L("Settings_Appearance_BuiltIn_UnlockToast"), ToastType.Success, durationMs: 8000);
     }
 
