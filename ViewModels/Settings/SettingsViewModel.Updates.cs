@@ -104,7 +104,7 @@ public partial class SettingsViewModel
     [RelayCommand] private void OpenReleasePage()
     {
         if (!string.IsNullOrEmpty(ReleaseUrl))
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ReleaseUrl, UseShellExecute = true });
+            ShellHelper.OpenUrl(ReleaseUrl);
     }
 
     [RelayCommand] private async Task UpdateYtDlpAsync()
@@ -176,10 +176,8 @@ public partial class SettingsViewModel
             UnlockExclusiveWallpaper();
     }
 
-    [RelayCommand] private void OpenUrl(string? url)
+    [RelayCommand] private void OpenUrl(string url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return;
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true }); }
-        catch (Exception ex) { Log.Warning(ex, "[Settings] Failed to open URL: {Url}", url); }
+        ShellHelper.OpenUrl(url);
     }
 }

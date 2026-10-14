@@ -5,7 +5,7 @@ namespace NullWave.Models;
 
 public class Preferences
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public string AudioQuality { get; set; } = "best";
     public string AudioFormat { get; set; } = "mp3";
     public string DownloadDirectory { get; set; } = string.Empty;
@@ -81,4 +81,5 @@ public class Preferences
     public string WallpaperSceneId { get; set; } = "aurora";
     public string WallpaperBuiltInId { get; set; } = string.Empty;
     public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
+    public bool EnableExperimentalFeatures { get; set; } = false;
 }

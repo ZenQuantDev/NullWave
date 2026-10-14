@@ -185,37 +185,56 @@
         </StackPanel>
       </Border>
 
-      <!-- IN-APP LOG VIEWER -->
-      <TextBlock Classes="section-label" Text="In-App Log Viewer" Margin="0,16,0,12"/>
-      <Border Classes="settings-card">
-        <StackPanel Spacing="10">
-          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
-                     Text="Live tail of this session (last 500 lines). Filter it, or copy a diagnostics package to paste into a bug report."/>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-            <TextBox Grid.Column="0" PlaceholderText="Filter log lines…" Text="{Binding LogViewer.FilterText}"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <ToggleButton Classes="level-chip" Content="Debug" IsChecked="{Binding LogViewer.ShowDebug}"/>
-              <ToggleButton Classes="level-chip" Content="Info"  IsChecked="{Binding LogViewer.ShowInfo}"/>
-              <ToggleButton Classes="level-chip" Content="Warn"  IsChecked="{Binding LogViewer.ShowWarning}"/>
-              <ToggleButton Classes="level-chip" Content="Error" IsChecked="{Binding LogViewer.ShowError}"/>
+      <!-- IN-APP LOG VIEWER (GATED: Experimental Features) -->
+      <StackPanel IsVisible="{Binding IsExperimentalModeActive}">
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,12">
+          <TextBlock Classes="section-label" Text="In-App Log Viewer" VerticalAlignment="Center"/>
+          <Border Background="{StaticResource BrushAmberDim}" CornerRadius="{StaticResource RadiusFull}" Padding="8,2" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <material:MaterialIcon Kind="Flask" Width="12" Height="12" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+              <TextBlock Text="EXPERIMENTAL" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
             </StackPanel>
-          </Grid>
-          <TextBox IsReadOnly="True"
-                   Text="{Binding LogViewer.FilteredLog, Mode=OneWay}"
-                   AcceptsReturn="True"
-                   TextWrapping="NoWrap"
-                   FontFamily="Consolas, monospace"
-                   FontSize="11"
-                   Height="280"
-                   Background="{StaticResource BrushSurface}"
-                   Foreground="{StaticResource BrushTextSecondary}"
-                   BorderBrush="{StaticResource BrushBorder}"/>
-          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
-            <Button Classes="secondary" Content="Copy Diagnostics" Click="OnCopyDiagnosticsClick"/>
-            <Button Classes="ghost" Content="Copy Filtered Log" Click="OnCopyLogClick"/>
-          </StackPanel>
+          </Border>
         </StackPanel>
-      </Border>
+        
+        <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
+          <StackPanel Spacing="10">
+            <Border Classes="settings-banner" Margin="0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{StaticResource BrushAmberDark}" VerticalAlignment="Center"/>
+                <TextBlock Text="This feature is under active development. Real-time filtering performance at scale is still being optimized." 
+                           Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
+                       Text="Live tail of this session (last 500 lines). Filter it, or copy a diagnostics package to paste into a bug report."/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <TextBox Grid.Column="0" PlaceholderText="Filter log lines…" Text="{Binding LogViewer.FilterText}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <ToggleButton Classes="level-chip" Content="Debug" IsChecked="{Binding LogViewer.ShowDebug}"/>
+                <ToggleButton Classes="level-chip" Content="Info"  IsChecked="{Binding LogViewer.ShowInfo}"/>
+                <ToggleButton Classes="level-chip" Content="Warn"  IsChecked="{Binding LogViewer.ShowWarning}"/>
+                <ToggleButton Classes="level-chip" Content="Error" IsChecked="{Binding LogViewer.ShowError}"/>
+              </StackPanel>
+            </Grid>
+            <TextBox IsReadOnly="True"
+                     Text="{Binding LogViewer.FilteredLog, Mode=OneWay}"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     FontFamily="Consolas, monospace"
+                     FontSize="11"
+                     Height="280"
+                     Background="{StaticResource BrushSurface}"
+                     Foreground="{StaticResource BrushTextSecondary}"
+                     BorderBrush="{StaticResource BrushBorder}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+              <Button Classes="secondary" Content="Copy Diagnostics" Click="OnCopyDiagnosticsClick"/>
+              <Button Classes="ghost" Content="Copy Filtered Log" Click="OnCopyLogClick"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
 
       <Border Classes="BottomSpacer"/>
     </StackPanel>

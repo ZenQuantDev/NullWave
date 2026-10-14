@@ -29,6 +29,28 @@ public enum ToastPriority
     High
 }
 
+public enum NotificationCategory
+{
+    Downloads,
+    Imports,
+    Exports,
+    Playback,
+    Library,
+    Playlists,
+    BackupSync,
+    AIMood,
+    Updates,
+    Errors,
+    General
+}
+
+public enum NativeNotificationPolicy
+{
+    Never,
+    OnlyWhenUnfocused,
+    Always
+}
+
 public partial class LiveNotification : ObservableObject
 {
     public Guid Id { get; } = Guid.NewGuid();

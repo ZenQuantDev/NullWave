@@ -64,34 +64,19 @@ public class NavigationViewModel : ViewModelBase
         _playlists = playlists;
         _navigateToPlaylist = navigateToPlaylist;
 
-        // FIX: Use Func<ICommand> to defer command resolution until click time.
-        // This prevents NullReferenceExceptions if the commands aren't initialized
-        // when NavigationViewModel is constructed.
         _coreItems = new List<NavItem>
         {
             new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core)
             {
-                Command = new RelayCommand(() =>
-                {
-                    navigateLibrary()?.Execute(null);
-                    SetActivePage("Library");
-                })
+                Command = new RelayCommand(() => { navigateLibrary()?.Execute(null); SetActivePage("Library"); })
             },
             new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core)
             {
-                Command = new RelayCommand(() =>
-                {
-                    navigateRadio()?.Execute(null);
-                    SetActivePage("Radio");
-                })
+                Command = new RelayCommand(() => { navigateRadio()?.Execute(null); SetActivePage("Radio"); })
             },
             new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core)
             {
-                Command = new RelayCommand(() =>
-                {
-                    navigateAudiobooks()?.Execute(null);
-                    SetActivePage("Audiobooks");
-                })
+                Command = new RelayCommand(() => { navigateAudiobooks()?.Execute(null); SetActivePage("Audiobooks"); })
             },
         };
 
@@ -106,10 +91,7 @@ public class NavigationViewModel : ViewModelBase
             node.Folder.IsExpanded = node.IsExpanded;
             _playlists.UpdateFolder(node.Folder);
         });
-        PinPlaylistCommand = new RelayCommand<Playlist>(p =>
-        {
-            if (p != null) PinPlaylist(p.Id, p.Name);
-        });
+        PinPlaylistCommand = new RelayCommand<Playlist>(p => { if (p != null) PinPlaylist(p.Id, p.Name); });
         RenameFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = RenameFolderAsync(n));
         DeleteFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = DeleteFolderAsync(n));
 
@@ -138,10 +120,6 @@ public class NavigationViewModel : ViewModelBase
         if (oldIndex < 0 || targetIndex < 0 || targetIndex >= Items.Count || oldIndex == targetIndex) return;
 
         Items.Move(oldIndex, targetIndex);
-        
-        // FIX: Removed explicit PersistOrder() call here. 
-        // The Items.CollectionChanged handler above already catches the 'Move' action 
-        // and calls PersistOrder() automatically. Calling it manually caused double-saves.
     }
 
     public void Rebuild()
@@ -177,7 +155,6 @@ public class NavigationViewModel : ViewModelBase
         item.Playlist = playlist;
         item.ArtPath = playlist?.ArtPath;
         item.Subtitle = playlist == null ? null : $"Playlist • {playlist.Tracks.Count} tracks";
-        // FIX: pins show the LIVE playlist name, not the label snapshot saved at pin time
         if (playlist != null && item.Type == NavItemType.PinnedPlaylist && item.Label != playlist.Name)
             item.Label = playlist.Name;
     }
@@ -200,9 +177,7 @@ public class NavigationViewModel : ViewModelBase
 
     private NavItem? BuildAutoSuggestion()
     {
-        var top = _playlists.GetAll()
-            .OrderByDescending(p => p.Tracks.Count)
-            .FirstOrDefault();
+        var top = _playlists.GetAll().OrderByDescending(p => p.Tracks.Count).FirstOrDefault();
         if (top == null) return null;
 
         var item = new NavItem($"pin:{top.Id}", top.Name, MaterialIconKind.PlaylistMusic, NavItemType.PinnedPlaylist, top.Id)
@@ -226,7 +201,6 @@ public class NavigationViewModel : ViewModelBase
             Label = label,
             TargetPlaylistId = playlistId
         }));
-        _prefs.Save();
         Rebuild();
     }
 
@@ -234,7 +208,6 @@ public class NavigationViewModel : ViewModelBase
     {
         var key = $"pin:{playlistId}";
         _prefs.Update(p => p.PinnedItems.RemoveAll(x => x.Key == key));
-        _prefs.Save();
         Rebuild();
     }
 
@@ -292,7 +265,7 @@ public class NavigationViewModel : ViewModelBase
                 Decorate(item, _playlists.GetById(item.TargetPlaylistId!.Value));
         }
 
-        // FIX: keep persisted pin labels in sync with renames/migration
+        // 3.1 FIX: keep persisted pin labels in sync with renames/migration
         bool pinsDirty = false;
         foreach (var pin in _prefs.Current.PinnedItems)
         {
@@ -304,7 +277,14 @@ public class NavigationViewModel : ViewModelBase
                 pinsDirty = true;
             }
         }
-        if (pinsDirty) _prefs.Save();
+        
+        if (pinsDirty) 
+        {
+            // Trigger the debounced save by reassigning the list reference
+            var updatedPins = _prefs.Current.PinnedItems.ToList();
+            _prefs.Update(p => p.PinnedItems = updatedPins);
+        }    
+        // 3.1 FIX: Removed manual _prefs.Save() here. Update() handles it.
     }
 
     private void MoveUp(NavItem? item)
@@ -328,7 +308,6 @@ public class NavigationViewModel : ViewModelBase
         var order = Items.Select(NavKey).ToList();
         _liveOrder = order;
         _prefs.Update(p => p.NavOrder = order);
-        _prefs.Save();
     }
 
     public void MovePlaylistToFolder(Guid playlistId, Guid? folderId)
