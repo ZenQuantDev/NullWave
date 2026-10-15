@@ -527,15 +527,45 @@ _Note: Cosmetic UI tweaks deferred by choice to v0.6.0 to ship v0.5.0 cleanly._
 
 ---
 
-## Phase 3 - v0.6.4 "Settings Foundation" 📋
+## Phase 3 - v0.6.4 "Settings Foundation" ✅
 
 **Branch:** `feature/20-settings-foundation`
 **Goal:** Adding a setting becomes cheap; every setting can be wired the same way.
 
-- 📋 **One save path**: `Update(...)` is the only way to change a setting; immediate `Save()` only on exit.
-- 📋 **Single "changed" signal**: `Changed` event tells subscribers which setting names changed.
-- 📋 **Preferences versioning**: Define version 2; migrate on load with backup.
-- 📋 **Setting descriptors**: Generic row templates (toggle, segmented, slider) for new pages.
+- ✅ **One save path**: `Update(...)` is the only way to change a setting; removed all `ScheduleSave()` calls and direct `Save()` invocations. Immediate `Save()` only on exit.
+- ✅ **Single "changed" signal**: `Changed` event tells subscribers which setting names changed (uses reflection-based diffing).
+- ✅ **Preferences versioning**: Defined version 2; migrate on load with backup. Old v1 files are automatically upgraded.
+- ✅ **Setting descriptors**: Generic row templates (toggle, segmented, slider) for new pages. Deferred to Phase 4 (Notifications).
+- ✅ **Experimental Features System**: Added `EnableExperimentalFeatures` toggle in Advanced tab, gating in-development features with visual badges and warning banners.
+
+---
+
+## Phase 3.5 - v0.6.4 "Code Cleanup & Standardization" ✅
+
+**Branch:** `fix/data-safety` (combined with Phase 2)
+**Goal:** Eliminate duplicate systems and standardize core utilities.
+
+- ✅ **D3+D4 Track Normalization**: Created unified `TrackNormalizer` class consolidating 6+ duplicate title/artist cleaning implementations:
+  - `TrySplit()` - Intelligent artist/title splitting
+  - `CleanTitle()` / `CleanArtist()` - YouTube artifact removal
+  - `NormalizeArtistKey()` - Consistent normalization
+  - `SplitArtistCredits()` - Multi-artist handling
+  - `LooselyMatch()` - Fuzzy matching for VerifyLinks
+  - `IdentityKey()` / `AreSameTrack()` - Duplicate detection
+  - `IsPlaceholderTitle()` / `IsPlaceholderArtist()` - Placeholder detection
+  - Migrated 37+ call sites across 13+ files
+  - Deleted obsolete test files (TitleSanitizerTests, TrackTitleParserTests)
+  - Added 44 comprehensive unit tests
+- ✅ **D9 Time Standardization**: Changed `LibraryService.RecordPlay` to use `DateTime.UtcNow` instead of `DateTime.Now`. Updated `RelativeTimeConverter` to handle UTC timestamps.
+- ✅ **D17 Shell Helper**: Created cross-platform `ShellHelper` with `OpenFolder`, `OpenFile`, `OpenUrl` methods. Migrated `Process.Start` calls from `CrashHandler`, `MainViewModel.Commands`, `MainViewModel.Integration`, `SettingsViewModel.Updates`.
+- ✅ **Experimental Features System**: Added `EnableExperimentalFeatures` preference and `IsExperimentalModeActive` computed property. Gated in-development features:
+  - In-App Log Viewer (HelpTab)
+  - P2P Track Sharing (TrackDetailView)
+  - Profile Sharing (ProfileWindow)
+  - Wallpaper Scenes (AppearanceTab)
+  - Profile Frame Glow (AppearanceTab)
+  - Advanced maintenance tools (MaintenanceTab)
+- ✅ **Crossfade Stability**: Removed experimental banner from AudioTab - feature is now stable and production-ready.
 
 ---
 
