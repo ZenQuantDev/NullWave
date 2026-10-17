@@ -640,8 +640,7 @@ public class DownloadService
                     if (string.IsNullOrWhiteSpace(artist) ||
                         artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase))
                     {
-                        var parsed = NullWave.Services.Metadata.TrackTitleParser
-                            .TryParseArtistTitle(rawTitle);
+                        var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(rawTitle);
                         if (parsed != null)
                         {
                             artist     = parsed.Value.Artist;
@@ -772,8 +771,7 @@ public class DownloadService
                                     cleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
                                     cleanArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    var parsed = NullWave.Services.Metadata.TrackTitleParser
-                                        .TryParseArtistTitle(dbTrack.Title);
+                                    var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(dbTrack.Title);
                                     if (parsed != null)
                                     {
                                         cleanArtist    = parsed.Value.Artist;
@@ -787,11 +785,9 @@ public class DownloadService
 
                             if (!string.IsNullOrEmpty(dbTrack.Title))
                             {
-                                var parsed = NullWave.Services.Metadata.TrackTitleParser
-                                    .TryParseArtistTitle(dbTrack.Title);
+                                var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(dbTrack.Title);
                                 if (parsed != null &&
-                                    (dbTrack.Artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
-                                     string.IsNullOrWhiteSpace(dbTrack.Artist)))
+                                    NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(dbTrack.Artist))
                                 {
                                     dbTrack.Artist = parsed.Value.Artist;
                                     dbTrack.Title  = parsed.Value.Title;

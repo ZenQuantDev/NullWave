@@ -334,7 +334,7 @@ public partial class SettingsViewModel
     {
         Environment.SetEnvironmentVariable("NULLWAVE_COMPOSE", value);
         _prefsService.Update(p => p.ComposeMode = value);
-        ScheduleSave();
+
         ToastService.Instance.Show($"Compose mode set to '{value}'. Restart app to apply.", ToastType.Info);
     }
 

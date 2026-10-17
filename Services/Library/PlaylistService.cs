@@ -178,9 +178,9 @@ public class PlaylistService
     /// playlists into the kept folder) and deletes duplicate playlist rows, so a
     /// database written by older buggy boots heals itself permanently.
     /// </summary>
-    private void Deduplicate()
+    internal void Deduplicate()
     {
-        int removedFolders = 0, removedPlaylists = 0;
+        int removedFolders = 0, removedPlaylists = 0, mergedTracks = 0;
 
         // Folders: keep the one holding the most playlists; re-home the rest.
         foreach (var group in _folders
@@ -202,7 +202,7 @@ public class PlaylistService
             }
         }
 
-        // Playlists: keep the one with the most tracks; delete the rest + their links.
+        // Playlists: keep the one with the most tracks; MERGE the rest instead of deleting.
         foreach (var group in _playlists
                      .GroupBy(p => p.Name.Trim().ToLowerInvariant())
                      .Where(g => g.Count() > 1)
@@ -211,15 +211,47 @@ public class PlaylistService
             var keep = group.OrderByDescending(p => p.Tracks.Count).First();
             foreach (var dup in group.Where(p => p.Id != keep.Id).ToList())
             {
+                // 2.1 FIX: Merge unique tracks from the duplicate into the kept playlist
+                foreach (var track in dup.Tracks)
+                {
+                    if (!keep.Tracks.Any(t => t.Id == track.Id))
+                    {
+                        keep.Tracks.Add(track);
+                        if (dup.TrackDateAdded.TryGetValue(track.Id, out var dateAdded))
+                            keep.TrackDateAdded[track.Id] = dateAdded;
+                        mergedTracks++;
+                    }
+                }
+                
                 _playlists.Remove(dup);
                 _db.DeletePlaylist(dup.Id);
                 removedPlaylists++;
+            }
+            
+            if (mergedTracks > 0)
+            {
+                _db.SavePlaylist(keep);
+                Log.Information("[PlaylistService] Merged {Count} unique tracks from duplicate playlist '{Name}' into the primary copy.", mergedTracks, keep.Name);
             }
         }
 
         if (removedFolders + removedPlaylists > 0)
             Log.Information(
-                "[PlaylistService] Startup integrity sweep removed {Folders} duplicate folder(s) and {Playlists} duplicate playlist(s).",
-                removedFolders, removedPlaylists);
+                "[PlaylistService] Startup integrity sweep removed {Folders} duplicate folder(s) and {Playlists} duplicate playlist(s), merging {Tracks} orphaned tracks.",
+                removedFolders, removedPlaylists, mergedTracks);
+    }
+
+    public void RemoveTrackFromAllPlaylists(Guid trackId)
+    {
+        foreach (var playlist in _playlists)
+        {
+            var track = playlist.Tracks.FirstOrDefault(t => t.Id == trackId);
+            if (track != null)
+            {
+                playlist.Tracks.Remove(track);
+                playlist.TrackDateAdded.Remove(trackId);
+                _db.SavePlaylist(playlist);
+            }
+        }
     }
 }

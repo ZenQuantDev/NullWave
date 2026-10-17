@@ -36,15 +36,8 @@ public class ImportViewModel : ViewModelBase
 
     private async Task ImportFolderAsync()
     {
-        var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow : null;
-        if (window == null) return;
-
-        var folders = await window.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions { Title = "Select Folder to Import", AllowMultiple = false });
-
-        if (folders.Count == 0) return;
-        var folderPath = folders[0].Path.LocalPath;
+        var folderPath = await DialogService.Instance.PickFolderAsync("Select Folder to Import");
+        if (string.IsNullOrEmpty(folderPath)) return;
 
         LiveNotification? activity = null;
 
@@ -53,7 +46,7 @@ public class ImportViewModel : ViewModelBase
             NullActionLogger.ImportStarted(folderPath, "ImportViewModel");
             var stopwatch = Stopwatch.StartNew();
 
-            var includeSubfolders = await AskIncludeSubfoldersAsync(window);
+            var includeSubfolders = await AskIncludeSubfoldersAsync();
             var searchOption = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
 
             var files = Directory.GetFiles(folderPath, "*.*", searchOption)
@@ -79,15 +72,19 @@ public class ImportViewModel : ViewModelBase
             {
                 var filePath = files[i];
                 var (rawTitle, rawArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                var (sanitizedArtist, sanitizedTitle) =
-                    NullWave.Services.Metadata.TitleSanitizer.Sanitize(rawTitle);
-
-                string title = string.IsNullOrWhiteSpace(sanitizedTitle) ? rawTitle : sanitizedTitle;
+                
+                // Use TrackNormalizer to extract artist from title if needed
+                string title = rawTitle;
                 string artist = rawArtist;
-                if ((string.IsNullOrWhiteSpace(artist) || artist == "Unknown") &&
-                    !string.IsNullOrWhiteSpace(sanitizedArtist))
+                
+                if (string.IsNullOrWhiteSpace(artist) || artist == "Unknown")
                 {
-                    artist = sanitizedArtist;
+                    var split = NullWave.Helpers.TrackNormalizer.TrySplit(rawTitle);
+                    if (split != null)
+                    {
+                        artist = split.Value.Artist;
+                        title = split.Value.Title;
+                    }
                 }
 
                 var track = new Track
@@ -141,12 +138,12 @@ public class ImportViewModel : ViewModelBase
         }
     }
 
-    private static async Task<bool> AskIncludeSubfoldersAsync(Avalonia.Controls.Window window)
+    private static async Task<bool> AskIncludeSubfoldersAsync()
     {
         var dialog = new Views.ConfirmDialog(
             "Import Subfolders?",
             "Include all subfolders in the import?");
-        var result = await dialog.ShowDialog<bool>(window);
+        var result = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
         return result;
     }
 }

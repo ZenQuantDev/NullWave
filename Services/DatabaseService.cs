@@ -27,6 +27,12 @@ public class DatabaseService : IDisposable
     private readonly Channel<Guid> _writeSignal = Channel.CreateUnbounded<Guid>(
         new UnboundedChannelOptions { SingleReader = true });
     private Task? _writerTask;
+    private readonly CancellationTokenSource _migrationCts = new();
+
+    public int SchemaVersion
+    {
+        get { lock (_dbLock) return _db.ExecuteScalar<int>("PRAGMA user_version;"); }
+    }
 
     public DatabaseService(PreferencesService? prefs = null)
     {
@@ -213,7 +219,7 @@ public class DatabaseService : IDisposable
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var terms = words.Select(term => $"\"{term}\"*");
 
-        return string.Join(" OR ", terms);
+        return string.Join(" ", terms);
     }
 
     public void RebuildFtsIndex()
@@ -430,104 +436,104 @@ public class DatabaseService : IDisposable
         {
             try
             {
-                var cols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);");
-                if (!cols.Any(c => string.Equals(c.Name, "CustomArtPath", StringComparison.OrdinalIgnoreCase)))
+                int v = _db.ExecuteScalar<int>("PRAGMA user_version;");
+                if (v == 0)
                 {
-                    _db.Execute("ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
-                    Log.Information("[DatabaseService] Migration: added Playlists.CustomArtPath column");
+                    v = DetectCurrentVersion();
+                    if (v > 0)
+                    {
+                        _db.Execute($"PRAGMA user_version = {v};");
+                        Log.Information("[DatabaseService] Detected existing legacy schema at version {Version}", v);
+                    }
                 }
 
-                var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);");
-                if (!trackCols.Any(c => string.Equals(c.Name, "DurationMs", StringComparison.OrdinalIgnoreCase)))
+                void Step(int target, string sql)
                 {
-                    _db.Execute("ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;");
-                    Log.Information("[DatabaseService] Migration: added Tracks.DurationMs column");
+                    if (v >= target) return;
+                    _db.Execute(sql);
+                    v = target;
+                    _db.Execute($"PRAGMA user_version = {target};");
                 }
 
-                if (!trackCols.Any(c => string.Equals(c.Name, "MediaType", StringComparison.OrdinalIgnoreCase)))
+                Step(1, "ALTER TABLE Playlists ADD COLUMN CustomArtPath VARCHAR;");
+                Step(2, "ALTER TABLE Tracks ADD COLUMN DurationMs INTEGER DEFAULT 0;");
+                Step(3, "ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';");
+                Step(4, "ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;");
+                Step(5, "ALTER TABLE Tracks ADD COLUMN Album VARCHAR;");
+                Step(6, "ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;");
+                Step(7, "ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;");
+
+                if (v < 8)
                 {
-                    _db.Execute("ALTER TABLE Tracks ADD COLUMN MediaType VARCHAR DEFAULT 'Music';");
-                    Log.Information("[DatabaseService] Migration: added Tracks.MediaType column");
+                    var repaired = _db.Execute("UPDATE Tracks SET MediaType = 'Music' WHERE MediaType = 'Radio' AND (FilePath IS NOT NULL OR Source IN ('YouTube', 'SoundCloud', 'Local', 'Spotify', 'LastFm'));");
+                    if (repaired > 0) Log.Information("[DatabaseService] Migration 8: repaired {Count} misclassified Radio tracks", repaired);
+                    v = 8;
+                    _db.Execute("PRAGMA user_version = 8;");
                 }
 
-                if (!trackCols.Any(c => string.Equals(c.Name, "PlaybackPositionTicks", StringComparison.OrdinalIgnoreCase)))
-                {
-                    _db.Execute("ALTER TABLE Tracks ADD COLUMN PlaybackPositionTicks INTEGER DEFAULT 0;");
-                    Log.Information("[DatabaseService] Migration: added Tracks.PlaybackPositionTicks column");
-                }
-
-                if (!trackCols.Any(c => string.Equals(c.Name, "Album", StringComparison.OrdinalIgnoreCase)))
-                {
-                    _db.Execute("ALTER TABLE Tracks ADD COLUMN Album VARCHAR;");
-                    Log.Information("[DatabaseService] Migration: added Tracks.Album column");
-                }
-
-                if (!trackCols.Any(c => string.Equals(c.Name, "TrackNumber", StringComparison.OrdinalIgnoreCase)))
-                {
-                    _db.Execute("ALTER TABLE Tracks ADD COLUMN TrackNumber INTEGER DEFAULT 0;");
-                    Log.Information("[DatabaseService] Migration: added Tracks.TrackNumber column");
-                }
-
-                var playlistTrackCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);");
-                if (!playlistTrackCols.Any(c => string.Equals(c.Name, "DateAdded", StringComparison.OrdinalIgnoreCase)))
-                {
-                    _db.Execute("ALTER TABLE PlaylistTracks ADD COLUMN DateAdded DATETIME;");
-                    Log.Information("[DatabaseService] Migration: added PlaylistTracks.DateAdded column");
-                }
-
-                _db.Execute("UPDATE Tracks SET MediaType = 'Radio' WHERE MediaType = 'Music' AND Url IS NOT NULL AND (Url LIKE '%somafm%' OR Url LIKE '%icecast%' OR Url LIKE '%stream%' OR Url LIKE '%radio%');");
+                Log.Information("[DatabaseService] Schema is at version {Version}", v);
             }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "[DatabaseService] Schema migration check failed");
-            }
+            catch (Exception ex) { Log.Warning(ex, "[DatabaseService] Schema migration check failed"); }
         }
 
+        var token = _migrationCts.Token;
         _ = Task.Run(() =>
         {
-            lock (_dbLock)
+            try
             {
-                try
+                lock (_dbLock)
                 {
+                    if (token.IsCancellationRequested || _disposed) return;
+                    if (_db.ExecuteScalar<int>("PRAGMA user_version;") >= 9) return;
+
                     bool dbUpdated = false;
-                    var rawTracks = _db.Table<TrackRecord>().ToList();
-                    foreach (var r in rawTracks)
+                    foreach (var r in _db.Table<TrackRecord>().ToList())
                     {
+                        if (token.IsCancellationRequested) return;
                         bool changed = false;
                         var tokFilePath = PathHelper.Tokenize(r.FilePath);
                         if (tokFilePath != r.FilePath) { r.FilePath = tokFilePath; changed = true; }
-
                         var tokArtPath = PathHelper.Tokenize(r.AlbumArtPath);
                         if (tokArtPath != r.AlbumArtPath) { r.AlbumArtPath = tokArtPath; changed = true; }
-
                         if (changed) { SaveTrackRecord(r); dbUpdated = true; }
                     }
 
-                    var rawPlaylists = _db.Table<PlaylistRecord>().ToList();
-                    foreach (var p in rawPlaylists)
+                    foreach (var p in _db.Table<PlaylistRecord>().ToList())
                     {
+                        if (token.IsCancellationRequested) return;
                         var tokArt = PathHelper.Tokenize(p.CustomArtPath);
-                        if (tokArt != p.CustomArtPath)
-                        {
-                            p.CustomArtPath = tokArt;
-                            _db.InsertOrReplace(p);
-                            dbUpdated = true;
-                        }
+                        if (tokArt != p.CustomArtPath) { p.CustomArtPath = tokArt; _db.InsertOrReplace(p); dbUpdated = true; }
                     }
+
                     if (dbUpdated) Log.Information("[DatabaseService] Migrated absolute paths to portable tokens.");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[DatabaseService] Path tokenization migration failed");
+                    _db.Execute("PRAGMA user_version = 9;");
                 }
             }
+            catch (Exception ex) { Log.Warning(ex, "[DatabaseService] Path tokenization migration failed"); }
         });
     }
 
+    private int DetectCurrentVersion()
+    {
+        var trackCols = _db.Query<ColumnInfo>("PRAGMA table_info(Tracks);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+        var plCols = _db.Query<ColumnInfo>("PRAGMA table_info(Playlists);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+        var ptCols = _db.Query<ColumnInfo>("PRAGMA table_info(PlaylistTracks);").Select(c => c.Name.ToLowerInvariant()).ToHashSet();
+
+        int version = 0;
+        if (plCols.Contains("customartpath")) version = 1;
+        if (trackCols.Contains("durationms")) version = 2;
+        if (trackCols.Contains("mediatype")) version = 3;
+        if (trackCols.Contains("playbackpositionticks")) version = 4;
+        if (trackCols.Contains("album")) version = 5;
+        if (trackCols.Contains("tracknumber")) version = 6;
+        if (ptCols.Contains("dateadded")) version = 7;
+        return version;
+    }
     private class ColumnInfo
     {
         public string Name { get; set; } = "";
     }
+
 
     public void Vacuum()
     {
@@ -536,11 +542,30 @@ public class DatabaseService : IDisposable
             var sizeBefore = new FileInfo(DbPath).Length;
             _db.Execute("VACUUM;");
             var sizeAfter = new FileInfo(DbPath).Length;
-            Log.Information("[DatabaseService] VACUUM complete: {Before}KB → {After}KB",
-                sizeBefore / 1024, sizeAfter / 1024);
+            Log.Information("[DatabaseService] VACUUM complete: {Before}KB -> {After}KB", sizeBefore / 1024, sizeAfter / 1024);
+
+            if (_ftsAvailable)
+            {
+                try { _db.Execute("INSERT INTO TracksFts(TracksFts) VALUES('rebuild');"); }
+                catch (Exception ex) { Log.Warning(ex, "[DatabaseService] FTS rebuild after VACUUM failed"); }
+            }
         }
     }
 
+    public void BackupToPath(string targetPath)
+    {
+        FlushWrites();   // include queued writes in the backup
+        lock (_dbLock)
+        {
+            if (File.Exists(targetPath)) File.Delete(targetPath);
+            _db.Execute($"VACUUM INTO '{targetPath.Replace("'", "''")}';");
+            if (!IsValidDatabase(targetPath))
+            {
+                try { File.Delete(targetPath); } catch { }
+                throw new InvalidOperationException("Backup validation failed.");
+            }
+        }
+    }
     public List<Track> LoadAll()
     {
         lock (_dbLock)
@@ -752,8 +777,14 @@ public class DatabaseService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _migrationCts.Cancel();
         _writeSignal.Writer.TryComplete();
         try { _writerTask?.Wait(2000); } catch { }
-        _db.Close();
+        lock (_dbLock)
+        {
+            try { _db.ExecuteScalar<string>("PRAGMA wal_checkpoint(TRUNCATE);"); } catch { }
+            _db.Close();
+        }
+        _migrationCts.Dispose();
     }
 }

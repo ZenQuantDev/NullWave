@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -282,7 +282,7 @@ public partial class LibraryService
             try
             {
                 var (eT, eA, _) = _metadata.FetchFromLocalFile(t.FilePath!);
-                if (string.IsNullOrWhiteSpace(eT) || TitlesLooselyMatch(t.Title, eT, t.Artist, eA)) continue;
+                if (string.IsNullOrWhiteSpace(eT) || TrackNormalizer.LooselyMatch(t.Title, eT, t.Artist, eA)) continue;
                 mismatches.Add(new LinkMismatch(t.Id, t.Title, t.Artist, eT, eA, t.FilePath!));
             }
             catch { }
@@ -293,7 +293,7 @@ public partial class LibraryService
     public List<ArtistMergeGroup> FindSimilarArtistGroups()
     {
         return GetAll().Where(t => !string.IsNullOrWhiteSpace(t.Artist))
-            .GroupBy(t => NormalizeArtistKey(t.Artist))
+            .GroupBy(t => TrackNormalizer.NormalizeArtistKey(t.Artist))
             .Where(g => g.Select(t => t.Artist).Distinct(StringComparer.Ordinal).Count() > 1)
             .Select(g => {
                 var v = g.GroupBy(t => t.Artist, StringComparer.Ordinal).Select(vg => (Name: vg.Key, Count: vg.Count())).OrderByDescending(x => x.Count).ThenBy(x => x.Name).ToList();
@@ -316,10 +316,11 @@ public partial class LibraryService
         foreach (var t in GetAll())
         {
             if (t.TitleForceCleaned && !TrackTitleParser.HasExoticSeparator(t.Title)) continue;
-            var parsed = TrackTitleParser.TryParseArtistTitle(CleanYouTubeArtifacts(t.Title, false));
+            var cleanedTitle = TrackNormalizer.CleanTitle(t.Title);
+            var parsed = TrackNormalizer.TrySplit(cleanedTitle);
             if (parsed == null || string.IsNullOrWhiteSpace(parsed.Value.Artist) || string.IsNullOrWhiteSpace(parsed.Value.Title) ||
                 (parsed.Value.Artist == t.Artist && parsed.Value.Title == t.Title) ||
-                (!TitlesLooselyMatch(parsed.Value.Artist, t.Artist) && !(string.IsNullOrWhiteSpace(t.Artist) || t.Artist == "Unknown" || t.Artist.EndsWith("- Topic"))))
+                (!TrackNormalizer.LooselyMatch(parsed.Value.Artist, t.Artist, "", "") && !TrackNormalizer.IsPlaceholderArtist(t.Artist)))
             { t.TitleForceCleaned = true; toUpdate.Add(t); continue; }
 
             t.Title = parsed.Value.Title; t.Artist = parsed.Value.Artist; t.TitleForceCleaned = true;

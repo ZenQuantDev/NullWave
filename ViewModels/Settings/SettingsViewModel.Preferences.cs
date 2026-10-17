@@ -30,54 +30,54 @@ namespace NullWave.ViewModels;
 public partial class SettingsViewModel
 {
     // General & Downloads
-    public string DownloadDirectory { get => _prefsService.Current.DownloadDirectory; set { _prefsService.Update(p => p.DownloadDirectory = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool AutoFetchMetadata { get => _prefsService.Current.AutoFetchMetadata; set { _prefsService.Update(p => p.AutoFetchMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool AutoPlayNext { get => _prefsService.Current.AutoPlayNext; set { _prefsService.Update(p => p.AutoPlayNext = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool AutoCleanMetadata { get => _prefsService.Current.AutoCleanMetadata; set { _prefsService.Update(p => p.AutoCleanMetadata = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool PreventDuplicateDownloads { get => _prefsService.Current.PreventDuplicateDownloads; set { _prefsService.Update(p => p.PreventDuplicateDownloads = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool UseAria2c { get => _prefsService.Current.UseAria2c; set { _prefsService.Update(p => p.UseAria2c = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string YtDlpBrowserCookies { get => _prefsService.Current.YtDlpBrowserCookies; set { _prefsService.Update(p => p.YtDlpBrowserCookies = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string YtDlpProxy { get => _prefsService.Current.YtDlpProxy; set { _prefsService.Update(p => p.YtDlpProxy = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string YtDlpGeoProxy { get => _prefsService.Current.YtDlpGeoProxy; set { _prefsService.Update(p => p.YtDlpGeoProxy = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string DownloadDirectory { get => _prefsService.Current.DownloadDirectory; set { _prefsService.Update(p => p.DownloadDirectory = value); OnPropertyChanged(); } }
+    public bool AutoFetchMetadata { get => _prefsService.Current.AutoFetchMetadata; set { _prefsService.Update(p => p.AutoFetchMetadata = value); OnPropertyChanged(); } }
+    public bool AutoPlayNext { get => _prefsService.Current.AutoPlayNext; set { _prefsService.Update(p => p.AutoPlayNext = value); OnPropertyChanged(); } }
+    public bool DownloadOnAdd { get => _prefsService.Current.DownloadOnAdd; set { _prefsService.Update(p => p.DownloadOnAdd = value); OnPropertyChanged(); } }
+    public bool ScrobbleToLastFm { get => _prefsService.Current.ScrobbleToLastFm; set { _prefsService.Update(p => p.ScrobbleToLastFm = value); OnPropertyChanged(); } }
+    public bool AutoCleanMetadata { get => _prefsService.Current.AutoCleanMetadata; set { _prefsService.Update(p => p.AutoCleanMetadata = value); OnPropertyChanged(); } }
+    public bool PreventDuplicateDownloads { get => _prefsService.Current.PreventDuplicateDownloads; set { _prefsService.Update(p => p.PreventDuplicateDownloads = value); OnPropertyChanged(); } }
+    public bool UseAria2c { get => _prefsService.Current.UseAria2c; set { _prefsService.Update(p => p.UseAria2c = value); OnPropertyChanged(); } }
+    public string YtDlpBrowserCookies { get => _prefsService.Current.YtDlpBrowserCookies; set { _prefsService.Update(p => p.YtDlpBrowserCookies = value); OnPropertyChanged(); } }
+    public string YtDlpProxy { get => _prefsService.Current.YtDlpProxy; set { _prefsService.Update(p => p.YtDlpProxy = value); OnPropertyChanged(); } }
+    public string YtDlpGeoProxy { get => _prefsService.Current.YtDlpGeoProxy; set { _prefsService.Update(p => p.YtDlpGeoProxy = value); OnPropertyChanged(); } }
     
     public int MaxConcurrentDownloads
     {
         get => _prefsService.Current.MaxConcurrentDownloads;
-        set { _prefsService.Update(p => p.MaxConcurrentDownloads = value); OnPropertyChanged(); ScheduleSave(); MaxConcurrentDownloadsChanged?.Invoke(value); }
+        set { _prefsService.Update(p => p.MaxConcurrentDownloads = value); OnPropertyChanged(); MaxConcurrentDownloadsChanged?.Invoke(value); }
     }
     
-    public int SkipPenaltyWindowSeconds { get => _prefsService.Current.SkipPenaltyWindowSeconds; set { _prefsService.Update(p => p.SkipPenaltyWindowSeconds = value); OnPropertyChanged(); ScheduleSave(); } }
-    public int SkipPenaltyCap { get => _prefsService.Current.SkipPenaltyCap; set { _prefsService.Update(p => p.SkipPenaltyCap = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool EnableAutoBackups { get => _prefsService.Current.EnableAutoBackups; set { _prefsService.Update(p => p.EnableAutoBackups = value); OnPropertyChanged(); ScheduleSave(); } }
-    public int BackupRetentionCount { get => _prefsService.Current.BackupRetentionCount; set { _prefsService.Update(p => p.BackupRetentionCount = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool AutoResumeAudiobooks { get => _prefsService.Current.AutoResumeAudiobooks; set { _prefsService.Update(p => p.AutoResumeAudiobooks = value); OnPropertyChanged(); ScheduleSave(); } }
-    public float AudiobookPlaybackRate { get => _prefsService.Current.AudiobookPlaybackRate; set { _prefsService.Update(p => p.AudiobookPlaybackRate = value); OnPropertyChanged(); ScheduleSave(); } }
+    public int SkipPenaltyWindowSeconds { get => _prefsService.Current.SkipPenaltyWindowSeconds; set { _prefsService.Update(p => p.SkipPenaltyWindowSeconds = value); OnPropertyChanged(); } }
+    public int SkipPenaltyCap { get => _prefsService.Current.SkipPenaltyCap; set { _prefsService.Update(p => p.SkipPenaltyCap = value); OnPropertyChanged(); } }
+    public bool EnableAutoBackups { get => _prefsService.Current.EnableAutoBackups; set { _prefsService.Update(p => p.EnableAutoBackups = value); OnPropertyChanged(); } }
+    public int BackupRetentionCount { get => _prefsService.Current.BackupRetentionCount; set { _prefsService.Update(p => p.BackupRetentionCount = value); OnPropertyChanged(); } }
+    public bool AutoResumeAudiobooks { get => _prefsService.Current.AutoResumeAudiobooks; set { _prefsService.Update(p => p.AutoResumeAudiobooks = value); OnPropertyChanged(); } }
+    public float AudiobookPlaybackRate { get => _prefsService.Current.AudiobookPlaybackRate; set { _prefsService.Update(p => p.AudiobookPlaybackRate = value); OnPropertyChanged(); } }
 
     // Audio
-    public string AudioQuality { get => _prefsService.Current.AudioQuality; set { _prefsService.Update(p => p.AudioQuality = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string AudioFormat { get => _prefsService.Current.AudioFormat; set { _prefsService.Update(p => p.AudioFormat = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool FadeOnPauseEnabled { get => _prefsService.Current.FadeOnPauseEnabled; set { _prefsService.Update(p => p.FadeOnPauseEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string AudioQuality { get => _prefsService.Current.AudioQuality; set { _prefsService.Update(p => p.AudioQuality = value); OnPropertyChanged(); } }
+    public string AudioFormat { get => _prefsService.Current.AudioFormat; set { _prefsService.Update(p => p.AudioFormat = value); OnPropertyChanged(); } }
+    public bool FadeOnPauseEnabled { get => _prefsService.Current.FadeOnPauseEnabled; set { _prefsService.Update(p => p.FadeOnPauseEnabled = value); OnPropertyChanged(); } }
     
     public int FadeOnPauseDurationMs
     {
         get => _prefsService.Current.FadeOnPauseDurationMs;
-        set { _prefsService.Update(p => p.FadeOnPauseDurationMs = value); OnPropertyChanged(); OnPropertyChanged(nameof(FadeDurationDisplay)); ScheduleSave(); }
+        set { _prefsService.Update(p => p.FadeOnPauseDurationMs = value); OnPropertyChanged(); OnPropertyChanged(nameof(FadeDurationDisplay)); }
     }
     
-    public bool CrossfadeEnabled { get => _prefsService.Current.CrossfadeEnabled; set { _prefsService.Update(p => p.CrossfadeEnabled = value); OnPropertyChanged(); ScheduleSave(); } }
+    public bool CrossfadeEnabled { get => _prefsService.Current.CrossfadeEnabled; set { _prefsService.Update(p => p.CrossfadeEnabled = value); OnPropertyChanged(); } }
     
     public int CrossfadeDurationSeconds
     {
         get => _prefsService.Current.CrossfadeDurationSeconds;
-        set { _prefsService.Update(p => p.CrossfadeDurationSeconds = value); OnPropertyChanged(); OnPropertyChanged(nameof(CrossfadeDurationDisplay)); ScheduleSave(); }
+        set { _prefsService.Update(p => p.CrossfadeDurationSeconds = value); OnPropertyChanged(); OnPropertyChanged(nameof(CrossfadeDurationDisplay)); }
     }
     
     public float ScrobbleThreshold
     {
         get => _prefsService.Current.ScrobbleThreshold;
-        set { _prefsService.Update(p => p.ScrobbleThreshold = value); OnPropertyChanged(); OnPropertyChanged(nameof(ScrobbleThresholdDisplay)); ScheduleSave(); }
+        set { _prefsService.Update(p => p.ScrobbleThreshold = value); OnPropertyChanged(); OnPropertyChanged(nameof(ScrobbleThresholdDisplay)); }
     }
 
     // Appearance & Layout
@@ -86,7 +86,7 @@ public partial class SettingsViewModel
     public string ThemeMode
     {
         get => _prefsService.Current.ThemeMode;
-        set { _prefsService.Update(p => p.ThemeMode = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ThemeService.Instance.ApplyThemeMode(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.ThemeMode = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning)); ThemeService.Instance.ApplyThemeMode(value); }
     }
 
     public bool AutoEffectsTier
@@ -96,7 +96,7 @@ public partial class SettingsViewModel
         {
             _prefsService.Update(p => p.AutoEffectsTier = value);
             OnPropertyChanged();
-            ScheduleSave();
+
             EffectsTierPreferencesChanged?.Invoke();
         }
     }
@@ -108,7 +108,7 @@ public partial class SettingsViewModel
         {
             _prefsService.Update(p => p.EffectsTier = value);
             OnPropertyChanged();
-            ScheduleSave();
+
             EffectsTierPreferencesChanged?.Invoke();
         }
     }
@@ -172,7 +172,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ThemeService.Instance.ApplyAll(_prefsService.Current);
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
-        ScheduleSave();
+
 
         if (action == PresetWallpaperAction.Skip)
             ToastService.Instance.Show(L("Settings_Appearance_Preset_WallpaperSkipped"), ToastType.Info);
@@ -220,7 +220,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(ShowWallpaperTrueBlackWarning));
         ThemeService.Instance.ApplyAll(_prefsService.Current);
         WallpaperService.Instance.ApplyFrom(_prefsService.Current);
-        ScheduleSave();
+
     }
 
     public string AccentColor
@@ -232,59 +232,59 @@ public partial class SettingsViewModel
             OnPropertyChanged(); 
             OnPropertyChanged(nameof(ActivePresetId));
             ThemeService.Instance.ApplyAccent(value); 
-            ScheduleSave(); 
+ 
         }
     }
     public string TrackRowStyle
     {
         get => _prefsService.Current.TrackRowStyle;
-        set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyDensity(_prefsService.Current); ScheduleSave(); }
+        set { _prefsService.Update(p => p.TrackRowStyle = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyDensity(_prefsService.Current); }
     }
     public string FontScale
     {
         get => _prefsService.Current.FontScale;
-        set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyFontScale(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.FontScale = value); OnPropertyChanged(); OnPropertyChanged(nameof(ActivePresetId)); ThemeService.Instance.ApplyFontScale(value); }
     }
     public bool CompactMode
     {
         get => _prefsService.Current.CompactMode;
-        set { _prefsService.Update(p => p.CompactMode = value); OnPropertyChanged(); ThemeService.Instance.ApplyDensity(_prefsService.Current); ScheduleSave(); }
+        set { _prefsService.Update(p => p.CompactMode = value); OnPropertyChanged(); ThemeService.Instance.ApplyDensity(_prefsService.Current); }
     }
     public string SidebarWidth
     {
         get => _prefsService.Current.SidebarWidth;
-        set { _prefsService.Update(p => p.SidebarWidth = value); OnPropertyChanged(); ThemeService.Instance.ApplySidebarWidth(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.SidebarWidth = value); OnPropertyChanged(); ThemeService.Instance.ApplySidebarWidth(value); }
     }
     public string ProfileFrameStyle
     {
         get => _prefsService.Current.ProfileFrameStyle;
-        set { _prefsService.Update(p => p.ProfileFrameStyle = value); OnPropertyChanged(); ThemeService.Instance.ApplyProfileFrame(value); ScheduleSave(); }
+        set { _prefsService.Update(p => p.ProfileFrameStyle = value); OnPropertyChanged(); ThemeService.Instance.ApplyProfileFrame(value); }
     }
 
     // AI & Smart Features
-    public string SelectedModel { get => _prefsService.Current.SelectedAIModel; set { _prefsService.Update(p => p.SelectedAIModel = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool UseLocalAI { get => _prefsService.Current.UseLocalAI; set { _prefsService.Update(p => p.UseLocalAI = value); OnPropertyChanged(); ScheduleSave(); } }
-    public double Latitude { get => _prefsService.Current.Latitude; set { _prefsService.Update(p => p.Latitude = value); OnPropertyChanged(); ScheduleSave(); } }
-    public double Longitude { get => _prefsService.Current.Longitude; set { _prefsService.Update(p => p.Longitude = value); OnPropertyChanged(); ScheduleSave(); } }
-    public bool AutoGenerateMoodPlaylist { get => _prefsService.Current.AutoGenerateMoodPlaylist; set { _prefsService.Update(p => p.AutoGenerateMoodPlaylist = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string MoodRefreshInterval { get => _prefsService.Current.MoodRefreshInterval; set { _prefsService.Update(p => p.MoodRefreshInterval = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string AIConfidenceThreshold { get => _prefsService.Current.AIConfidenceThreshold; set { _prefsService.Update(p => p.AIConfidenceThreshold = value); OnPropertyChanged(); ScheduleSave(); } }
-    public string ExportFormat { get => _prefsService.Current.ExternalAIExportFormat; set { _prefsService.Update(p => p.ExternalAIExportFormat = value); OnPropertyChanged(); ScheduleSave(); } }
+    public string SelectedModel { get => _prefsService.Current.SelectedAIModel; set { _prefsService.Update(p => p.SelectedAIModel = value); OnPropertyChanged(); } }
+    public bool UseLocalAI { get => _prefsService.Current.UseLocalAI; set { _prefsService.Update(p => p.UseLocalAI = value); OnPropertyChanged(); } }
+    public double Latitude { get => _prefsService.Current.Latitude; set { _prefsService.Update(p => p.Latitude = value); OnPropertyChanged(); } }
+    public double Longitude { get => _prefsService.Current.Longitude; set { _prefsService.Update(p => p.Longitude = value); OnPropertyChanged(); } }
+    public bool AutoGenerateMoodPlaylist { get => _prefsService.Current.AutoGenerateMoodPlaylist; set { _prefsService.Update(p => p.AutoGenerateMoodPlaylist = value); OnPropertyChanged(); } }
+    public string MoodRefreshInterval { get => _prefsService.Current.MoodRefreshInterval; set { _prefsService.Update(p => p.MoodRefreshInterval = value); OnPropertyChanged(); } }
+    public string AIConfidenceThreshold { get => _prefsService.Current.AIConfidenceThreshold; set { _prefsService.Update(p => p.AIConfidenceThreshold = value); OnPropertyChanged(); } }
+    public string ExportFormat { get => _prefsService.Current.ExternalAIExportFormat; set { _prefsService.Update(p => p.ExternalAIExportFormat = value); OnPropertyChanged(); } }
     
     public string BatteryModel
     {
         get => _prefsService.Current.BatteryModel;
-        set { _prefsService.Update(p => p.BatteryModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(value, PerformanceModel, AutoPowerModelSwitch); }
+        set { _prefsService.Update(p => p.BatteryModel = value); OnPropertyChanged(); PowerModelsChanged?.Invoke(value, PerformanceModel, AutoPowerModelSwitch); }
     }
     public string PerformanceModel
     {
         get => _prefsService.Current.PerformanceModel;
-        set { _prefsService.Update(p => p.PerformanceModel = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, value, AutoPowerModelSwitch); }
+        set { _prefsService.Update(p => p.PerformanceModel = value); OnPropertyChanged(); PowerModelsChanged?.Invoke(BatteryModel, value, AutoPowerModelSwitch); }
     }
     public bool AutoPowerModelSwitch
     {
         get => _prefsService.Current.AutoPowerModelSwitch;
-        set { _prefsService.Update(p => p.AutoPowerModelSwitch = value); OnPropertyChanged(); ScheduleSave(); PowerModelsChanged?.Invoke(BatteryModel, PerformanceModel, value); }
+        set { _prefsService.Update(p => p.AutoPowerModelSwitch = value); OnPropertyChanged(); PowerModelsChanged?.Invoke(BatteryModel, PerformanceModel, value); }
     }
     
     public bool AIFeaturesEnabled
@@ -295,7 +295,7 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.AIFeaturesEnabled = value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(AIFeaturesControlsEnabled));
-            ScheduleSave();
+
             AIFeaturesEnabledChanged?.Invoke(value);
         }
     }
@@ -304,12 +304,12 @@ public partial class SettingsViewModel
     public int QueueAutoFillSize
     {
         get => _prefsService.Current.QueueAutoFillSize;
-        set { _prefsService.Update(p => p.QueueAutoFillSize = value); OnPropertyChanged(); ScheduleSave(); }
+        set { _prefsService.Update(p => p.QueueAutoFillSize = value); OnPropertyChanged(); }
     }
     public bool QueueManualInsertAtBlockEnd
     {
         get => _prefsService.Current.QueueManualInsertAtBlockEnd;
-        set { _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value); OnPropertyChanged(); ScheduleSave(); }
+        set { _prefsService.Update(p => p.QueueManualInsertAtBlockEnd = value); OnPropertyChanged(); }
     }
 
     // Logging
@@ -321,11 +321,27 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.VerboseLogging = value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(LoggingModeLabel));
-            ScheduleSave();
+
             Helpers.Logging.NullWaveLogConfig.LevelSwitch.MinimumLevel = value ? LogEventLevel.Debug : LogEventLevel.Information;
             Log.Information("[Settings] Logging mode changed to {Mode}", value ? "Advanced/Verbose" : "Default");
         }
     }
+
+    // Experimental Features
+    public bool EnableExperimentalFeatures 
+    { 
+        get => _prefsService.Current.EnableExperimentalFeatures; 
+        set 
+        { 
+            _prefsService.Update(p => p.EnableExperimentalFeatures = value); 
+            OnPropertyChanged(); 
+            OnPropertyChanged(nameof(IsExperimentalModeActive)); 
+        } 
+    }
+
+    /// <summary>Returns true if Experimental Features OR Dev Mode is active.</summary>
+    public bool IsExperimentalModeActive => EnableExperimentalFeatures || IsDevMode;
+
 
     // Localized Formatters
     public string LoggingModeLabel => string.Format(L("Settings_Dynamic_Log_CurrentMode"), VerboseLogging ? L("Settings_Dynamic_Log_Verbose") : L("Settings_Dynamic_Log_Default"));
@@ -333,4 +349,5 @@ public partial class SettingsViewModel
     public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
     public string ScrobbleThresholdDisplay => string.Format(L("Settings_Dynamic_Scrobble_Threshold"), ScrobbleThreshold);
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+    
 }

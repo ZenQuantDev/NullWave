@@ -132,16 +132,16 @@ public class MetadataService
             var fileTitle = tag.Title ?? "";
             var fileArtist = string.Join(", ", tag.Performers ?? Array.Empty<string>());
 
-            if (LibraryService.TitlesLooselyMatch(title ?? "", fileTitle, artist ?? "", fileArtist)) return false;
+            if (NullWave.Helpers.TrackNormalizer.LooselyMatch(title ?? "", fileTitle, artist ?? "", fileArtist)) return false;
 
-            if (LibraryService.TitlesLooselyMatch(title ?? "", fileArtist, artist ?? "", fileTitle))
+            if (NullWave.Helpers.TrackNormalizer.LooselyMatch(title ?? "", fileArtist, artist ?? "", fileTitle))
             {
                 Log.Warning("[MetadataService] Refusing to write swapped tags to {Path}", filePath);
                 return false;
             }
 
             tag.Title = title;
-            tag.Performers = LibraryService.SplitArtistCredits(artist ?? "").ToArray();
+            tag.Performers = NullWave.Helpers.TrackNormalizer.SplitArtistCredits(artist ?? "").ToArray();
             file.Save();
             Log.Information("[MetadataService] Wrote embedded tags to file: {Path}", filePath);
             return true;

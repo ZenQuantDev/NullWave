@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using NullWave.Models;
+using NullWave.Helpers;
 
 namespace NullWave.Services;
 
@@ -24,6 +25,7 @@ public partial class LibraryService
     private static readonly Regex FeatureArtistRegex = new(@"\b(?:ft\.?|feat\.?|featuring|with|vs\.?)\s+(.+?)(?=\s*[\(\[\-–-]|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex BracketContentRegex = new(@"[\(\[](.*?)[\)\]]", RegexOptions.Compiled);
 
+    [Obsolete("Use TrackNormalizer.CleanTitle or TrackNormalizer.CleanArtist instead")]
     public static string CleanYouTubeArtifacts(string input, bool isArtist = false)
     {
         if (string.IsNullOrWhiteSpace(input)) return input;
@@ -33,37 +35,11 @@ public partial class LibraryService
         return cleaned.Trim();
     }
 
+    [Obsolete("Use TrackNormalizer.LooselyMatch instead")]
     internal static bool TitlesLooselyMatch(string storedTitle, string embeddedTitle, string storedArtist = "", string embeddedArtist = "")
     {
-        var cST = CleanYouTubeArtifacts(storedTitle, false);
-        var cET = CleanYouTubeArtifacts(embeddedTitle, false);
-        var cEA = CleanYouTubeArtifacts(embeddedArtist, true);
-
-        if (cET.Contains(" - ")) {
-            var s = cET.Split(new[] { " - " }, 2, StringSplitOptions.None);
-            if (s.Length == 2) {
-                var lN = NormalizeArtistKey(s[0]); var sAN = NormalizeArtistKey(storedArtist); var eAN = NormalizeArtistKey(cEA);
-                if (lN == sAN || lN == eAN || string.IsNullOrWhiteSpace(cEA) || cEA.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
-                { cEA = string.IsNullOrWhiteSpace(cEA) ? s[0].Trim() : cEA; cET = s[1].Trim(); }
-            }
-        }
-        if (cST.Contains(" - ")) {
-            var s = cST.Split(new[] { " - " }, 2, StringSplitOptions.None);
-            if (s.Length == 2 && NormalizeArtistKey(s[0]) == NormalizeArtistKey(storedArtist)) cST = s[1].Trim();
-        }
-
-        var a = NormalizeForCompare(cST); var b = NormalizeForCompare(cET);
-        if (a.Length == 0 || b.Length == 0) return true;
-        if (a == b) return true;
-
-        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
-        if (!longer.Contains(shorter, StringComparison.Ordinal)) return false;
-
-        var (sRaw, lRaw) = a.Length <= b.Length ? (cST, cET) : (cET, cST);
-        var known = Tokens(sRaw).Concat(Tokens(storedArtist)).Concat(Tokens(cEA)).ToHashSet(StringComparer.Ordinal);
-        foreach (var t in ExtractContextTokens(lRaw)) known.Add(t);
-
-        return !Tokens(lRaw).Any(t => !known.Contains(t) && !DecorationTokens.Contains(t));
+        // Delegate to the new unified implementation
+        return TrackNormalizer.LooselyMatch(storedTitle, embeddedTitle, storedArtist, embeddedArtist);
     }
 
     private static IEnumerable<string> ExtractContextTokens(string raw)
@@ -74,6 +50,7 @@ public partial class LibraryService
         return tokens;
     }
 
+    [Obsolete("Use TrackNormalizer.NormalizeForCompare instead")]
     private static string NormalizeForCompare(string s)
     {
         var d = (s ?? string.Empty).Normalize(NormalizationForm.FormD);
@@ -85,10 +62,11 @@ public partial class LibraryService
     {
         if (string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)) return false;
         if (_metadata == null) return true;
-        try { var e = _metadata.FetchFromLocalFile(t.FilePath); return string.IsNullOrWhiteSpace(e.Title) || TitlesLooselyMatch(t.Title, e.Title, t.Artist, e.Artist); }
+        try { var e = _metadata.FetchFromLocalFile(t.FilePath); return string.IsNullOrWhiteSpace(e.Title) || TrackNormalizer.LooselyMatch(t.Title, e.Title, t.Artist, e.Artist); }
         catch { return true; }
     }
 
+    [Obsolete("Use TrackNormalizer.NormalizeArtistKey instead")]
     internal static string NormalizeArtistKey(string artist)
     {
         var stripped = new string(artist.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.Format).ToArray());
@@ -96,6 +74,7 @@ public partial class LibraryService
         return ArtistSeparatorRegex.Replace(collapsed, " & ").ToLowerInvariant();
     }
 
+    [Obsolete("Use TrackNormalizer.SplitArtistCredits instead")]
     public static List<string> SplitArtistCredits(string artist) => 
         string.IsNullOrWhiteSpace(artist) ? new() : ArtistSeparatorRegex.Split(artist).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
 

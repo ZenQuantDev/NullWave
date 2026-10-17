@@ -60,18 +60,14 @@ public partial class MainViewModel
 
         OpenDataFolderCommand = new RelayCommand(() =>
         {
-            var dir = NullWavePaths.DataDir;
-            Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            Log.Information("[{Source}] Opened data folder: {Dir}", nameof(MainViewModel), dir);
+            ShellHelper.OpenFolder(NullWavePaths.DataDir);
+            Log.Information("[{Source}] Opened data folder: {Dir}", nameof(MainViewModel), NullWavePaths.DataDir);
         });
 
         OpenLogsCommand = new RelayCommand(() =>
         {
-            var dir = NullWavePaths.LogsDir;
-            Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), dir);
+            ShellHelper.OpenFolder(NullWavePaths.LogsDir);
+            Log.Information("[{Source}] Opened logs folder: {Dir}", nameof(MainViewModel), NullWavePaths.LogsDir);
         });
 
         NavigateLibraryCommand = new RelayCommand(() => { Library.ShowAll(); CurrentPage = "Library"; LogNav("Library"); });
@@ -101,19 +97,13 @@ public partial class MainViewModel
     private void OpenSettings()
     {
         var win = new Views.SettingsWindow { DataContext = Settings };
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
-            win.ShowDialog(desktop.MainWindow);
-        else
-            win.Show();
+        DialogService.Instance.ShowWindow(win);
     }
 
     private void OpenProfileWindow()
     {
         var win = new Views.ProfileWindow { DataContext = Profile };
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
-            win.ShowDialog(desktop.MainWindow);
-        else
-            win.Show();
+        DialogService.Instance.ShowWindow(win);
     }
 
     private void PlayPlaylist(Playlist? playlist)
@@ -125,30 +115,16 @@ public partial class MainViewModel
     private async Task ChangePlaylistCoverAsync(Playlist? playlist)
     {
         if (playlist == null) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-
-        var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
-        {
-            Title = "Choose playlist cover",
-            AllowMultiple = false,
-            FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp" } } }
-        });
-
-        if (files.Count == 0) return;
-        var srcFile = files[0];
-
-        // DURABILITY FIX: copy into the managed art cache instead of pointing at the
-        // picker's source file. A Downloads/USB/cloud path can vanish later and silently
-        // break the cover; every other art-write path in the app (ThumbnailDownloader,
-        // AlbumArtService) already copies into ArtCacheDir first.
-        var ext = Path.GetExtension(srcFile.Name);
+        var path = await DialogService.Instance.PickFileAsync("Choose playlist cover", "*.png", "*.jpg", "*.jpeg", "*.webp");
+        if (string.IsNullOrEmpty(path)) return;
+        // 2.4 FIX: Unique name with timestamp to prevent cache collisions
+        var ext = System.IO.Path.GetExtension(path);
         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-        var dest = Path.Combine(NullWavePaths.ArtCacheDir, $"pl_{playlist.Id:N}{ext}");
-
+        var dest = System.IO.Path.Combine(NullWavePaths.ArtCacheDir, $"pl_{playlist.Id:N}_{DateTime.UtcNow.Ticks}{ext}");
         try
         {
-            await using var inStream = await srcFile.OpenReadAsync();
-            await using var outStream = File.Create(dest);
+            await using var inStream = System.IO.File.OpenRead(path);
+            await using var outStream = System.IO.File.Create(dest);
             await inStream.CopyToAsync(outStream);
         }
         catch (Exception ex)
@@ -157,15 +133,15 @@ public partial class MainViewModel
             ToastService.Instance.Show($"Couldn't copy cover image: {ex.Message}", ToastType.Error, scope: "playlist");
             return;
         }
+        // 2.4 FIX: Delete old cover file and invalidate cache
+        var oldPath = playlist.CustomArtPath;
+        if (!string.IsNullOrEmpty(oldPath) && System.IO.File.Exists(oldPath))
+        {
+            try { System.IO.File.Delete(oldPath); } catch { }
+            BitmapCacheService.InvalidatePath(oldPath);
+        }
 
         playlist.CustomArtPath = dest;
-
-        // DIAGNOSTIC (one run only, then delete): names which leg fails, if any still does.
-        Log.Information("[Playlist] cover set: path={Path} exists={Exists} decoded={Decoded}",
-            playlist.CustomArtPath,
-            File.Exists(playlist.CustomArtPath),
-            BitmapCacheService.DecodeSync(playlist.CustomArtPath, 256) != null);
-
         _playlists.UpdatePlaylist(playlist);
         Playlist.Refresh();
         Nav.RefreshPlaylistLists();
@@ -175,6 +151,15 @@ public partial class MainViewModel
     private void ClearPlaylistCover(Playlist? playlist)
     {
         if (playlist == null) return;
+        
+        // 2.4 FIX: Delete the file and invalidate cache
+        var oldPath = playlist.CustomArtPath;
+        if (!string.IsNullOrEmpty(oldPath) && File.Exists(oldPath))
+        {
+            try { File.Delete(oldPath); } catch { }
+            BitmapCacheService.InvalidatePath(oldPath);
+        }
+
         playlist.CustomArtPath = null;
         _playlists.UpdatePlaylist(playlist);
         Playlist.Refresh();
@@ -191,15 +176,11 @@ public partial class MainViewModel
     private async Task AddTracksToPlaylistAsync(List<Track> tracks)
     {
         if (tracks.Count == 0) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-
-        var playlist = await new Views.AddToPlaylistDialog(_playlists).ShowDialog<Playlist?>(desktop.MainWindow);
+        var playlist = await DialogService.Instance.ShowDialogAsync<Playlist?>(new Views.AddToPlaylistDialog(_playlists));
         if (playlist == null) return;
-
         int added = 0;
         foreach (var t in tracks)
             if (_playlists.AddTrack(playlist.Id, t)) added++;
-
         ToastService.Instance.Show(
             added > 0 ? $"Added {added} track(s) to '{playlist.Name}'." : $"All tracks already in '{playlist.Name}'.",
             added > 0 ? ToastType.Success : ToastType.Info, scope: "playlist");
@@ -210,11 +191,8 @@ public partial class MainViewModel
     private async Task AddTrackToPlaylistAsync(Track? track)
     {
         if (track == null) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-
-        var playlist = await new Views.AddToPlaylistDialog(_playlists).ShowDialog<Playlist?>(desktop.MainWindow);
+        var playlist = await DialogService.Instance.ShowDialogAsync<Playlist?>(new Views.AddToPlaylistDialog(_playlists));
         if (playlist == null) return;
-
         if (_playlists.AddTrack(playlist.Id, track))
         {
             ToastService.Instance.Show($"Added '{track.Title}' to '{playlist.Name}'.", ToastType.Success, scope: "playlist");
@@ -230,11 +208,8 @@ public partial class MainViewModel
     private async Task MovePlaylistToFolderAsync(Playlist? playlist)
     {
         if (playlist == null) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-
-        var choice = await new Views.MoveToFolderDialog(_playlists, playlist.FolderId).ShowDialog<Views.FolderOption?>(desktop.MainWindow);
+        var choice = await DialogService.Instance.ShowDialogAsync<Views.FolderOption?>(new Views.MoveToFolderDialog(_playlists, playlist.FolderId));
         if (choice == null) return;
-
         Nav.MovePlaylistToFolder(playlist.Id, choice.FolderId);
         ToastService.Instance.Show(choice.FolderId == null
             ? $"'{playlist.Name}' moved to top level."
