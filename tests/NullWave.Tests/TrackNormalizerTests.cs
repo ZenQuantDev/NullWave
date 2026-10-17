@@ -14,6 +14,9 @@ public class TrackNormalizerTests
     [InlineData("PASTEL GHOST - DARK BEACH (Official Video)", "PASTEL GHOST - DARK BEACH")]
     [InlineData("Tame Impala - The Less I Know The Better [Lyric Video]", "Tame Impala - The Less I Know The Better")]
     [InlineData("Eminem - Rap God (Explicit Version)", "Eminem - Rap God")]
+    [InlineData("Daft Punk - Get Lucky (Four Tet Remix)", "Daft Punk - Get Lucky (Four Tet Remix)")]
+    [InlineData("The Weeknd - Blinding Lights (Live)", "The Weeknd - Blinding Lights (Live)")]
+    [InlineData("Dua Lipa - Levitating (Radio Edit)", "Dua Lipa - Levitating (Radio Edit)")]
     [InlineData("𝕳𝖊𝖑𝖑𝖔 𝖂𝖔𝖗𝖑𝖉", "Hello World")]
     public void CleanTitle_removes_YouTube_clutter(string input, string expected)
     {

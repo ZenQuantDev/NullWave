@@ -17,10 +17,10 @@ public static partial class TrackNormalizer
 {
     // --- Regex patterns ---
     
-    [GeneratedRegex(@"[\(\[\{«「『][^\)\]\}»」』]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|remastered|remaster|explicit|clean|version|hq|hd|4k|uncensored|edit|download|caption|captions|cc|unreleased|long|cut|mono|stereo|spatial|atmos|remix)s?\b[^\)\]\}»」』]*?[\)\]\}»」』]", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"[\(\[\{«「『][^\)\]\}»」』]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|explicit|clean|hq|hd|4k|uncensored|download|caption|captions|cc|unreleased|spatial|atmos)s?\b[^\)\]\}»」』]*?[\)\]\}»」』]", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex BracketGarbageRegex();
 
-    [GeneratedRegex(@"\b(official\s+video|official\s+music\s+video|official\s+audio|lyric\s+video|lyrics|official\s+visualizer|unreleased|remastered|explicit\s+version|clean\s+version)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b(official\s+video|official\s+music\s+video|official\s+audio|lyric\s+video|lyrics|official\s+visualizer|unreleased|explicit\s+version|clean\s+version)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex LooseGarbageRegex();
 
     [GeneratedRegex(@"[\s,\-\|]+(ft\.?|feat\.?|featuring|with)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
@@ -67,8 +67,7 @@ public static partial class TrackNormalizer
 
     private static readonly HashSet<string> DecorationTokens = new(StringComparer.Ordinal)
     {
-        "official", "music", "video", "audio", "lyric", "lyrics", "explicit", "clean",
-        "version", "radio", "edit", "remix", "remastered", "live", "acoustic",
+        "official", "music", "video", "audio", "lyric", "lyrics",
         "ft", "feat", "featuring", "hd", "hq", "mv", "prod", "produced", "by",
         "and", "with", "of", "in", "on", "part", "pt", "the", "that", "this"
     };
