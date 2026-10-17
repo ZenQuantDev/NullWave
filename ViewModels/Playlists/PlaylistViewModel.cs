@@ -166,9 +166,9 @@ public class PlaylistViewModel : ViewModelBase
         _playlists = playlists;
         _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
 
-        CreatePlaylistCommand = new RelayCommand(async () => await CreatePlaylistAsync());
-        CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync());
-        RemovePlaylistCommand = new RelayCommand(async () => await RemovePlaylistAsync_Safe());
+        CreatePlaylistCommand = new SafeRelayCommand(async () => await CreatePlaylistAsync(), errorScope: "playlist");
+        CreateFolderCommand = new SafeRelayCommand(async () => await CreateFolderAsync(),errorScope: "folder");
+        RemovePlaylistCommand = new SafeRelayCommand(async () => await RemovePlaylistAsync_Safe(),errorScope: "playlist");
 
         AddToPlaylistCommand = new RelayCommand<Track>(AddToPlaylist);
         RemoveFromPlaylistCommand = new RelayCommand<Track>(RemoveFromPlaylist);
@@ -189,7 +189,7 @@ public class PlaylistViewModel : ViewModelBase
         PlayAllCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PlayAllRequested?.Invoke(SelectedPlaylist); });
 
         BulkQueueCommand = new RelayCommand(() => BulkQueueRequested?.Invoke(SelectedTracks.ToList()));
-        BulkRemoveCommand = new RelayCommand(async () =>
+        BulkRemoveCommand = new SafeRelayCommand(async () => 
         {
             if (SelectedPlaylist == null || SelectedTracks.Count == 0) return;
             var tracksToRemove = SelectedTracks.ToList();
@@ -200,7 +200,7 @@ public class PlaylistViewModel : ViewModelBase
             RefreshFilteredTracks();
             SelectedTracks.Clear();
             await Task.CompletedTask;
-        });
+        }, errorScope: "playlist");
 
         Refresh();
     }
