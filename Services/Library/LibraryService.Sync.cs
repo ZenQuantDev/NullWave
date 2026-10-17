@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NullWave.Models;
 using Serilog;
+using NullWave.Helpers;
 
 namespace NullWave.Services;
 
@@ -44,9 +45,10 @@ public partial class LibraryService
         if (_metadata != null)
         {
             var (fT, fA, _) = _metadata.FetchFromLocalFile(track.FilePath!);
-            if (!TitlesLooselyMatch(track.Title, fT, track.Artist, fA) && TitlesLooselyMatch(track.Title, fA, track.Artist, fT))
+            if (!TrackNormalizer.LooselyMatch(track.Title, fT, track.Artist, fA) && TrackNormalizer.LooselyMatch(track.Title, fA, track.Artist, fT))
             {
-                track.Title = CleanYouTubeArtifacts(fT); track.Artist = CleanYouTubeArtifacts(fA);
+                track.Title = NullWave.Helpers.TrackNormalizer.CleanTitle(fT); 
+track.Artist = NullWave.Helpers.TrackNormalizer.CleanArtist(fA);
                 if (!dryRun) _db.Update(track);
                 return (true, false);
             }

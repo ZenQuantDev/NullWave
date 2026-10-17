@@ -19,8 +19,9 @@ public static class TitleSanitizer
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     // FIX: Added en dash (–) and em dash (—)
-    private static readonly string[] Dividers = { " - ", " – ", " — ", " ~ ", " | ", " // ", " ∞ " };
+    private static readonly string[] Dividers = { " - ", " – ", " — ", " ~ ", " | ", " // ", " /// ", " ∞ " };
 
+    [Obsolete("Use TrackNormalizer.TrySplit instead")]
     public static (string Artist, string Title) Sanitize(string rawTitle)
     {
         if (string.IsNullOrWhiteSpace(rawTitle))
@@ -52,6 +53,7 @@ public static class TitleSanitizer
         return (artist.Trim(), ApplyScrubbingPasses(title));
     }
 
+    [Obsolete("Use TrackNormalizer.CleanTitle instead")]
     public static string SanitizeSingle(string text)
     {
         if (string.IsNullOrWhiteSpace(text))

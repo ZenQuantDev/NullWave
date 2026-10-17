@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -375,7 +375,7 @@ public class TrackInputViewModel : ViewModelBase
             {
                 if (!string.IsNullOrWhiteSpace(title))
                 {
-                    var parsed = TrackTitleParser.TryParseArtistTitle(title);
+                    var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(title);
                     var cleanTitle  = title;
                     var cleanArtist = artist;
                     if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Title))
@@ -383,8 +383,8 @@ public class TrackInputViewModel : ViewModelBase
                         cleanTitle = parsed.Value.Title;
                         if (!string.IsNullOrWhiteSpace(parsed.Value.Artist)) cleanArtist = parsed.Value.Artist;
                     }
-                    if (TrackTitleParser.IsPlaceholderTitle(existing.Title))  existing.Title  = cleanTitle;
-                    if (TrackTitleParser.IsPlaceholderArtist(existing.Artist) &&
+                    if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(existing.Title))  existing.Title  = cleanTitle;
+                    if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(existing.Artist) &&
                         !string.IsNullOrWhiteSpace(cleanArtist))              existing.Artist = cleanArtist;
                 }
 

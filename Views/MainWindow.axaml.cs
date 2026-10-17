@@ -191,4 +191,31 @@ public partial class MainWindow : Window
         }
         return source is TextBox or AutoCompleteBox;
     }
+
+    private async void OnAddFlyoutOpening(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        
+        // Only pre-fill if the user hasn't already started typing
+        if (!string.IsNullOrWhiteSpace(vm.Input.InputUrl)) return;
+
+        try
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
+            
+            if (!string.IsNullOrWhiteSpace(text) && Uri.TryCreate(text, UriKind.Absolute, out var uri))
+            {
+                // Only pre-fill HTTP/HTTPS URLs (ignore file paths or random text)
+                if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                {
+                    vm.Input.InputUrl = text.Trim();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[MainWindow] Clipboard pre-fill failed or was blocked by OS");
+        }
+    }
 }

@@ -6,11 +6,10 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    
     <!-- Strip all localized NuGet resources except English and Russian -->
     <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
-    
-    <Version>0.6.3</Version>
+
+    <Version>0.6.4</Version>
     <Company>ZenQuant</Company>
     <Product>NullWave</Product>
   </PropertyGroup>

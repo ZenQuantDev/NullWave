@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -110,7 +110,7 @@ public partial class PlayerViewModel : ViewModelBase
                         {
                             // FIX: embedded title may be "Artist - Title"; split it so the
                             // renamed file doesn't double the artist prefix.
-                            var parsedTags = TrackTitleParser.TryParseArtistTitle(tagTitle);
+                            var parsedTags = NullWave.Helpers.TrackNormalizer.TrySplit(tagTitle);
                             var cleanTitle  = tagTitle;
                             var cleanArtist = tagArtist;
                             if (parsedTags != null && !string.IsNullOrWhiteSpace(parsedTags.Value.Title))
@@ -120,8 +120,8 @@ public partial class PlayerViewModel : ViewModelBase
                                     cleanArtist = parsedTags.Value.Artist;
                             }
 
-                            if (TrackTitleParser.IsPlaceholderTitle(track.Title))  track.Title  = cleanTitle;
-                            if (TrackTitleParser.IsPlaceholderArtist(track.Artist) &&
+                            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))  track.Title  = cleanTitle;
+                            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) &&
                                 !string.IsNullOrWhiteSpace(cleanArtist))          track.Artist = cleanArtist;
 
                             _download.UpdateJobMetadata(trackId, track.Title, track.Artist);

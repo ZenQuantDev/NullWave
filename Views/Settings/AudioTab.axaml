@@ -70,13 +70,9 @@
         </StackPanel>
       </Border>
 
-      <Border Classes="settings-banner">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
-          <TextBlock Text="{loc:Loc Settings_Audio_Banner}"
-                     Foreground="{StaticResource BrushAccentHover}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
+      <!-- REMOVED: Experimental banner for crossfade - feature is now stable -->
+      <Border Classes="settings-banner" IsVisible="False"/>
+
       <Border Classes="BottomSpacer"/>
     </StackPanel>
   </ScrollViewer>

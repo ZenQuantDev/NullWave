@@ -42,8 +42,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly LocalAIService _localAI;
     private readonly PluginManager _plugins;
     private System.Threading.Timer? _aiHealthTimer;
-    private CancellationTokenSource? _debounceCts;
-    private const int DebounceMs = 500;
     #endregion
 
     #region Constructor
@@ -115,33 +113,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     private static string L(string key) => LocalizationService.Instance[key];
-    
-    private void ScheduleSave()
-    {
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
-        _debounceCts = new CancellationTokenSource();
-        var token = _debounceCts.Token;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(DebounceMs, token);
-                if (!token.IsCancellationRequested)
-                {
-                    _prefsService.Save();
-                    Log.Information("[Settings] Debounced save successfully written to disk.");
-                }
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { Log.Error(ex, "[Settings] Critical error trying to save."); }
-        }, token);
-    }
 
     private static void OpenFolder(string path)
     {
-        Directory.CreateDirectory(path);
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+        ShellHelper.OpenFolder(path);
     }
     #endregion
 
@@ -162,7 +137,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SettingsSidebarWidth));
             OnPropertyChanged(nameof(SettingsSidebarCollapseIconKind));
             _prefsService.Update(p => p.SettingsSidebarCollapsed = value);
-            ScheduleSave();
+
         }
     }
     public bool IsSettingsSidebarExpanded => !IsSettingsSidebarCollapsed;
@@ -268,7 +243,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LocalizationService.Instance.SetLanguage(SelectedLanguage);
         _prefsService.Update(p => p.Language = SelectedLanguage);
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
-        ScheduleSave();
+
         ToastService.Instance.Show(LocalizationService.Instance["Settings_General_Language_Updated"], ToastType.Success);
     }
 
@@ -276,7 +251,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _prefsService.Update(p => p.HasCompletedOnboarding = true);
         OnPropertyChanged(nameof(HasCompletedOnboarding));
-        ScheduleSave();
+
     }
 
     [RelayCommand] private void ImportExistingLibrary() => ImportExistingLibraryRequested?.Invoke();
@@ -287,7 +262,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task BackupDatabaseAsync()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-        var dbPath = NullWavePaths.DatabasePath;
         var file = await desktop.MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Backup Library Database",
@@ -296,12 +270,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         });
         if (file != null)
         {
-            try
-            {
-                File.Copy(dbPath, file.Path.LocalPath, overwrite: true);
-                ToastService.Instance.Show($"Database backed up successfully to {file.Name}.", ToastType.Success);
-            }
-            catch (Exception ex) { ToastService.Instance.Show($"Backup failed: {ex.Message}", ToastType.Error); }
+            BackupDatabaseRequested?.Invoke(file.Path.LocalPath);
         }
     }
 
@@ -317,8 +286,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         StopHealthCheck();
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
         LogViewer?.Dispose();
         GC.SuppressFinalize(this);
     }

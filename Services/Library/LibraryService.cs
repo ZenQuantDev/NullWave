@@ -34,6 +34,8 @@ public partial class LibraryService : IDisposable
     private int _changePending;
 
     public event EventHandler? LibraryChanged;
+    public event EventHandler<Guid>? TrackRemovedFromLibrary;
+    public void BackupDatabase(string path) => _db.BackupToPath(path);
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
@@ -142,14 +144,13 @@ public partial class LibraryService : IDisposable
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
-            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
-            var parsed = TrackTitleParser.TryParseArtistTitle(titleToParse);
-            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Artist) && !string.IsNullOrWhiteSpace(parsed.Value.Title))
+            var split = NullWave.Helpers.TrackNormalizer.TrySplit(track.Title);
+            if (split != null && !string.IsNullOrWhiteSpace(split.Value.Artist) && !string.IsNullOrWhiteSpace(split.Value.Title))
             {
-                if (track.Artist == "Unknown" || track.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(track.Artist))
-                    track.Artist = parsed.Value.Artist;
-                if (track.Title == track.Url || track.Title == "Unknown Title" || string.IsNullOrWhiteSpace(track.Title))
-                    track.Title = parsed.Value.Title;
+                if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist))
+                    track.Artist = split.Value.Artist;
+                if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))
+                    track.Title = split.Value.Title;
             }
         }
 
@@ -165,10 +166,15 @@ public partial class LibraryService : IDisposable
         Track? track;
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
+        
+        var queueEntry = _queue.FirstOrDefault(e => e.Track.Id == id);
+        if (queueEntry != null) { _queue.Remove(queueEntry); QueueChanged?.Invoke(this, EventArgs.Empty); }
+        
         lock (_tracksLock) _tracks.Remove(track);
         _db.Delete(id);
         StateVersion++;
         OnLibraryChanged();
+        TrackRemovedFromLibrary?.Invoke(this, id);
     }
 
     public void Update(Track track)
@@ -252,7 +258,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.PlayCount++;
-        track.LastPlayed = DateTime.Now;
+        track.LastPlayed = DateTime.UtcNow; // Standardize on UTC
         _db.UpdateAsync(track);
         StateVersion++;
         _history.Add(track);

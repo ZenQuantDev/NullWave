@@ -101,10 +101,12 @@ public class AlbumArtService
     private async Task<string?> TryLastFmAsync(Track track)
     {
         if (!_lastFm.IsConfigured) return null;
-        var (searchArtist, searchTitle) = TitleSanitizer.Sanitize(track.Title);
+        var split = NullWave.Helpers.TrackNormalizer.TrySplit(track.Title);
+var searchArtist = split?.Artist ?? string.Empty;
+var searchTitle = split?.Title ?? track.Title;
         if (string.IsNullOrWhiteSpace(searchArtist) || searchArtist == "Unknown Artist" || searchArtist == "Unknown")
         {
-            var parsed = TrackTitleParser.TryParseArtistTitle(track.Title);
+            var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(track.Title);
             if (parsed != null)
             {
                 searchArtist = parsed.Value.Artist;

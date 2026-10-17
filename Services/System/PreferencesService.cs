@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Collections;
+using System.Reflection;
 using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
@@ -11,11 +14,6 @@ namespace NullWave.Services;
 
 public class PreferencesService : IDisposable
 {
-    // ONE process-wide instance. Four call sites each news'd their own service, so the
-    // startup log showed three "Loaded preferences" lines and, worse, four in-memory
-    // copies with four debounce timers that could overwrite each other's saves (the
-    // old What's-New race). Tests keep constructing their own instances against a
-    // temp NULLWAVE_HOME; only the app uses Shared.
     private static readonly Lazy<PreferencesService> _shared = new(() => new PreferencesService());
     public static PreferencesService Shared => _shared.Value;
 
@@ -26,6 +24,9 @@ public class PreferencesService : IDisposable
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(2);
     private readonly object _saveLock = new object();
     private bool _disposed;
+
+    public event Action<HashSet<string>>? Changed;
+    private static readonly PropertyInfo[] _prefProps = typeof(Preferences).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
     public Preferences Current => _prefs;
 
@@ -47,6 +48,14 @@ public class PreferencesService : IDisposable
 
             if (string.IsNullOrEmpty(prefs.DownloadDirectory))
                 prefs.DownloadDirectory = NullWavePaths.DownloadsDir;
+
+            // 3.3 FIX: Preferences versioning
+            if (prefs.Version < 2)
+            {
+                Log.Information("[PreferencesService] Migrating preferences from v{Old} to v2", prefs.Version);
+                try { File.Copy(_prefsPath, _prefsPath + $".v{prefs.Version}-backup", overwrite: true); } catch { }
+                prefs.Version = 2;
+            }
 
             Log.Debug("[PreferencesService] Loaded preferences from {Path}", _prefsPath);
             return prefs;
@@ -102,22 +111,49 @@ public class PreferencesService : IDisposable
         {
             if (_disposed) return;
 
+            // Capture before state
+            var before = new Dictionary<string, object?>();
+            foreach (var prop in _prefProps) before[prop.Name] = prop.GetValue(_prefs);
+
+            // Apply changes
             updater(_prefs);
-            _debounceCts?.Cancel();
-            _debounceCts?.Dispose();
 
-            _debounceCts = new CancellationTokenSource();
-            var token = _debounceCts.Token;
-
-            _ = Task.Run(async () =>
+            // 3.2 FIX: Detect exactly which properties changed
+            var changedNames = new HashSet<string>();
+            foreach (var prop in _prefProps)
             {
-                try
+                var beforeVal = before[prop.Name];
+                var afterVal = prop.GetValue(_prefs);
+                
+                // Collections (Lists) share the same reference, so we compare their JSON
+                bool isCollection = beforeVal is IEnumerable && beforeVal is not string;
+                bool changed = isCollection 
+                    ? JsonSerializer.Serialize(beforeVal) != JsonSerializer.Serialize(afterVal)
+                    : !Equals(beforeVal, afterVal);
+
+                if (changed) changedNames.Add(prop.Name);
+            }
+
+            if (changedNames.Count > 0)
+            {
+                Changed?.Invoke(changedNames);
+
+                _debounceCts?.Cancel();
+                _debounceCts?.Dispose();
+
+                _debounceCts = new CancellationTokenSource();
+                var token = _debounceCts.Token;
+
+                _ = Task.Run(async () =>
                 {
-                    await Task.Delay(_debounceInterval, token);
-                    if (!token.IsCancellationRequested) Save();
-                }
-                catch (TaskCanceledException) { }
-            }, token);
+                    try
+                    {
+                        await Task.Delay(_debounceInterval, token);
+                        if (!token.IsCancellationRequested) Save();
+                    }
+                    catch (TaskCanceledException) { }
+                }, token);
+            }
         }
     }
 

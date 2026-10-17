@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -20,9 +20,9 @@ public partial class LibraryViewModel
         foreach (var track in _library.GetAll())
         {
             if (string.IsNullOrWhiteSpace(track.Artist) || track.Artist == "Unknown") continue;
-            foreach (var name in LibraryService.SplitArtistCredits(track.Artist))
+            foreach (var name in NullWave.Helpers.TrackNormalizer.SplitArtistCredits(track.Artist))
             {
-                var key = LibraryService.NormalizeArtistKey(name);
+                var key = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name);
                 if (!buckets.TryGetValue(key, out var bucket))
                 {
                     bucket = (name, new HashSet<Guid>());
@@ -42,19 +42,32 @@ public partial class LibraryViewModel
     {
         if (group == null) return;
         _selectedArtistFilter = group.Name;
+        
+        _isProgrammaticClear = true;
         SearchQuery = string.Empty;
+        _isProgrammaticClear = false;
+        
         NavigateToLibraryRequested?.Invoke();
         TriggerRefresh(debounce: false);
     }
 
     partial void OnSearchQueryChanged(string value)
     {
-        _selectedArtistFilter = null;
+        if (!_isProgrammaticClear)
+        {
+            _selectedArtistFilter = null;
+        }
+        
         try { _aiPromptCts?.Cancel(); _aiPromptCts?.Dispose(); }
         catch (ObjectDisposedException) { Log.Verbose("[LibraryViewModel] CTS already disposed"); }
 
-        if (value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
+        if (IsAiPromptEnabled && value.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
         {
+            // "ai:" is a command, not a filter: refresh now so stale filter results
+            // never linger while the prompt is typed. The ai: prefix is treated as
+            // "no constraint" below, so the list honestly shows the full library.
+            TriggerRefresh(debounce: true);
+
             _aiPromptCts = new CancellationTokenSource();
             var token = _aiPromptCts.Token;
             _ = Task.Run(async () =>
@@ -135,7 +148,7 @@ public partial class LibraryViewModel
         {
             if (!filters.All(f => f(t))) return false;
             if (ftsMatches != null) return ftsMatches.Contains(t.Id);
-            if (globalTerms.Count > 0) return globalTerms.Any(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
+            if (globalTerms.Count > 0) return globalTerms.All(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
             return true;
         });
     }
@@ -153,12 +166,13 @@ public partial class LibraryViewModel
 
         if (!string.IsNullOrEmpty(artistFilter))
         {
-            var normalizedFilter = LibraryService.NormalizeArtistKey(artistFilter);
-            baseSet = baseSet.Where(t => LibraryService.SplitArtistCredits(t.Artist).Any(name => LibraryService.NormalizeArtistKey(name) == normalizedFilter));
+            var normalizedFilter = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(artistFilter);
+            baseSet = baseSet.Where(t => NullWave.Helpers.TrackNormalizer.SplitArtistCredits(t.Artist).Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedFilter));
         }
 
         bool wasSearch = false;
-        if (!string.IsNullOrWhiteSpace(query)) { baseSet = ApplySmartSearch(baseSet, query); wasSearch = true; }
+        if (!string.IsNullOrWhiteSpace(query) && !query.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
+        { baseSet = ApplySmartSearch(baseSet, query); wasSearch = true; }
         else if (!string.IsNullOrEmpty(artistFilter)) wasSearch = true;
 
         if (mediaTypeFilter.HasValue) baseSet = baseSet.Where(t => t.MediaType == mediaTypeFilter.Value);
@@ -172,6 +186,7 @@ public partial class LibraryViewModel
             SortField.Source     => baseSet.OrderBy(t => t.Source).ThenBy(t => t.Title),
             SortField.PlayCount  => baseSet.OrderBy(t => t.PlayCount).ThenBy(t => t.Title),
             SortField.LastPlayed => baseSet.OrderBy(t => t.LastPlayed).ThenBy(t => t.Title),
+            SortField.Length     => baseSet.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenBy(t => t.Duration).ThenBy(t => t.Title),
             _ => baseSet
         };
 
@@ -181,7 +196,14 @@ public partial class LibraryViewModel
     private async Task HandleAIPromptAsync(string prompt)
     {
         var query = prompt.Substring(3).Trim();
-        if (string.IsNullOrWhiteSpace(query)) return;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // TODO(localization): move to key AI_Prompt_Hint in the Locales pass
+            ToastService.Instance.Show(
+                "Type a mood after ai: - for example  ai: chill hip-hop",
+                ToastType.Info, durationMs: 4000, scope: "ai-prompt");
+            return;
+        }
 
         LiveNotification? activity = null;
         await Dispatcher.UIThread.InvokeAsync(() =>
@@ -191,7 +213,9 @@ public partial class LibraryViewModel
 
         try
         {
-            var allTracks = _library.GetAll().ToArray();
+            // ai: playlists are music playlists: never pull radio streams or audiobooks
+            // into them (keyword matches like "pop" -> "Indie Pop Rocks" station).
+            var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToArray();
             var keywords = query.ToLowerInvariant().Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Where(k => k.Length > 2).ToArray();
             var candidateTracks = allTracks.Where(t =>
             {
