@@ -13,7 +13,7 @@ namespace NullWave.Services;
 /// <summary>
 /// Centralized dialog and file picker service.
 /// Eliminates boilerplate window lookup code scattered across ViewModels.
-/// Thread-safe: can be called from any thread (marshals to UI automatically).
+/// Must be called from the UI thread (it does not marshal).
 /// </summary>
 public class DialogService
 {
@@ -163,6 +163,14 @@ public class DialogService
             window.Show(main);
         else
             window.Show();
+    }
+
+    /// <summary>Shows a window modally over the main window (falls back to non-modal if there is none).</summary>
+    public void ShowModal(Window window)
+    {
+        var main = MainWindow;
+        if (main != null) _ = window.ShowDialog(main);
+        else window.Show();
     }
 
     /// <summary>Shows a modal dialog and returns the result.</summary>

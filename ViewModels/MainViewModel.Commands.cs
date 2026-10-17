@@ -97,13 +97,13 @@ public partial class MainViewModel
     private void OpenSettings()
     {
         var win = new Views.SettingsWindow { DataContext = Settings };
-        DialogService.Instance.ShowWindow(win);
+        DialogService.Instance.ShowModal(win);
     }
 
     private void OpenProfileWindow()
     {
         var win = new Views.ProfileWindow { DataContext = Profile };
-        DialogService.Instance.ShowWindow(win);
+        DialogService.Instance.ShowModal(win);
     }
 
     private void PlayPlaylist(Playlist? playlist)
