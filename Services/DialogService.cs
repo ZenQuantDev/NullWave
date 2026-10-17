@@ -251,12 +251,4 @@ public class DialogService
         return groups.Select(g => new FilePickerFileType(g.Key) { Patterns = g.Value }).ToList();
     }
 
-    /// <summary>Shows a simple text input dialog. Returns the entered text, or null if cancelled.</summary>
-    public async Task<string?> InputAsync(string title, string placeholder = "")
-    {
-        // For now, use a simple input dialog - you can replace with your custom dialog
-        var dialog = new Views.CreatePlaylistDialog(); // Assuming this has a text input
-        var result = await ShowDialogAsync<string?>(dialog);
-        return result;
-    }
 }

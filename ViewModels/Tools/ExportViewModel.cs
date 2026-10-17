@@ -91,7 +91,6 @@ public class ExportViewModel : ViewModelBase
         {
             // D18 FIX: Use ErrorReporter instead of raw ex.Message
             ErrorReporter.Report(ex, $"Export failed. Please try again.", "export");
-            throw; // Re-throw so SafeRelayCommand can catch it
         }
     }
 }
