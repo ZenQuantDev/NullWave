@@ -113,15 +113,15 @@ public partial class MainViewModel
         Playlist = new PlaylistViewModel(_playlists);
         Playlist.RequestCreatePlaylistName = async () =>
         {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return null;
-            return await new Views.CreatePlaylistDialog().ShowDialog<string?>(desktop.MainWindow);
-        };
-        Playlist.RequestCreateFolderName = async () =>
-        {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return null;
-            return await new Views.CreateFolderDialog().ShowDialog<string?>(desktop.MainWindow);
+            var dialog = new Views.CreatePlaylistDialog();
+            return await DialogService.Instance.ShowDialogAsync<string?>(dialog);
         };
 
+        Playlist.RequestCreateFolderName = async () =>
+        {
+            var dialog = new Views.CreateFolderDialog();
+            return await DialogService.Instance.ShowDialogAsync<string?>(dialog);
+        };
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
         Import = new ImportViewModel(_library, _metadata);
@@ -273,10 +273,8 @@ public partial class MainViewModel
 
         Input.RadioSiteRequested += async (stationName, channels) =>
         {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-            var chosen = await new Views.Dialogs.RadioMoodDialog(channels).ShowDialog<List<RadioChannel>>(desktop.MainWindow);
+            var chosen = await DialogService.Instance.ShowDialogAsync<List<RadioChannel>>(new Views.Dialogs.RadioMoodDialog(channels));
             if (chosen == null || chosen.Count == 0) return;
-
             int added = 0;
             foreach (var channel in chosen)
             {
@@ -293,19 +291,14 @@ public partial class MainViewModel
 
         Input.RadioCatalogRequested += async () =>
         {
-            var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
-            if (window == null) return;
-            
             var dialog = new Views.Dialogs.RadioCatalogDialog();
-            var added = await dialog.ShowDialog<List<Helpers.CuratedStation>>(window);
-            
+            var added = await DialogService.Instance.ShowDialogAsync<List<Helpers.CuratedStation>>(dialog);
             if (added != null && added.Count > 0)
             {
                 int count = 0;
                 foreach (var station in added)
                 {
                     if (_library.GetAll().Any(t => t.Url == station.StreamUrl)) continue;
-
                     var track = new Track
                     {
                         Title = station.Name,
@@ -317,16 +310,10 @@ public partial class MainViewModel
                     _library.Add(track);
                     count++;
                 }
-                
                 if (count > 0)
                 {
                     ToastService.Instance.Show($"Added {count} station(s) to your Radio library.", ToastType.Success, scope: "radio-add");
-                    
-                    Dispatcher.UIThread.Post(() => 
-                    { 
-                        Library.Refresh(); 
-                        RadioLibrary.Refresh(); 
-                    });
+                    Dispatcher.UIThread.Post(() => { Library.Refresh(); RadioLibrary.Refresh(); });
                 }
             }
         };
@@ -429,21 +416,17 @@ public partial class MainViewModel
 
         Settings.ImportAiTagsRequested += async () =>
         {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return null;
-            var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
-            {
-                Title = "Import AI Tag JSON", AllowMultiple = false,
-                FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = new[] { "*.json", "*.txt", "*.md" } } }
-            });
-            if (files.Count == 0) { Settings.ReportImportComplete(0, 0); return null; }
-
+            var path = await DialogService.Instance.PickFileAsync(
+                "Import AI Tag JSON",
+                "*.json", "*.txt", "*.md"
+            );
+            if (string.IsNullOrEmpty(path)) { Settings.ReportImportComplete(0, 0); return null; }
             string jsonContent;
-            await using (var stream = await files[0].OpenReadAsync())
-            using (var reader = new System.IO.StreamReader(stream)) jsonContent = await reader.ReadToEndAsync();
-
+            await using (var stream = System.IO.File.OpenRead(path))
+            using (var reader = new System.IO.StreamReader(stream))
+                jsonContent = await reader.ReadToEndAsync();
             var results = new ExternalAITagService().ParseImportedJson(jsonContent);
             if (results.Count == 0) { Settings.ReportImportFailed("No valid entries."); return null; }
-
             int applied = 0;
             foreach (var result in results)
             {

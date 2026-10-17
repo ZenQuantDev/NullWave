@@ -92,9 +92,13 @@ public class NavigationViewModel : ViewModelBase
             _playlists.UpdateFolder(node.Folder);
         });
         PinPlaylistCommand = new RelayCommand<Playlist>(p => { if (p != null) PinPlaylist(p.Id, p.Name); });
-        RenameFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = RenameFolderAsync(n));
-        DeleteFolderCommand = new RelayCommand<SidebarFolderNode>(n => _ = DeleteFolderAsync(n));
-
+        RenameFolderCommand = new SafeRelayCommand<SidebarFolderNode>(
+    async n => await RenameFolderAsync(n),
+    errorScope: "folder"
+);        DeleteFolderCommand = new SafeRelayCommand<SidebarFolderNode>(
+    async n => await DeleteFolderAsync(n),
+    errorScope: "folder"
+);
         Items.CollectionChanged += (_, e) =>
         {
             if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Move)
@@ -322,9 +326,10 @@ public class NavigationViewModel : ViewModelBase
     private async Task RenameFolderAsync(SidebarFolderNode? node)
     {
         if (node == null) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
 
-        var name = await new Views.CreateFolderDialog(node.Folder.Name).ShowDialog<string?>(d.MainWindow);
+        var dialog = new Views.CreateFolderDialog(node.Folder.Name);
+        var name = await DialogService.Instance.ShowDialogAsync<string?>(dialog);
+        
         if (string.IsNullOrWhiteSpace(name)) return;
 
         _playlists.RenameFolder(node.Folder.Id, name);
@@ -334,10 +339,13 @@ public class NavigationViewModel : ViewModelBase
     private async Task DeleteFolderAsync(SidebarFolderNode? node)
     {
         if (node == null) return;
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime d || d.MainWindow == null) return;
 
-        var ok = await new Views.ConfirmDialog("Delete Folder?",
-            $"Delete '{node.Folder.Name}'? Playlists inside move to the top level.").ShowDialog<bool>(d.MainWindow);
+        var dialog = new Views.ConfirmDialog(
+            "Delete Folder?",
+            $"Delete '{node.Folder.Name}'? Playlists inside move to the top level."
+        );
+        var ok = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
+        
         if (!ok) return;
 
         var folderSnapshot = node.Folder;
