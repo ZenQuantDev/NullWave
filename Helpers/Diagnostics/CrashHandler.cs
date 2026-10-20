@@ -16,7 +16,7 @@ public static class CrashHandler
             
             var sb = new StringBuilder();
             sb.AppendLine("# NullWave Crash Report");
-            sb.AppendLine($"**Time:** {DateTime.Now:dd-MM-yyyy HH:mm:ss}");
+            sb.AppendLine($"**Time:** {DateTime.UtcNow:dd-MM-yyyy HH:mm:ss}");
             sb.AppendLine($"**Version:** {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}");
             sb.AppendLine();
             sb.AppendLine("## What happened?");

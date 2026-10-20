@@ -1,0 +1,5 @@
+P:System.DateTime.Now;Use DateTime.UtcNow, UtcTime.FileStamp(), or TimeProvider.System.GetLocalNow() for time-of-day logic.
+M:System.IO.File.GetLastWriteTime(System.String);Use File.GetLastWriteTimeUtc
+M:System.IO.File.GetCreationTime(System.String);Use File.GetCreationTimeUtc
+M:System.IO.File.SetLastWriteTime(System.String,System.DateTime);Use File.SetLastWriteTimeUtc
+M:System.IO.File.SetCreationTime(System.String,System.DateTime);Use File.SetCreationTimeUtc

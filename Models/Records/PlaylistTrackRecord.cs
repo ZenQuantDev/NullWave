@@ -17,6 +17,5 @@ public class PlaylistTrackRecord
 
     public int SortOrder { get; set; }
 
-    // Per-playlist DateAdded tracking
     public DateTime DateAdded { get; set; } = DateTime.UtcNow;
 }
