@@ -3,7 +3,7 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.4] - 14-Oct-2026 🏗️ "Foundations"
+## [0.6.4] - 21-Oct-2026 🏗️ "Foundations"
 
 ### Added
 
@@ -11,7 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Gated features: In-App Log Viewer, P2P Track Sharing, Profile Sharing, Wallpaper Scenes, Profile Frame Glow, and advanced maintenance tools (Force Clean Titles, Verify Links, Reimport Assets, Merge Similar Artists, Sync Files)
   - Two-tier architecture: Experimental Features (user toggle) vs Developer Mode (environment variable `NULLWAVE_DEV=1`)
   - Visual badges and warning banners clearly mark experimental UI elements
-- **Unified Track Normalizer**: New `TrackNormalizer` class consolidates 6+ duplicate title/artist cleaning implementations into a single source of truth (D3+D4 from duplicate systems audit)
+- **Unified Track Normalizer**: New `TrackNormalizer` class consolidates 6+ duplicate title/artist cleaning implementations into a single source of truth
   - `TrySplit()` - Intelligent artist/title splitting with exotic separator support
   - `CleanTitle()` / `CleanArtist()` - Removes YouTube artifacts, bracket garbage, Topic/VEVO suffixes
   - `NormalizeArtistKey()` - Consistent artist name normalization (NFKC, lowercase, separator collapse)
@@ -20,22 +20,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `IdentityKey()` / `AreSameTrack()` - Unified duplicate detection logic
   - `IsPlaceholderTitle()` / `IsPlaceholderArtist()` - Placeholder detection
   - 44 comprehensive unit tests covering all edge cases
-- **Shell Helper**: New `ShellHelper` class with cross-platform `OpenFolder`, `OpenFile`, `OpenUrl` methods (D17)
-- **Preferences Change Tracking**: New `PreferencesService.Changed` event uses reflection to detect exactly which properties changed, enabling targeted subscribers (Phase 3.2)
-- **Preferences Versioning**: Schema now tracks version (currently v2); automatic migration from v1 with backup creation (Phase 3.3)
-- **Safe Manual Backup**: The "Backup Database" button in Settings now uses SQLite's `VACUUM INTO` to create a perfectly consistent, compacted copy of the database, validating it with an integrity check before finishing.
-- **Cascading Track Deletion**: Deleting a track from the Library now automatically removes it from the playback Queue and all Playlists. The "Undo" button perfectly restores the track to its original playlists.
-- **Schema Versioning**: Introduced SQLite `user_version` tracking. Migrations now run exactly once, in order, preventing redundant startup checks and allowing safe, forward-only schema evolution.
-- **Length Sort with Zero-Sinking**: New sort option orders tracks by duration. Radio streams and unscanned files (zero duration) always sink to the bottom regardless of sort direction.
-- **Honest Column Headers**: The Length header is now fully sortable with a visual indicator. The Status and Plays headers are now plain text (no hand cursor) since they cannot be sorted.
-- **Global Search Persistence**: The global search query now follows you across all pages (Library, Radio, Audiobooks, Playlists). Switching pages no longer clears your search.
-- **Clipboard Pre-fill**: Opening the "Add Track" flyout automatically pre-fills the URL box if you have a valid HTTP/HTTPS URL on your clipboard.
-- **Sort Field Catalog**: New `SortFieldCatalog` system ensures each page only shows valid sort options (e.g., "Custom" drag-order is only available in Playlists, not the main Library).
+- **Shell Helper**: New `ShellHelper` class with cross-platform `OpenFolder`, `OpenFile`, `OpenUrl` methods
+- **Preferences Change Tracking**: New `PreferencesService.Changed` event uses reflection to detect exactly which properties changed, enabling targeted subscribers
+- **Preferences Versioning**: Schema now tracks version (currently v2); automatic migration from v1 with backup creation
+- **Safe Manual Backup**: The "Backup Database" button in Settings now uses SQLite's `VACUUM INTO` to create a perfectly consistent, compacted copy of the database, validating it with an integrity check before finishing
+- **Cascading Track Deletion**: Deleting a track from the Library now automatically removes it from the playback Queue and all Playlists. The "Undo" button perfectly restores the track to its original playlists
+- **Schema Versioning**: Introduced SQLite `user_version` tracking. Migrations now run exactly once, in order, preventing redundant startup checks and allowing safe, forward-only schema evolution
+- **Length Sort with Zero-Sinking**: New sort option orders tracks by duration. Radio streams and unscanned files (zero duration) always sink to the bottom regardless of sort direction
+- **Honest Column Headers**: The Length header is now fully sortable with a visual indicator. The Status and Plays headers are now plain text (no hand cursor) since they cannot be sorted
+- **Global Search Persistence**: The global search query now follows you across all pages (Library, Radio, Audiobooks, Playlists). Switching pages no longer clears your search
+- **Clipboard Pre-fill**: Opening the "Add Track" flyout automatically pre-fills the URL box if you have a valid HTTP/HTTPS URL on your clipboard
+- **Sort Field Catalog**: New `SortFieldCatalog` system ensures each page only shows valid sort options (e.g., "Custom" drag-order is only available in Playlists, not the main Library)
+- **O(1) Duplicate Detection**: `LibraryService` now uses an in-memory Identity Index for instant duplicate checks during bulk imports
+- **Banned Symbols Analyzer**: Added `BannedSymbols.txt` and Roslyn analyzers to enforce UTC-only `DateTime` usage and prevent local-time regressions at compile time
+- **Shared INPC Base**: Introduced `NotifyBase` to eliminate duplicated `INotifyPropertyChanged` boilerplate across Models and ViewModels
 
 ### Changed
 
-- **Unified Settings Save Path**: Removed all manual `ScheduleSave()` calls and direct `Save()` invocations. Now `PreferencesService.Update()` is the only way to change settings, with automatic debounced persistence (Phase 3.1)
-- **UTC Time Standardization**: `LibraryService.RecordPlay` now uses `DateTime.UtcNow` instead of `DateTime.Now` (D9). `RelativeTimeConverter` properly handles UTC timestamps.
+- **Unified Settings Save Path**: Removed all manual `ScheduleSave()` calls and direct `Save()` invocations. Now `PreferencesService.Update()` is the only way to change settings, with automatic debounced persistence
+- **UTC Time Standardization**: `LibraryService.RecordPlay` now uses `DateTime.UtcNow` instead of `DateTime.Now`. `RelativeTimeConverter` properly handles UTC timestamps
 - **Migrated 37 Call Sites**: Replaced all uses of obsolete `TitleSanitizer`, `TrackTitleParser`, and `LibraryService` helper methods with unified `TrackNormalizer` calls across:
   - `ImportViewModel` - Fixed double-sanitization bug where import would clean metadata, then `LibraryService.Add` would clean it again
   - `LibraryService` - `Add()`, `VerifyLinks()`, `RemoveDuplicates()`, `ForceCleanTitles()`
@@ -46,31 +49,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `PlayerViewModel` - Placeholder detection
   - `TrackDetailViewModel` - Artist credit splitting and normalization
   - `LibraryViewModel.Search` - Artist filter matching
-- **Non-Destructive Playlist Merging**: The startup `Deduplicate` sweep no longer deletes duplicate playlists. Instead, it merges their unique tracks into the primary playlist, preventing accidental data loss.
-- **Playlist Cover Art**: Changing or clearing a playlist cover now properly deletes the old image file from the cache and invalidates the bitmap cache to prevent ghost images. New covers use timestamped filenames to prevent cache collisions.
-- **AI Playlist Generation**: The `ai:` prompt now filters out Radio streams and Audiobooks from candidates, preventing accidental inclusion of live streams in mood playlists. Empty prompts now show a helpful hint toast.
-- **FTS5 Multi-Word Search**: Search queries with multiple words now use **AND logic** instead of OR. Searching "pastel ghost" now requires both words, while single-word queries still prefix-match as before.
-- **Artist Filter Persistence**: Clicking an artist in the sidebar now properly clears the search box while preserving the artist filter. Typing a new search afterwards still clears the artist filter as expected.
-- **AI Prompt Guard**: The `ai:` prompt for generating playlists now only triggers on the main Library page, preventing accidental AI generation on Radio or Audiobooks pages.
-- **Playlist Sort Options**: Play Count and Last Played sort options in the Playlist view now actually reorder tracks instead of silently falling through to Date Added.
+- **Non-Destructive Playlist Merging**: The startup `Deduplicate` sweep no longer deletes duplicate playlists. Instead, it merges their unique tracks into the primary playlist, preventing accidental data loss
+- **Playlist Cover Art**: Changing or clearing a playlist cover now properly deletes the old image file from the cache and invalidates the bitmap cache to prevent ghost images. New covers use timestamped filenames to prevent cache collisions
+- **AI Playlist Generation**: The `ai:` prompt now filters out Radio streams and Audiobooks from candidates, preventing accidental inclusion of live streams in mood playlists. Empty prompts now show a helpful hint toast
+- **FTS5 Multi-Word Search**: Search queries with multiple words now use **AND logic** instead of OR. Searching "pastel ghost" now requires both words, while single-word queries still prefix-match as before
+- **Artist Filter Persistence**: Clicking an artist in the sidebar now properly clears the search box while preserving the artist filter. Typing a new search afterwards still clears the artist filter as expected
+- **AI Prompt Guard**: The `ai:` prompt for generating playlists now only triggers on the main Library page, preventing accidental AI generation on Radio or Audiobooks pages
+- **Playlist Sort Options**: Play Count and Last Played sort options in the Playlist view now actually reorder tracks instead of silently falling through to Date Added
+- **Massive Folder Reorganization**: Reorganized project structure into logical subfolders (`Models/Library`, `Helpers/Imaging`, `ViewModels/Shell`, `Services/Database`, etc.) for better separation of concerns
+- **DatabaseService Split**: Split the 800+ line `DatabaseService` into 5 focused partial classes (Core, Backup, FTS, Migrations, Playlists)
+- **ProcessRunner Unification**: Migrated all raw `Process.Start` calls (yt-dlp, aria2c, ffmpeg, Spotify bridge, SoundCloud) to the unified, deadlock-free `ProcessRunner` with streaming support
+- **RelayCommand Safety**: Unified `RelayCommand` to inherit from `SafeRelayCommand`, instantly routing all 92+ existing async commands through the global exception handler and preventing double-clicks
+- **UTC Enforcement**: Replaced all remaining `DateTime.Now` usages with `DateTime.UtcNow` across Diagnostics, ViewModels, and Services. Backup filenames and crash reports now use culture-invariant UTC stamps
+- **Clipboard Unification**: Merged `ClipboardTextReader` into `ClipboardHelper` with Avalonia 12 reflection fallbacks
+- **Last.fm Credential Reloading**: `LastFmService` now reloads credentials in-place when connecting/disconnecting, preventing stale instances in dependent services
 
 ### Fixed
 
-- **Playlist Rename Safety**: Attempting to rename a playlist to a name that already exists now blocks the action with a warning toast instead of creating a duplicate that would be destroyed on restart.
-- **Radio Misclassification**: Added a one-time repair migration that fixes tracks wrongly marked as "Radio" (e.g., tracks with "radio" in the URL like Radiohead) back to "Music".
-- **Test Runner Crashes**: Fixed `AccessViolationException` crashes during rapid test execution by properly cancelling background migration tasks when the `DatabaseService` is disposed.
-- **WAL Flush on Exit**: The database now explicitly flushes the Write-Ahead Log (WAL) to the main file on app exit, ensuring all pending writes are safely persisted.
-- **FTS Index Corruption**: The FTS5 search index is now automatically rebuilt after running the `VACUUM` maintenance command as cheap insurance.
-- **Column Alignment**: Fixed persistent misalignment between column headers and track rows. Removed the track-count label from the header grid and inserted invisible spacers that exactly match the album art dimensions.
-- **ComboBox Reset Hijacking**: Fixed a bug where switching pages would cause the sort dropdown to reset and overwrite the active page's sort order.
-- **Global Search Isolation**: Fixed an issue where the global search box only updated the main Library, leaving Radio and Audiobooks unfiltered.
-- **Test Pollution**: Fixed intermittent test failures in `Fts5SearchTests` caused by SQLite WAL file locking during rapid test execution.
-- **Import Double-Sanitization**: Fixed bug where `ImportViewModel` would sanitize titles, then `LibraryService.Add` would sanitize them again, potentially losing metadata (D4).
+- **Playlist Rename Safety**: Attempting to rename a playlist to a name that already exists now blocks the action with a warning toast instead of creating a duplicate that would be destroyed on restart
+- **Radio Misclassification**: Added a one-time repair migration that fixes tracks wrongly marked as "Radio" (e.g., tracks with "radio" in the URL like Radiohead) back to "Music"
+- **Test Runner Crashes**: Fixed `AccessViolationException` crashes during rapid test execution by properly cancelling background migration tasks when the `DatabaseService` is disposed
+- **WAL Flush on Exit**: The database now explicitly flushes the Write-Ahead Log (WAL) to the main file on app exit, ensuring all pending writes are safely persisted
+- **FTS Index Corruption**: The FTS5 search index is now automatically rebuilt after running the `VACUUM` maintenance command as cheap insurance
+- **Column Alignment**: Fixed persistent misalignment between column headers and track rows. Removed the track-count label from the header grid and inserted invisible spacers that exactly match the album art dimensions
+- **ComboBox Reset Hijacking**: Fixed a bug where switching pages would cause the sort dropdown to reset and overwrite the active page's sort order
+- **Global Search Isolation**: Fixed an issue where the global search box only updated the main Library, leaving Radio and Audiobooks unfiltered
+- **Test Pollution**: Fixed intermittent test failures in `Fts5SearchTests` caused by SQLite WAL file locking during rapid test execution
+- **Import Double-Sanitization**: Fixed bug where `ImportViewModel` would sanitize titles, then `LibraryService.Add` would sanitize them again, potentially losing metadata
+- **Memory Leaks**: Implemented strict `Dispose()` patterns in `MainViewModel` and `PlayerViewModel` to unsubscribe from Singleton services
+- **Sync Dry-Run Mutations**: `LibraryService.SyncOne` no longer mutates in-memory track metadata or overcounts `retagged` during dry-run previews
+- **RemoveDuplicates Ghost Entries**: `RemoveDuplicates` now routes through `Remove()`, ensuring queue and playlist junction tables are properly cleaned
+- **Crash Report Privacy**: `CrashHandler` now redacts the local Windows username from stack traces before writing the crash report to disk
+- **SourceDetector Regex**: YouTube URL validation now uses strict `[?&]v=` regex matching instead of naive `Contains("v=")`
 
 ### Removed
 
-- **Obsolete Helper Classes**: Marked `TitleSanitizer` and `TrackTitleParser` as `[Obsolete]` with migration guidance. These will be fully removed in a future version after all call sites are verified.
-- **Obsolete Test Files**: Deleted `TitleSanitizerTests.cs` and `TrackTitleParserTests.cs` (16 tests) as they tested the now-obsolete implementations. Functionality is covered by `TrackNormalizerTests.cs` (44 tests).
+- **Obsolete Helper Classes**: Marked `TitleSanitizer` and `TrackTitleParser` as `[Obsolete]` with migration guidance. These will be fully removed in a future version after all call sites are verified
+- **Obsolete Test Files**: Deleted `TitleSanitizerTests.cs` and `TrackTitleParserTests.cs` (16 tests) as they tested the now-obsolete implementations. Functionality is covered by `TrackNormalizerTests.cs` (44 tests)
 
 ---
 

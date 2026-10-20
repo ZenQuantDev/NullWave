@@ -168,4 +168,38 @@ public class DatabaseSafetyTests : IDisposable
             Assert.Equal(v2, db.SchemaVersion);
         }
     }
+
+    [Fact]
+    public void Playlist_cover_and_creation_date_survive_a_round_trip()
+    {
+        var cover = Path.Combine(NullWavePaths.ArtCacheDir, "cover-test.jpg");
+        // Ensure directory exists for the test file path construction
+        Directory.CreateDirectory(NullWavePaths.ArtCacheDir); 
+        
+        var created = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        using var db = new DatabaseService();
+        
+        // Save a playlist with a custom art path inside the data dir
+        db.SavePlaylist(new Playlist 
+        { 
+            Name = "Test Playlist", 
+            DateCreated = created, 
+            CustomArtPath = cover 
+        });
+
+        // Verify raw DB storage uses the <NW_DATA> token
+        using (var raw = new SQLiteConnection(_dbPath, SQLiteOpenFlags.ReadOnly))
+        {
+            var record = raw.Table<PlaylistRecord>().Single();
+            Assert.NotNull(record.CustomArtPath);
+            Assert.StartsWith(PathHelper.DataToken, record.CustomArtPath);
+        }
+
+        // Load back via service and verify resolution + date persistence
+        var loaded = db.LoadPlaylists(new()).Single();
+        
+        Assert.Equal(Path.GetFullPath(cover), loaded.CustomArtPath);
+        Assert.Equal(created, loaded.DateCreated);
+    }
 }
