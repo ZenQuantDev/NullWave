@@ -69,17 +69,13 @@ public partial class UserProfileViewModel
         foreach (var g in allTracks.Where(t => t.Artist != "Unknown" && !string.IsNullOrEmpty(t.Artist)).GroupBy(t => t.Artist).OrderByDescending(g => g.Sum(t => t.PlayCount)).Take(3))
             TopArtists.Add(new ArtistStat(g.Key, g.Sum(t => t.PlayCount)));
 
-        var days = allTracks.Where(t => t.LastPlayed.HasValue).Select(t => t.LastPlayed!.Value.Date).Distinct().OrderBy(d => d).ToList();
-        if (days.Count > 0)
-        {
-            int longest = 1, run = 1;
-            for (int i = 1; i < days.Count; i++) { run = days[i] == days[i - 1].AddDays(1) ? run + 1 : 1; longest = Math.Max(longest, run); }
-            _longestStreak = longest;
-            int current = 0; var cursor = DateTime.Today;
-            while (days.Contains(cursor)) { current++; cursor = cursor.AddDays(-1); }
-            _currentStreak = current;
-        }
-        else { _currentStreak = 0; _longestStreak = 0; }
+
+        var streaks = ListeningStreaks.Compute(
+            allTracks.Where(t => t.LastPlayed.HasValue).Select(t => t.LastPlayed!.Value),
+            DateTime.UtcNow);
+
+        _currentStreak = streaks.Current;
+        _longestStreak = streaks.Longest;
 
         _tasteDistribution = TagTaxonomy.ComputeDistribution(allTracks, TagTaxonomy.GenreAxes);
         _moodDistribution = TagTaxonomy.ComputeDistribution(allTracks, TagTaxonomy.MoodAxes);
@@ -132,22 +128,49 @@ public partial class UserProfileViewModel
             Badges.Add(new ProfileBadge(type, icon, Loc(nameKey, pretty), Loc(nameKey + "_Desc", badge.Payload.IssuerName ?? "NullWave"), brush));
         }
 
-        if (!imported.Contains("early") && _createdAt != default && _createdAt < new DateTime(2025, 1, 1))
-            Badges.Add(new ProfileBadge("early", MaterialIconKind.RocketLaunch, Loc("Profile_Badge_EarlyAdopter", "Early Adopter"), Loc("Profile_Badge_EarlyAdopter_Desc", "Joined before 2025."), Brush("BrushBlue")));
+        // FIX: Early Adopter cutoff updated to 2026-08-01 UTC (project started May 2026)
+        if (!imported.Contains("early") && _createdAt != default && 
+            UtcTime.AsUtc(_createdAt) < new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc))
+            Badges.Add(new ProfileBadge("early", MaterialIconKind.RocketLaunch, 
+                Loc("Profile_Badge_EarlyAdopter", "Early Adopter"), 
+                Loc("Profile_Badge_EarlyAdopter_Desc", "Joined before August 2026."), Brush("BrushBlue")));
+
         if (!imported.Contains("collector") && TotalTracks >= 100)
-            Badges.Add(new ProfileBadge("collector", MaterialIconKind.LibraryMusic, Loc("Profile_Badge_Collector", "Collector"), Loc("Profile_Badge_Collector_Desc", "100+ tracks in library."), Brush("BrushAccent")));
+            Badges.Add(new ProfileBadge("collector", MaterialIconKind.LibraryMusic, 
+                Loc("Profile_Badge_Collector", "Collector"), 
+                Loc("Profile_Badge_Collector_Desc", "100+ tracks in library."), Brush("BrushAccent")));
+
         if (!imported.Contains("heavy") && TotalPlays >= 1000)
-            Badges.Add(new ProfileBadge("heavy", MaterialIconKind.Headphones, Loc("Profile_Badge_HeavyListener", "Heavy Listener"), Loc("Profile_Badge_HeavyListener_Desc", "1000+ plays."), Brush("BrushAccent2")));
+            Badges.Add(new ProfileBadge("heavy", MaterialIconKind.Headphones, 
+                Loc("Profile_Badge_HeavyListener", "Heavy Listener"), 
+                Loc("Profile_Badge_HeavyListener_Desc", "1000+ plays."), Brush("BrushAccent2")));
+
         if (!imported.Contains("taste") && TotalFavorites >= 50)
-            Badges.Add(new ProfileBadge("taste", MaterialIconKind.Star, Loc("Profile_Badge_TasteMaker", "Taste Maker"), Loc("Profile_Badge_TasteMaker_Desc", "50+ favorites."), Brush("BrushAmber")));
+            Badges.Add(new ProfileBadge("taste", MaterialIconKind.Star, 
+                Loc("Profile_Badge_TasteMaker", "Taste Maker"), 
+                Loc("Profile_Badge_TasteMaker_Desc", "50+ favorites."), Brush("BrushAmber")));
+
         if (!imported.Contains("local") && TotalTracks > 0 && LocalPercentage >= 80)
-            Badges.Add(new ProfileBadge("local", MaterialIconKind.Harddisk, Loc("Profile_Badge_LocalPurist", "Local Purist"), Loc("Profile_Badge_LocalPurist_Desc", "80%+ local library."), Brush("BrushGreen")));
-        if (!imported.Contains("wave") && SoundCloudCount > 0 && SoundCloudCount >= YouTubeCount && SoundCloudCount >= LocalCount)
-            Badges.Add(new ProfileBadge("wave", MaterialIconKind.Wave, Loc("Profile_Badge_WaveRider", "Wave Rider"), Loc("Profile_Badge_WaveRider_Desc", "SoundCloud-dominant library."), Brush("BrushSourceSoundCloud")));
-        if (!imported.Contains("veteran") && _createdAt != default && (DateTime.Now - _createdAt).TotalDays >= 365)
-            Badges.Add(new ProfileBadge("veteran", MaterialIconKind.Medal, Loc("Profile_Badge_Veteran", "Veteran"), Loc("Profile_Badge_Veteran_Desc", "1+ year with NullWave."), Brush("BrushAmber")));
+            Badges.Add(new ProfileBadge("local", MaterialIconKind.Harddisk, 
+                Loc("Profile_Badge_LocalPurist", "Local Purist"), 
+                Loc("Profile_Badge_LocalPurist_Desc", "80%+ local library."), Brush("BrushGreen")));
+
+        if (!imported.Contains("wave") && SoundCloudCount > 0 && 
+            SoundCloudCount >= YouTubeCount && SoundCloudCount >= LocalCount)
+            Badges.Add(new ProfileBadge("wave", MaterialIconKind.Wave, 
+                Loc("Profile_Badge_WaveRider", "Wave Rider"), 
+                Loc("Profile_Badge_WaveRider_Desc", "SoundCloud-dominant library."), Brush("BrushSourceSoundCloud")));
+
+        if (!imported.Contains("veteran") && _createdAt != default && 
+            (DateTime.UtcNow - UtcTime.AsUtc(_createdAt)).TotalDays >= 365)
+            Badges.Add(new ProfileBadge("veteran", MaterialIconKind.Medal, 
+                Loc("Profile_Badge_Veteran", "Veteran"), 
+                Loc("Profile_Badge_Veteran_Desc", "1+ year with NullWave."), Brush("BrushAmber")));
+
         if (!imported.Contains("streak") && LongestStreak >= 7)
-            Badges.Add(new ProfileBadge("streak", MaterialIconKind.Fire, Loc("Profile_Badge_Streak", "On Fire"), Loc("Profile_Badge_Streak_Desc", "7+ day listening streak."), Brush("BrushRed")));
+            Badges.Add(new ProfileBadge("streak", MaterialIconKind.Fire, 
+                Loc("Profile_Badge_Streak", "On Fire"), 
+                Loc("Profile_Badge_Streak_Desc", "7+ day listening streak."), Brush("BrushRed")));
 
         OnPropertyChanged(nameof(HasBadges));
     }

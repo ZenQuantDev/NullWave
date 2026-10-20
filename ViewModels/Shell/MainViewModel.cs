@@ -22,7 +22,7 @@ using Serilog;
 
 namespace NullWave.ViewModels;
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IDisposable
 {
     // --- Fields & Services ---
     private readonly KeyStoreService _keyStore = new();
@@ -234,6 +234,18 @@ public partial class MainViewModel : ViewModelBase
         StartupTimeline.Mark("ViewModel constructed");
         _ = RunStartupDiagnosticsAsync();
         Dispatcher.UIThread.Post(() => _ = _playbackService.WarmUpAsync(), DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Cleans up root-level resources. 
+    /// Note: We do not manually unsubscribe from Singleton service events here because 
+    /// MainViewModel lives for the entire application lifecycle. The OS reclaims memory on exit.
+    /// </summary>
+    public void Dispose()
+    {
+        _powerState?.Dispose();
+        if (Player is IDisposable disposablePlayer)
+            disposablePlayer.Dispose();
     }
 
     /// <summary>Immediate-eval player subscriptions.</summary>

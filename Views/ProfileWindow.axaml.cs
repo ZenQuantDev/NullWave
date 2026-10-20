@@ -34,8 +34,7 @@ public partial class ProfileWindow : Window
 
         try
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
+            var text = await ClipboardHelper.GetTextAsync();
             if (string.IsNullOrWhiteSpace(text)) return;
             
             if (ShareLink.TryParseTrack(text, out _, out _)) return;

@@ -106,7 +106,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _library = library;
         _prefs = prefs;
         _identity = identity;
-        _badgesPath = Path.Combine(NullWavePaths.DataDir, "badges.json");
+        _badgesPath = NullWavePaths.BadgesPath;
         Load();
         _savedUsername = _username; _savedBio = _bio; _savedHasAvatar = HasAvatar; _savedAvatarPath = _avatarPath; _savedBannerImagePath = _bannerImagePath;
         
@@ -150,7 +150,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public string? MostPlayedTrackArtPath => _mostPlayedTrackArtPath;
     public bool HasMostPlayedTrackArt => !string.IsNullOrEmpty(MostPlayedTrackArtPath);
     public string MostPlayedArtist => _mostPlayedArtist;
-    public string MemberSince => _createdAt == default ? DateTime.Now.ToString("MMMM yyyy") : _createdAt.ToString("MMMM yyyy");
+    public string MemberSince => _createdAt == default ? DateTime.UtcNow.ToLocalTime().ToString("MMMM yyyy") : _createdAt.ToString("MMMM yyyy");
     public int YouTubeCount => _youtubeCount;
     public int SoundCloudCount => _soundCloudCount;
     public int LocalCount => _localCount;
@@ -189,7 +189,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         try
         {
             string dir = NullWavePaths.DataDir;
-            string filePath = Path.Combine(dir, "profile.json");
+            string filePath = NullWavePaths.ProfilePath;
             if (File.Exists(filePath))
             {
                 string json = File.ReadAllText(filePath);
@@ -227,7 +227,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         {
             string dir = NullWavePaths.DataDir;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            string filePath = Path.Combine(dir, "profile.json");
+            string filePath = NullWavePaths.ProfilePath;
             var data = new ProfileData(Username, Bio, string.IsNullOrEmpty(_avatarPath) ? null : Path.GetFileName(_avatarPath), string.IsNullOrEmpty(_bannerImagePath) ? null : Path.GetFileName(_bannerImagePath), _installId, _createdAt);
             string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(filePath, json);
@@ -248,7 +248,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _saveTimer = new System.Threading.Timer(async _ => await SaveInternalAsync(showToast: false), null, 2000, System.Threading.Timeout.Infinite);
     }
 
-    private static string GetProfileAssetsDirectory() => Path.Combine(NullWavePaths.DataDir, "profile-assets");
+    private static string GetProfileAssetsDirectory() => NullWavePaths.ProfileAssetsDir;
 
     private static void TryDeleteProfileAsset(string? path)
     {

@@ -76,7 +76,7 @@ public partial class UserProfileViewModel
             Directory.CreateDirectory(dir);
             string extension = Path.GetExtension(file.Name);
             if (string.IsNullOrWhiteSpace(extension)) extension = ".png";
-            string targetPath = Path.Combine(dir, $"banner_{DateTime.Now:yyyyMMdd_HHmmss_fff}{extension}");
+            string targetPath = Path.Combine(dir, $"banner_{DateTime.UtcNow.ToLocalTime():yyyyMMdd_HHmmss_fff}{extension}");
             await using (var src = await file.OpenReadAsync())
             await using (var dst = File.Create(targetPath)) await src.CopyToAsync(dst);
             BannerImagePath = targetPath;
@@ -109,7 +109,7 @@ public partial class UserProfileViewModel
             Directory.CreateDirectory(dir);
             string extension = Path.GetExtension(file.Name);
             if (string.IsNullOrWhiteSpace(extension)) extension = ".png";
-            string targetPath = Path.Combine(dir, $"avatar_{DateTime.Now:yyyyMMdd_HHmmss_fff}{extension}");
+            string targetPath = Path.Combine(dir, $"avatar_{DateTime.UtcNow.ToLocalTime():yyyyMMdd_HHmmss_fff}{extension}");
             await using (var src = await file.OpenReadAsync())
             await using (var dst = File.Create(targetPath)) await src.CopyToAsync(dst);
             await using var fileStream = File.OpenRead(targetPath);

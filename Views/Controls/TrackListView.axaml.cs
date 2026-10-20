@@ -11,6 +11,7 @@ using Avalonia.VisualTree;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels;
+using NullWave.Helpers;
 
 namespace NullWave.Views.Controls;
 
@@ -138,17 +139,7 @@ public partial class TrackListView : DockPanel
 
         try
         {
-            var topLevel = TopLevel.GetTopLevel(this);
-            var clipboard = topLevel?.Clipboard;
-            if (clipboard == null) return;
-
-            // FIX (Avalonia 12 Breaking Change): IClipboard no longer exposes text methods directly.
-            // We must request an IAsyncDataTransfer object, ensure it is disposed, and then 
-            // use the AsyncDataTransferExtensions.TryGetTextAsync() extension method.
-            using var data = await clipboard.TryGetDataAsync();
-            if (data == null) return;
-
-            var text = await data.TryGetTextAsync();
+            var text = await ClipboardHelper.GetTextAsync();
             if (string.IsNullOrWhiteSpace(text)) return;
 
             text = text.Trim();

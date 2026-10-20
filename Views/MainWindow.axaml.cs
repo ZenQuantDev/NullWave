@@ -201,8 +201,7 @@ public partial class MainWindow : Window
 
         try
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
+            var text = await ClipboardHelper.GetTextAsync();
             
             if (!string.IsNullOrWhiteSpace(text) && Uri.TryCreate(text, UriKind.Absolute, out var uri))
             {
