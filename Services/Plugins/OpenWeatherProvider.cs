@@ -72,7 +72,7 @@ public class OpenWeatherProvider : IWeatherProvider
         {
             Condition = info.Condition,
             TemperatureC = info.TemperatureC,
-            MoodTags = WeatherMoodMap.GetMoodTags(info.Condition, info.TemperatureC, DateTime.Now.Hour).ToList()
+            MoodTags = WeatherMoodMap.GetMoodTags(info.Condition, info.TemperatureC, DateTime.UtcNow.ToLocalTime().Hour).ToList()
         };
     }
 }

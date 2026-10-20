@@ -32,7 +32,7 @@ public class PreferencesService : IDisposable
 
     public PreferencesService()
     {
-        _prefsPath = Path.Combine(NullWavePaths.DataDir, "prefs.json");
+        _prefsPath = NullWavePaths.PrefsPath;
         _prefs = Load();
     }
 
@@ -63,7 +63,7 @@ public class PreferencesService : IDisposable
         catch (JsonException ex)
         {
             Log.Error(ex, "prefs.json is corrupt; keeping a copy and using defaults");
-            try { File.Move(_prefsPath, _prefsPath + ".bad-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")); }
+            try { File.Move(_prefsPath, _prefsPath + ".bad-" + UtcTime.FileStamp()); }
             catch (Exception moveEx) { Log.Warning(moveEx, "Could not move the corrupt prefs.json aside"); }
             return new Preferences { DownloadDirectory = NullWavePaths.DownloadsDir };
         }
@@ -107,40 +107,47 @@ public class PreferencesService : IDisposable
 
     public void Update(Action<Preferences> updater)
     {
+        HashSet<string> changedNames;
+
         lock (_saveLock)
         {
             if (_disposed) return;
 
-            // Capture before state
-            var before = new Dictionary<string, object?>();
-            foreach (var prop in _prefProps) before[prop.Name] = prop.GetValue(_prefs);
-
-            // Apply changes
-            updater(_prefs);
-
-            // 3.2 FIX: Detect exactly which properties changed
-            var changedNames = new HashSet<string>();
+            // 1. Snapshot BEFORE state (serialize collections to detect in-place edits)
+            var beforeSnapshot = new Dictionary<string, string>();
             foreach (var prop in _prefProps)
             {
-                var beforeVal = before[prop.Name];
-                var afterVal = prop.GetValue(_prefs);
-                
-                // Collections (Lists) share the same reference, so we compare their JSON
-                bool isCollection = beforeVal is IEnumerable && beforeVal is not string;
-                bool changed = isCollection 
-                    ? JsonSerializer.Serialize(beforeVal) != JsonSerializer.Serialize(afterVal)
-                    : !Equals(beforeVal, afterVal);
+                var val = prop.GetValue(_prefs);
+                bool isCollection = val is IEnumerable && val is not string;
 
-                if (changed) changedNames.Add(prop.Name);
+                beforeSnapshot[prop.Name] = isCollection
+                    ? JsonSerializer.Serialize(val)
+                    : val?.ToString() ?? "";
+            }
+
+            // 2. Apply changes
+            updater(_prefs);
+
+            // 3. Compare AFTER state
+            changedNames = new HashSet<string>();
+            foreach (var prop in _prefProps)
+            {
+                var afterVal = prop.GetValue(_prefs);
+                bool isCollection = afterVal is IEnumerable && afterVal is not string;
+
+                string afterStr = isCollection
+                    ? JsonSerializer.Serialize(afterVal)
+                    : afterVal?.ToString() ?? "";
+
+                if (beforeSnapshot[prop.Name] != afterStr)
+                    changedNames.Add(prop.Name);
             }
 
             if (changedNames.Count > 0)
             {
-                Changed?.Invoke(changedNames);
-
+                // Schedule debounced save INSIDE lock to safely cancel previous pending saves
                 _debounceCts?.Cancel();
                 _debounceCts?.Dispose();
-
                 _debounceCts = new CancellationTokenSource();
                 var token = _debounceCts.Token;
 
@@ -154,6 +161,12 @@ public class PreferencesService : IDisposable
                     catch (TaskCanceledException) { }
                 }, token);
             }
+        } // End Lock
+
+        // 4. Raise event OUTSIDE lock to prevent deadlocks if subscribers call back into Update/Save
+        if (changedNames.Count > 0)
+        {
+            Changed?.Invoke(changedNames);
         }
     }
 

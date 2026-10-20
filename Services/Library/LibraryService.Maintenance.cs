@@ -315,7 +315,7 @@ public partial class LibraryService
         int cleaned = 0; var toUpdate = new List<Track>();
         foreach (var t in GetAll())
         {
-            if (t.TitleForceCleaned && !TrackTitleParser.HasExoticSeparator(t.Title)) continue;
+            if (t.TitleForceCleaned && !TrackNormalizer.HasExoticSeparator(t.Title)) continue;
             var cleanedTitle = TrackNormalizer.CleanTitle(t.Title);
             var parsed = TrackNormalizer.TrySplit(cleanedTitle);
             if (parsed == null || string.IsNullOrWhiteSpace(parsed.Value.Artist) || string.IsNullOrWhiteSpace(parsed.Value.Title) ||
@@ -360,22 +360,34 @@ public partial class LibraryService
         var allTracks = GetAll();
         int scannedCount = allTracks.Count;
 
+        // FIX: Use IdentityKey for smarter grouping, ignore placeholders
         var groups = allTracks
-            .GroupBy(t => (Title: t.Title.Trim().ToLowerInvariant(), Artist: t.Artist.Trim().ToLowerInvariant()))
-            .Where(g => g.Count() > 1).ToList();
+            .Where(t => !TrackNormalizer.IsPlaceholderTitle(t.Title) && !TrackNormalizer.IsPlaceholderArtist(t.Artist))
+            .GroupBy(t => TrackNormalizer.IdentityKey(t.Title, t.Artist))
+            .Where(g => g.Key != $"ta:|" && g.Count() > 1)
+            .ToList();
 
         int removed = 0;
         foreach (var group in groups)
         {
-            var ordered = group.OrderByDescending(t => HasVerifiedFile(t)).ThenByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
-                .ThenByDescending(t => t.PlayCount).ThenByDescending(t => t.IsFavorite).ThenBy(t => t.DateAdded).ToList();
+            var ordered = group.OrderByDescending(t => HasVerifiedFile(t))
+                .ThenByDescending(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath))
+                .ThenByDescending(t => t.PlayCount)
+                .ThenByDescending(t => t.IsFavorite)
+                .ThenBy(t => t.DateAdded)
+                .ToList();
+                
             var keeper = ordered[0];
             foreach (var dup in ordered.Skip(1))
             {
-                if (!dryRun) { lock (_tracksLock) _tracks.Remove(dup); _db.Delete(dup.Id); removed++; }
+                if (!dryRun) 
+                { 
+                    Remove(dup.Id); // FIX: Routes through Remove() to clean queue and playlists
+                    removed++; 
+                }
             }
         }
-        if (removed > 0) StateVersion++;
+        // StateVersion is already incremented inside Remove()
         return (scannedCount, groups.Count, removed);
     }
 

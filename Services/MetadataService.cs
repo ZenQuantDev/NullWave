@@ -50,12 +50,13 @@ public class MetadataService
     public (string Title, string Artist, TimeSpan Duration) FetchFromLocalFile(string filePath)
         => _local.Fetch(filePath);
 
+    private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchSpotifyMetadataAsync(string url)
     {
         try
         {
-            using var http = new HttpClient();
-            var html = await http.GetStringAsync(SpotifyPageParser.CleanUrl(url));
+            var html = await _sharedHttp.GetStringAsync(SpotifyPageParser.CleanUrl(url));
             var page = SpotifyPageParser.Parse(html);
 
             if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)

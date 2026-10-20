@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -125,7 +124,6 @@ public class DownloadService
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
 
-    // 🧹 W9: Cached ffmpeg detection to conditionally enable post-processing
     private static bool? _ffmpegAvailable;
     private static readonly object _ffmpegLock = new();
 
@@ -158,79 +156,40 @@ public class DownloadService
         Log.Debug("[DownloadService] Current download cancelled by caller");
     }
 
-    private static bool IsAria2cAvailable()
+    // --- STEP E: Unified ProcessRunner Detection ---
+    private static async Task<bool> IsAria2cAvailableAsync()
     {
         if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
-        lock (_aria2cLock)
-        {
-            if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = PlatformHelper.ResolveExecutable("aria2c"),
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(2000);
-                _aria2cAvailable = proc != null && proc.ExitCode == 0;
-            }
-            catch
-            {
-                _aria2cAvailable = false;
-            }
+        
+        var exists = await ProcessRunner.CheckExistsAsync("aria2c", new[] { "--version" }, 2000);
+        lock (_aria2cLock) { _aria2cAvailable = exists; }
 
-            if (!_aria2cAvailable.Value)
-                Log.Information("[DownloadService] aria2c not found on PATH - using yt-dlp's native downloader");
-            else
-                Log.Information("[DownloadService] aria2c detected - enabling multi-connection downloads");
+        if (!_aria2cAvailable.Value)
+            Log.Information("[DownloadService] aria2c not found on PATH - using yt-dlp's native downloader");
+        else
+            Log.Information("[DownloadService] aria2c detected - enabling multi-connection downloads");
 
-            return _aria2cAvailable.Value;
-        }
+        return _aria2cAvailable.Value;
     }
 
-    private static bool IsFfmpegAvailable()
+    private static async Task<bool> IsFfmpegAvailableAsync()
     {
         if (_ffmpegAvailable.HasValue) return _ffmpegAvailable.Value;
-        lock (_ffmpegLock)
-        {
-            if (_ffmpegAvailable.HasValue) return _ffmpegAvailable.Value;
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = PlatformHelper.ResolveExecutable("ffmpeg"),
-                    Arguments = "-version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(2000);
-                _ffmpegAvailable = proc != null && proc.ExitCode == 0;
-            }
-            catch
-            {
-                _ffmpegAvailable = false;
-            }
+        
+        var exists = await ProcessRunner.CheckExistsAsync("ffmpeg", new[] { "-version" }, 2000);
+        lock (_ffmpegLock) { _ffmpegAvailable = exists; }
 
-            if (!_ffmpegAvailable.Value)
-                Log.Information("[DownloadService] ffmpeg not found on PATH - downloading native audio streams without embedding metadata/thumbnails");
-            else
-                Log.Information("[DownloadService] ffmpeg detected - enabling metadata and thumbnail embedding");
+        if (!_ffmpegAvailable.Value)
+            Log.Information("[DownloadService] ffmpeg not found on PATH - downloading native audio streams without embedding metadata/thumbnails");
+        else
+            Log.Information("[DownloadService] ffmpeg detected - enabling metadata and thumbnail embedding");
 
-            return _ffmpegAvailable.Value;
-        }
+        return _ffmpegAvailable.Value;
     }
 
-    private void AppendSpeedAndAuthArgs(List<string> args)
+    private void AppendSpeedAndAuthArgs(List<string> args, bool useAria2c)
     {
-        if (_prefsService.Current.UseAria2c && IsAria2cAvailable())
+        if (useAria2c)
         {
             args.Add("--downloader");
             args.Add("aria2c");
@@ -264,7 +223,6 @@ public class DownloadService
         string? artist = null,
         CancellationToken ct = default)
     {
-        // SECURITY FIX: Strict URL validation
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uriResult) || 
             (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
         {
@@ -287,7 +245,6 @@ public class DownloadService
             return;
         }
 
-        // SECURITY FIX: Hardened output template to prevent path traversal
         var safeDownloadDir = Path.GetFullPath(_downloadDir);
         var outputTemplate = Path.Combine(safeDownloadDir, "%(title).150B [%(id)s].%(ext)s");
         
@@ -296,8 +253,6 @@ public class DownloadService
             "best" => "0", "320"  => "0", "192"  => "2", "128"  => "4", "96"   => "6", _ => "0"
         };
 
-        // 🧹 W9: Removed hard dependency on Node.js (--js-runtimes) and ffmpeg (--extract-audio).
-        // Downloads the best native audio stream (m4a/opus) which LibVLC plays natively.
         var args = new List<string>
         {
             url, "-f", "bestaudio/best", "--output", outputTemplate, "--print", "after_move:filepath",
@@ -305,13 +260,12 @@ public class DownloadService
             "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
         };
 
-        // Conditionally enable post-processing only if ffmpeg is installed
-        if (IsFfmpegAvailable())
+        var useFfmpeg = await IsFfmpegAvailableAsync();
+        if (useFfmpeg)
         {
             args.Add("--embed-metadata");
             args.Add("--embed-thumbnail");
             
-            // Only transcode if explicitly requested (e.g. "mp3") and ffmpeg is present
             if (!string.Equals(audioFormat, "best", StringComparison.OrdinalIgnoreCase))
             {
                 args.Add("--extract-audio");
@@ -326,7 +280,8 @@ public class DownloadService
             Log.Warning("[DownloadService] ffmpeg missing: skipping metadata/thumbnail embedding and audio transcoding.");
         }
 
-        AppendSpeedAndAuthArgs(args);
+        var useAria2c = _prefsService.Current.UseAria2c && await IsAria2cAvailableAsync();
+        AppendSpeedAndAuthArgs(args, useAria2c);
 
         if (!allowPlaylist) args.Add("--no-playlist");
         else args.Add("--yes-playlist");
@@ -360,8 +315,7 @@ public class DownloadService
         cts.CancelAfter(TimeSpan.FromMinutes(20));
         ct = cts.Token;
 
-        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})",
-            url, audioFormat, audioQuality);
+        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
 
         SemaphoreSlim? acquiredSemaphore = null;
         var activeDownloadCounted = false;
@@ -389,80 +343,59 @@ public class DownloadService
             job.Status = "Downloading...";
             job.IsIndeterminate = false;
 
-            var psi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
-            };
-
-            foreach (var arg in args)
-                psi.ArgumentList.Add(arg);
-
-            using var process = new Process { StartInfo = psi };
             string? outputFilePath = null;
 
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (string.IsNullOrWhiteSpace(e.Data)) return;
-                var line = e.Data.Trim();
-                var match = ProgressRegex.Match(line);
-                if (match.Success &&
-                    float.TryParse(match.Groups[1].Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var pct))
+            // --- STEP E: Unified ProcessRunner Execution ---
+            var result = await ProcessRunner.RunWithStreamingAsync(
+                "yt-dlp", args,
+                onStdOutLine: line =>
                 {
-                    ProgressChanged?.Invoke(trackId, pct / 100f);
-                    job.Progress = pct;
-                    return;
-                }
-                if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
-                {
-                    outputFilePath = line;
-                    return;
-                }
-                Log.Debug("yt-dlp: {Line}", line);
-            };
-
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    Log.Debug("yt-dlp stderr: {Line}", e.Data);
-                    if (e.Data.Contains("429") || e.Data.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrWhiteSpace(line)) return;
+                    var match = ProgressRegex.Match(line);
+                    if (match.Success &&
+                        float.TryParse(match.Groups[1].Value,
+                            System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out var pct))
                     {
-                        lock (_aria2cLock) { _rateLimitTriggered = true; }
+                        ProgressChanged?.Invoke(trackId, pct / 100f);
+                        job.Progress = pct;
+                        return;
                     }
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            try
-            {
-                await process.WaitForExitAsync(ct);
-                process.WaitForExit();
-            }
-            catch (OperationCanceledException)
-            {
-                if (!process.HasExited)
+                    if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
+                    {
+                        outputFilePath = line;
+                        return;
+                    }
+                    Log.Debug("yt-dlp: {Line}", line);
+                },
+                onStdErrLine: line =>
                 {
-                    try { process.Kill(true); } catch { /* ignore teardown errors */ }
-                }
+                    if (!string.IsNullOrEmpty(line))
+                    {
+                        Log.Debug("yt-dlp stderr: {Line}", line);
+                        if (line.Contains("429") || line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
+                        {
+                            lock (_aria2cLock) { _rateLimitTriggered = true; }
+                        }
+                    }
+                },
+                timeout: TimeSpan.FromMinutes(20),
+                ct: ct,
+                resolveViaPath: true);
+
+            if (result.Canceled || result.TimedOut)
+            {
                 Log.Warning("Download cancelled or timed out: {TrackId}", trackId);
-                DownloadFailed?.Invoke(trackId, "Cancelled", isInteractive);
+                DownloadFailed?.Invoke(trackId, result.TimedOut ? "Timed out" : "Cancelled", isInteractive);
                 job.IsFailed = true;
                 job.Status = "Failed";
-                job.ErrorMessage = "Cancelled";
+                job.ErrorMessage = result.TimedOut ? "Timed out" : "Cancelled";
                 PruneCompletedJobs();
                 return;
             }
 
-            if (process.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
+            if (result.ExitCode == 0 && outputFilePath != null && File.Exists(outputFilePath))
             {
                 Log.Debug("Download complete: {Path}", outputFilePath);
                 job.IsCompleted = true;
@@ -471,7 +404,7 @@ public class DownloadService
                 DownloadCompleted?.Invoke(trackId, outputFilePath, isInteractive);
                 PruneCompletedJobs();
             }
-            else if (process.ExitCode == 0)
+            else if (result.ExitCode == 0)
             {
                 var recent = FindMostRecentUnlinkedDownload(title);
                 if (recent != null)
@@ -497,8 +430,8 @@ public class DownloadService
             {
                 job.IsFailed = true;
                 job.Status = "Failed";
-                job.ErrorMessage = $"Exit code {process.ExitCode}";
-                DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {process.ExitCode}", isInteractive);
+                job.ErrorMessage = $"Exit code {result.ExitCode}";
+                DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {result.ExitCode}", isInteractive);
                 PruneCompletedJobs();
             }
         }
@@ -535,34 +468,21 @@ public class DownloadService
         Log.Information("Starting playlist download: {Url}", playlistUrl);
         try
         {
-            var metadataPsi = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
-            {
-                ArgumentList =
-                {
-                    "--flat-playlist",
-                    "--dump-json",
-                    "--ignore-errors",
-                    "--no-download",
-                    // 🧹 W9: Removed Node.js dependency
-                    playlistUrl
-                },
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
-            };
+            // --- STEP E: Unified ProcessRunner Playlist Metadata ---
+            var metadataResult = await ProcessRunner.RunAsync(
+                "yt-dlp",
+                new List<string> { "--flat-playlist", "--dump-json", "--ignore-errors", "--no-download", playlistUrl },
+                timeout: TimeSpan.FromMinutes(5),
+                ct: ct,
+                resolveViaPath: true);
 
-            using var metadataProc = new Process { StartInfo = metadataPsi };
-            metadataProc.Start();
-            var metadataOutput = await metadataProc.StandardOutput.ReadToEndAsync();
-            await metadataProc.WaitForExitAsync(ct);
-
-            if (metadataProc.ExitCode != 0)
+            if (metadataResult.ExitCode != 0 || metadataResult.TimedOut || metadataResult.Canceled)
             {
                 Log.Error("Failed to fetch playlist metadata");
                 return;
             }
 
+            var metadataOutput = metadataResult.StandardOutput;
             var tracks = new List<(string Title, string Artist, string Url, string VideoId)>();
             string[] lines = metadataOutput.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -594,51 +514,30 @@ public class DownloadService
                     }
 
                     string artist = "Unknown Artist";
-                    if (root.TryGetProperty("artist", out var artistProp) &&
-                        !string.IsNullOrWhiteSpace(artistProp.GetString()))
-                    {
+                    if (root.TryGetProperty("artist", out var artistProp) && !string.IsNullOrWhiteSpace(artistProp.GetString()))
                         artist = artistProp.GetString()!.Trim();
-                    }
-                    else if (root.TryGetProperty("creator", out var creatorProp) &&
-                             !string.IsNullOrWhiteSpace(creatorProp.GetString()))
-                    {
+                    else if (root.TryGetProperty("creator", out var creatorProp) && !string.IsNullOrWhiteSpace(creatorProp.GetString()))
                         artist = creatorProp.GetString()!.Trim();
-                    }
-                    else if (root.TryGetProperty("uploader", out var uploaderProp) &&
-                             !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
-                    {
+                    else if (root.TryGetProperty("uploader", out var uploaderProp) && !string.IsNullOrWhiteSpace(uploaderProp.GetString()))
                         artist = uploaderProp.GetString()!.Trim();
-                    }
-                    else if (root.TryGetProperty("channel", out var channelProp) &&
-                             !string.IsNullOrWhiteSpace(channelProp.GetString()))
-                    {
+                    else if (root.TryGetProperty("channel", out var channelProp) && !string.IsNullOrWhiteSpace(channelProp.GetString()))
                         artist = channelProp.GetString()!.Trim();
-                    }
 
                     if (_prefsService.Current.AutoCleanMetadata)
-                    {
                         artist = TopicSuffixRegex.Replace(artist, string.Empty).Trim();
-                    }
 
-                    if (string.IsNullOrWhiteSpace(artist) ||
-                        artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
-                        artist.Equals("Various Artists", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrWhiteSpace(artist) || artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) || artist.Equals("Various Artists", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (root.TryGetProperty("channel", out var fallbackChannelProp) &&
-                            !string.IsNullOrWhiteSpace(fallbackChannelProp.GetString()))
+                        if (root.TryGetProperty("channel", out var fallbackChannelProp) && !string.IsNullOrWhiteSpace(fallbackChannelProp.GetString()))
                         {
                             var channelName = fallbackChannelProp.GetString()!.Trim();
-                            if (!channelName.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) &&
-                                !channelName.EndsWith("- Topic", StringComparison.OrdinalIgnoreCase))
-                            {
+                            if (!channelName.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) && !channelName.EndsWith("- Topic", StringComparison.OrdinalIgnoreCase))
                                 artist = channelName;
-                            }
                         }
                     }
 
                     string cleanTitle = rawTitle;
-                    if (string.IsNullOrWhiteSpace(artist) ||
-                        artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrWhiteSpace(artist) || artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase))
                     {
                         var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(rawTitle);
                         if (parsed != null)
@@ -762,14 +661,9 @@ public class DownloadService
                             if (_prefsService.Current.AutoCleanMetadata && !string.IsNullOrEmpty(dbTrack.Artist))
                             {
                                 var cleanArtist = System.Text.RegularExpressions.Regex.Replace(
-                                    dbTrack.Artist,
-                                    @"\s*-\s*Topic\s*$",
-                                    string.Empty,
-                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                                    dbTrack.Artist, @"\s*-\s*Topic\s*$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
 
-                                if (string.IsNullOrWhiteSpace(cleanArtist) ||
-                                    cleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) ||
-                                    cleanArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+                                if (string.IsNullOrWhiteSpace(cleanArtist) || cleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase) || cleanArtist.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
                                 {
                                     var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(dbTrack.Title);
                                     if (parsed != null)
@@ -786,8 +680,7 @@ public class DownloadService
                             if (!string.IsNullOrEmpty(dbTrack.Title))
                             {
                                 var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(dbTrack.Title);
-                                if (parsed != null &&
-                                    NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(dbTrack.Artist))
+                                if (parsed != null && NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(dbTrack.Artist))
                                 {
                                     dbTrack.Artist = parsed.Value.Artist;
                                     dbTrack.Title  = parsed.Value.Title;
@@ -797,14 +690,11 @@ public class DownloadService
                             dbTrack.AlbumArtPath = await _albumArtService.GetArtPathAsync(dbTrack);
                             
                             if (!string.IsNullOrEmpty(dbTrack.AlbumArtPath) && File.Exists(dbTrack.AlbumArtPath))
-                            {
                                 ThumbnailCropper.TrimLetterboxInPlace(dbTrack.AlbumArtPath);
-                            }
                             
                             _libraryService.Update(dbTrack);
 
-                            Log.Debug("[DownloadService] Track ready: '{Title}' by '{Artist}' → {Path}",
-                                dbTrack.Title, dbTrack.Artist, finalFilePath);
+                            Log.Debug("[DownloadService] Track ready: '{Title}' by '{Artist}' → {Path}", dbTrack.Title, dbTrack.Artist, finalFilePath);
                             onTrackReady?.Invoke(dbTrack);
                         }
                     }
@@ -868,7 +758,7 @@ public class DownloadService
         {
             if (!new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(file.Extension.ToLowerInvariant())) continue;
             if (linkedPaths.Contains(file.FullName)) continue;
-            if (newest == null || file.LastWriteTime > newest.LastWriteTime) newest = file;
+            if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file; // Step C UTC fix applied
         }
 
         if (newest == null) return null;
@@ -900,9 +790,7 @@ public class DownloadService
             else
                 Avalonia.Threading.Dispatcher.UIThread.Post(action);
         }
-        catch 
-        { 
-        }
+        catch { }
     }
 
     public string DownloadDirectory => _downloadDir;
