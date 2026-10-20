@@ -22,8 +22,8 @@ public class PlaylistRecord
         Name = p.Name,
         Description = p.Description,
         FolderId = p.FolderId?.ToString(),
-        CustomArtPath = PathHelper.Tokenize(p.CustomArtPath),     // <--- TOKENIZE
-        CreatedAt = p.DateCreated
+        CustomArtPath = PathHelper.Tokenize(p.CustomArtPath),
+        CreatedAt = UtcTime.AsUtc(p.DateCreated) // Enforce UTC
     };
 
     public Playlist ToPlaylist() => new()
@@ -32,7 +32,7 @@ public class PlaylistRecord
         Name = Name,
         Description = Description,
         FolderId = string.IsNullOrWhiteSpace(FolderId) ? null : Guid.TryParse(FolderId, out var folderId) ? folderId : null,
-        CustomArtPath = PathHelper.Resolve(CustomArtPath),        // <--- RESOLVE
-        DateCreated = CreatedAt
+        CustomArtPath = PathHelper.Resolve(CustomArtPath),
+        DateCreated = UtcTime.AsUtc(CreatedAt) // Enforce UTC
     };
 }

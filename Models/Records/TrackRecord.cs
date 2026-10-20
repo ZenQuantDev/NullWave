@@ -5,21 +5,16 @@ using SQLite;
 
 namespace NullWave.Models;
 
-/*
- * DEV NOTE: This is the SQLite-net POCO. It mirrors `Track` but uses primitive types
- * (strings, longs) because SQLite doesn't natively understand Guids, TimeSpans, or Lists.
- * We use the FromTrack/ToTrack mappers to translate between the DB and the App.
- */
 [Table("Tracks")]
 public class TrackRecord
 {
     [PrimaryKey]
     public string Id { get; set; } = string.Empty;
 
-    [Indexed] // Speeds up search queries
+    [Indexed]
     public string Title { get; set; } = string.Empty;
 
-    [Indexed] // Speeds up artist grouping/filtering
+    [Indexed]
     public string Artist { get; set; } = string.Empty;
 
     public string? Url { get; set; }
@@ -27,7 +22,7 @@ public class TrackRecord
     public string Source { get; set; } = "Unknown";
     public DateTime DateAdded { get; set; } = DateTime.UtcNow;
 
-    [Indexed] // Speeds up the "Favorites" filter tab
+    [Indexed]
     public bool IsFavorite { get; set; }
 
     public int PlayCount { get; set; }
@@ -36,11 +31,7 @@ public class TrackRecord
     public string? Notes { get; set; }
     public int SkipCount { get; set; }
     public DateTime? LastSkipped { get; set; }
-
-    // Stored as a pipe-delimited string because SQLite doesn't support arrays natively
     public string? TagsRaw { get; set; }
-
-    // Stored as milliseconds (long) for SQLite compatibility
     public long DurationMs { get; set; } = 0;
     public string MediaType { get; set; } = "Music";
     public long PlaybackPositionTicks { get; set; } = 0;
@@ -54,17 +45,16 @@ public class TrackRecord
         Title = t.Title,
         Artist = t.Artist,
         Url = t.Url,
-        FilePath = PathHelper.Tokenize(t.FilePath),      // Portable paths!
+        FilePath = PathHelper.Tokenize(t.FilePath),
         Source = t.Source.ToString(),
-        DateAdded = t.DateAdded,
+        DateAdded = UtcTime.AsUtc(t.DateAdded),
         IsFavorite = t.IsFavorite,
         PlayCount = t.PlayCount,
-        LastPlayed = t.LastPlayed,
+        LastPlayed = UtcTime.AsUtc(t.LastPlayed),
         AlbumArtPath = PathHelper.Tokenize(t.AlbumArtPath),
         Notes = t.Notes,
         SkipCount = t.SkipCount,
-        LastSkipped = t.LastSkipped,
-        // Inside TrackRecord.FromTrack(Track t):
+        LastSkipped = UtcTime.AsUtc(t.LastSkipped),
         TagsRaw = t.Tags.Count > 0 ? string.Join("|", t.Tags.Select(x => x.Replace('|', '/'))) : null,
         DurationMs = (long)t.Duration.TotalMilliseconds,
         MediaType = t.MediaType.ToString(),
@@ -80,17 +70,16 @@ public class TrackRecord
         Title = Title,
         Artist = Artist,
         Url = Url,
-        FilePath = PathHelper.Resolve(FilePath),         // Resolve back to OS paths
+        FilePath = PathHelper.Resolve(FilePath),
         Source = Enum.TryParse<TrackSource>(Source, out var s) ? s : TrackSource.Unknown,
-        DateAdded = DateAdded,
+        DateAdded = UtcTime.AsUtc(DateAdded),
         IsFavorite = IsFavorite,
         PlayCount = PlayCount,
-        LastPlayed = LastPlayed,
+        LastPlayed = UtcTime.AsUtc(LastPlayed),
         AlbumArtPath = PathHelper.Resolve(AlbumArtPath),
         Notes = Notes,
         SkipCount = SkipCount,
-        LastSkipped = LastSkipped,
-        // FIX: Added RemoveEmptyEntries to prevent ghost empty tags from malformed DB strings
+        LastSkipped = UtcTime.AsUtc(LastSkipped),
         Tags = string.IsNullOrEmpty(TagsRaw)
             ? new()
             : new(TagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries)),

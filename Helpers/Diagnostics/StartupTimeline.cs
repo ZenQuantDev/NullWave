@@ -27,7 +27,7 @@ public static class StartupTimeline
         try
         {
             using var self = Process.GetCurrentProcess();
-            offsetMs = Math.Max(0, (long)(DateTime.Now - self.StartTime).TotalMilliseconds);
+            offsetMs = Math.Max(0, (long)(DateTime.UtcNow - self.StartTime).TotalMilliseconds);
         }
         catch
         {

@@ -48,5 +48,7 @@
     <PackageReference Include="SQLitePCLRaw.bundle_green" />
     <PackageReference Include="TagLibSharp" />
     <PackageReference Include="Velopack" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
 </Project>
