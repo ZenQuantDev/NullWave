@@ -100,7 +100,7 @@ public class KeyStoreService
     {
         try
         {
-            var bad = $"{_storePath}.bad-{DateTime.Now:yyyyMMdd-HHmmss}";
+            var bad = $"{_storePath}.bad-{UtcTime.FileStamp()}";
             File.Move(_storePath, bad);
             WasRecovered = true;
             Log.Error(ex, "Keystore could not be read (corrupted, or the machine or user changed). " +

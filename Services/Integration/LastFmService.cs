@@ -26,9 +26,14 @@ public class LastFmAuthService
     private const string BaseUrl = "https://ws.audioscrobbler.com/2.0/";
     private const string AuthUrl = "https://www.last.fm/api/auth/";
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
-    private readonly string _apiKey;
-    private readonly string _apiSecret;
+    private string _apiKey;
+    private string _apiSecret;
 
+    public void ReloadCredentials(string apiKey, string apiSecret)
+    {
+        _apiKey = apiKey;
+        _apiSecret = apiSecret;
+    }
     public LastFmAuthService(string apiKey, string apiSecret)
     {
         _apiKey = apiKey;
@@ -147,9 +152,9 @@ public class LastFmAuthService
 public class LastFmService
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
-    private readonly string _apiKey;
+    private string _apiKey;
     private readonly LastFmAuthService _auth;
-    private readonly string _sessionKey;
+    private string _sessionKey;
     private const string BaseUrl = "https://ws.audioscrobbler.com/2.0/";
 
     public LastFmService(ConfigService config)
@@ -157,6 +162,13 @@ public class LastFmService
         _apiKey = config.GetLastFmApiKey();
         _sessionKey = config.GetLastFmSessionKey();
         _auth = new LastFmAuthService(_apiKey, config.GetLastFmApiSecret());
+    }
+
+    public void ReloadCredentials(ConfigService config)
+    {
+        _apiKey = config.GetLastFmApiKey() ?? string.Empty;
+        _sessionKey = config.GetLastFmSessionKey() ?? string.Empty;
+        _auth.ReloadCredentials(_apiKey, config.GetLastFmApiSecret() ?? string.Empty);
     }
 
     public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
