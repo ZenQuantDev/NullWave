@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,24 +28,12 @@ public partial class MainViewModel
         _identity = new IdentityService(_keyStore);
         _prefsService = PreferencesService.Shared;
         _effectsTier = new EffectsTierResolver(_prefsService);
-        _effectsTier.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName != nameof(EffectsTierResolver.Current)) return;
-            Dispatcher.UIThread.Post(() =>
-            {
-                OnPropertyChanged(nameof(CurrentEffectsTier));
-                OnPropertyChanged(nameof(CanAnimateSeekWave));
-                WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
-            });
-        };
+        _effectsTier.PropertyChanged += OnEffectsTierPropertyChanged;
+        
         WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
 
-        ThemeService.Instance.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ThemeService.Instance.SidebarWidthPx))
-                Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SidebarWidth)));
-        };
+        ThemeService.Instance.PropertyChanged += OnThemeServicePropertyChanged;
 
         _secureDelete = new SecureDeleteService(_keyStore);
         _config = new ConfigService(_keyStore);
@@ -55,13 +44,7 @@ public partial class MainViewModel
         var dbService = new DatabaseService(_prefsService);
         _library = new LibraryService(dbService, _metadata, _prefsService);
         _playlists = new PlaylistService(dbService, _library);
-        _library.LibraryChanged += (_, _) => Dispatcher.UIThread.Post(() =>
-        {
-            Library?.Refresh();
-            RadioLibrary?.Refresh();
-            AudiobookLibrary?.Refresh();
-            OnPropertyChanged(nameof(ActiveTrackCount));
-        });
+        _library.LibraryChanged += OnLibraryChanged;
 
         var albumArtService = new AlbumArtService(_lastFm);
         _downloadService = new DownloadService(_library, _prefsService, albumArtService);
@@ -87,6 +70,35 @@ public partial class MainViewModel
             ApplyBatteryEffectsTier(_powerState.Current);
             _effectsTier.NotifyPreferencesChanged();
         };
+    }
+
+    // --- Extracted Singleton Event Handlers ---
+    private void OnLibraryChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            Library?.Refresh();
+            RadioLibrary?.Refresh();
+            AudiobookLibrary?.Refresh();
+            OnPropertyChanged(nameof(ActiveTrackCount));
+        });
+    }
+
+    private void OnThemeServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ThemeService.Instance.SidebarWidthPx))
+            Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SidebarWidth)));
+    }
+
+    private void OnEffectsTierPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(EffectsTierResolver.Current)) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(CurrentEffectsTier));
+            OnPropertyChanged(nameof(CanAnimateSeekWave));
+            WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
+        });
     }
 
     private void InitializeChildViewModels()
@@ -164,7 +176,7 @@ public partial class MainViewModel
                 }
             }
             Playlist.Refresh();
-            Nav.Rebuild(); // Rebuild nav labels so sidebar pins update
+            Nav.Rebuild();
         }
     }
 
@@ -185,7 +197,7 @@ public partial class MainViewModel
 
         RadioLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
         AudiobookLibrary.TrackDetailRequested += t => Detail.OpenFor(t);
-        Playlist.TrackDetailRequested += track => Detail.OpenFor(track); // Wire playlist row clicks
+        Playlist.TrackDetailRequested += track => Detail.OpenFor(track);
 
         Detail.PropertyChanged += (_, e) =>
         {
@@ -326,47 +338,11 @@ public partial class MainViewModel
             Dispatcher.UIThread.Post(() => Library.Refresh());
         };
 
-        _downloadService.DownloadCompleted += (_, _, isInteractive) => Dispatcher.UIThread.Post(() =>
-        {
-            Library.Refresh(); Library.RefreshArtistGroups();
-            if (isInteractive) ToastService.Instance.Show("Track download completed.", ToastType.Success, scope: "download");
-        });
-
-        _downloadService.DownloadFailed += (_, _, isInteractive) => Dispatcher.UIThread.Post(() =>
-        {
-            Library.Refresh();
-            if (isInteractive) ToastService.Instance.Show("Track download failed.", ToastType.Error, scope: "download");
-        });
-
-        _downloadService.PlaylistBatchStarted += totalTracks =>
-        {
-            var activity = ToastService.Instance.StartLiveActivity("Downloading Playlist", totalTracks > 0 ? $"0/{totalTracks}" : "Fetching metadata...", isIndeterminate: totalTracks == 0);
-            lock (_playlistBatches) { _playlistBatches.Add((activity, totalTracks)); }
-        };
-
-        _downloadService.PlaylistBatchProgress += (completed, total, skipped) =>
-        {
-            LiveNotification? activity;
-            lock (_playlistBatches)
-            {
-                var match = _playlistBatches.FirstOrDefault(b => b.Total == total && b.Total > 0);
-                activity = match != default ? match.Activity : _playlistBatches.LastOrDefault().Activity;
-            }
-            if (activity == null) return;
-            ToastService.Instance.UpdateLiveActivity(activity, $"Downloading: {completed}/{total} (Skipped: {skipped})", total > 0 ? (completed + skipped) * 100.0 / total : 0, false);
-        };
-
-        _downloadService.PlaylistBatchCompleted += (completed, failed, skipped) =>
-        {
-            LiveNotification? activity;
-            lock (_playlistBatches)
-            {
-                activity = _playlistBatches.Count > 0 ? _playlistBatches[0].Activity : null;
-                if (_playlistBatches.Count > 0) _playlistBatches.RemoveAt(0);
-            }
-            ToastService.Instance.CompleteLiveActivity(activity, $"Bulk complete: {completed} downloaded, {failed} failed, {skipped} skipped.");
-            Dispatcher.UIThread.Post(() => Library.Refresh());
-        };
+        _downloadService.DownloadCompleted += OnDownloadCompleted;
+        _downloadService.DownloadFailed += OnDownloadFailed;
+        _downloadService.PlaylistBatchStarted += OnPlaylistBatchStarted;
+        _downloadService.PlaylistBatchProgress += OnPlaylistBatchProgress;
+        _downloadService.PlaylistBatchCompleted += OnPlaylistBatchCompleted;
 
         Settings.LastFmConnectRequested += async () =>
         {
@@ -393,14 +369,14 @@ public partial class MainViewModel
             _keyStore.SaveKey("LastFm:SessionKey", result.SessionKey);
             _keyStore.SaveKey("LastFm:Username", result.Username);
             _pendingLastFmToken = null; _pendingLastFmAuth = null;
-            _lastFm = new LastFmService(_config);
+            _lastFm.ReloadCredentials(_config); 
             Settings.ReportLastFmConnected(result.Username);
         };
 
         Settings.LastFmDisconnectRequested += () =>
         {
             _keyStore.DeleteKey("LastFm:SessionKey"); _keyStore.DeleteKey("LastFm:Username");
-            _lastFm = new LastFmService(_config);
+            _lastFm.ReloadCredentials(_config); 
             Settings.ReportLastFmDisconnected();
         };
 
@@ -442,9 +418,58 @@ public partial class MainViewModel
         };
     }
 
+    // --- Extracted Download Event Handlers ---
+    private void OnDownloadCompleted(string trackId, string filePath, bool isInteractive)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            Library.Refresh(); Library.RefreshArtistGroups();
+            if (isInteractive) ToastService.Instance.Show("Track download completed.", ToastType.Success, scope: "download");
+        });
+    }
+
+    private void OnDownloadFailed(string trackId, string error, bool isInteractive)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            Library.Refresh();
+            if (isInteractive) ToastService.Instance.Show("Track download failed.", ToastType.Error, scope: "download");
+        });
+    }
+
+    private void OnPlaylistBatchStarted(int totalTracks)
+    {
+        var activity = ToastService.Instance.StartLiveActivity("Downloading Playlist", totalTracks > 0 ? $"0/{totalTracks}" : "Fetching metadata...", isIndeterminate: totalTracks == 0);
+        lock (_playlistBatches) { _playlistBatches.Add((activity, totalTracks)); }
+    }
+
+    private void OnPlaylistBatchProgress(int completed, int total, int skipped)
+    {
+        LiveNotification? activity;
+        lock (_playlistBatches)
+        {
+            var match = _playlistBatches.FirstOrDefault(b => b.Total == total && b.Total > 0);
+            activity = match != default ? match.Activity : _playlistBatches.LastOrDefault().Activity;
+        }
+        if (activity == null) return;
+        ToastService.Instance.UpdateLiveActivity(activity, $"Downloading: {completed}/{total} (Skipped: {skipped})", total > 0 ? (completed + skipped) * 100.0 / total : 0, false);
+    }
+
+    private void OnPlaylistBatchCompleted(int completed, int failed, int skipped)
+    {
+        LiveNotification? activity;
+        lock (_playlistBatches)
+        {
+            activity = _playlistBatches.Count > 0 ? _playlistBatches[0].Activity : null;
+            if (_playlistBatches.Count > 0) _playlistBatches.RemoveAt(0);
+        }
+        ToastService.Instance.CompleteLiveActivity(activity, $"Bulk complete: {completed} downloaded, {failed} failed, {skipped} skipped.");
+        Dispatcher.UIThread.Post(() => Library.Refresh());
+    }
+
     private void WireAIAndPowerEvents()
     {
-        _localAI.FallbackNotice += message => Dispatcher.UIThread.Post(() => ToastService.Instance.Show(message, ToastType.Warning));
+        _localAI.FallbackNotice += OnLocalAIFallbackNotice;
         
         Settings.AIFeaturesEnabledChanged += enabled =>
         {
@@ -466,12 +491,7 @@ public partial class MainViewModel
         };
 
         _powerState = new PowerStateService();
-        _powerState.PowerStateChanged += state =>
-        {
-            _localAI.OnPowerStateChanged(state);
-            Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
-            ApplyBatteryEffectsTier(state);
-        };
+        _powerState.PowerStateChanged += OnPowerStateChanged;
         ApplyBatteryEffectsTier(_powerState.Current);
         Settings.PowerModelsChanged += (b, p, a) => _localAI.ConfigurePowerModels(b, p, a);
         _localAI.ConfigurePowerModels(Settings.BatteryModel, Settings.PerformanceModel, Settings.AutoPowerModelSwitch);
@@ -480,12 +500,7 @@ public partial class MainViewModel
         Settings.MaxConcurrentDownloadsChanged += limit => _downloadService.UpdateConcurrencyLimit(limit);
         _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
-        _enrichment.BackfillCompleted += () =>
-        {
-            if (_initialMoodPlaylistRun) return;
-            _initialMoodPlaylistRun = true;
-            if (_prefsService.Current.AutoGenerateMoodPlaylist) _ = RunMoodPlaylistAsync(forceRefresh: false);
-        };
+        _enrichment.BackfillCompleted += OnBackfillCompleted;
 
         _ = Task.Run(async () =>
         {
@@ -494,6 +509,23 @@ public partial class MainViewModel
             if (PowerStateService.ReadPowerState() != PowerState.Battery) _enrichment.BackfillAsync();
             else { _initialMoodPlaylistRun = true; _ = RunMoodPlaylistAsync(forceRefresh: false); }
         });
+    }
+
+    // --- Extracted AI & Power Event Handlers ---
+    private void OnLocalAIFallbackNotice(string message) => Dispatcher.UIThread.Post(() => ToastService.Instance.Show(message, ToastType.Warning));
+
+    private void OnPowerStateChanged(PowerState state)
+    {
+        _localAI.OnPowerStateChanged(state);
+        Dispatcher.UIThread.Post(() => Settings.PowerStateLabel = state == PowerState.AC ? "Plugged In" : "On Battery");
+        ApplyBatteryEffectsTier(state);
+    }
+
+    private void OnBackfillCompleted()
+    {
+        if (_initialMoodPlaylistRun) return;
+        _initialMoodPlaylistRun = true;
+        if (_prefsService.Current.AutoGenerateMoodPlaylist) _ = RunMoodPlaylistAsync(forceRefresh: false);
     }
 
     private void ApplyBatteryEffectsTier(PowerState state)
@@ -568,7 +600,7 @@ public partial class MainViewModel
         if (tracks.Count == 0) return;
         
         var humanName = GenerateHumanPlaylistName(query);
-        var playlistName = _playlists.NameExists(humanName) ? $"{humanName} ({DateTime.Now:HH:mm})" : humanName;
+        var playlistName = _playlists.NameExists(humanName) ? $"{humanName} ({DateTime.UtcNow.ToLocalTime():HH:mm})" : humanName;
         
         var playlist = _playlists.Create(playlistName, $"Generated by AI prompt: {query}", _aiPlaylistsFolder?.Id);
         foreach (var track in tracks) _playlists.AddTrack(playlist.Id, track);
@@ -585,9 +617,6 @@ public partial class MainViewModel
                          .Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w.Substring(1).ToLower() : w);
         var cleanQuery = string.Join(" ", words);
 
-        // FIX: string.GetHashCode() is randomized per process in .NET - the same query
-        // produced a different flavor on every launch (duplicate AI playlists).
-        // FNV-1a is stable across runs, so "eminem" always maps to the same name.
         int seed = StableHash(cleanQuery.ToLowerInvariant());
         string[] flavors = { 
             $"{cleanQuery} Mix", 

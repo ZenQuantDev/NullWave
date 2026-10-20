@@ -63,7 +63,7 @@ public partial class SettingsViewModel
         var trackList = tracks.ToList();
         if (trackList.Count == 0) { ExternalAIStatus = L("Settings_Dynamic_Export_NoTracks"); return; }
         var format = ExportFormat ?? "txt";
-        var timestamp = DateTime.Now.ToString("ddMMyyyy_HHmm");
+        var timestamp = DateTime.UtcNow.ToString("ddMMyyyy_HHmm");
         var baseFileName = $"nullwave_ai_prompt_{timestamp}.{format}";
         var chunks = _externalAI.GenerateChunked(trackList, format, baseFileName);
         

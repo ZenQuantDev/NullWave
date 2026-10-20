@@ -23,7 +23,7 @@ namespace NullWave.ViewModels;
 
 public enum ShuffleMode { Off, Normal, Smart }
 
-public partial class PlayerViewModel : ViewModelBase
+public partial class PlayerViewModel : ViewModelBase, IDisposable
 {
     private readonly PlaybackService _playback;
     private readonly DownloadService _download;
@@ -79,68 +79,159 @@ public partial class PlayerViewModel : ViewModelBase
         _playbackRate = _settings.AudiobookPlaybackRate;
         _playback.Volume = _volume;
 
-        _playback.PositionChanged += pos => Dispatcher.UIThread.Post(() => { Position = pos; CheckPlayRecorded(); CheckCrossfade(pos); });
-        _playback.StateChanged += state => Dispatcher.UIThread.Post(() => { State = state; if (state == PlaybackState.Playing && _pendingResumeTicks > 0 && _playback.Duration > TimeSpan.Zero) { var frac = (float)Math.Clamp(_pendingResumeTicks / (double)_playback.Duration.Ticks, 0, 0.98); _playback.Seek(frac); _pendingResumeTicks = 0; } if (state is PlaybackState.Paused or PlaybackState.Stopped) SaveAudiobookProgress(); });
-        _playback.TrackFinished += () => Dispatcher.UIThread.Post(() => { if (_currentTrack?.MediaType == MediaType.Radio) return; if (_sleepTimerEndOfChapter && _currentTrack?.MediaType == MediaType.Audiobook) { SleepTimerEndOfChapter = false; _ = _playback.FadeAndPauseAsync(1500).ContinueWith(_ => Dispatcher.UIThread.Post(() => { Stop(); ToastService.Instance.Show(L("MiniPlayer_SleepTimer_ChapterStopped"), ToastType.Info, scope: "sleep"); })); return; } OnTrackFinished(); });
-        _playback.DurationDiscovered += duration => Dispatcher.UIThread.Post(() => { var track = CurrentTrack; if (track != null && track.Duration == TimeSpan.Zero && duration > TimeSpan.Zero) { track.Duration = duration; _library.Update(track); } });
-        _playback.RadioMetadataChanged += (title, artist) => Dispatcher.UIThread.Post(() => { if (_currentTrack?.MediaType == MediaType.Radio) StatusText = string.IsNullOrWhiteSpace(artist) ? title : $"{artist} - {title}"; });
-        _playback.StreamFailed += reason => Dispatcher.UIThread.Post(() => { if (_currentTrack?.MediaType != MediaType.Radio) return; StatusText = $"{_currentTrack.Title} - stream unavailable"; ToastService.Instance.Show($"'{_currentTrack.Title}' stream is unreachable. Try another station.", ToastType.Warning, scope: "radio"); });
+        // Subscribe using named methods for clean disposal
+        _playback.PositionChanged += OnPlaybackPositionChanged;
+        _playback.StateChanged += OnPlaybackStateChanged;
+        _playback.TrackFinished += OnPlaybackTrackFinished;
+        _playback.DurationDiscovered += OnPlaybackDurationDiscovered;
+        _playback.RadioMetadataChanged += OnRadioMetadataChanged;
+        _playback.StreamFailed += OnStreamFailed;
         
-        _download.ProgressChanged += (_, pct) => Dispatcher.UIThread.Post(() => { DownloadProgress = pct; StatusText = string.Format(L("Player_Status_DownloadingPct"), pct); });
+        _download.ProgressChanged += OnDownloadProgressChanged;
+        _download.DownloadCompleted += OnDownloadCompleted;
+        _download.DownloadFailed += OnDownloadFailed;
         
-        _download.DownloadCompleted += (trackId, filePath, isInteractive) =>
+        InitializeCommands();
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from Singleton services to prevent memory leaks during hot-reloads or testing
+        _playback.PositionChanged -= OnPlaybackPositionChanged;
+        _playback.StateChanged -= OnPlaybackStateChanged;
+        _playback.TrackFinished -= OnPlaybackTrackFinished;
+        _playback.DurationDiscovered -= OnPlaybackDurationDiscovered;
+        _playback.RadioMetadataChanged -= OnRadioMetadataChanged;
+        _playback.StreamFailed -= OnStreamFailed;
+        
+        _download.ProgressChanged -= OnDownloadProgressChanged;
+        _download.DownloadCompleted -= OnDownloadCompleted;
+        _download.DownloadFailed -= OnDownloadFailed;
+
+        _audiobookSaveTimer?.Dispose();
+        _sleepTimer?.Dispose();
+    }
+
+    // --- Extracted Event Handlers ---
+
+    private void OnPlaybackPositionChanged(float pos) 
+        => Dispatcher.UIThread.Post(() => { Position = pos; CheckPlayRecorded(); CheckCrossfade(pos); });
+
+    private void OnPlaybackStateChanged(PlaybackState state) 
+        => Dispatcher.UIThread.Post(() => { 
+            State = state; 
+            if (state == PlaybackState.Playing && _pendingResumeTicks > 0 && _playback.Duration > TimeSpan.Zero) { 
+                var frac = (float)Math.Clamp(_pendingResumeTicks / (double)_playback.Duration.Ticks, 0, 0.98); 
+                _playback.Seek(frac); 
+                _pendingResumeTicks = 0; 
+            } 
+            if (state is PlaybackState.Paused or PlaybackState.Stopped) SaveAudiobookProgress(); 
+        });
+
+    private void OnPlaybackTrackFinished() 
+        => Dispatcher.UIThread.Post(() => { 
+            if (_currentTrack?.MediaType == MediaType.Radio) return; 
+            if (_sleepTimerEndOfChapter && _currentTrack?.MediaType == MediaType.Audiobook) { 
+                SleepTimerEndOfChapter = false; 
+                _ = _playback.FadeAndPauseAsync(1500).ContinueWith(_ => Dispatcher.UIThread.Post(() => { Stop(); ToastService.Instance.Show(L("MiniPlayer_SleepTimer_ChapterStopped"), ToastType.Info, scope: "sleep"); })); 
+                return; 
+            } 
+            OnTrackFinished(); 
+        });
+
+    private void OnPlaybackDurationDiscovered(TimeSpan duration) 
+        => Dispatcher.UIThread.Post(() => { 
+            var track = CurrentTrack; 
+            if (track != null && track.Duration == TimeSpan.Zero && duration > TimeSpan.Zero) { 
+                track.Duration = duration; 
+                _library.Update(track); 
+            } 
+        });
+
+    private void OnRadioMetadataChanged(string title, string artist) 
+        => Dispatcher.UIThread.Post(() => { 
+            if (_currentTrack?.MediaType == MediaType.Radio) StatusText = string.IsNullOrWhiteSpace(artist) ? title : $"{artist} - {title}"; 
+        });
+
+    private void OnStreamFailed(string reason) 
+        => Dispatcher.UIThread.Post(() => { 
+            if (_currentTrack?.MediaType != MediaType.Radio) return; 
+            StatusText = $"{_currentTrack.Title} - stream unavailable"; 
+            ToastService.Instance.Show($"'{_currentTrack.Title}' stream is unreachable. Try another station.", ToastType.Warning, scope: "radio"); 
+        });
+
+    private void OnDownloadProgressChanged(object? sender, float pct) 
+        => Dispatcher.UIThread.Post(() => { DownloadProgress = pct; StatusText = string.Format(L("Player_Status_DownloadingPct"), pct); });
+
+    private void OnDownloadCompleted(string trackId, string filePath, bool isInteractive)
+    {
+        if (!isInteractive || string.IsNullOrEmpty(filePath)) return;
+
+        Dispatcher.UIThread.Post(() =>
         {
-            if (!isInteractive || string.IsNullOrEmpty(filePath)) return;
+            IsDownloading = false;
+            StatusText = L("Player_Status_DownloadComplete");
+            NullActionLogger.ImportCompleted(filePath, trackId, 0, nameof(PlayerViewModel));
 
-            Dispatcher.UIThread.Post(() =>
+            if (Guid.TryParse(trackId, out var id))
             {
-                IsDownloading = false;
-                StatusText = L("Player_Status_DownloadComplete");
-                NullActionLogger.ImportCompleted(filePath, trackId, 0, nameof(PlayerViewModel));
-
-                if (Guid.TryParse(trackId, out var id))
+                var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
+                if (track != null)
                 {
-                    var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                    if (track != null)
+                    track.FilePath = filePath;
+                    var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
+
+                    if (!string.IsNullOrWhiteSpace(tagTitle))
                     {
-                        track.FilePath = filePath;
-                        var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-
-                        if (!string.IsNullOrWhiteSpace(tagTitle))
+                        var parsedTags = NullWave.Helpers.TrackNormalizer.TrySplit(tagTitle);
+                        var cleanTitle  = tagTitle;
+                        var cleanArtist = tagArtist;
+                        if (parsedTags != null && !string.IsNullOrWhiteSpace(parsedTags.Value.Title))
                         {
-                            // FIX: embedded title may be "Artist - Title"; split it so the
-                            // renamed file doesn't double the artist prefix.
-                            var parsedTags = NullWave.Helpers.TrackNormalizer.TrySplit(tagTitle);
-                            var cleanTitle  = tagTitle;
-                            var cleanArtist = tagArtist;
-                            if (parsedTags != null && !string.IsNullOrWhiteSpace(parsedTags.Value.Title))
-                            {
-                                cleanTitle = parsedTags.Value.Title;
-                                if (!string.IsNullOrWhiteSpace(parsedTags.Value.Artist))
-                                    cleanArtist = parsedTags.Value.Artist;
-                            }
-
-                            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))  track.Title  = cleanTitle;
-                            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) &&
-                                !string.IsNullOrWhiteSpace(cleanArtist))          track.Artist = cleanArtist;
-
-                            _download.UpdateJobMetadata(trackId, track.Title, track.Artist);
+                            cleanTitle = parsedTags.Value.Title;
+                            if (!string.IsNullOrWhiteSpace(parsedTags.Value.Artist))
+                                cleanArtist = parsedTags.Value.Artist;
                         }
 
-                        track.Duration = duration;
-                        _library.Update(track);
-                        _library.NormalizeLocalFile(track);
+                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))  track.Title  = cleanTitle;
+                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) && !string.IsNullOrWhiteSpace(cleanArtist)) track.Artist = cleanArtist;
 
-                        var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                        PlayTrack(fresh ?? track);
+                        _download.UpdateJobMetadata(trackId, track.Title, track.Artist);
                     }
+
+                    track.Duration = duration;
+                    _library.Update(track);
+                    _library.NormalizeLocalFile(track);
+
+                    var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
+                    PlayTrack(fresh ?? track);
                 }
-            });
-        };
+            }
+        });
+    }
 
-        _download.DownloadFailed += (trackId, error, isInteractive) => { if (!isInteractive) return; Dispatcher.UIThread.Post(() => { IsDownloading = false; StatusText = string.Format(L("Player_Status_DownloadFailed"), error ?? L("Player_Status_UnknownError")); NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error ?? "Unknown error"}", $"trackId={trackId}"); if (Guid.TryParse(trackId, out var id)) { var failedTrack = _library.GetAll().FirstOrDefault(t => t.Id == id); if (failedTrack != null) { var retryTarget = failedTrack; ToastService.Instance.Show(message: $"Failed to download '{retryTarget?.Title ?? "Unknown Track"}'", type: ToastType.Error, durationMs: 6000, detailedMessage: error ?? "An unknown error occurred during download.", actionText: "Retry", actionCallback: () => { if (retryTarget != null) DownloadTrackCommand?.Execute(retryTarget); }, scope: "download-fail"); } } }); };
-
-        InitializeCommands();
+    private void OnDownloadFailed(string trackId, string? error, bool isInteractive)
+    {
+        if (!isInteractive) return;
+        Dispatcher.UIThread.Post(() => { 
+            IsDownloading = false; 
+            StatusText = string.Format(L("Player_Status_DownloadFailed"), error ?? L("Player_Status_UnknownError")); 
+            NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error ?? "Unknown error"}", $"trackId={trackId}"); 
+            if (Guid.TryParse(trackId, out var id)) { 
+                var failedTrack = _library.GetAll().FirstOrDefault(t => t.Id == id); 
+                if (failedTrack != null) { 
+                    var retryTarget = failedTrack; 
+                    ToastService.Instance.Show(
+                        message: $"Failed to download '{retryTarget?.Title ?? "Unknown Track"}'", 
+                        type: ToastType.Error, 
+                        durationMs: 6000, 
+                        detailedMessage: error ?? "An unknown error occurred during download.", 
+                        actionText: "Retry", 
+                        actionCallback: () => { if (retryTarget != null) DownloadTrackCommand?.Execute(retryTarget); }, 
+                        scope: "download-fail"); 
+                } 
+            } 
+        });
     }
 
     public Track? CurrentTrack

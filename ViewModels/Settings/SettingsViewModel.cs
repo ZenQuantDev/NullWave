@@ -265,7 +265,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var file = await desktop.MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Backup Library Database",
-            SuggestedFileName = $"nullwave_backup_{DateTime.Now:yyyyMMdd_HHmm}.db",
+            SuggestedFileName = $"nullwave_backup_{DateTime.UtcNow:yyyyMMdd_HHmm}.db",
             FileTypeChoices = new[] { new FilePickerFileType("SQLite Database") { Patterns = new[] { "*.db" } } }
         });
         if (file != null)

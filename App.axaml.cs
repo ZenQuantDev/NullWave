@@ -95,6 +95,12 @@ public partial class App : Application
 
     private void RegisterAntiCrashSystem()
     {
+        // NEW: Catch UI thread exceptions (e.g. from [RelayCommand] toolkit attributes)
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (sender, e) =>
+        {
+            ErrorReporter.Report(e.Exception, "Something went wrong, but NullWave kept running.", "ui");
+            e.Handled = true;
+        };
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
             var exception = e.Exception.InnerException ?? e.Exception;
