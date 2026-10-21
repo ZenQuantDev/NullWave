@@ -169,6 +169,7 @@ public partial class ProfileWindow : Window
     private async void OnBadgeDrop(object? sender, DragEventArgs e)
     {
         if (DataContext is not UserProfileViewModel vm) return;
+        e.Handled = true;
         var files = e.DataTransfer.TryGetFiles();
         if (files == null) return;
 

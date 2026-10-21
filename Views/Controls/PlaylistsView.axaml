@@ -200,7 +200,7 @@
                             
                             <TextBlock Grid.Column="6" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center">
                                 <TextBlock.Text>
-                                    <MultiBinding Converter="{StaticResource PlaylistTrackDateAdded}" StringFormat="{}{0:MMM dd, yyyy}">
+                                    <MultiBinding Converter="{StaticResource PlaylistTrackDateAdded}" StringFormat="{}{0:dd MMM yyyy}">
                                         <Binding/>
                                         <Binding Path="$parent[ListBox].DataContext.Playlist.SelectedPlaylist"/>
                                     </MultiBinding>

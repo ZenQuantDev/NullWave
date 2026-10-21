@@ -22,7 +22,7 @@ public partial class UserProfileViewModel
     public void UpdateStatistics()
     {
         if (_library == null) return;
-        var allTracks = _library.GetAll();
+        var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToList();
         if (allTracks == null || !allTracks.Any())
         {
             _totalTracks = 0; _totalFavorites = 0; _totalPlays = 0; _totalSkips = 0;

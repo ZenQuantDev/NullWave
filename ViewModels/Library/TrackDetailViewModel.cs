@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -26,7 +26,7 @@ public class TrackDetailViewModel : ViewModelBase
 {
     private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
 
-    // Per-artist memoization. Kills the 7-12× repeat log storms when you click
+    // Per-artist memoization. Kills the 7-12? repeat log storms when you click
     // multiple tracks by the same artist in sequence, and prevents re-downloading
     // the Last.fm default placeholder avatar (the "no artist image" image).
     private static readonly ConcurrentDictionary<string, LastFmArtistInfo?> ArtistInfoCache = new();
@@ -155,8 +155,8 @@ public class TrackDetailViewModel : ViewModelBase
         MediaType.Audiobook => "Audiobook",
         _ => _currentTrack?.Source.ToString() ?? "-"
     };
-    public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
-    public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
+    public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("dd MMM yyyy") ?? "-";
+    public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
     public string DisplayDuration => _currentTrack?.DisplayDuration ?? "-";
 
@@ -177,7 +177,7 @@ public class TrackDetailViewModel : ViewModelBase
         }
     }
 
-    public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
+    public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
     
     public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
@@ -372,7 +372,7 @@ public class TrackDetailViewModel : ViewModelBase
             _currentTrack.FilePath = result.Path;
             await _library.RefreshAlbumArtAsync(_currentTrack); 
             changes += $"FilePath relinked to \"{result.Path}\"";
-            Log.Information("Track relinked to local file: {Title} → {Path}", _currentTrack.Title, result.Path);
+            Log.Information("Track relinked to local file: {Title} > {Path}", _currentTrack.Title, result.Path);
         }
 
         if (result.Url != null)
@@ -380,7 +380,7 @@ public class TrackDetailViewModel : ViewModelBase
             _currentTrack.Url = result.Url;
             if (changes.Length > 0) changes += ", ";
             changes += $"Url relinked to \"{result.Url}\"";
-            Log.Information("Track relinked to URL: {Title} → {Url}", _currentTrack.Title, result.Url);
+            Log.Information("Track relinked to URL: {Title} > {Url}", _currentTrack.Title, result.Url);
         }
 
         _library.Update(_currentTrack);
@@ -453,7 +453,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (isPlaceholder)
         {
             // Last.fm returns this hash for artists with no photo. Log at Debug only
-            // and fall back to album art — do NOT re-download the placeholder.
+            // and fall back to album art � do NOT re-download the placeholder.
             Log.Debug("[TrackDetailViewModel] Artist image for {Artist}: placeholder/none - using album art", primaryArtist);
             ArtistImagePathCache[primaryArtist] = null;
             ArtistImagePath = track.AlbumArtPath;
