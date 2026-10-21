@@ -53,7 +53,7 @@
         <KeyBinding Gesture="Ctrl+E" Command="{Binding CopyShareStringCommand}"/>
     </Window.KeyBindings>
 
-    <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+    <Panel>
         <controls:WallpaperLayer/>
         <Border Classes="wallpaper-scrim"/>
         <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"

@@ -26,7 +26,7 @@ public class RelativeTimeConverter : IValueConverter
             if (span.TotalDays < 30) return string.Format(L["Profile_Time_DaysAgo"], (int)span.TotalDays);
             
             // Fallback: display the absolute date in the user's local time zone
-            return dt.ToLocalTime().ToString("MMM dd, yyyy", culture);
+            return dt.ToLocalTime().ToString("dd MMM yyyy", culture);
         }
         return null;
     }

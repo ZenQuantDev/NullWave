@@ -91,6 +91,41 @@ public partial class DatabaseService
             }
             catch (Exception ex) { Log.Warning(ex, "[DatabaseService] Path tokenization migration failed"); }
         });
+        // Migration 10: Convert LastPlayed timestamps from local to UTC
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                lock (_dbLock)
+                {
+                    if (token.IsCancellationRequested || _disposed) return;
+                    if (_db.ExecuteScalar<int>("PRAGMA user_version;") >= 10) return;
+
+                    int converted = 0;
+                    foreach (var r in _db.Table<TrackRecord>().ToList())
+                    {
+                        if (token.IsCancellationRequested) return;
+                        if (r.LastPlayed.HasValue)
+                        {
+                            // Assume old timestamps are local time, convert to UTC
+                            var localTime = DateTime.SpecifyKind(r.LastPlayed.Value, DateTimeKind.Local);
+                            r.LastPlayed = localTime.ToUniversalTime();
+                            SaveTrackRecord(r);
+                            converted++;
+                        }
+                    }
+
+                    if (converted > 0)
+                        Log.Information("[DatabaseService] Migration 10: converted {Count} LastPlayed timestamps from local to UTC", converted);
+                    
+                    _db.Execute("PRAGMA user_version = 10;");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[DatabaseService] LastPlayed UTC migration failed");
+            }
+        });
     }
 
     private int DetectCurrentVersion()

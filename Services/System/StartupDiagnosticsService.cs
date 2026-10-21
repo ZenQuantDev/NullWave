@@ -1,11 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Models;
 using NullWave.Services.Security;
 
 namespace NullWave.Services;
@@ -61,7 +63,7 @@ public class StartupDiagnosticsService
 
         //  2. Library load
         var sw = Stopwatch.StartNew();
-        var allTracks = _library.GetAll();
+        var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToList();
         sw.Stop();
 
         var dbPath = NullWavePaths.DatabasePath;

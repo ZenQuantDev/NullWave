@@ -284,7 +284,7 @@
                         </StackPanel>
                         
                         <TextBlock Grid.Column="6"
-                                   Text="{Binding DateAdded, StringFormat='{}{0:MMM dd, yyyy}'}"
+                                   Text="{Binding DateAdded, StringFormat='{}{0:dd MMM yyyy}'}"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{DynamicResource FontSizeSm}"
                                    VerticalAlignment="Center"/>
