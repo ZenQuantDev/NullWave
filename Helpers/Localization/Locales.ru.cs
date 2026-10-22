@@ -998,5 +998,7 @@ public static partial class Locales
         ["Scene_abstract_Desc"] = "Диагональная заливка дуэта с мягким центром.",
 
         ["MainWindow_Startup_Loading"] = "Пробуждаем библиотеку…",
+
+        ["Player_Status_Buffering"] = "Буферизация…",
     };
 }

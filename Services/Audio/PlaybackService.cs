@@ -136,6 +136,28 @@ public class PlaybackService : IDisposable
         }
     }
 
+    private Media CreateMedia(string path)
+    {
+        var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        var media = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
+        if (isUrl)
+        {
+            media.AddOption(":network-caching=1500");
+            media.AddOption(":http-reconnect");
+        }
+        return media;
+    }
+
+    public event Action<bool>? BufferingChanged;
+    private int _buffering;
+
+    private void SetBuffering(bool on)
+    {
+        if (Interlocked.Exchange(ref _buffering, on ? 1 : 0) == (on ? 1 : 0)) return;
+        _uiPost(() => BufferingChanged?.Invoke(on));
+    }
+
     /// <summary>
     /// Starts the engine on a pool thread. Safe to call more than once. Call it after the main
     /// window is visible so native loading does not compete with the first paint.
@@ -211,6 +233,7 @@ public class PlaybackService : IDisposable
         player.Stopped += (s, e) => OnStopped(player, e);
         player.EndReached += (s, e) => OnEndReached(player, e);
         player.EncounteredError += (s, e) => OnEncounteredError(player, e);
+        player.Buffering += (s, e) => { if (ReferenceEquals(player, _activePlayer)) SetBuffering(e.Cache < 100f); };
     }
 
     private void OnPositionChanged(MediaPlayer player, MediaPlayerPositionChangedEventArgs e)
@@ -234,6 +257,7 @@ public class PlaybackService : IDisposable
         _uiPost(() =>
         {
             if (!isActive) return;
+            SetBuffering(false);
             if (_pausePending)
             {
                 player.SetPause(true);
@@ -324,7 +348,8 @@ public class PlaybackService : IDisposable
 
             var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                         path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-            _currentMedia = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
+            _currentMedia = CreateMedia(path);
+            if (isUrl) SetBuffering(true); else SetBuffering(false);
             t.Step("newMedia");
 
             _activePlayer.Media = _currentMedia;
@@ -593,8 +618,7 @@ public class PlaybackService : IDisposable
             incoming = _standbyPlayer;
             incoming.Stop();
             incoming.Media?.Dispose();
-            var isUrl = nextPath.StartsWith("http", StringComparison.OrdinalIgnoreCase);
-            incoming.Media = isUrl ? new Media(_libVlc, new Uri(nextPath)) : new Media(_libVlc, nextPath);
+            incoming.Media = CreateMedia(nextPath);
         }
 
         var outgoing = _activePlayer;

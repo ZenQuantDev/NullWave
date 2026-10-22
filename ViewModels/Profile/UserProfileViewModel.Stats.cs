@@ -118,7 +118,7 @@ public partial class UserProfileViewModel
     {
         Badges.Clear();
         var imported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var badge in _grantedBadges.Where(b => b.Payload != null && b.VerifyAgainstMasterKey() && b.IsOfficial()))
+        foreach (var badge in _grantedBadges.Where(b => b.Payload != null && b.IsOfficial()))
         {
             var type = badge.Payload.BadgeType;
             if (string.IsNullOrWhiteSpace(type) || !imported.Add(type)) continue;
@@ -180,7 +180,7 @@ public partial class UserProfileViewModel
         try
         {
             var badge = JsonSerializer.Deserialize<SignedBadge>(json);
-            if (badge == null || !badge.VerifyAgainstMasterKey() || !badge.IsOfficial()) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error); return; }
+            if (badge == null || !badge.IsOfficial()) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error); return; }
             if (!badge.IsBoundTo(_identity.Fingerprint)) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_NotYours"], ToastType.Warning); return; }
             if (_grantedBadges.Any(b => b.Payload.BadgeType == badge.Payload.BadgeType)) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_AlreadyOwned"], ToastType.Info); return; }
             
