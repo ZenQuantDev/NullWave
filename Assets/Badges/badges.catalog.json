@@ -1,4 +1,4 @@
-﻿{
+{
   "badges": [
     {
       "id": "founder",
@@ -41,7 +41,7 @@
       "kind": "granted",
       "category": "community",
       "icon": "Palette",
-      "color": "BrushPurple",
+      "color": "BrushBannerPurple",
       "nameKey": "Profile_Badge_Artist",
       "descKey": "Profile_Badge_Artist_Desc"
     },
@@ -139,19 +139,19 @@
       "kind": "computed",
       "category": "special",
       "icon": "Radio",
-      "color": "BrushPurple",
+      "color": "BrushBannerPurple",
       "nameKey": "Profile_Badge_RadioExplorer",
       "descKey": "Profile_Badge_RadioExplorer_Desc",
       "rule": { "metric": "radioStations", "op": ">=", "value": 10 }
     },
     {
-      "id": "podcastBinger",
+      "id": "bookworm",
       "kind": "computed",
       "category": "special",
-      "icon": "Podcast",
+      "icon": "BookOpen",
       "color": "BrushBlue",
-      "nameKey": "Profile_Badge_PodcastBinger",
-      "descKey": "Profile_Badge_PodcastBinger_Desc",
+      "nameKey": "Profile_Badge_Bookworm",
+      "descKey": "Profile_Badge_Bookworm_Desc",
       "rule": { "metric": "audiobookHours", "op": ">=", "value": 50 }
     }
   ]
