@@ -20,10 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests/**" />
+    <Compile Remove="tools/**" />
     <InternalsVisibleTo Include="NullWave.Tests" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CHANGELOG.md" />
+    <EmbeddedResource Include="Assets\Badges\badges.catalog.json" />
   </ItemGroup>
     <!-- NuGet packages -->
   <ItemGroup>

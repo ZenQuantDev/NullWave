@@ -1,0 +1,158 @@
+﻿{
+  "badges": [
+    {
+      "id": "founder",
+      "kind": "granted",
+      "category": "community",
+      "icon": "Crown",
+      "color": "BrushAmber",
+      "nameKey": "Profile_Badge_Founder",
+      "descKey": "Profile_Badge_Founder_Desc"
+    },
+    {
+      "id": "dev",
+      "kind": "granted",
+      "category": "community",
+      "icon": "CodeTags",
+      "color": "BrushAccent",
+      "nameKey": "Profile_Badge_Dev",
+      "descKey": "Profile_Badge_Dev_Desc"
+    },
+    {
+      "id": "beta",
+      "kind": "granted",
+      "category": "community",
+      "icon": "Flask",
+      "color": "BrushAccent2",
+      "nameKey": "Profile_Badge_Beta",
+      "descKey": "Profile_Badge_Beta_Desc"
+    },
+    {
+      "id": "patron",
+      "kind": "granted",
+      "category": "community",
+      "icon": "Heart",
+      "color": "BrushRed",
+      "nameKey": "Profile_Badge_Patron",
+      "descKey": "Profile_Badge_Patron_Desc"
+    },
+    {
+      "id": "artist",
+      "kind": "granted",
+      "category": "community",
+      "icon": "Palette",
+      "color": "BrushPurple",
+      "nameKey": "Profile_Badge_Artist",
+      "descKey": "Profile_Badge_Artist_Desc"
+    },
+    {
+      "id": "bughunter",
+      "kind": "granted",
+      "category": "community",
+      "icon": "Bug",
+      "color": "BrushGreen",
+      "nameKey": "Profile_Badge_BugHunter",
+      "descKey": "Profile_Badge_BugHunter_Desc"
+    },
+    {
+      "id": "early",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "RocketLaunch",
+      "color": "BrushBlue",
+      "nameKey": "Profile_Badge_EarlyAdopter",
+      "descKey": "Profile_Badge_EarlyAdopter_Desc",
+      "rule": { "metric": "createdBefore", "value": "2026-08-01" }
+    },
+    {
+      "id": "collector",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "LibraryMusic",
+      "color": "BrushAccent",
+      "nameKey": "Profile_Badge_Collector",
+      "descKey": "Profile_Badge_Collector_Desc",
+      "rule": { "metric": "totalTracks", "op": ">=", "value": 100 }
+    },
+    {
+      "id": "heavy",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Headphones",
+      "color": "BrushAccent2",
+      "nameKey": "Profile_Badge_HeavyListener",
+      "descKey": "Profile_Badge_HeavyListener_Desc",
+      "rule": { "metric": "totalPlays", "op": ">=", "value": 1000 }
+    },
+    {
+      "id": "taste",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Star",
+      "color": "BrushAmber",
+      "nameKey": "Profile_Badge_TasteMaker",
+      "descKey": "Profile_Badge_TasteMaker_Desc",
+      "rule": { "metric": "totalFavorites", "op": ">=", "value": 50 }
+    },
+    {
+      "id": "local",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Harddisk",
+      "color": "BrushGreen",
+      "nameKey": "Profile_Badge_LocalPurist",
+      "descKey": "Profile_Badge_LocalPurist_Desc",
+      "rule": { "metric": "localPercentage", "op": ">=", "value": 80 }
+    },
+    {
+      "id": "wave",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Wave",
+      "color": "BrushSourceSoundCloud",
+      "nameKey": "Profile_Badge_WaveRider",
+      "descKey": "Profile_Badge_WaveRider_Desc",
+      "rule": { "metric": "soundCloudDominant", "op": "==", "value": true }
+    },
+    {
+      "id": "veteran",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Medal",
+      "color": "BrushAmber",
+      "nameKey": "Profile_Badge_Veteran",
+      "descKey": "Profile_Badge_Veteran_Desc",
+      "rule": { "metric": "daysSinceCreation", "op": ">=", "value": 365 }
+    },
+    {
+      "id": "streak",
+      "kind": "computed",
+      "category": "milestone",
+      "icon": "Fire",
+      "color": "BrushRed",
+      "nameKey": "Profile_Badge_Streak",
+      "descKey": "Profile_Badge_Streak_Desc",
+      "rule": { "metric": "longestStreak", "op": ">=", "value": 7 }
+    },
+    {
+      "id": "radioExplorer",
+      "kind": "computed",
+      "category": "special",
+      "icon": "Radio",
+      "color": "BrushPurple",
+      "nameKey": "Profile_Badge_RadioExplorer",
+      "descKey": "Profile_Badge_RadioExplorer_Desc",
+      "rule": { "metric": "radioStations", "op": ">=", "value": 10 }
+    },
+    {
+      "id": "podcastBinger",
+      "kind": "computed",
+      "category": "special",
+      "icon": "Podcast",
+      "color": "BrushBlue",
+      "nameKey": "Profile_Badge_PodcastBinger",
+      "descKey": "Profile_Badge_PodcastBinger_Desc",
+      "rule": { "metric": "audiobookHours", "op": ">=", "value": 50 }
+    }
+  ]
+}

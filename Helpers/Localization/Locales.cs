@@ -1020,5 +1020,20 @@ public static partial class Locales
         ["Scene_abstract_Desc"] = "A diagonal duo wash with a soft center field.",
 
         ["MainWindow_Startup_Loading"] = "Waking the library…",
+
+        ["Profile_Badge_Patron"] = "Patron",
+        ["Profile_Badge_Patron_Desc"] = "Supports NullWave development.",
+        ["Profile_Badge_Artist"] = "Artist",
+        ["Profile_Badge_Artist_Desc"] = "Created custom artwork or themes.",
+        ["Profile_Badge_BugHunter"] = "Bug Hunter",
+        ["Profile_Badge_BugHunter_Desc"] = "Found and reported critical bugs.",
+        ["Profile_Badge_RadioExplorer"] = "Radio Explorer",
+        ["Profile_Badge_RadioExplorer_Desc"] = "Saved 10+ radio stations.",
+        ["Profile_Badge_PodcastBinger"] = "Podcast Binger",
+        ["Profile_Badge_PodcastBinger_Desc"] = "50+ hours of audiobooks.",
+
+        ["Player_Status_Buffering"] = "Buffering…",
+
+        
     };
 }

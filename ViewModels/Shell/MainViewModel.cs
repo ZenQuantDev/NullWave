@@ -54,6 +54,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private LastFmAuthService? _pendingLastFmAuth;
     private readonly List<(LiveNotification Activity, int Total)> _playlistBatches = new();
     private bool _initialMoodPlaylistRun;
+    private DispatcherTimer? _libRefreshTimer;
     private bool _isMaintenanceRunning;
 
     // --- UI State Properties ---

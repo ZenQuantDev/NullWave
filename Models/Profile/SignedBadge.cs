@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text;
 using System.Text.Json;
 using NullWave.Helpers;
@@ -6,63 +6,61 @@ using NullWave.Services.Security;
 
 namespace NullWave.Models;
 
-public record BadgePayload(string RecipientFingerprint, string BadgeType, long IssuedUnix, string? IssuerName);
+public record BadgePayload(
+    string RecipientFingerprint, 
+    string BadgeType, 
+    long IssuedUnix, 
+    string? IssuerName,
+    long? ExpiresUnix = null
+);
 
 public class SignedBadge
 {
+    public string KeyId { get; set; } = string.Empty;
     public BadgePayload Payload { get; set; } = null!;
-    public string IssuerPublicKey { get; set; } = string.Empty;
     public string Signature { get; set; } = string.Empty;
 
-    public string CanonicalPayload() => JsonSerializer.Serialize(Payload);
+    private static bool ContainsPipe(string? s) => s != null && s.Contains('|');
 
     /// <summary>
-    /// Verifies the signature against a specific trusted public key.
-    /// Never trust the IssuerPublicKey embedded inside the badge itself.
+    /// v2 canonical format: v2|keyId|badgeId|fingerprint|issuedUnix|expiresUnix|issuerName
     /// </summary>
-    public bool VerifySignature(byte[] trustedPublicKey)
+    public string CanonicalPayload()
+    {
+        // Reject any field containing '|' to prevent ambiguity
+        if (ContainsPipe(KeyId) || ContainsPipe(Payload?.BadgeType) || 
+            ContainsPipe(Payload?.RecipientFingerprint) || ContainsPipe(Payload?.IssuerName))
+            throw new InvalidOperationException("Badge fields must not contain '|'");
+
+        return $"v2|{KeyId}|{Payload.BadgeType}|{Payload.RecipientFingerprint}|{Payload.IssuedUnix}|{Payload.ExpiresUnix ?? 0}|{Payload.IssuerName ?? ""}";
+    }
+
+    public bool IsExpired => Payload.ExpiresUnix.HasValue && 
+                             DateTimeOffset.UtcNow.ToUnixTimeSeconds() > Payload.ExpiresUnix.Value;
+
+    /// <summary>
+    /// Verifies the signature against the trusted key for this KeyId.
+    /// </summary>
+    public bool VerifySignature()
     {
         try
         {
-            if (trustedPublicKey == null || trustedPublicKey.Length == 0) return false;
+            if (!TrustedKeys.TryGetPublicKey(KeyId, out var publicKey)) return false;
             
             var signatureBytes = Convert.FromBase64String(Signature);
-            
             return IdentityService.Verify(
                 Encoding.UTF8.GetBytes(CanonicalPayload()),
                 signatureBytes,
-                trustedPublicKey);
+                publicKey);
         }
         catch
         {
-            // Malformed base64, bad signature format, or crypto exception
             return false;
         }
     }
 
-    /// <summary>
-    /// Verifies against the app's pinned official key. 
-    /// False if the key is a placeholder or the signature is bad.
-    /// </summary>
-    public bool VerifyAgainstMasterKey() =>
-        MasterKeys.TryGetPublicKey(out var key) && VerifySignature(key);
+    public bool IsOfficial() => VerifySignature();
 
-    /// <summary>
-    /// Checks if the badge was legitimately issued by the official NullWave master key.
-    /// </summary>
-    public bool IsOfficial()
-    {
-        // 1. The embedded key must match our pinned master key
-        if (IssuerPublicKey != MasterKeys.PublicKeyBase64) return false;
-        
-        // 2. The signature must actually be valid for that master key
-        return VerifyAgainstMasterKey();
-    }
-
-    /// <summary>
-    /// Checks if this badge was issued to the specified identity fingerprint.
-    /// Prevents badges from being copied between users.
-    /// </summary>
     public bool IsBoundTo(string fingerprint)
     {
         return !string.IsNullOrWhiteSpace(fingerprint) &&

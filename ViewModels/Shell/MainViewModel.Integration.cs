@@ -77,10 +77,21 @@ public partial class MainViewModel
     {
         Dispatcher.UIThread.Post(() =>
         {
-            Library?.Refresh();
-            RadioLibrary?.Refresh();
-            AudiobookLibrary?.Refresh();
-            OnPropertyChanged(nameof(ActiveTrackCount));
+            var timer = _libRefreshTimer;
+            if (timer == null)
+            {
+                timer = _libRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+                timer.Tick += (_, _) =>
+                {
+                    timer.Stop();
+                    Library?.Refresh();
+                    RadioLibrary?.Refresh();
+                    AudiobookLibrary?.Refresh();
+                    OnPropertyChanged(nameof(ActiveTrackCount));
+                };
+            }
+            timer.Stop();
+            timer.Start();
         });
     }
 

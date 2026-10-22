@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,6 +41,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     private string _statusText = LocalizationService.Instance["Player_Status_NoTrack"];
     private DateTime _trackStartTime = DateTime.MinValue;
     private bool _isCrossfading;
+    private bool _isBuffering;
     private bool _hasTriggeredCrossfade;
     private bool _playRecorded;
     private Guid _playSessionId = Guid.NewGuid();
@@ -86,6 +87,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _playback.DurationDiscovered += OnPlaybackDurationDiscovered;
         _playback.RadioMetadataChanged += OnRadioMetadataChanged;
         _playback.StreamFailed += OnStreamFailed;
+        _playback.BufferingChanged += OnBufferingChanged;
         
         _download.ProgressChanged += OnDownloadProgressChanged;
         _download.DownloadCompleted += OnDownloadCompleted;
@@ -103,6 +105,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _playback.DurationDiscovered -= OnPlaybackDurationDiscovered;
         _playback.RadioMetadataChanged -= OnRadioMetadataChanged;
         _playback.StreamFailed -= OnStreamFailed;
+        _playback.BufferingChanged -= OnBufferingChanged;
         
         _download.ProgressChanged -= OnDownloadProgressChanged;
         _download.DownloadCompleted -= OnDownloadCompleted;
@@ -269,6 +272,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     
     public PlaybackState State { get => _state; private set { _state = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsPlaying)); OnPropertyChanged(nameof(PlayPauseIconKind)); } }
     public bool IsPlaying => _state == PlaybackState.Playing;
+    public bool IsBuffering { get => _isBuffering; private set { _isBuffering = value; OnPropertyChanged(); } }
     public MaterialIconKind PlayPauseIconKind => IsPlaying ? MaterialIconKind.Pause : MaterialIconKind.Play;
     
     public float Position { get => _position; set { _position = value; OnPropertyChanged(); OnPropertyChanged(nameof(PositionDisplay)); OnPropertyChanged(nameof(DurationDisplay)); } }
@@ -326,4 +330,12 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     }
     public bool IsSleepTimerActive => _sleepTimerRemaining > TimeSpan.Zero;
     public string SleepTimerDisplay => IsSleepTimerActive ? $"{(int)_sleepTimerRemaining.TotalMinutes:D2}:{_sleepTimerRemaining.Seconds:D2}" : "";
+
+    private void OnBufferingChanged(bool isBuffering)
+        => Dispatcher.UIThread.Post(() => {
+            IsBuffering = isBuffering;
+            if (isBuffering && _currentTrack?.MediaType == MediaType.Radio)
+                StatusText = L("Player_Status_Buffering");
+        });
+
 }
