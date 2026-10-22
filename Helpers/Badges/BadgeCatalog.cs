@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -73,12 +73,14 @@ public static class BadgeCatalog
                     }
                 }
             }
-
-            _loaded = true;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[BadgeCatalog] Failed to load catalog");
+        }
+        finally
+        {
+            _loaded = true;
         }
     }
 

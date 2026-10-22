@@ -22,25 +22,19 @@ public class SignedBadge
 
     private static bool ContainsPipe(string? s) => s != null && s.Contains('|');
 
-    /// <summary>
-    /// v2 canonical format: v2|keyId|badgeId|fingerprint|issuedUnix|expiresUnix|issuerName
-    /// </summary>
     public string CanonicalPayload()
     {
-        // Reject any field containing '|' to prevent ambiguity
-        if (ContainsPipe(KeyId) || ContainsPipe(Payload?.BadgeType) || 
-            ContainsPipe(Payload?.RecipientFingerprint) || ContainsPipe(Payload?.IssuerName))
+        var p = Payload ?? throw new InvalidOperationException("Badge has no payload");
+        if (ContainsPipe(KeyId) || ContainsPipe(p.BadgeType) ||
+            ContainsPipe(p.RecipientFingerprint) || ContainsPipe(p.IssuerName))
             throw new InvalidOperationException("Badge fields must not contain '|'");
 
-        return $"v2|{KeyId}|{Payload.BadgeType}|{Payload.RecipientFingerprint}|{Payload.IssuedUnix}|{Payload.ExpiresUnix ?? 0}|{Payload.IssuerName ?? ""}";
+        return $"v2|{KeyId}|{p.BadgeType}|{p.RecipientFingerprint}|{p.IssuedUnix}|{p.ExpiresUnix ?? 0}|{p.IssuerName ?? ""}";
     }
 
-    public bool IsExpired => Payload.ExpiresUnix.HasValue && 
-                             DateTimeOffset.UtcNow.ToUnixTimeSeconds() > Payload.ExpiresUnix.Value;
+    public bool IsExpired => Payload?.ExpiresUnix is long exp && 
+                             DateTimeOffset.UtcNow.ToUnixTimeSeconds() > exp;
 
-    /// <summary>
-    /// Verifies the signature against the trusted key for this KeyId.
-    /// </summary>
     public bool VerifySignature()
     {
         try

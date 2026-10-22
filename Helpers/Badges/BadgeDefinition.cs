@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace NullWave.Helpers;
@@ -15,7 +16,12 @@ public record BadgeRule
     public string Op { get; init; } = "";
     
     [JsonPropertyName("value")]
-    public object? Value { get; init; }
+    public JsonElement Value { get; init; }
+    
+    public double GetDoubleValue() => Value.ValueKind == JsonValueKind.Number ? Value.GetDouble() : 0;
+    public int GetIntValue() => Value.ValueKind == JsonValueKind.Number ? Value.GetInt32() : 0;
+    public bool GetBoolValue() => Value.ValueKind is JsonValueKind.True or JsonValueKind.False && Value.GetBoolean();
+    public string GetStringValue() => Value.ValueKind == JsonValueKind.String ? Value.GetString() ?? "" : "";
 }
 
 public record BadgeDefinition
