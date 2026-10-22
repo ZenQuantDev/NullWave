@@ -155,10 +155,18 @@
                            VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,0,0,0"/>
             </Grid>
 
-            <!-- LIVE indicator -->
+            <!-- LIVE / BUFFERING indicator -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6" IsVisible="{Binding Player.IsRadio}">
-                <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"/>
-                <TextBlock Text="{loc:Loc MiniPlayer_LiveStream}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"
+                        IsVisible="{Binding !Player.IsBuffering}"/>
+                <Ellipse Width="6" Height="6" Fill="{StaticResource BrushAmber}" VerticalAlignment="Center"
+                        IsVisible="{Binding Player.IsBuffering}"/>
+                <TextBlock Text="{loc:Loc MiniPlayer_LiveStream}" Foreground="{StaticResource BrushRed}"
+                        FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" VerticalAlignment="Center"
+                        IsVisible="{Binding !Player.IsBuffering}"/>
+                <TextBlock Text="{loc:Loc Player_Status_Buffering}" Foreground="{StaticResource BrushAmber}"
+                        FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" VerticalAlignment="Center"
+                        IsVisible="{Binding Player.IsBuffering}"/>
             </StackPanel>
         </StackPanel>
 
