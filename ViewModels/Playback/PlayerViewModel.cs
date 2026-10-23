@@ -151,11 +151,6 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
             } 
         });
 
-    private void OnRadioMetadataChanged(string title, string artist) 
-        => Dispatcher.UIThread.Post(() => { 
-            if (_currentTrack?.MediaType == MediaType.Radio) StatusText = string.IsNullOrWhiteSpace(artist) ? title : $"{artist} - {title}"; 
-        });
-
     private void OnStreamFailed(string reason) 
         => Dispatcher.UIThread.Post(() => { 
             if (_currentTrack?.MediaType != MediaType.Radio) return; 
@@ -332,10 +327,13 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     public string SleepTimerDisplay => IsSleepTimerActive ? $"{(int)_sleepTimerRemaining.TotalMinutes:D2}:{_sleepTimerRemaining.Seconds:D2}" : "";
 
     private void OnBufferingChanged(bool isBuffering)
-        => Dispatcher.UIThread.Post(() => {
-            IsBuffering = isBuffering;
-            if (isBuffering && _currentTrack?.MediaType == MediaType.Radio)
-                StatusText = L("Player_Status_Buffering");
-        });
+    => Dispatcher.UIThread.Post(() => IsBuffering = isBuffering);
 
+    private void OnRadioMetadataChanged(string title, string artist)
+    => Dispatcher.UIThread.Post(() => {
+        if (_currentTrack?.MediaType != MediaType.Radio) return;
+        NowPlayingTitle = title ?? string.Empty;
+        NowPlayingArtist = artist ?? string.Empty;
+        if (HasNowPlaying) StatusText = NowPlayingDisplay;
+    });
 }

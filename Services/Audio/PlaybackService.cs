@@ -121,7 +121,9 @@ public class PlaybackService : IDisposable
         MediaPlayer? b = null;
         try
         {
-            vlc = new LibVLC("--aout=directsound", "--no-video", "--quiet");
+            vlc = OperatingSystem.IsWindows()
+    ? new LibVLC("--aout=directsound", "--no-video", "--quiet")
+    : new LibVLC("--no-video", "--quiet");
             a = new MediaPlayer(vlc);
             b = new MediaPlayer(vlc);
             Log.Information("[PlaybackService] LibVLC ready in {Ms} ms", stopwatch.ElapsedMilliseconds);
@@ -286,6 +288,7 @@ public class PlaybackService : IDisposable
     private void OnEndReached(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+        SetBuffering(false);
         _uiPost(() =>
         {
             StateChanged?.Invoke(PlaybackState.Stopped);
@@ -296,6 +299,7 @@ public class PlaybackService : IDisposable
     private void OnEncounteredError(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+        SetBuffering(false);
         _icyTimer?.Dispose();
         _icyTimer = null;
         _uiPost(() =>
@@ -389,10 +393,10 @@ public class PlaybackService : IDisposable
                     {
                         if (_currentMedia == null) return;
                         var nowPlaying = _currentMedia.Meta(MetadataType.NowPlaying);
-                        var titleMeta = _currentMedia.Meta(MetadataType.Title);
-                        var artistMeta = _currentMedia.Meta(MetadataType.Artist);
-                        var title = nowPlaying ?? titleMeta ?? string.Empty;
-                        var artist = artistMeta ?? string.Empty;
+                        var artist = _currentMedia.Meta(MetadataType.Artist) ?? string.Empty;
+                        var title = !string.IsNullOrWhiteSpace(nowPlaying) ? nowPlaying
+                                : !string.IsNullOrWhiteSpace(artist) ? (_currentMedia.Meta(MetadataType.Title) ?? string.Empty)
+                                : string.Empty;
 
                         if (string.IsNullOrWhiteSpace(artist) && title.Contains(" - "))
                         {
@@ -479,6 +483,7 @@ public class PlaybackService : IDisposable
         _icyTimer?.Dispose();
         _icyTimer = null;
         _activePlayer.Stop();
+        SetBuffering(false);
         Log.Debug("Playback stopped");
     }
 

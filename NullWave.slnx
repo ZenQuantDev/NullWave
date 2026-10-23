@@ -1,3 +1,10 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/FakeYtDlp/FakeYtDlp.csproj" />
+    <Project Path="tests/NullWave.Tests/NullWave.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/BadgeIssuer/BadgeIssuer.csproj" />
+  </Folder>
   <Project Path="NullWave.csproj" />
 </Solution>
