@@ -53,10 +53,17 @@ public static class ErrorReporter
         }
 
         // Marshal to UI thread if needed
-        if (Dispatcher.UIThread.CheckAccess())
-            ShowToast();
-        else
-            Dispatcher.UIThread.Post(ShowToast);
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                ShowToast();
+            else
+                Dispatcher.UIThread.Post(ShowToast);
+        }
+        catch
+        {
+            // No dispatcher available (e.g., in unit tests) — log-only mode
+        }
     }
 
     /// <summary>
@@ -77,10 +84,17 @@ public static class ErrorReporter
             );
         }
 
-        if (Dispatcher.UIThread.CheckAccess())
-            ShowToast();
-        else
-            Dispatcher.UIThread.Post(ShowToast);
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                ShowToast();
+            else
+                Dispatcher.UIThread.Post(ShowToast);
+        }
+        catch
+        {
+            // No dispatcher available (e.g., in unit tests) — log-only mode
+        }
     }
 
     private static async void CopyToClipboard(string text)
