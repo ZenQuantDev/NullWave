@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Models;
 using SQLite;
@@ -56,76 +55,64 @@ public partial class DatabaseService
             catch (Exception ex) { Log.Warning(ex, "[DatabaseService] Schema migration check failed"); }
         }
 
-        var token = _migrationCts.Token;
-        _ = Task.Run(() =>
+        lock (_dbLock)
         {
             try
             {
-                lock (_dbLock)
+                _db.RunInTransaction(() =>
                 {
-                    if (token.IsCancellationRequested || _disposed) return;
-                    if (_db.ExecuteScalar<int>("PRAGMA user_version;") >= 9) return;
+                    int ver = _db.ExecuteScalar<int>("PRAGMA user_version;");
 
-                    bool dbUpdated = false;
-                    foreach (var r in _db.Table<TrackRecord>().ToList())
+                    if (ver < 9)
                     {
-                        if (token.IsCancellationRequested) return;
-                        bool changed = false;
-                        var tokFilePath = PathHelper.Tokenize(r.FilePath);
-                        if (tokFilePath != r.FilePath) { r.FilePath = tokFilePath; changed = true; }
-                        var tokArtPath = PathHelper.Tokenize(r.AlbumArtPath);
-                        if (tokArtPath != r.AlbumArtPath) { r.AlbumArtPath = tokArtPath; changed = true; }
-                        if (changed) { SaveTrackRecord(r); dbUpdated = true; }
-                    }
-
-                    foreach (var p in _db.Table<PlaylistRecord>().ToList())
-                    {
-                        if (token.IsCancellationRequested) return;
-                        var tokArt = PathHelper.Tokenize(p.CustomArtPath);
-                        if (tokArt != p.CustomArtPath) { p.CustomArtPath = tokArt; _db.InsertOrReplace(p); dbUpdated = true; }
-                    }
-
-                    if (dbUpdated) Log.Information("[DatabaseService] Migrated absolute paths to portable tokens.");
-                    _db.Execute("PRAGMA user_version = 9;");
-                }
-            }
-            catch (Exception ex) { Log.Warning(ex, "[DatabaseService] Path tokenization migration failed"); }
-        });
-        // Migration 10: Convert LastPlayed timestamps from local to UTC
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                lock (_dbLock)
-                {
-                    if (token.IsCancellationRequested || _disposed) return;
-                    if (_db.ExecuteScalar<int>("PRAGMA user_version;") >= 10) return;
-
-                    int converted = 0;
-                    foreach (var r in _db.Table<TrackRecord>().ToList())
-                    {
-                        if (token.IsCancellationRequested) return;
-                        if (r.LastPlayed.HasValue)
+                        foreach (var r in _db.Table<TrackRecord>().ToList())
                         {
-                            // Assume old timestamps are local time, convert to UTC
-                            var localTime = DateTime.SpecifyKind(r.LastPlayed.Value, DateTimeKind.Local);
-                            r.LastPlayed = localTime.ToUniversalTime();
+                            var f = PathHelper.Tokenize(r.FilePath);
+                            var a = PathHelper.Tokenize(r.AlbumArtPath);
+                            if (f == r.FilePath && a == r.AlbumArtPath) continue;
+                            r.FilePath = f;
+                            r.AlbumArtPath = a;
                             SaveTrackRecord(r);
+                        }
+                        foreach (var p in _db.Table<PlaylistRecord>().ToList())
+                        {
+                            var art = PathHelper.Tokenize(p.CustomArtPath);
+                            if (art == p.CustomArtPath) continue;
+                            p.CustomArtPath = art;
+                            _db.InsertOrReplace(p);
+                        }
+                        _db.Execute("PRAGMA user_version = 9;");
+                        ver = 9;
+                        Log.Information("[DatabaseService] Migration 9: paths tokenized");
+                    }
+
+                    if (ver < 10)
+                    {
+                        int converted = 0;
+                        foreach (var r in _db.Table<TrackRecord>().ToList())
+                        {
+                            if (!r.LastPlayed.HasValue) continue;
+                            r.LastPlayed = LocalToUtc(r.LastPlayed.Value);
+                            _db.Update(r);
                             converted++;
                         }
+                        _db.Execute("PRAGMA user_version = 10;");
+                        Log.Information("[DatabaseService] Migration 10: {Count} LastPlayed values local->UTC", converted);
                     }
-
-                    if (converted > 0)
-                        Log.Information("[DatabaseService] Migration 10: converted {Count} LastPlayed timestamps from local to UTC", converted);
-                    
-                    _db.Execute("PRAGMA user_version = 10;");
-                }
+                });
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "[DatabaseService] LastPlayed UTC migration failed");
+                Log.Error(ex, "[DatabaseService] Data migration failed and was rolled back");
             }
-        });
+        }
+    }
+
+    private static DateTime LocalToUtc(DateTime stored)
+    {
+        var local = DateTime.SpecifyKind(stored, DateTimeKind.Unspecified);
+        if (TimeZoneInfo.Local.IsInvalidTime(local)) local = local.AddHours(1);
+        return DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeToUtc(local, TimeZoneInfo.Local), DateTimeKind.Utc);
     }
 
     private int DetectCurrentVersion()
