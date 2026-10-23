@@ -17,13 +17,28 @@ namespace NullWave.ViewModels;
 
 public partial class UserProfileViewModel
 {
-    private void OnLibraryChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateStatistics);
+    private DispatcherTimer? _statsTimer;
+
+    private void OnLibraryChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        if (_statsTimer == null)
+        {
+            _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _statsTimer.Tick += (_, _) => { _statsTimer.Stop(); UpdateStatistics(); };
+        }
+        _statsTimer.Stop();
+        _statsTimer.Start();
+    });
+
 
     public void UpdateStatistics()
     {
         if (_library == null) return;
-        var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToList();
-        if (allTracks == null || !allTracks.Any())
+        var everything = _library.GetAll().ToList();
+        _radioStations = everything.Count(t => t.MediaType == MediaType.Radio);
+        _audiobookHours = everything.Where(t => t.MediaType == MediaType.Audiobook).Sum(t => t.Duration.TotalHours);
+        var allTracks = everything.Where(t => t.MediaType == MediaType.Music).ToList();
+        if (allTracks.Count == 0)
         {
             _totalTracks = 0; _totalFavorites = 0; _totalPlays = 0; _totalSkips = 0;
             _mostPlayedTrack = "-"; _mostPlayedTrackId = null; _mostPlayedTrackArtPath = null; _mostPlayedArtist = "-";
@@ -106,71 +121,51 @@ public partial class UserProfileViewModel
 
     private static string Loc(string key, string fallback) { var value = LocalizationService.Instance[key]; return string.IsNullOrEmpty(value) || value == key ? fallback : value; }
     private static IBrush Brush(string key) => Application.Current?.Resources.TryGetValue(key, out var value) == true && value is IBrush brush ? brush : new SolidColorBrush(Avalonia.Media.Colors.Gray);
-    private static (MaterialIconKind Icon, IBrush Brush) ResolveImportedBadgeVisual(string type) => type.ToLowerInvariant() switch
+
+    private double? BadgeMetric(string name) => name switch
     {
-        "founder" => (MaterialIconKind.Crown, Brush("BrushAmber")),
-        "dev" => (MaterialIconKind.CodeTags, Brush("BrushAccent")),
-        "beta" => (MaterialIconKind.Flask, Brush("BrushAccent2")),
-        _ => (MaterialIconKind.Certificate, Brush("BrushTextSecondary"))
+        "totalTracks" => TotalTracks,
+        "totalPlays" => TotalPlays,
+        "totalFavorites" => TotalFavorites,
+        "localPercentage" => LocalPercentage,
+        "longestStreak" => LongestStreak,
+        "radioStations" => _radioStations,
+        "audiobookHours" => _audiobookHours,
+        "daysSinceCreation" => _createdAt == default ? 0 : (DateTime.UtcNow - UtcTime.AsUtc(_createdAt)).TotalDays,
+        "soundCloudDominant" => SoundCloudCount > 0 && SoundCloudCount >= YouTubeCount && SoundCloudCount >= LocalCount ? 1 : 0,
+        _ => null
     };
+
+    private static ProfileBadge ToProfileBadge(BadgeDefinition d)
+    {
+        var icon = Enum.TryParse<MaterialIconKind>(d.Icon, out var k) ? k : MaterialIconKind.Certificate;
+        return new ProfileBadge(d.Id, icon, Loc(d.NameKey, d.Id), Loc(d.DescKey, ""), Brush(d.Color));
+    }
 
     private void RefreshBadges()
     {
         Badges.Clear();
-        var imported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var badge in _grantedBadges.Where(b => b.Payload != null && b.IsOfficial()))
+        BadgeCatalog.Load();
+        var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var badge in _grantedBadges)
         {
+            if (badge.Payload == null || badge.IsExpired || !badge.IsOfficial()) continue;
             var type = badge.Payload.BadgeType;
-            if (string.IsNullOrWhiteSpace(type) || !imported.Add(type)) continue;
-            var (icon, brush) = ResolveImportedBadgeVisual(type);
-            var pretty = char.ToUpper(type[0]) + type[1..];
-            var nameKey = $"Profile_Badge_{pretty}";
-            Badges.Add(new ProfileBadge(type, icon, Loc(nameKey, pretty), Loc(nameKey + "_Desc", badge.Payload.IssuerName ?? "NullWave"), brush));
+            if (string.IsNullOrWhiteSpace(type) || !owned.Add(type)) continue;
+
+            var def = BadgeCatalog.GetById(type);
+            if (def != null && def.Kind == BadgeKind.Granted)
+                Badges.Add(ToProfileBadge(def));
+            else
+                Badges.Add(new ProfileBadge(type, MaterialIconKind.Certificate, type,
+                    badge.Payload.IssuerName ?? "NullWave", Brush("BrushTextSecondary")));
         }
 
-        // FIX: Early Adopter cutoff updated to 2026-08-01 UTC (project started May 2026)
-        if (!imported.Contains("early") && _createdAt != default && 
-            UtcTime.AsUtc(_createdAt) < new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc))
-            Badges.Add(new ProfileBadge("early", MaterialIconKind.RocketLaunch, 
-                Loc("Profile_Badge_EarlyAdopter", "Early Adopter"), 
-                Loc("Profile_Badge_EarlyAdopter_Desc", "Joined before August 2026."), Brush("BrushBlue")));
-
-        if (!imported.Contains("collector") && TotalTracks >= 100)
-            Badges.Add(new ProfileBadge("collector", MaterialIconKind.LibraryMusic, 
-                Loc("Profile_Badge_Collector", "Collector"), 
-                Loc("Profile_Badge_Collector_Desc", "100+ tracks in library."), Brush("BrushAccent")));
-
-        if (!imported.Contains("heavy") && TotalPlays >= 1000)
-            Badges.Add(new ProfileBadge("heavy", MaterialIconKind.Headphones, 
-                Loc("Profile_Badge_HeavyListener", "Heavy Listener"), 
-                Loc("Profile_Badge_HeavyListener_Desc", "1000+ plays."), Brush("BrushAccent2")));
-
-        if (!imported.Contains("taste") && TotalFavorites >= 50)
-            Badges.Add(new ProfileBadge("taste", MaterialIconKind.Star, 
-                Loc("Profile_Badge_TasteMaker", "Taste Maker"), 
-                Loc("Profile_Badge_TasteMaker_Desc", "50+ favorites."), Brush("BrushAmber")));
-
-        if (!imported.Contains("local") && TotalTracks > 0 && LocalPercentage >= 80)
-            Badges.Add(new ProfileBadge("local", MaterialIconKind.Harddisk, 
-                Loc("Profile_Badge_LocalPurist", "Local Purist"), 
-                Loc("Profile_Badge_LocalPurist_Desc", "80%+ local library."), Brush("BrushGreen")));
-
-        if (!imported.Contains("wave") && SoundCloudCount > 0 && 
-            SoundCloudCount >= YouTubeCount && SoundCloudCount >= LocalCount)
-            Badges.Add(new ProfileBadge("wave", MaterialIconKind.Wave, 
-                Loc("Profile_Badge_WaveRider", "Wave Rider"), 
-                Loc("Profile_Badge_WaveRider_Desc", "SoundCloud-dominant library."), Brush("BrushSourceSoundCloud")));
-
-        if (!imported.Contains("veteran") && _createdAt != default && 
-            (DateTime.UtcNow - UtcTime.AsUtc(_createdAt)).TotalDays >= 365)
-            Badges.Add(new ProfileBadge("veteran", MaterialIconKind.Medal, 
-                Loc("Profile_Badge_Veteran", "Veteran"), 
-                Loc("Profile_Badge_Veteran_Desc", "1+ year with NullWave."), Brush("BrushAmber")));
-
-        if (!imported.Contains("streak") && LongestStreak >= 7)
-            Badges.Add(new ProfileBadge("streak", MaterialIconKind.Fire, 
-                Loc("Profile_Badge_Streak", "On Fire"), 
-                Loc("Profile_Badge_Streak_Desc", "7+ day listening streak."), Brush("BrushRed")));
+        DateTime? createdUtc = _createdAt == default ? null : UtcTime.AsUtc(_createdAt);
+        foreach (var def in BadgeCatalog.GetComputed())
+            if (def.Rule != null && !owned.Contains(def.Id) && BadgeRuleEvaluator.IsEarned(def.Rule, BadgeMetric, createdUtc))
+                Badges.Add(ToProfileBadge(def));
 
         OnPropertyChanged(nameof(HasBadges));
     }
@@ -179,17 +174,45 @@ public partial class UserProfileViewModel
     {
         try
         {
+            if (json.Length > 16_384)
+            {
+                ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error);
+                return;
+            }
+            
             var badge = JsonSerializer.Deserialize<SignedBadge>(json);
-            if (badge == null || !badge.IsOfficial()) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error); return; }
-            if (!badge.IsBoundTo(_identity.Fingerprint)) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_NotYours"], ToastType.Warning); return; }
-            if (_grantedBadges.Any(b => b.Payload.BadgeType == badge.Payload.BadgeType)) { ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_AlreadyOwned"], ToastType.Info); return; }
+            if (badge == null || badge.Payload == null || badge.IsExpired || !badge.IsOfficial())
+            {
+                ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error);
+                return;
+            }
+            
+            if (!badge.IsBoundTo(_identity.Fingerprint))
+            {
+                ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_NotYours"], ToastType.Warning);
+                return;
+            }
+            
+            if (_grantedBadges.Any(b => string.Equals(b.Payload?.BadgeType, badge.Payload.BadgeType, StringComparison.OrdinalIgnoreCase)))
+            {
+                ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_AlreadyOwned"], ToastType.Info);
+                return;
+            }
             
             Directory.CreateDirectory(Path.GetDirectoryName(_badgesPath)!);
-            _grantedBadges.Add(badge);
-            File.WriteAllText(_badgesPath, JsonSerializer.Serialize(_grantedBadges));
+            var next = new List<SignedBadge>(_grantedBadges) { badge };
+            var tmp = _badgesPath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(next));
+            File.Move(tmp, _badgesPath, overwrite: true);
+            _grantedBadges = next;
+            
             Dispatcher.UIThread.Post(RefreshBadges);
             ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Unlocked"], ToastType.Success);
         }
-        catch (Exception ex) { Log.Error(ex, "Badge import failed"); ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error); }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Badge import failed");
+            ToastService.Instance.Show(LocalizationService.Instance["Profile_Badge_Invalid"], ToastType.Error);
+        }
     }
 }

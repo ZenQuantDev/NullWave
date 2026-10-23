@@ -673,7 +673,7 @@
                                             <TextBlock Text="{loc:Loc Profile_Section_Account}" Classes="section-label" Margin="0"/>
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_DataLocation}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
-                                                <TextBlock Grid.Column="1" Text="~/.nullwave/" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding DataDirDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
                                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                                 <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_Uuid}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
