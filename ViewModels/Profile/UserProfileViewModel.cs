@@ -72,6 +72,8 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     private string _averageTrackLength = "0:00";
     private int _currentStreak;
     private int _longestStreak;
+    private int _radioStations;
+    private double _audiobookHours;
     private Dictionary<string, double> _tasteDistribution = new();
     private Dictionary<string, double> _moodDistribution = new();
     private System.Threading.Timer? _saveTimer;
@@ -131,6 +133,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public string ProfileFrameStyle { get => _prefs.Current.ProfileFrameStyle; set { _prefs.Update(p => p.ProfileFrameStyle = value); OnPropertyChanged(); ThemeService.Instance.ApplyProfileFrame(value); DebouncedSave(); } }
     public bool TrackSharingEnabled { get => _prefs.Current.EnableTrackSharing; set { _prefs.Update(p => p.EnableTrackSharing = value); OnPropertyChanged(); DebouncedSave(); } }
     public string InstallId => _installId;
+    public string DataDirDisplay => NullWavePaths.DataDir;
     public string ToastMessage { get => _toastMessage; private set { _toastMessage = value; OnPropertyChanged(); } }
     public string Username { get => _username; set { _username = value; OnPropertyChanged(); MarkDirty(); DebouncedSave(); } }
     public string Bio { get => _bio; set { _bio = value.Length > 160 ? value[..160] : value; OnPropertyChanged(); OnPropertyChanged(nameof(BioLength)); MarkDirty(); DebouncedSave(); } }
@@ -268,6 +271,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _saveTimer?.Dispose();
         LocalizationService.Instance.PropertyChanged -= _langHandler;
         if (_library != null) _library.LibraryChanged -= OnLibraryChanged;
+        _statsTimer?.Stop();
     }
 
     private static bool CheckDevAccess()
