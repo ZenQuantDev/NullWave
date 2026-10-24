@@ -393,6 +393,14 @@ public class TrackDetailViewModel : ViewModelBase
 
     private async Task LoadArtistInfoAsync(Track track)
     {
+        // Radio tracks use genre as "artist" â€” no Last.fm lookup makes sense.
+        if (track.MediaType == MediaType.Radio)
+        {
+            ArtistImagePath = track.AlbumArtPath;
+            IsLoadingArtistInfo = false;
+            return;
+        }
+
         var trackId = track.Id;
         IsLoadingArtistInfo = true;
 
@@ -440,6 +448,12 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void ResolveArtistImageAsync(LastFmArtistInfo? info, string primaryArtist, Track track, Guid trackId)
     {
+        if (track.MediaType == MediaType.Radio)
+        {
+            ArtistImagePath = track.AlbumArtPath;
+            return;
+        }
+
         // Memoize: if we already know the path (or know there isn't one), apply immediately.
         if (ArtistImagePathCache.TryGetValue(primaryArtist, out var cachedPath))
         {
@@ -453,7 +467,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (isPlaceholder)
         {
             // Last.fm returns this hash for artists with no photo. Log at Debug only
-            // and fall back to album art — do NOT re-download the placeholder.
+            // and fall back to album art ï¿½ do NOT re-download the placeholder.
             Log.Debug("[TrackDetailViewModel] Artist image for {Artist}: placeholder/none - using album art", primaryArtist);
             ArtistImagePathCache[primaryArtist] = null;
             ArtistImagePath = track.AlbumArtPath;

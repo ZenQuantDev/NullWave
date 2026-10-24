@@ -298,16 +298,38 @@ public partial class MainViewModel
         {
             var chosen = await DialogService.Instance.ShowDialogAsync<List<RadioChannel>>(new Views.Dialogs.RadioMoodDialog(channels));
             if (chosen == null || chosen.Count == 0) return;
-            int added = 0;
-            foreach (var channel in chosen)
+
+            // Snapshot existing radio URLs to skip duplicates
+            var existing = new HashSet<string>(
+                _library.GetAll()
+                    .Where(t => t.MediaType == MediaType.Radio && !string.IsNullOrEmpty(t.Url))
+                    .Select(t => t.Url!),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Resolve all channels in parallel instead of one-by-one
+            var resolved = await Task.WhenAll(chosen.Select(async channel =>
             {
-                var stream = channel.StreamUrl;
-                if (string.IsNullOrWhiteSpace(stream)) stream = await RadioStreamResolver.ResolveAsync($"{stationName} {channel.Name}");
-                if (string.IsNullOrWhiteSpace(stream)) { ToastService.Instance.Show(string.Format(LocalizationService.Instance["Radio_Resolved_Failed"], channel.Name), ToastType.Warning); continue; }
+                var s = channel.StreamUrl;
+                if (string.IsNullOrWhiteSpace(s))
+                    s = await RadioStreamResolver.ResolveAsync($"{stationName} {channel.Name}");
+                return (Channel: channel, Stream: s);
+            }));
+
+            int added = 0;
+            foreach (var (channel, stream) in resolved)
+            {
+                if (string.IsNullOrWhiteSpace(stream))
+                {
+                    ToastService.Instance.Show(string.Format(LocalizationService.Instance["Radio_Resolved_Failed"], channel.Name), ToastType.Warning);
+                    continue;
+                }
+                // Skip if this stream URL is already in the library
+                if (!existing.Add(stream)) continue;
 
                 _library.Add(new Track { Title = $"{stationName} - {channel.Name}", Artist = stationName, Url = stream, Source = TrackSource.Unknown, MediaType = MediaType.Radio });
                 added++;
             }
+
             Library.Refresh(); RadioLibrary.Refresh();
             if (added > 0) ToastService.Instance.Show(string.Format(LocalizationService.Instance["Radio_StationAdded"], added), ToastType.Success);
         };
