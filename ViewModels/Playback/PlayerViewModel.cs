@@ -61,6 +61,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     private float _playbackRate = 1.0f;
     private DateTime _lastNavigationTime = DateTime.MinValue;
     private static readonly TimeSpan NavigationDebounce = TimeSpan.FromMilliseconds(300);
+    private DateTime _lastPlayPauseTime = DateTime.MinValue;
     private static string L(string key) => LocalizationService.Instance[key];
 
     public bool SleepTimerEndOfChapter { get => _sleepTimerEndOfChapter; set { _sleepTimerEndOfChapter = value; OnPropertyChanged(); } }
@@ -178,6 +179,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
                 {
                     track.FilePath = filePath;
                     var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
+                        tagArtist = System.Text.RegularExpressions.Regex.Replace(tagArtist ?? "", @"\s*-\s*Topic\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
 
                     if (!string.IsNullOrWhiteSpace(tagTitle))
                     {
@@ -202,7 +204,10 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
                     _library.NormalizeLocalFile(track);
 
                     var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                    PlayTrack(fresh ?? track);
+                    if (_currentTrack?.Id == id || _state != PlaybackState.Playing)
+                        PlayTrack(fresh ?? track);
+                    else
+                        ToastService.Instance.Show($"'{(fresh ?? track).Title}' downloaded.", ToastType.Success, scope: "download");
                 }
             }
         });
@@ -212,10 +217,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     {
         if (!isInteractive) return;
         if (string.Equals(error, "Cancelled", StringComparison.OrdinalIgnoreCase))
-        {
-            Dispatcher.UIThread.Post(() => IsDownloading = false);
-            return;
-        }
+            return; // superseded by a newer interactive download; leave IsDownloading alone
         Dispatcher.UIThread.Post(() => { 
             IsDownloading = false; 
             StatusText = string.Format(L("Player_Status_DownloadFailed"), error ?? L("Player_Status_UnknownError")); 
