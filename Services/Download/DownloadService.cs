@@ -288,10 +288,10 @@ public class DownloadService
         if (useFfmpeg)
         {
             args.Add("--embed-metadata");
-            args.Add("--embed-thumbnail");
             
             if (!string.Equals(audioFormat, "best", StringComparison.OrdinalIgnoreCase))
             {
+                args.Add("--embed-thumbnail");
                 args.Add("--extract-audio");
                 args.Add("--audio-format");
                 args.Add(audioFormat);
@@ -643,7 +643,7 @@ public class DownloadService
                     DownloadCompleted += OnCompleted;
                     DownloadFailed    += OnFailed;
 
-                    await DownloadAsync(trackId.ToString(), cleanUrl, audioFormat: "best", audioQuality: "best", 
+                    await DownloadAsync(trackId.ToString(), cleanUrl, _prefsService.Current.AudioFormat, _prefsService.Current.AudioQuality, 
                                         allowPlaylist: false, isInteractive: false, 
                                         title: title, artist: artist, ct: ct);
 

@@ -107,7 +107,6 @@ public partial class PlayerViewModel
                 return;
             }
 
-
             if (!string.IsNullOrEmpty(track.Url))
             {
                 _playback.Stop();
