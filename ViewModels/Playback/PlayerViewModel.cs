@@ -211,6 +211,11 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     private void OnDownloadFailed(string trackId, string? error, bool isInteractive)
     {
         if (!isInteractive) return;
+        if (string.Equals(error, "Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            Dispatcher.UIThread.Post(() => IsDownloading = false);
+            return;
+        }
         Dispatcher.UIThread.Post(() => { 
             IsDownloading = false; 
             StatusText = string.Format(L("Player_Status_DownloadFailed"), error ?? L("Player_Status_UnknownError")); 

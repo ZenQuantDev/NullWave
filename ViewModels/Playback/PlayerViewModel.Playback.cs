@@ -132,6 +132,7 @@ public partial class PlayerViewModel
 
     private void PlayPause()
     {
+        if (IsRadio && IsPlaying) { Stop(); return; }
         var pausing = _playback.PausePending;
         if (IsPlaying && !pausing)
         {
