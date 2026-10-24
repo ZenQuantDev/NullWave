@@ -187,8 +187,32 @@ public class DownloadService
         return _ffmpegAvailable.Value;
     }
 
+    // yt-dlp enables only deno by default. If the user has node or bun instead, enable it explicitly.
+    private static readonly Lazy<string?> JsRuntimeArg = new(() =>
+    {
+        static bool OnPath(string name)
+        {
+            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
+            foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            {
+                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return true; } catch { }
+            }
+            return false;
+        }
+
+        if (OnPath("deno")) return null;      // yt-dlp's default, no flag needed
+        if (OnPath("node")) return "node";
+        if (OnPath("bun"))  return "bun";
+        return null;
+    });
+
     private void AppendSpeedAndAuthArgs(List<string> args, bool useAria2c)
     {
+        if (JsRuntimeArg.Value is { } jsRuntime)
+        {
+            args.Add("--js-runtimes");
+            args.Add(jsRuntime);
+        }
         if (useAria2c)
         {
             args.Add("--downloader");
@@ -291,8 +315,7 @@ public class DownloadService
             if (_activeDownloads.Contains(url))
             {
                 Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
-                DownloadFailed?.Invoke(trackId, "Already downloading", isInteractive);
-                return;
+                return; // Silent return — duplicate clicks aren't errors, no toast needed
             }
             _activeDownloads.Add(url);
         }
