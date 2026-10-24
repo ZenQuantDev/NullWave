@@ -3,23 +3,27 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.4] - 21-Oct-2026 🏗️ "Foundations"
+## [0.6.4] - 24-Oct-2026 🏗️ "Foundations"
 
 ### Added
 
+- **Data-Driven Badge Catalog**: badge definitions live in embedded `badges.catalog.json` with rule-based evaluation; v2 canonical signing adds `KeyId` for future key rotation plus expired-badge handling.
+- **Radio Engine Hardening**: shared `RadioBrowserProvider` with DNS-based server discovery, per-server timeouts and http/https-only stream filtering; mini-player buffering indicator; stations without an ICY title no longer show the station name as the song.
+- **yt-dlp JS Runtime Auto-Detection**: `DownloadService` detects `node`/`bun` on PATH and passes `--js-runtimes` when `deno` is absent, fixing YouTube "n challenge solving failed" format errors without a global yt-dlp config. Requires deno, node or bun on PATH.
+- **Test Coverage**: added `RadioBrowserParseTests` and `BadgeCatalogTests`; the suite now has 514 passing tests.
 - **Experimental Features System**: New toggle in Settings → Advanced that gates in-development features behind an "EXPERIMENTAL" badge. Power users can opt-in to preview features while casual users get a rock-solid stable experience.
-  - Gated features: In-App Log Viewer, P2P Track Sharing, Profile Sharing, Wallpaper Scenes, Profile Frame Glow, and advanced maintenance tools (Force Clean Titles, Verify Links, Reimport Assets, Merge Similar Artists, Sync Files)
-  - Two-tier architecture: Experimental Features (user toggle) vs Developer Mode (environment variable `NULLWAVE_DEV=1`)
-  - Visual badges and warning banners clearly mark experimental UI elements
+    - Gated features: In-App Log Viewer, P2P Track Sharing, Profile Sharing, Wallpaper Scenes, Profile Frame Glow, and advanced maintenance tools (Force Clean Titles, Verify Links, Reimport Assets, Merge Similar Artists, Sync Files)
+    - Two-tier architecture: Experimental Features (user toggle) vs Developer Mode (environment variable `NULLWAVE_DEV=1`)
+    - Visual badges and warning banners clearly mark experimental UI elements
 - **Unified Track Normalizer**: New `TrackNormalizer` class consolidates 6+ duplicate title/artist cleaning implementations into a single source of truth
-  - `TrySplit()` - Intelligent artist/title splitting with exotic separator support
-  - `CleanTitle()` / `CleanArtist()` - Removes YouTube artifacts, bracket garbage, Topic/VEVO suffixes
-  - `NormalizeArtistKey()` - Consistent artist name normalization (NFKC, lowercase, separator collapse)
-  - `SplitArtistCredits()` - Handles "Artist1, Artist2 & Artist3" credit splitting
-  - `LooselyMatch()` - Fuzzy title/artist matching for VerifyLinks
-  - `IdentityKey()` / `AreSameTrack()` - Unified duplicate detection logic
-  - `IsPlaceholderTitle()` / `IsPlaceholderArtist()` - Placeholder detection
-  - 44 comprehensive unit tests covering all edge cases
+    - `TrySplit()` - Intelligent artist/title splitting with exotic separator support
+    - `CleanTitle()` / `CleanArtist()` - Removes YouTube artifacts, bracket garbage, Topic/VEVO suffixes
+    - `NormalizeArtistKey()` - Consistent artist name normalization (NFKC, lowercase, separator collapse)
+    - `SplitArtistCredits()` - Handles "Artist1, Artist2 & Artist3" credit splitting
+    - `LooselyMatch()` - Fuzzy title/artist matching for VerifyLinks
+    - `IdentityKey()` / `AreSameTrack()` - Unified duplicate detection logic
+    - `IsPlaceholderTitle()` / `IsPlaceholderArtist()` - Placeholder detection
+    - 44 comprehensive unit tests covering all edge cases
 - **Shell Helper**: New `ShellHelper` class with cross-platform `OpenFolder`, `OpenFile`, `OpenUrl` methods
 - **Preferences Change Tracking**: New `PreferencesService.Changed` event uses reflection to detect exactly which properties changed, enabling targeted subscribers
 - **Preferences Versioning**: Schema now tracks version (currently v2); automatic migration from v1 with backup creation
@@ -37,18 +41,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Duplicate Import Protection**: YouTube URLs are canonicalized to `watch?v=<id>` (stripping `&pp=`/`&si=` tracking params) and checked against the identity index before add; duplicates get an "already in your library" toast instead of a second download and orphan file.
+- **Download UX**: duplicate clicks on an in-flight download are silent; a finished download only autoplays when it is still the current track or nothing else is playing, otherwise a "downloaded" toast is shown.
+- **v9/v10 Migrations**: `LastPlayed` timestamps converted to UTC; schema migrations now run synchronously in a single transaction at startup.
 - **Unified Settings Save Path**: Removed all manual `ScheduleSave()` calls and direct `Save()` invocations. Now `PreferencesService.Update()` is the only way to change settings, with automatic debounced persistence
 - **UTC Time Standardization**: `LibraryService.RecordPlay` now uses `DateTime.UtcNow` instead of `DateTime.Now`. `RelativeTimeConverter` properly handles UTC timestamps
 - **Migrated 37 Call Sites**: Replaced all uses of obsolete `TitleSanitizer`, `TrackTitleParser`, and `LibraryService` helper methods with unified `TrackNormalizer` calls across:
-  - `ImportViewModel` - Fixed double-sanitization bug where import would clean metadata, then `LibraryService.Add` would clean it again
-  - `LibraryService` - `Add()`, `VerifyLinks()`, `RemoveDuplicates()`, `ForceCleanTitles()`
-  - `DownloadService` - Metadata parsing during playlist downloads
-  - `MetadataService` - Tag validation and artist credit splitting
-  - `AlbumArtService` - Last.fm search term preparation
-  - `TrackInputViewModel` - Fallback metadata parsing
-  - `PlayerViewModel` - Placeholder detection
-  - `TrackDetailViewModel` - Artist credit splitting and normalization
-  - `LibraryViewModel.Search` - Artist filter matching
+    - `ImportViewModel` - Fixed double-sanitization bug where import would clean metadata, then `LibraryService.Add` would clean it again
+    - `LibraryService` - `Add()`, `VerifyLinks()`, `RemoveDuplicates()`, `ForceCleanTitles()`
+    - `DownloadService` - Metadata parsing during playlist downloads
+    - `MetadataService` - Tag validation and artist credit splitting
+    - `AlbumArtService` - Last.fm search term preparation
+    - `TrackInputViewModel` - Fallback metadata parsing
+    - `PlayerViewModel` - Placeholder detection
+    - `TrackDetailViewModel` - Artist credit splitting and normalization
+    - `LibraryViewModel.Search` - Artist filter matching
 - **Non-Destructive Playlist Merging**: The startup `Deduplicate` sweep no longer deletes duplicate playlists. Instead, it merges their unique tracks into the primary playlist, preventing accidental data loss
 - **Playlist Cover Art**: Changing or clearing a playlist cover now properly deletes the old image file from the cache and invalidates the bitmap cache to prevent ghost images. New covers use timestamped filenames to prevent cache collisions
 - **AI Playlist Generation**: The `ai:` prompt now filters out Radio streams and Audiobooks from candidates, preventing accidental inclusion of live streams in mood playlists. Empty prompts now show a helpful hint toast
@@ -66,6 +73,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **YouTube Format Failures**: missing JS runtime no longer yields "Only images are available / Requested format is not available"; first-try downloads succeed when a JS runtime is installed.
+- **Playback Hijack**: a completed background download no longer interrupts a track the user started in the meantime.
+- **Cancelled Downloads**: cancelling no longer raises a red failure toast and no longer clears the downloading spinner while a newer download runs.
+- **Radio Artist Lookups**: stations no longer trigger Last.fm bio/image fetches with genre strings as artist names.
+- **"- Topic" Suffix**: single-track imports strip the YouTube " - Topic" channel suffix, matching the playlist pipeline.
+- **PlayPause Spam**: a 200 ms debounce ignores held-key or double-click pause/play toggles.
 - **Playlist Rename Safety**: Attempting to rename a playlist to a name that already exists now blocks the action with a warning toast instead of creating a duplicate that would be destroyed on restart
 - **Radio Misclassification**: Added a one-time repair migration that fixes tracks wrongly marked as "Radio" (e.g., tracks with "radio" in the URL like Radiohead) back to "Music"
 - **Test Runner Crashes**: Fixed `AccessViolationException` crashes during rapid test execution by properly cancelling background migration tasks when the `DatabaseService` is disposed

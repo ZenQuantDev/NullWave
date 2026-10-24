@@ -179,7 +179,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
                 {
                     track.FilePath = filePath;
                     var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                        tagArtist = System.Text.RegularExpressions.Regex.Replace(tagArtist ?? "", @"\s*-\s*Topic\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                    tagArtist = System.Text.RegularExpressions.Regex.Replace(tagArtist ?? "", @"\s*-\s*Topic\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
 
                     if (!string.IsNullOrWhiteSpace(tagTitle))
                     {
@@ -193,7 +193,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
                                 cleanArtist = parsedTags.Value.Artist;
                         }
 
-                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title))  track.Title  = cleanTitle;
+                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title) || System.Text.RegularExpressions.Regex.IsMatch(track.Title ?? "", @"\([A-Za-z0-9_-]{11}\)$")) track.Title = cleanTitle;
                         if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) && !string.IsNullOrWhiteSpace(cleanArtist)) track.Artist = cleanArtist;
 
                         _download.UpdateJobMetadata(trackId, track.Title, track.Artist);

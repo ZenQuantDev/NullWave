@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 21-Oct-2026
+> Last updated: 24-Oct-2026
 
 ---
 
@@ -24,9 +24,9 @@
 | **v0.5.2**  | QoL & Polish          | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
 | **v0.6.0**  | "Oxeye Daisy"         | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
 | **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
-| **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                               |
-| **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                |
-| **v0.6.4**  | "Foundations"         | Shipped 21-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, ProcessRunner unification, memory leak fixes.             |
+| **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
+| **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
+| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.             |
 | **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
@@ -34,7 +34,9 @@
 ---
 
 ## Phase 1 - Core Foundation ✅
+
 **Goal:** Working music library with local file playback and metadata reading.
+
 - ✅ Track model + `LibraryService` (SQLite-backed via `DatabaseService`)
 - ✅ TagLib# ID3 tag reading on import
 - ✅ LibVLC playback via `PlaybackService` (Fedora: symlinks in `/usr/lib`)
@@ -48,7 +50,9 @@
 ---
 
 ## Phase 2 - MVVM + UI Shell ✅
+
 **Goal:** Full MVVM wiring with sidebar, track list, detail panel, and mini player.
+
 - ✅ `MainViewModel` orchestrating all child ViewModels
 - ✅ `LibraryViewModel` - sort, filter, search, favorites, PlayTrackRequested event
 - ✅ `PlayerViewModel` - PlayTrack, PlayPause, Stop, PlayPauseIcon binding
@@ -61,7 +65,9 @@
 ---
 
 ## Phase 3 - Refactor / Split Views ✅
+
 **Goal:** Thin MainWindow shell; each panel is its own UserControl.
+
 - ✅ `MenuBarView.axaml` - extracted top menu bar (hidden by default, Alt-toggle)
 - ✅ `SidebarView.axaml` - nav, filters, sources, Discord-style profile bar at bottom
 - ✅ `TrackListView.axaml` - search bar, ListBox, ContextMenu, import progress
@@ -75,8 +81,10 @@
 ---
 
 ## Phase 4 - Advanced Logging ✅
+
 **Branch:** `feature/4-advanced-logging`
 **Goal:** Every action logged, every startup state visible, every error attributed to its source.
+
 - ✅ `NullWavePaths.cs` - single source of truth for all `~/.nullwave/*` paths
 - ✅ `NullActionLogger.cs` - static helper: `User()`, typed convenience methods, `Error()`, `StartupLine()`
 - ✅ `NullWaveLogConfig.cs` - three Serilog sinks: System, UserActions, Errors (channel-filtered)
@@ -94,8 +102,10 @@
 ---
 
 ## Phase 5 - UI Redesign ✅
+
 **Branch:** `feature/5-ui-redesign`
 **Goal:** Visual polish - proper color scheme, icon library, larger type, UI depth, Alt menu toggle, local profile bar.
+
 - ✅ `Themes/Colors.axaml` - dark navy/purple palette, all brushes defined
 - ✅ `Themes/Typography.axaml` - xs→3xl type scale, semantic aliases
 - ✅ `Themes/Shapes.axaml` - radii, spacing tokens, dimension constants
@@ -120,8 +130,10 @@
 ---
 
 ## Phase 6 - Now Playing Redesign 💡 (Deferred to v0.6.0)
+
 **Branch:** `feature/6-now-playing`
 **Goal:** Spotify-inspired Now Playing panel with album art and blur background.
+
 - ✅ YouTube thumbnail fetching via `img.youtube.com` (no API key required)
 - ✅ SoundCloud thumbnail fetching via yt-dlp
 - ✅ Startup backfill for existing tracks missing thumbnails
@@ -142,8 +154,10 @@
 ---
 
 ## Phase 7 - Custom Windows + Full Wiring 💡
+
 **Branch:** `feature/7-custom-windows`
 **Goal:** Custom About/Update windows, full backend wiring, code splitting.
+
 - ✅ `AboutWindow.axaml` - version, build date, GitHub link, license
 - ✅ `UpdateWindow.axaml` - GitHub Releases API check, current vs latest, download button
 - ✅ `SettingsWindow.axaml` - dedicated window with tabs: General, API Keys, Profile, Advanced
@@ -165,8 +179,10 @@
 ---
 
 ## Phase 8 - Smart Sorting & AI Integration ✅
+
 **Branch:** `feature/8-smart-sorting`
 **Goal:** Context-aware playlist generation using local weather and on-device AI.
+
 - ✅ `HardwareDetector` - reads `/proc/meminfo`, `nvidia-smi`, and `rocm-smi` to recommend optimal Ollama model
 - ✅ `LocalAIService` - Ollama HTTP API integration for mood-based track ranking
 - ✅ `WeatherService` - OpenWeather API integration with 1-hour caching
@@ -181,7 +197,9 @@
 ---
 
 ## Phase 9 - Stability, Feedback & Naming Audit 🔄
+
 **Goal:** Fix confirmed playback/data bugs, make every action give visible feedback, and replace vague descriptions with actual component names.
+
 - ✅ `LibraryService.ReimportAssets` - fixed substring false-positive matching.
 - ✅ `LibraryService.VerifyLinks` - new: cross-checks stored track titles against embedded file tags.
 - ✅ `NullWaveLogConfig` - Default vs Advanced/Verbose logging modes, live-switchable.
@@ -216,8 +234,10 @@
 ---
 
 ## Phase 10 - Customizable Navigation & Playlist System ✅
+
 **Branch:** `feature/nav-redesign-and-more`
 **Goal:** Replace the hardcoded sidebar with a data-driven, user-customizable nav system; consolidate Stats into the Profile Window; move Queue to a slide-in panel.
+
 - ✅ New `NavItem` model: type (`Core`/`PinnedPlaylist`/`SavedSearch`), display order, label, icon, target
 - ✅ `SidebarView` rewritten as data-driven `ItemsControl` bound to `ObservableCollection<NavItem>`
 - ✅ Core items (Library, Playlists) are reorderable but not hideable/removable
@@ -242,7 +262,9 @@
 ---
 
 ## Phase 11 - Queue/Shuffle Integration & Polish ✅
+
 **Goal:** Unify the manual Queue with the shuffle/repeat navigation system, and fix known interaction bugs.
+
 - ✅ `LibraryViewModel.AddToQueue` reads SelectedTrack instead of the CommandParameter passed from context menu
 - 📋 Window resizing behavior reported as "terrible" - needs a repro
 - ✅ Skip penalty tracking active
@@ -253,8 +275,10 @@
 ---
 
 ## Phase 12 - Navigation Redesign & Detail Polish ✅
+
 **Branch:** `feature/nav-redesign-and-more`
 **Goal:** Replace hardcoded sidebar with data-driven nav, consolidate stats, and polish track details.
+
 - ✅ `NavItem` model and data-driven `SidebarView`
 - ✅ Pill-based navigation (Playlists/Artists) with drag-and-drop reordering
 - ✅ `NavigationViewModel` with pinned playlist support
@@ -264,7 +288,9 @@
 ---
 
 ## Phase 13 - Plugin Architecture & Service Isolation ✅
+
 **Goal:** Make all external dependencies optional, disconnectable, and independently replaceable.
+
 - ✅ 13.1 Core Plugin System (`IPlugin`, `PluginManager`, `PluginState`)
 - ✅ 13.2 Extract Existing Services (`YtDlpDownloadProvider`, `LastFmMetadataProvider`, `OllamaAIProvider`, `OpenWeatherProvider`)
 - 📋 13.3 Process Isolation (Deprioritized)
@@ -273,7 +299,9 @@
 ---
 
 ## Phase 14 - Stability, Persistence & UI Polish ✅
+
 **Goal:** Fix critical playback bugs, persist AI playlists, and improve user feedback.
+
 - ✅ Queue auto-fill hybrid system (`QueueEntry` model with manual/auto distinction)
 - ✅ History-based "Previous" button to prevent track oscillation
 - ✅ Fixed crossfade queue desync bug
@@ -288,8 +316,10 @@
 ---
 
 ## Phase 15 - v0.5.0 "Blue Orchid" Final Polish ✅
+
 **Branch:** `feature/15-ui-polish`
 **Goal:** Final UI refinements, bug fixes, and cross-platform testing before release.
+
 - ✅ Sidebar drag & drop for playlist reordering and folder organization
 - ✅ Active playlist context (playback continues through playlist even after queue clear)
 - ✅ Instant sidebar refresh on playlist deletion (no reboot required)
@@ -307,7 +337,9 @@
 ---
 
 ## Phase 16 - v0.5.2 Quality of Life & Polish ✅
+
 **Goal:** Immediate UX improvements, better network handling, and user onboarding.
+
 - ✅ **Notification Rework:** Grouped toasts with action buttons (Cancel download, View error, Undo).
 - ✅ **Multi-select & Bulk Actions:** `SelectionMode.Multiple` (Ctrl/Shift) in track list with floating action bar.
 - ✅ **Proxy Support:** HTTP/SOCKS5 proxy routing for yt-dlp and metadata calls.
@@ -316,7 +348,9 @@
 ---
 
 ## Phase 17 - v0.6.0 "Oxeye Daisy" Major Features ✅
+
 **Goal:** The big feature drop for the next major version, focusing on media types, UI polish, and localization.
+
 - ✅ **Audiobook Mode:** Playback speed, resume-from-position, chapter navigation, and sleep timer.
 - ✅ **Light Theme & Oxeye Daisy:** Dark/Light/System modes with theme-aware accent mixing; new signature accent.
 - ✅ **Live Radio Page:** Dedicated library page, SomaFM catalog + mood picker, and ICY now-playing metadata.
@@ -336,7 +370,9 @@
 ---
 
 ## Phase 18 - v0.6.2 "Correctness" ✅
+
 **Goal:** Fix download concurrency, mood AI reliability, and unify tag vocabularies.
+
 - ✅ **DownloadService (C4)**: Fix stuck URLs, prevent `SemaphoreSlim` drift, fix playlist hang, add 20-min hard timeout.
 - ✅ **Mood Ranking (C5)**: Add explicit JSON output schema to Ollama prompt, pre-select candidates, cap `num_ctx`.
 - ✅ **Unified Tag Taxonomy (C6)**: Consolidate `WeatherMoodMap`, `ExternalAITagService`, and local AI prompts.
@@ -352,7 +388,9 @@
 ---
 
 ## Phase 19 - v0.6.3 "Responsiveness & First Run" ✅
+
 **Goal:** Eliminate UI thread blocking, optimize library hot-paths, and ensure a smooth clean-machine install.
+
 - ✅ **Hardware Detection (P1-P4)**: Move `DetectHardware` to background thread, enforce RAM limits, add AVX/AVX2 gate.
 - ✅ **Library Performance (P5, P6)**: Added SQLite FTS5 global search, disk thumbnail sidecars, in-flight decode deduplication.
 - ✅ **First-Run Friction (P7, P8)**: Added VLC location probing, cached tool-version checks, post-first-frame audio initialization.
@@ -360,8 +398,10 @@
 ---
 
 ## Phase 20 - v0.6.4 "Quick Wins" ✅
+
 **Branch:** `fix/ui-search-quick-wins`
 **Goal:** Small, visible, low-risk UI and search improvements that ship immediate value.
+
 - ✅ **1.1 Multi-word search AND logic**: `BuildFtsQuery` and `ApplySmartSearch` fallback both require all terms to match.
 - ✅ **1.2 Artist filter persistence**: Guard flag prevents `OnSearchQueryChanged` from clearing the artist filter.
 - ✅ **1.3 Valid sorts per view**: `SortFieldCatalog` ensures each page only offers valid sort options.
@@ -373,8 +413,10 @@
 ---
 
 ## Phase 21 - v0.6.4 "Data Safety" ✅
+
 **Branch:** `fix/data-safety`
 **Goal:** Protect user data with non-destructive merges, schema versioning, and safe backups.
+
 - ✅ **2.1 Playlist rename safety**: Blocked renames to existing names in UI; made `Deduplicate` merge tracks instead of deleting.
 - ✅ **2.2 Migration runner**: Introduced schema version via `user_version`; migrations run once in order.
 - ✅ **2.3 Safe manual backup**: Used `VACUUM INTO` for consistent backups; validated with integrity check.
@@ -386,8 +428,10 @@
 ---
 
 ## Phase 22 - v0.6.4 "Settings Foundation" ✅
+
 **Branch:** `feature/20-settings-foundation`
 **Goal:** Adding a setting becomes cheap; every setting can be wired the same way.
+
 - ✅ **One save path**: `Update(...)` is the only way to change a setting; removed all `ScheduleSave()` calls.
 - ✅ **Single "changed" signal**: `Changed` event tells subscribers which setting names changed.
 - ✅ **Preferences versioning**: Defined version 2; migrate on load with backup.
@@ -397,8 +441,10 @@
 ---
 
 ## Phase 23 - v0.6.4 "Code Cleanup & Standardization" ✅
+
 **Branch:** `fix/data-safety` (combined with Phase 21)
 **Goal:** Eliminate duplicate systems and standardize core utilities.
+
 - ✅ **D3+D4 Track Normalization**: Created unified `TrackNormalizer` class consolidating 6+ duplicate implementations.
 - ✅ **D9 Time Standardization**: Changed `LibraryService.RecordPlay` to use `DateTime.UtcNow`.
 - ✅ **D17 Shell Helper**: Created cross-platform `ShellHelper` with `OpenFolder`, `OpenFile`, `OpenUrl` methods.
@@ -408,8 +454,10 @@
 ---
 
 ## Phase 24 - v0.6.4 "Architecture & Performance Refactor" ✅
+
 **Branch:** `refactor/architecture-overhaul`
 **Goal:** Eliminate technical debt, enforce strict UTC rules, and optimize hot paths for large libraries.
+
 - ✅ **Folder Reorganization**: Moved files into logical subfolders (`Models/Library`, `Helpers/Imaging`, `ViewModels/Shell`, `Services/Database`).
 - ✅ **DatabaseService Split**: Split the 800+ line `DatabaseService` into 5 focused partial classes.
 - ✅ **O(1) Duplicate Detection**: `LibraryService` now uses an in-memory Identity Index for instant duplicate checks.
@@ -421,12 +469,19 @@
 - ✅ **UTC Enforcement**: Replaced all remaining `DateTime.Now` usages with `DateTime.UtcNow`.
 - ✅ **Last.fm Credential Reloading**: `LastFmService` now reloads credentials in-place when connecting/disconnecting.
 - ✅ **Sync & Dedupe Fixes**: Fixed dry-run mutations in `SyncOne`, and routed `RemoveDuplicates` through `Remove()`.
-
+- ✅ `RadioBrowserProvider`: DNS server discovery, per-server timeouts, http/https-only streams, URL dedupe.
+- ✅ Mini-player buffering indicator; ICY fallback no longer shows the station name as the song.
+- ✅ Badge catalog JSON with v2 signing, KeyId rotation support and expired-badge handling.
+- ✅ v9/v10 migrations (UTC LastPlayed) run synchronously in one transaction.
+- ✅ yt-dlp JS runtime auto-detection; silent duplicate clicks; playback-hijack guard; duplicate import guard with YouTube URL canonicalization; "- Topic" stripping on single imports.
 ---
 
+
 ## Phase 25 - v0.6.4 "Notifications" 📋
+
 **Branch:** `feature/20-notifications`
 **Goal:** Configurable, localized notifications with in-app and native OS support.
+
 - 📋 **Categories and preferences**: Global and per-category settings.
 - 📋 **Router in front of ToastService**: `NotificationService` decides which sinks to use.
 - 📋 **Native sink**: Windows and Linux native toasts with focus rule.
@@ -435,15 +490,19 @@
 ---
 
 ## Phase 26 - v0.6.4 "Factory Reset" 📋
+
 **Branch:** `feature/20-factory-reset`
 **Goal:** Safe wipe with three tiers (Settings, Library, Factory).
+
 - 📋 **Reset on next start**: Marker file; delete according to allowlist at very start of launch.
 - 📋 **Always take backup**: Unless user opts out.
 
 ---
 
 ## Phase 27 - v0.6.5 "Premium Look & Performance" 📋
+
 **Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
+
 - ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
 - 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, and virtualization audit remain open.
@@ -452,26 +511,38 @@
 ---
 
 ## Phase 28 - v0.6.6 "Launch Readiness" 📋
+
 **Goal:** Survive the first impression on Reddit.
+
 - 📋 **Documentation**: `/docs` folder (install, sources, Mood Mix, troubleshooting, architecture, privacy).
 - 📋 **Repo Hygiene**: Clean `.gitignore`, issue templates asking for diagnostics, `THIRD-PARTY-NOTICES`.
 - 📋 **Release Packaging**: Windows Setup/Portable (Velopack), Linux AppImage/Flatpak.
 - 📋 **Feature Freeze**: 1-2 weeks before launch, bug fixes only, clean-machine install verification.
+- 📋 Portable-build audio verification: local mp3/flac/m4a, https radio, first-try YouTube import on a clean data dir.
+- 📋 Matroska/WebM demuxer decision for the VLC prune whitelist (local .webm/.mka unsupported in release builds).
 
 ---
 
 ## Phase 29 - Post-Launch / Deferred Features 💡
+
 **Goal:** Highly requested features deferred to ensure a stable v0.6 launch.
+
 - 💡 **Synced Lyrics**: LRCLIB integration with playback-position line highlighting.
 - 💡 **Advanced Audio**: 10-band EQ (LibVLC) and ReplayGain/volume normalization.
 - 💡 **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
 - 💡 **More Sources**: Bandcamp import, M3U/M3U8 import and export.
 - 💡 **Export & Sharing**: Batch export/archiving, P2P/Torrent-like sharing, embedded tag sync.
+- 💡 YouTube Data API fallback to yt-dlp embedded metadata when the API returns BadRequest (kills "Unknown Title" imports).
+- 💡 Locked badges with progress bars and unlock toasts (persisted seen-set).
+- 💡 yt-dlp child-process kill watchdog on cancel (no leaked processes).
+- 💡 BadgeIssuer private key from env var or file instead of CLI argument.
 
 ---
 
 ## Phase 30 - v0.7.0 "Ecosystem" (Name TBD) 💡
+
 **Goal:** Deep OS integration, cross-device sync, and community features.
+
 - 💡 **OS Integration**: Media keys (MPRIS on Linux, SMTC on Windows), Discord Rich Presence, portable mode.
 - 💡 **macOS Build**: Test-only via friend's Mac + CI, replace Linux-specific code, map Ctrl to Cmd.
 - 💡 **Subsonic Server**: Opt-in, LAN-only, authenticated server for downloaded tracks.

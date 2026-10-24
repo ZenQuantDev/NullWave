@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -307,8 +307,23 @@ public class TrackInputViewModel : ViewModelBase
         };
         _lastFetchedThumbnail = null;
 
+        // Canonicalize YouTube URLs to prevent duplicates from tracking params like &pp=
+        if (!string.IsNullOrEmpty(newTrack.Url) && (newTrack.Url.Contains("youtube.com") || newTrack.Url.Contains("youtu.be")))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(newTrack.Url, @"(?:v=|\/)([0-9A-Za-z_-]{11})");
+            if (match.Success) newTrack.Url = $"https://www.youtube.com/watch?v={match.Groups[1].Value}";
+        }
+
+        if (_library.IsDuplicate(newTrack))
+        {
+            ToastService.Instance.Show("Track is already in your library.", ToastType.Info, durationMs: 3000);
+            ClearInputs();
+            IsUrlInputVisible = false;
+            return;
+        }
+
         _library.Add(newTrack);
-        NullActionLogger.TrackAdded(newTrack.Id.ToString(), url, nameof(TrackInputViewModel));
+        NullActionLogger.TrackAdded(newTrack.Id.ToString(), newTrack.Url, nameof(TrackInputViewModel));
 
         if (usedFallbackTitle)
         {
@@ -323,7 +338,7 @@ public class TrackInputViewModel : ViewModelBase
         {
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
-                    newTrack.Id.ToString(), url,
+                    newTrack.Id.ToString(), newTrack.Url,
                     _settings.AudioFormat, _settings.AudioQuality,
                     title: newTrack.Title, artist: newTrack.Artist)); 
         }

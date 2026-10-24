@@ -1,4 +1,4 @@
-﻿# 🎵 NullWave
+# 🎵 NullWave
 
 <p align="center">
   <img alt="NullWave — Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
@@ -35,6 +35,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - Library with search, sort, favorites, play tracking, and queue
 - **Multi-select bulk actions (Ctrl/Shift) with floating action bar**
 - Bulk folder import with subfolder support and duplicate detection
+- **Duplicate Import Guard**: YouTube tracking params (`&pp=`, `&si=`) are stripped on import; re-pasting an existing link shows an "already in your library" toast instead of downloading twice
 - Track detail panel with editable title, artist, notes, and tags
 - Playlist management and source filters (YouTube, Last.fm, SoundCloud, Local)
 
@@ -108,6 +109,7 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 - libVLC - `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
 - yt-dlp - `pip install yt-dlp`
 - FFmpeg (Optional, required only for audio transcoding/embedding metadata)
+- A JavaScript runtime (Node.js, Deno or Bun) on PATH - yt-dlp needs one to solve YouTube's signature challenges
 
 **Windows note:** Requires .NET 8 SDK (or .NET 10 with `<RollForward>Major</RollForward>` in csproj). LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
 
