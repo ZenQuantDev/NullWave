@@ -1,0 +1,85 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace NullWave.Models;
+
+public class Preferences
+{
+    public int Version { get; set; } = 2;
+    public string AudioQuality { get; set; } = "best";
+    public string AudioFormat { get; set; } = "mp3";
+    public string DownloadDirectory { get; set; } = string.Empty;
+    public string YtDlpProxy { get; set; } = string.Empty;
+    public string YtDlpGeoProxy { get; set; } = string.Empty;
+    public string YtDlpBrowserCookies { get; set; } = string.Empty;
+    public bool AutoFetchMetadata { get; set; } = true;
+    public bool AutoPlayNext { get; set; } = true;
+    public bool DownloadOnAdd { get; set; } = true;
+    public bool ScrobbleToLastFm { get; set; } = true;
+    public bool AutoCleanMetadata { get; set; } = true;
+    public bool PreventDuplicateDownloads { get; set; } = true;
+    public string AccentColor    { get; set; } = "Oxeye Daisy";
+    public string TrackRowStyle  { get; set; } = "Comfortable";
+    public string FontScale      { get; set; } = "Medium";
+    public bool   CompactMode    { get; set; } = false;
+    public string SidebarWidth   { get; set; } = "Normal";
+    public string ProfileFrameStyle { get; set; } = "None";
+    public string SelectedAIModel { get; set; } = "qwen2.5:7b";
+    public bool   UseLocalAI      { get; set; } = true;
+    public double Latitude        { get; set; } = 0.0;
+    public double Longitude       { get; set; } = 0.0;
+    public bool   AutoGenerateMoodPlaylist { get; set; } = false;
+    public string MoodRefreshInterval      { get; set; } = "Never";
+    public string AIConfidenceThreshold    { get; set; } = "70%";
+    public string ExternalAIExportFormat { get; set; } = "txt";
+    public float ScrobbleThreshold { get; set; } = 0.50f;
+    public int SkipPenaltyWindowSeconds { get; set; } = 15;
+    public int SkipPenaltyCap { get; set; } = 3;
+    public int MaxConcurrentDownloads { get; set; } = 2;
+    public string BatteryModel { get; set; } = "qwen2.5:3b";
+    public string PerformanceModel { get; set; } = "qwen2.5:7b";
+    public bool AutoPowerModelSwitch { get; set; } = false;
+    public bool AIFeaturesEnabled { get; set; } = true;
+    public bool FadeOnPauseEnabled { get; set; } = true;
+    public int FadeOnPauseDurationMs { get; set; } = 300;
+    public bool CrossfadeEnabled { get; set; } = false;
+    public int CrossfadeDurationSeconds { get; set; } = 5;
+    public bool UseAria2c { get; set; } = false;
+    public bool VerboseLogging { get; set; } = false;
+    public bool EnableYtDlp { get; set; } = true;
+    public bool EnableOllama { get; set; } = true;
+    public bool EnableOpenWeather { get; set; } = true;
+    public bool EnableLastFm { get; set; } = true;
+    public bool EnableSoundCloud { get; set; } = true;
+    public List<PluginConfig> PluginConfigs { get; set; } = new();
+    public List<string> NavOrder { get; set; } = new();
+    public List<PinnedItemData> PinnedItems { get; set; } = new();
+    public bool AutoSuggestPinEnabled { get; set; } = true;
+    public int QueueAutoFillSize { get; set; } = 20;
+    public bool QueueManualInsertAtBlockEnd { get; set; } = true;
+    public bool SidebarCollapsed { get; set; } = false;
+    public string LastPage { get; set; } = "Library";
+    public bool HasCompletedOnboarding { get; set; } = false;
+    public bool SettingsSidebarCollapsed { get; set; } = false;
+    public string Language { get; set; } = "en-US";
+    public string ProfileBannerColor { get; set; } = "accent";
+    public bool EnableTrackSharing { get; set; } = false;
+    public bool EnableAutoBackups { get; set; } = true;
+    public int BackupRetentionCount { get; set; } = 3;
+    public bool AutoResumeAudiobooks { get; set; } = true;
+    public float AudiobookPlaybackRate { get; set; } = 1.0f;
+    public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "TrueBlack", "System"
+    public string LastSeenVersion { get; set; } = string.Empty;
+    public bool AutoEffectsTier { get; set; } = true;
+    public string EffectsTier { get; set; } = "Standard"; // Parsed as EffectsTier enum at runtime
+    public string ComposeMode { get; set; } = "lowlatency";
+    public string WallpaperStyle { get; set; } = "None";
+    public string WallpaperPath { get; set; } = string.Empty;
+    public int WallpaperOpacity { get; set; } = 40;   // percent
+    public int WallpaperBlur { get; set; } = 0;
+    public string WallpaperFit { get; set; } = "Fill"; // Fill | Fit | Stretch
+    public string WallpaperSceneId { get; set; } = "aurora";
+    public string WallpaperBuiltInId { get; set; } = string.Empty;
+    public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
+    public bool EnableExperimentalFeatures { get; set; } = false;
+}

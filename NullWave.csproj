@@ -6,11 +6,10 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    
     <!-- Strip all localized NuGet resources except English and Russian -->
     <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
-    
-    <Version>0.6.3</Version>
+
+    <Version>0.6.4</Version>
     <Company>ZenQuant</Company>
     <Product>NullWave</Product>
   </PropertyGroup>
@@ -21,10 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests/**" />
+    <Compile Remove="tools/**" />
     <InternalsVisibleTo Include="NullWave.Tests" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CHANGELOG.md" />
+    <EmbeddedResource Include="Assets\Badges\badges.catalog.json" />
   </ItemGroup>
     <!-- NuGet packages -->
   <ItemGroup>
@@ -49,5 +50,7 @@
     <PackageReference Include="SQLitePCLRaw.bundle_green" />
     <PackageReference Include="TagLibSharp" />
     <PackageReference Include="Velopack" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
 </Project>

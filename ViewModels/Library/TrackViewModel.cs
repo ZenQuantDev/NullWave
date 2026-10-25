@@ -15,7 +15,7 @@ public class TrackViewModel : ViewModelBase
     public string Title => Track.Title;
     public string Artist => Track.Artist;
     public string Source => Track.Source.ToString();
-    public string DateAdded => Track.DateAdded.ToString("MMM dd, yyyy");
+    public string DateAdded => Track.DateAdded.ToString("dd MMM yyyy");
     public string? Url => Track.Url;
 
     public string DisplayLabel => string.IsNullOrWhiteSpace(Track.Artist)

@@ -26,7 +26,7 @@ public class TrackDetailViewModel : ViewModelBase
 {
     private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
 
-    // Per-artist memoization. Kills the 7-12× repeat log storms when you click
+    // Per-artist memoization. Kills the 7-12? repeat log storms when you click
     // multiple tracks by the same artist in sequence, and prevents re-downloading
     // the Last.fm default placeholder avatar (the "no artist image" image).
     private static readonly ConcurrentDictionary<string, LastFmArtistInfo?> ArtistInfoCache = new();
@@ -155,8 +155,8 @@ public class TrackDetailViewModel : ViewModelBase
         MediaType.Audiobook => "Audiobook",
         _ => _currentTrack?.Source.ToString() ?? "-"
     };
-    public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("MMMM dd, yyyy") ?? "-";
-    public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
+    public string DisplayDateAdded => _currentTrack?.DateAdded.ToString("dd MMM yyyy") ?? "-";
+    public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
     public string DisplayDuration => _currentTrack?.DisplayDuration ?? "-";
 
@@ -177,7 +177,7 @@ public class TrackDetailViewModel : ViewModelBase
         }
     }
 
-    public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("MMMM dd, yyyy HH:mm") ?? "Never";
+    public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
     
     public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
@@ -372,7 +372,7 @@ public class TrackDetailViewModel : ViewModelBase
             _currentTrack.FilePath = result.Path;
             await _library.RefreshAlbumArtAsync(_currentTrack); 
             changes += $"FilePath relinked to \"{result.Path}\"";
-            Log.Information("Track relinked to local file: {Title} → {Path}", _currentTrack.Title, result.Path);
+            Log.Information("Track relinked to local file: {Title} > {Path}", _currentTrack.Title, result.Path);
         }
 
         if (result.Url != null)
@@ -380,7 +380,7 @@ public class TrackDetailViewModel : ViewModelBase
             _currentTrack.Url = result.Url;
             if (changes.Length > 0) changes += ", ";
             changes += $"Url relinked to \"{result.Url}\"";
-            Log.Information("Track relinked to URL: {Title} → {Url}", _currentTrack.Title, result.Url);
+            Log.Information("Track relinked to URL: {Title} > {Url}", _currentTrack.Title, result.Url);
         }
 
         _library.Update(_currentTrack);
@@ -393,10 +393,18 @@ public class TrackDetailViewModel : ViewModelBase
 
     private async Task LoadArtistInfoAsync(Track track)
     {
+        // Radio tracks use genre as "artist" — no Last.fm lookup makes sense.
+        if (track.MediaType == MediaType.Radio)
+        {
+            ArtistImagePath = track.AlbumArtPath;
+            IsLoadingArtistInfo = false;
+            return;
+        }
+
         var trackId = track.Id;
         IsLoadingArtistInfo = true;
 
-        var primaryArtist = LibraryService.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
+        var primaryArtist = NullWave.Helpers.TrackNormalizer.SplitArtistCredits(track.Artist).FirstOrDefault() ?? track.Artist ?? "Unknown";
 
         // Memoize: skip the Last.fm round-trip entirely for artists we've already resolved.
         LastFmArtistInfo? info = null;
@@ -427,10 +435,10 @@ public class TrackDetailViewModel : ViewModelBase
         }
         else
         {
-            var normalizedTarget = LibraryService.NormalizeArtistKey(primaryArtist);
+            var normalizedTarget = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(primaryArtist);
             LibraryArtistTrackCount = _library.GetAll()
-                .Count(t => LibraryService.SplitArtistCredits(t.Artist)
-                    .Any(name => LibraryService.NormalizeArtistKey(name) == normalizedTarget));
+                .Count(t => NullWave.Helpers.TrackNormalizer.SplitArtistCredits(t.Artist)
+                    .Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedTarget));
         }
 
         ResolveArtistImageAsync(info, primaryArtist, track, trackId);
@@ -440,6 +448,12 @@ public class TrackDetailViewModel : ViewModelBase
 
     private void ResolveArtistImageAsync(LastFmArtistInfo? info, string primaryArtist, Track track, Guid trackId)
     {
+        if (track.MediaType == MediaType.Radio)
+        {
+            ArtistImagePath = track.AlbumArtPath;
+            return;
+        }
+
         // Memoize: if we already know the path (or know there isn't one), apply immediately.
         if (ArtistImagePathCache.TryGetValue(primaryArtist, out var cachedPath))
         {
@@ -453,7 +467,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (isPlaceholder)
         {
             // Last.fm returns this hash for artists with no photo. Log at Debug only
-            // and fall back to album art — do NOT re-download the placeholder.
+            // and fall back to album art � do NOT re-download the placeholder.
             Log.Debug("[TrackDetailViewModel] Artist image for {Artist}: placeholder/none - using album art", primaryArtist);
             ArtistImagePathCache[primaryArtist] = null;
             ArtistImagePath = track.AlbumArtPath;

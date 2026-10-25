@@ -16,6 +16,7 @@ public class SortFieldDisplayConverter : IValueConverter
             SortField.DateAdded  => L["Sort_DateAdded"],
             SortField.PlayCount  => L["Sort_PlayCount"],
             SortField.LastPlayed => L["Sort_LastPlayed"],
+            SortField.Length     => L["Sort_Length"],
             SortField.Title      => L["Sort_Title"],
             SortField.Artist     => L["Sort_Artist"],
             SortField.Source     => L["Sort_Source"],

@@ -34,8 +34,7 @@ public partial class ProfileWindow : Window
 
         try
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            var text = await ClipboardTextReader.TryGetTextAsync(clipboard);
+            var text = await ClipboardHelper.GetTextAsync();
             if (string.IsNullOrWhiteSpace(text)) return;
             
             if (ShareLink.TryParseTrack(text, out _, out _)) return;
@@ -170,6 +169,7 @@ public partial class ProfileWindow : Window
     private async void OnBadgeDrop(object? sender, DragEventArgs e)
     {
         if (DataContext is not UserProfileViewModel vm) return;
+        e.Handled = true;
         var files = e.DataTransfer.TryGetFiles();
         if (files == null) return;
 

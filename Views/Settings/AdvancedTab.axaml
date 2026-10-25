@@ -131,6 +131,24 @@
                 </StackPanel>
             </Border>
 
+            <!-- EXPERIMENTAL FEATURES -->
+            <TextBlock Classes="section-label" Text="EXPERIMENTAL FEATURES" Foreground="{StaticResource BrushAmber}" Margin="0,16,0,12"/>
+            <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="🧪 Enable preview features that are still under active development. These features may change, exhibit visual glitches, or undergo performance tuning." 
+                               Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Enable Experimental Features" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Unlocks the In-App Log Viewer, P2P Track Sharing, and other in-development tools." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableExperimentalFeatures, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+
             <!-- DANGER ZONE -->
             <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Danger}" Foreground="{StaticResource BrushRed}" Margin="0,0,0,12"/>
             <Border Classes="settings-card" BorderBrush="{StaticResource BrushRed}">

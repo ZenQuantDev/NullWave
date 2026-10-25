@@ -64,7 +64,7 @@ public class MoodPlaylistService
                 };
             }
 
-            var hour = DateTime.Now.Hour;
+            var hour = DateTime.UtcNow.ToLocalTime().Hour;
             var moodTags = WeatherMoodMap.GetMoodTags(weather.Condition, weather.TemperatureC, hour);
             var moodLabel = string.Join("/", moodTags);
 

@@ -88,6 +88,11 @@ public partial class OnboardingWindow : Window
         IsFedora                    ? "sudo dnf install -y aria2" :
                                       "sudo <pkg-mgr> install aria2";
 
+    public string JsRuntimeInstallCmd =>
+    OperatingSystem.IsWindows() ? "winget install --id OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements" :
+    IsFedora                    ? "sudo dnf install -y nodejs" :
+                                  "sudo <pkg-mgr> install nodejs";
+
     public OnboardingWindow()
     {
         InitializeComponent();

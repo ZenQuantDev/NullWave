@@ -150,7 +150,7 @@ public class WallpaperSceneServiceTests : IDisposable
             Assert.True(WallpaperService.Instance.ShowScene);
             Assert.False(WallpaperService.Instance.ShowImage);
         }
-        finally { File.Delete(path); }
+        finally { try { File.Delete(path); } catch (IOException) { } }
     }
 
     [Fact]

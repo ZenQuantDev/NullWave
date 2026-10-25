@@ -53,10 +53,9 @@
         <KeyBinding Gesture="Ctrl+E" Command="{Binding CopyShareStringCommand}"/>
     </Window.KeyBindings>
 
-    <Panel DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
+    <Panel>
         <controls:WallpaperLayer/>
         <Border Classes="wallpaper-scrim"/>
-        <!-- Editor pane stays opaque: focused editing surface over the wallpaper. -->
         <SplitView IsPaneOpen="{Binding IsEditorOpen, Mode=TwoWay}"
                    DisplayMode="Overlay"
                    OpenPaneLength="320"
@@ -250,8 +249,6 @@
             </SplitView.Pane>
 
             <Grid ColumnDefinitions="360,*">
-                 <!-- OPAQUE BY DESIGN: this Border is the RenderTargetBitmap export surface for
-                     profile cards (ExportProfileCard). Translucency here would export as garbage. -->
                  <Border Grid.Column="0" x:Name="ProfileCard" Background="{StaticResource BrushBase}" Padding="20"
                         DragDrop.AllowDrop="True" DragDrop.Drop="OnBadgeDrop">
                     <Border Classes="settings-card" Margin="0" Padding="0" ClipToBounds="True">
@@ -275,7 +272,7 @@
                                     <MenuFlyout>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Edit}" Command="{Binding OpenEditorCommand}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Export}" Click="OnExportProfileClicked"/>
-                                        <MenuItem Header="Copy Share String" Command="{Binding CopyShareStringCommand}"/>
+                                        <MenuItem Header="Copy Share String" Command="{Binding CopyShareStringCommand}" IsVisible="{Binding IsExperimentalModeActive}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_ResetAvatar}" Command="{Binding ResetAvatarCommand}" IsVisible="{Binding HasAvatar}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Save}" Command="{Binding ManualSaveCommand}"/>
                                     </MenuFlyout>
@@ -372,12 +369,14 @@
                                     <TextBlock Text="{Binding MemberSince}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
 
-                                <!-- QR / share footer. FIX: now flows INSIDE the identity stack
-                                     (was Bottom-aligned in the Grid, which overlapped the stat
-                                     chips whenever the card height was constrained). -->
+                                <!-- GATED: QR / share footer (Experimental) -->
                                 <StackPanel Spacing="10" Margin="0,16,0,4"
-                                            IsVisible="{Binding TrackSharingEnabled}">
+                                            IsVisible="{Binding IsExperimentalModeActive}">
                                     <Border Height="1" Background="{StaticResource BrushBorder}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+                                        <material:MaterialIcon Kind="Flask" Width="14" Height="14" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="EXPERIMENTAL" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                                         <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="6"
                                                 HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -410,7 +409,6 @@
                     </Border>
                 </Border>
 
-                <!-- Right tab column: heavy-tier chrome so the wallpaper surrounds the stats. -->
                 <Border Grid.Column="1" Classes="chrome-heavy" Padding="0,20,20,20">
                     <TabControl Background="Transparent" BorderThickness="0">
                         <TabItem Header="{loc:Loc Profile_Tab_Board}">
@@ -675,7 +673,7 @@
                                             <TextBlock Text="{loc:Loc Profile_Section_Account}" Classes="section-label" Margin="0"/>
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_DataLocation}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
-                                                <TextBlock Grid.Column="1" Text="~/.nullwave/" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding DataDirDisplay}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
                                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                                 <TextBlock Grid.Column="0" Text="{loc:Loc Profile_Account_Uuid}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
@@ -690,9 +688,25 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Classes="settings-card">
+                                    <!-- GATED: Profile Sharing (Experimental) -->
+                                    <Border Classes="settings-card" IsVisible="{Binding IsExperimentalModeActive}">
                                         <StackPanel Spacing="10">
-                                            <TextBlock Text="{loc:Loc Profile_Section_Sharing}" Classes="section-label" Margin="0"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
+                                                <TextBlock Text="{loc:Loc Profile_Section_Sharing}" Classes="section-label" Margin="0" VerticalAlignment="Center"/>
+                                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <material:MaterialIcon Kind="Flask" Width="12" Height="12" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="EXPERIMENTAL" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <Border Classes="settings-banner" Margin="0">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{StaticResource BrushAmberDark}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="P2P profile sharing uses the nullwave:// protocol. Cross-device import is still being tested." 
+                                                               Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
                                                     <TextBlock Text="{loc:Loc Profile_Sharing_Toggle}" Foreground="{StaticResource BrushTextPrimary}"
@@ -705,8 +719,8 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Connect / import a friend's share string -->
-                                    <Border Classes="settings-card" IsVisible="{Binding TrackSharingEnabled}">
+                                    <!-- GATED: Connect with a friend (Experimental) -->
+                                    <Border Classes="settings-card" IsVisible="{Binding IsExperimentalModeActive}">
                                         <StackPanel Spacing="10">
                                             <TextBlock Text="Connect With A Code" Classes="section-label" Margin="0"/>
                                             <TextBlock Text="Paste a friend's NullWave share string (nullwave://p/... or NW1....) to load their taste profile and see your overlap."

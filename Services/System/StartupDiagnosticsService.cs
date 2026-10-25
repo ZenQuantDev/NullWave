@@ -1,11 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
+using NullWave.Models;
 using NullWave.Services.Security;
 
 namespace NullWave.Services;
@@ -61,7 +63,7 @@ public class StartupDiagnosticsService
 
         //  2. Library load
         var sw = Stopwatch.StartNew();
-        var allTracks = _library.GetAll();
+        var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToList();
         sw.Stop();
 
         var dbPath = NullWavePaths.DatabasePath;
@@ -90,7 +92,23 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine($"{"VLC",-20}→ {await GetVlcVersionAsync() ?? "not found"}");
         NullActionLogger.StartupLine($"{"yt-dlp",-20}→ {await ToolVersionProbe.GetVersionAsync("yt-dlp") ?? "not found"}");
 
+        var ffmpegExists = await ProcessRunner.CheckExistsAsync("ffmpeg", new[] { "-version" }, 2000);
+        NullActionLogger.StartupLine($"{"ffmpeg",-20}→ {(ffmpegExists ? "installed" : "not found")}");
+        NullActionLogger.StartupLine($"{"JS Runtime",-20}→ {GetJsRuntimeName()}");
+
         NullActionLogger.StartupLine(sep);
+    }
+
+    private static string GetJsRuntimeName()
+    {
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        string? OnPath(string name) {
+            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
+            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return name; } catch { }
+            return null;
+        }
+        return OnPath("deno") ?? OnPath("node") ?? OnPath("bun") ?? "not found";
     }
 
     private static async Task<string?> GetVlcVersionAsync()

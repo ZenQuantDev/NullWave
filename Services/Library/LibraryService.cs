@@ -18,7 +18,7 @@ public record DuplicateGroup(string Title, string Artist, List<Track> Tracks);
 public record ArtistMergeGroup(string CanonicalName, List<string> Variants, int TotalTracks);
 public record FileSyncReport(int Scanned, int Retagged, int Renamed, int Skipped, int Failed);
 
-public enum SortField { Title, Artist, DateAdded, Source, PlayCount, LastPlayed }
+// REMOVED: public enum SortField { ... } (Now lives in Models/Library/SortField.cs)
 
 public partial class LibraryService : IDisposable
 {
@@ -30,10 +30,16 @@ public partial class LibraryService : IDisposable
     private readonly List<QueueEntry> _queue = new();
     private readonly List<Track> _history = new();
 
+    // --- Step A: O(1) Duplicate Detection Index ---
+    private readonly Dictionary<string, Guid> _identityIndex = new();
+    private int _identityIndexVersion = -1;
+
     private System.Threading.Timer? _changeTimer;
     private int _changePending;
 
     public event EventHandler? LibraryChanged;
+    public event EventHandler<Guid>? TrackRemovedFromLibrary;
+    public void BackupDatabase(string path) => _db.BackupToPath(path);
     public event EventHandler? QueueChanged;
     public int StateVersion { get; private set; } = 0;
 
@@ -81,6 +87,27 @@ public partial class LibraryService : IDisposable
         });
     }
 
+    // --- Index Helpers ---
+    private void EnsureIdentityIndex()
+    {
+        if (_identityIndexVersion == StateVersion) return;
+        _identityIndex.Clear();
+        foreach (var t in _tracks)
+            foreach (var k in GetIdentityKeys(t)) _identityIndex.TryAdd(k, t.Id);
+        _identityIndexVersion = StateVersion;
+    }
+
+    private static IEnumerable<string> GetIdentityKeys(Track t)
+    {
+        if (!string.IsNullOrWhiteSpace(t.Url)) yield return $"url:{t.Url.ToLowerInvariant()}";
+        if (!string.IsNullOrWhiteSpace(t.FilePath)) yield return $"path:{t.FilePath.ToLowerInvariant()}";
+        
+        var normTitle = TrackNormalizer.NormalizeForCompare(t.Title);
+        var normArtist = TrackNormalizer.NormalizeForCompare(t.Artist);
+        if (normTitle.Length > 0 && normArtist.Length > 0) 
+            yield return $"ta:{normArtist}|{normTitle}";
+    }
+
     public IReadOnlyList<Track> GetAll()
     {
         lock (_tracksLock) return _tracks.ToList().AsReadOnly();
@@ -118,7 +145,22 @@ public partial class LibraryService : IDisposable
             track.FilePath = fullPath;
         }
 
-        if (IsDuplicate(track)) return;
+        // Step A: O(1) Duplicate Check & Index Update
+        lock (_tracksLock) 
+        {
+            EnsureIdentityIndex();
+            if (GetIdentityKeys(track).Any(k => _identityIndex.TryGetValue(k, out var existingId) && existingId != track.Id)) 
+                return; // Duplicate found, abort add
+
+            _tracks.Add(track);
+            foreach (var k in GetIdentityKeys(track)) _identityIndex.TryAdd(k, track.Id);
+            StateVersion++;
+            _identityIndexVersion = StateVersion;
+        }
+        
+        _db.Insert(track);
+        OnLibraryChanged();
+        UpdateFileTags(track);
 
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
         {
@@ -142,33 +184,40 @@ public partial class LibraryService : IDisposable
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
-            var titleToParse = CleanYouTubeArtifacts(track.Title, isArtist: false);
-            var parsed = TrackTitleParser.TryParseArtistTitle(titleToParse);
-            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Artist) && !string.IsNullOrWhiteSpace(parsed.Value.Title))
+            var split = TrackNormalizer.TrySplit(track.Title);
+            if (split != null && !string.IsNullOrWhiteSpace(split.Value.Artist) && !string.IsNullOrWhiteSpace(split.Value.Title))
             {
-                if (track.Artist == "Unknown" || track.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(track.Artist))
-                    track.Artist = parsed.Value.Artist;
-                if (track.Title == track.Url || track.Title == "Unknown Title" || string.IsNullOrWhiteSpace(track.Title))
-                    track.Title = parsed.Value.Title;
+                if (TrackNormalizer.IsPlaceholderArtist(track.Artist))
+                    track.Artist = split.Value.Artist;
+                if (TrackNormalizer.IsPlaceholderTitle(track.Title))
+                    track.Title = split.Value.Title;
+                
+                Update(track); // Persist cleaned metadata
             }
         }
-
-        lock (_tracksLock) _tracks.Add(track);
-        _db.Insert(track);
-        StateVersion++;
-        OnLibraryChanged();
-        UpdateFileTags(track);
     }
 
     public void Remove(Guid id)
     {
         Track? track;
-        lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
-        if (track == null) return;
-        lock (_tracksLock) _tracks.Remove(track);
+        lock (_tracksLock) 
+        {
+            track = _tracks.FirstOrDefault(t => t.Id == id);
+            if (track == null) return;
+            
+            _tracks.Remove(track);
+            // Clean index
+            foreach (var k in GetIdentityKeys(track)) _identityIndex.Remove(k);
+            StateVersion++;
+            _identityIndexVersion = StateVersion;
+        }
+        
+        var queueEntry = _queue.FirstOrDefault(e => e.Track.Id == id);
+        if (queueEntry != null) { _queue.Remove(queueEntry); QueueChanged?.Invoke(this, EventArgs.Empty); }
+        
         _db.Delete(id);
-        StateVersion++;
         OnLibraryChanged();
+        TrackRemovedFromLibrary?.Invoke(this, id);
     }
 
     public void Update(Track track)
@@ -179,8 +228,11 @@ public partial class LibraryService : IDisposable
         {
             var idx = _tracks.FindIndex(t => t.Id == track.Id);
             if (idx >= 0) _tracks[idx] = track;
+            
+            // Invalidate index so it rebuilds on next check (safest for metadata edits)
+            StateVersion++;
+            _identityIndexVersion = -1; 
         }
-        StateVersion++;
         OnLibraryChanged();
     }
 
@@ -194,8 +246,34 @@ public partial class LibraryService : IDisposable
                 var idx = _tracks.FindIndex(t => t.Id == track.Id);
                 if (idx >= 0) _tracks[idx] = track;
                 StateVersion++;
+                _identityIndexVersion = -1;
             }
         });
+    }
+
+    // --- Step B: Unified Sort Logic ---
+    private static IReadOnlyList<Track> SortTracks(IEnumerable<Track> source, SortField field, bool ascending)
+    {
+        if (field == SortField.Length)
+        {
+            var known = source.Where(t => t.Duration > TimeSpan.Zero).ToList();
+            var zero = source.Where(t => t.Duration <= TimeSpan.Zero);
+            var ordered = ascending ? known.OrderBy(t => t.Duration) : known.OrderByDescending(t => t.Duration);
+            return ordered.ThenBy(t => t.Title, StringComparer.OrdinalIgnoreCase).Concat(zero).ToList();
+        }
+
+        Func<Track, object?> key = field switch
+        {
+            SortField.Title => t => t.Title,
+            SortField.Artist => t => t.Artist,
+            SortField.Source => t => t.Source,
+            SortField.PlayCount => t => t.PlayCount,
+            SortField.LastPlayed => t => t.LastPlayed,
+            _ => t => t.DateAdded // DateAdded, Custom fallback
+        };
+        
+        var sorted = ascending ? source.OrderBy(key) : source.OrderByDescending(key);
+        return sorted.ThenBy(t => t.Title, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public IReadOnlyList<Track> Search(string query, SortField field = SortField.DateAdded, bool ascending = true)
@@ -204,14 +282,7 @@ public partial class LibraryService : IDisposable
         List<Track> snapshot;
         lock (_tracksLock) snapshot = _tracks.ToList();
         var results = snapshot.Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Artist.Contains(query, StringComparison.OrdinalIgnoreCase));
-        IEnumerable<Track> sorted = field switch
-        {
-            SortField.Title => results.OrderBy(t => t.Title), SortField.Artist => results.OrderBy(t => t.Artist),
-            SortField.DateAdded => results.OrderBy(t => t.DateAdded), SortField.Source => results.OrderBy(t => t.Source),
-            SortField.PlayCount => results.OrderBy(t => t.PlayCount), SortField.LastPlayed => results.OrderBy(t => t.LastPlayed),
-            _ => results
-        };
-        return (ascending ? sorted : sorted.Reverse()).ToList();
+        return SortTracks(results, field, ascending);
     }
 
     public HashSet<Guid>? SearchFts(string query) => _db.SearchFts(query);
@@ -225,15 +296,8 @@ public partial class LibraryService : IDisposable
 
     public IReadOnlyList<Track> GetSorted(SortField field, bool ascending = true)
     {
-        var snapshot = GetAll().ToList();
-        IEnumerable<Track> sorted = field switch
-        {
-            SortField.Title => snapshot.OrderBy(t => t.Title), SortField.Artist => snapshot.OrderBy(t => t.Artist),
-            SortField.DateAdded => snapshot.OrderBy(t => t.DateAdded), SortField.Source => snapshot.OrderBy(t => t.Source),
-            SortField.PlayCount => snapshot.OrderBy(t => t.PlayCount), SortField.LastPlayed => snapshot.OrderBy(t => t.LastPlayed),
-            _ => snapshot
-        };
-        return (ascending ? sorted : sorted.Reverse()).ToList();
+        var snapshot = GetAll();
+        return SortTracks(snapshot, field, ascending);
     }
 
     public void ToggleFavorite(Guid id)
@@ -252,7 +316,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.PlayCount++;
-        track.LastPlayed = DateTime.Now;
+        track.LastPlayed = DateTime.UtcNow; 
         _db.UpdateAsync(track);
         StateVersion++;
         _history.Add(track);
@@ -262,11 +326,11 @@ public partial class LibraryService : IDisposable
 
     public bool IsDuplicate(Track newTrack)
     {
-        lock (_tracksLock) return _tracks.Any(t =>
-            (!string.IsNullOrWhiteSpace(newTrack.Url) && string.Equals(t.Url, newTrack.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(newTrack.FilePath) && string.Equals(t.FilePath, newTrack.FilePath, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(newTrack.Title) && !string.IsNullOrWhiteSpace(newTrack.Artist) &&
-             string.Equals(t.Title, newTrack.Title, StringComparison.OrdinalIgnoreCase) && string.Equals(t.Artist, newTrack.Artist, StringComparison.OrdinalIgnoreCase)));
+        lock (_tracksLock)
+        {
+            EnsureIdentityIndex();
+            return GetIdentityKeys(newTrack).Any(k => _identityIndex.TryGetValue(k, out var id) && id != newTrack.Id);
+        }
     }
 
     public IReadOnlyList<QueueEntry> GetQueue() => _queue.AsReadOnly();

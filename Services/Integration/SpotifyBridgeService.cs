@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -19,15 +18,17 @@ public class SpotifyBridgeResult
 
 public class SpotifyBridgeService
 {
-    private readonly HttpClient    _http;
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly ConfigService _config;
+
+    static SpotifyBridgeService()
+    {
+        _http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    }
 
     public SpotifyBridgeService(ConfigService config)
     {
         _config = config;
-        _http   = new HttpClient();
-        _http.Timeout = TimeSpan.FromSeconds(15);
-        _http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     }
 
     public async Task<SpotifyBridgeResult> BridgeAsync(string spotifyUrl)
@@ -60,7 +61,6 @@ public class SpotifyBridgeService
             var html = await _http.GetStringAsync(cleanUrl);
             var page = SpotifyPageParser.Parse(html);
 
-            // FIX: Guard against Album/Playlist links until collection support is added
             if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
             {
                 Log.Warning("[SpotifyBridge] {Kind} links are not supported yet: {Url}", page.Kind, spotifyUrl);
@@ -119,26 +119,15 @@ public class SpotifyBridgeService
         try
         {
             var query = $"ytsearch1:{title} {artist} official audio";
-            var psi   = new ProcessStartInfo(PlatformHelper.ResolveExecutable("yt-dlp"))
-            {
-                ArgumentList = { "--no-download", "--print", "id", "--print", "title", query },
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
-            };
+            var result = await ProcessRunner.RunAsync(
+                "yt-dlp", 
+                new[] { "--no-download", "--print", "id", "--print", "title", query },
+                timeout: TimeSpan.FromSeconds(15),
+                resolveViaPath: true);
 
-            using var proc = Process.Start(psi);
-            if (proc == null) return (string.Empty, string.Empty);
+            if (result.ExitCode != 0) return (string.Empty, string.Empty);
 
-            // FIX: Read stderr asynchronously to prevent deadlocks
-            var outputTask = proc.StandardOutput.ReadToEndAsync();
-            var errorTask = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-
-            var output = await outputTask;
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
+            var lines = result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (lines.Length >= 2)
                 return ($"https://www.youtube.com/watch?v={lines[0]}", lines[1]);
 

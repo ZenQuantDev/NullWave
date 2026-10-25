@@ -11,6 +11,7 @@ using Avalonia.VisualTree;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels;
+using NullWave.Helpers;
 
 namespace NullWave.Views.Controls;
 
@@ -128,40 +129,5 @@ public partial class TrackListView : DockPanel
     private void OnClearSelection(object? sender, RoutedEventArgs e)
     {
         TrackList?.SelectedItems?.Clear();
-    }
-
-    // Auto-fills the "Add Track" input box if a valid URL is currently in the clipboard
-    public async void OnAddFlyoutOpened(object? sender, EventArgs e)
-    {
-        if (DataContext is not MainViewModel vm) return;
-        if (!string.IsNullOrWhiteSpace(vm.Input.InputUrl)) return;
-
-        try
-        {
-            var topLevel = TopLevel.GetTopLevel(this);
-            var clipboard = topLevel?.Clipboard;
-            if (clipboard == null) return;
-
-            // FIX (Avalonia 12 Breaking Change): IClipboard no longer exposes text methods directly.
-            // We must request an IAsyncDataTransfer object, ensure it is disposed, and then 
-            // use the AsyncDataTransferExtensions.TryGetTextAsync() extension method.
-            using var data = await clipboard.TryGetDataAsync();
-            if (data == null) return;
-
-            var text = await data.TryGetTextAsync();
-            if (string.IsNullOrWhiteSpace(text)) return;
-
-            text = text.Trim();
-            vm.Input.InputUrl = text;
-
-            if (!vm.Input.IsInputUrlValid)
-            {
-                vm.Input.InputUrl = string.Empty;
-            }
-        }
-        catch
-        {
-            // Clipboard access can fail (e.g., locked by another app) - silently skip pre-fill.
-        }
     }
 }

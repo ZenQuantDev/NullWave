@@ -15,12 +15,18 @@ public class RelativeTimeConverter : IValueConverter
         if (value is DateTime dt)
         {
             var L = LocalizationService.Instance;
-            var span = DateTime.Now - dt;
+            
+            // D9 FIX: Standardize on UTC. If the DateTime is Local, convert it to UTC first.
+            if (dt.Kind == DateTimeKind.Local) dt = dt.ToUniversalTime();
+            var span = DateTime.UtcNow - dt;
+
             if (span.TotalMinutes < 1) return L["Profile_Time_Now"];
             if (span.TotalMinutes < 60) return string.Format(L["Profile_Time_MinutesAgo"], (int)span.TotalMinutes);
             if (span.TotalHours < 24) return string.Format(L["Profile_Time_HoursAgo"], (int)span.TotalHours);
             if (span.TotalDays < 30) return string.Format(L["Profile_Time_DaysAgo"], (int)span.TotalDays);
-            return dt.ToString("MMM dd, yyyy", culture);
+            
+            // Fallback: display the absolute date in the user's local time zone
+            return dt.ToLocalTime().ToString("dd MMM yyyy", culture);
         }
         return null;
     }

@@ -467,3 +467,5 @@ scripts/publish-artifacts/
 # Syncthing conflict artifacts
 *.sync-conflict-*
 .stfolder/
+
+.stfolder

@@ -124,7 +124,7 @@
                                     <TextBlock Text="{loc:Loc MainWindow_AddTrack_Button}"/>
                                 </StackPanel>
                                 <Button.Flyout>
-                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                    <Flyout Placement="BottomEdgeAlignedRight" Opening="OnAddFlyoutOpening">
                                         <StackPanel Spacing="12" Width="380" Margin="4">
                                             <TextBlock FontWeight="SemiBold" Text="{loc:Loc MainWindow_AddFromUrl_Title}"
                                                        Foreground="{DynamicResource BrushTextPrimary}"/>

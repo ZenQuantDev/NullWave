@@ -3,6 +3,78 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+
+## [0.6.4] - 25-Oct-2026 🏗️ "Foundations"
+
+### Highlights
+- **Multi-word AND Search**: Searching "pastel ghost" now requires both words instead of returning OR matches.
+- **Safe Manual Backups**: The "Backup Database" button now uses SQLite's `VACUUM INTO` for consistent, compacted copies.
+- **Non-Destructive Playlist Merging**: Renaming a playlist to an existing name is blocked; duplicate playlists are merged safely instead of being deleted on restart.
+- **Cascading Deletions & Working Undo**: Deleting a track cleans it from the Queue and Playlists; Undo restores memberships.
+- **Length Sort**: Sort your library by track duration, with radio streams intelligently sorted last.
+- **Radio Engine Hardening**: DNS-based server discovery, buffering indicators, and ICY metadata fixes.
+- **YouTube JS Runtime Auto-Detection**: Automatically passes `--js-runtimes` to `yt-dlp` if Node/Bun is detected, fixing "n challenge" signature errors.
+
+### Added
+- **Data-Driven Badge Catalog**: badge definitions live in embedded `badges.catalog.json` with rule-based evaluation; v2 canonical signing adds `KeyId` for future key rotation plus expired-badge handling.
+- **Test Coverage**: added `RadioBrowserParseTests` and `BadgeCatalogTests`; the suite now has 518 passing tests.
+- **Experimental Features System**: New toggle in Settings → Advanced that gates in-development features behind an "EXPERIMENTAL" badge.
+- **Unified Track Normalizer**: New `TrackNormalizer` class consolidates 6+ duplicate title/artist cleaning implementations into a single source of truth (44 comprehensive unit tests).
+- **Shell Helper**: New `ShellHelper` class with cross-platform `OpenFolder`, `OpenFile`, `OpenUrl` methods.
+- **Preferences Architecture**: Added `Changed` event using reflection for targeted subscribers, and schema versioning (v2) with automatic migration and backups.
+- **O(1) Duplicate Detection**: `LibraryService` now uses an in-memory Identity Index for instant duplicate checks during bulk imports.
+- **Banned Symbols Analyzer**: Added `BannedSymbols.txt` and Roslyn analyzers to enforce UTC-only `DateTime` usage and prevent local-time regressions at compile time.
+- **Shared INPC Base**: Introduced `NotifyBase` to eliminate duplicated `INotifyPropertyChanged` boilerplate across Models and ViewModels.
+- **Honest Column Headers**: The Length header is now fully sortable. Status and Plays headers are now plain text (no hand cursor).
+- **Global Search Persistence & Clipboard Pre-fill**: Search follows you across pages; Add Track flyout auto-pastes HTTP URLs from clipboard.
+
+### Changed
+- **Duplicate Import Protection**: YouTube URLs are canonicalized to `watch?v=<id>` (stripping tracking params) and checked against the identity index before add.
+- **Download UX**: duplicate clicks on an in-flight download are silent; a finished download only autoplays when it is still the current track.
+- **UTC Time Standardization**: Replaced all remaining `DateTime.Now` usages with `DateTime.UtcNow` across Diagnostics, ViewModels, and Services. Backup filenames and crash reports now use culture-invariant UTC stamps.
+- **Migrated 37 Call Sites**: Replaced all uses of obsolete `TitleSanitizer` and `TrackTitleParser` with unified `TrackNormalizer` calls.
+- **Playlist Cover Art**: Changing or clearing a playlist cover properly deletes the old image file and invalidates the bitmap cache. New covers use timestamped filenames.
+- **AI Playlist Generation**: The `ai:` prompt filters out Radio streams and Audiobooks. Empty prompts show a helpful hint toast.
+- **Artist Filter Persistence**: Clicking an artist clears the search box while preserving the filter. Typing a new search clears the artist filter as expected.
+- **Massive Folder Reorganization**: Reorganized project structure into logical subfolders (`Models/Library`, `Helpers/Imaging`, `ViewModels/Shell`, `Services/Database`).
+- **DatabaseService Split**: Split the 800+ line `DatabaseService` into 5 focused partial classes.
+- **ProcessRunner Unification**: Migrated all raw `Process.Start` calls to the unified, deadlock-free `ProcessRunner`.
+- **RelayCommand Safety**: Unified `RelayCommand` to inherit from `SafeRelayCommand`, routing all 92+ async commands through the global exception handler.
+- **Schema Versioning & Migrations**: `LastPlayed` timestamps converted to UTC; schema migrations now run synchronously in a single transaction at startup.
+- **Cascading Track Deletion**: Deleting a track from the Library now automatically removes it from the playback Queue and all Playlists. The "Undo" button restores the track to its original playlists.
+
+### Fixed
+- **Friendly Download Errors**: Raw `yt-dlp` exit codes are now mapped to actionable hints (e.g., "Install Node.js", "Use browser cookies") when signature or rate-limit errors occur.
+- **Tool Caching Fix**: Installing `ffmpeg` or `aria2c` while NullWave is running is now detected immediately without requiring an app restart.
+- **Windows Playback Fallback**: If `ffmpeg` is missing or audio format is set to "best", Windows downloads now force `.m4a` (MP4 container) to guarantee playback with the pruned VLC build, preventing silent WebM/Opus failures.
+- **Radio Catalog**: Stations are now added to the library immediately upon clicking "Add", preventing data loss if the dialog is closed via the window's X button.
+- **YouTube Format Failures**: missing JS runtime no longer yields "Only images are available / Requested format is not available".
+- **Playback Hijack**: a completed background download no longer interrupts a track the user started in the meantime.
+- **Cancelled Downloads**: cancelling no longer raises a red failure toast and no longer clears the downloading spinner while a newer download runs.
+- **Radio Artist Lookups**: stations no longer trigger Last.fm bio/image fetches with genre strings as artist names.
+- **"- Topic" Suffix**: single-track imports strip the YouTube " - Topic" channel suffix, matching the playlist pipeline.
+- **PlayPause Spam**: a 200 ms debounce ignores held-key or double-click pause/play toggles.
+- **Playlist Rename Safety**: Attempting to rename a playlist to a name that already exists now blocks the action with a warning toast instead of creating a duplicate that would be destroyed on restart.
+- **Radio Misclassification**: Added a one-time repair migration that fixes tracks wrongly marked as "Radio" (e.g., tracks with "radio" in the URL like Radiohead) back to "Music".
+- **Test Runner Crashes**: Fixed `AccessViolationException` crashes during rapid test execution by properly cancelling background migration tasks.
+- **WAL Flush on Exit**: The database explicitly flushes the Write-Ahead Log (WAL) to the main file on app exit.
+- **FTS Index Corruption**: The FTS5 search index is automatically rebuilt after running the `VACUUM` maintenance command.
+- **Column Alignment**: Fixed persistent misalignment between column headers and track rows using invisible spacers.
+- **ComboBox Reset Hijacking**: Fixed a bug where switching pages caused the sort dropdown to reset and overwrite the active page's sort order.
+- **Memory Leaks**: Implemented strict `Dispose()` patterns in `MainViewModel` and `PlayerViewModel` to unsubscribe from Singleton services.
+- **Crash Report Privacy**: `CrashHandler` redacts the local Windows username from stack traces before writing to disk.
+- **Import Double-Sanitization**: Fixed bug where `ImportViewModel` would sanitize titles, then `LibraryService.Add` would sanitize them again, potentially losing metadata.
+- **Sync Dry-Run Mutations**: `LibraryService.SyncOne` no longer mutates in-memory track metadata or overcounts `retagged` during dry-run previews.
+- **RemoveDuplicates Ghost Entries**: `RemoveDuplicates` now routes through `Remove()`, ensuring queue and playlist junction tables are properly cleaned.
+- **SourceDetector Regex**: YouTube URL validation now uses strict `[?&]v=` regex matching instead of naive `Contains("v=")`.
+- **Last.fm Credential Reload**: `LastFmService` now reloads credentials in-place when connecting/disconnecting, preventing stale instances in dependent services.
+
+### Removed
+- **Obsolete Helper Classes**: Marked `TitleSanitizer` and `TrackTitleParser` as `[Obsolete]` with migration guidance.
+- **Obsolete Test Files**: Deleted `TitleSanitizerTests.cs` and `TrackTitleParserTests.cs` (16 tests) as they tested the now-obsolete implementations. Functionality is covered by `TrackNormalizerTests.cs` (44 tests).
+
+---
+
 ## [0.6.3] - 11-Oct-2026 🚀 "Responsiveness"
 
 ### Added
@@ -209,7 +281,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **VerifyLinks False Positives**: Drastically reduced (27 > 6) by adding `FeatureArtistRegex` and `BracketContentRegex` to `TitlesLooselyMatch`, and properly handling "Artist - Title" splits.
 - **Stale Scrobble Metadata**: Fixed an issue where Last.fm scrobbles used stale cached track data instead of fetching the latest metadata from the database.
 
-## [0.5.0] - 09-Aug-2026 � "Blue Orchid"
+## [0.5.0] - 09-Aug-2026 🌸 "Blue Orchid"
 
 ### Added
 

@@ -109,15 +109,13 @@ public partial class PlayerViewModel
 
             if (!string.IsNullOrEmpty(track.Url))
             {
-                if (!IsDownloading)
-                {
-                    IsDownloading = true;
-                    StatusText = L("Player_Status_DownloadingBeforePlayback");
-                    NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
-                    _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality,
-                        title: track.Title, artist: track.Artist);
-                }
-                else { StatusText = L("Player_Status_DownloadInProgress"); Log.Debug("[{Source}] Skipped duplicate download for {Url}", nameof(PlayerViewModel), track.Url); }
+                _playback.Stop();
+                Position = 0;
+                IsDownloading = true;
+                StatusText = L("Player_Status_DownloadingBeforePlayback");
+                NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
+                _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality,
+                    title: track.Title, artist: track.Artist);
                 return;
             }
 
@@ -132,6 +130,9 @@ public partial class PlayerViewModel
 
     private void PlayPause()
     {
+        if ((DateTime.UtcNow - _lastPlayPauseTime).TotalMilliseconds < 200) return;
+        _lastPlayPauseTime = DateTime.UtcNow;
+        if (IsRadio && IsPlaying) { Stop(); return; }
         var pausing = _playback.PausePending;
         if (IsPlaying && !pausing)
         {

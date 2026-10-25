@@ -295,6 +295,19 @@
                                 </Button>
                             </Grid>
 
+                            <!-- JS Runtime -->
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                                <material:MaterialIcon Grid.Column="0" Kind="CodeBraces" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Text="JS Runtime (Node/Deno/Bun)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="Required to bypass YouTube signature challenges" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Classes="install-cmd" Text="{Binding #Root.JsRuntimeInstallCmd}" ToolTip.Tip="{Binding #Root.JsRuntimeInstallCmd}" MaxWidth="230"/>
+                                <Button Grid.Column="3" Classes="icon-btn" Width="26" Height="26" Click="OnCopyInstallCmd" Tag="{Binding #Root.JsRuntimeInstallCmd}">
+                                    <material:MaterialIcon Kind="ContentCopy" Width="13" Height="13"/>
+                                </Button>
+                            </Grid>
+
                             <!-- Ollama engine (live status) -->
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="Brain" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>

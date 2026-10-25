@@ -39,6 +39,9 @@ public static class NullWavePaths
     public static string KeyStorePath => Path.Combine(DataDir, "keys.enc");
     public static string ProfilePath  => Path.Combine(DataDir, "profile.json");
     public static string AvatarPath   => Path.Combine(DataDir, "avatar.png");
+    public static string PrefsPath        => Path.Combine(DataDir, "prefs.json");
+    public static string BadgesPath       => Path.Combine(DataDir, "badges.json");
+    public static string ProfileAssetsDir => Path.Combine(DataDir, "profile-assets");
 
     public static void EnsureDirectories()
     {

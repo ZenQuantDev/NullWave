@@ -50,12 +50,13 @@ public class MetadataService
     public (string Title, string Artist, TimeSpan Duration) FetchFromLocalFile(string filePath)
         => _local.Fetch(filePath);
 
+    private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+
     private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchSpotifyMetadataAsync(string url)
     {
         try
         {
-            using var http = new HttpClient();
-            var html = await http.GetStringAsync(SpotifyPageParser.CleanUrl(url));
+            var html = await _sharedHttp.GetStringAsync(SpotifyPageParser.CleanUrl(url));
             var page = SpotifyPageParser.Parse(html);
 
             if (page.Kind is SpotifyPageKind.Album or SpotifyPageKind.Playlist)
@@ -132,16 +133,16 @@ public class MetadataService
             var fileTitle = tag.Title ?? "";
             var fileArtist = string.Join(", ", tag.Performers ?? Array.Empty<string>());
 
-            if (LibraryService.TitlesLooselyMatch(title ?? "", fileTitle, artist ?? "", fileArtist)) return false;
+            if (NullWave.Helpers.TrackNormalizer.LooselyMatch(title ?? "", fileTitle, artist ?? "", fileArtist)) return false;
 
-            if (LibraryService.TitlesLooselyMatch(title ?? "", fileArtist, artist ?? "", fileTitle))
+            if (NullWave.Helpers.TrackNormalizer.LooselyMatch(title ?? "", fileArtist, artist ?? "", fileTitle))
             {
                 Log.Warning("[MetadataService] Refusing to write swapped tags to {Path}", filePath);
                 return false;
             }
 
             tag.Title = title;
-            tag.Performers = LibraryService.SplitArtistCredits(artist ?? "").ToArray();
+            tag.Performers = NullWave.Helpers.TrackNormalizer.SplitArtistCredits(artist ?? "").ToArray();
             file.Save();
             Log.Information("[MetadataService] Wrote embedded tags to file: {Path}", filePath);
             return true;

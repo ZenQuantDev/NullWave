@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NullWave.Models;
 using Serilog;
+using NullWave.Helpers;
 
 namespace NullWave.Services;
 
@@ -44,16 +45,27 @@ public partial class LibraryService
         if (_metadata != null)
         {
             var (fT, fA, _) = _metadata.FetchFromLocalFile(track.FilePath!);
-            if (!TitlesLooselyMatch(track.Title, fT, track.Artist, fA) && TitlesLooselyMatch(track.Title, fA, track.Artist, fT))
+            
+            // Swapped tags detection
+            if (!TrackNormalizer.LooselyMatch(track.Title, fT, track.Artist, fA) && 
+                 TrackNormalizer.LooselyMatch(track.Title, fA, track.Artist, fT))
             {
-                track.Title = CleanYouTubeArtifacts(fT); track.Artist = CleanYouTubeArtifacts(fA);
-                if (!dryRun) _db.Update(track);
+                // FIX: Only mutate in-memory track and DB if NOT a dry run
+                if (!dryRun)
+                {
+                    track.Title = TrackNormalizer.CleanTitle(fT); 
+                    track.Artist = TrackNormalizer.CleanArtist(fA);
+                    _db.Update(track);
+                }
                 return (true, false);
             }
+            
+            // Standard tag mismatch
             if (!string.Equals(fT, track.Title, StringComparison.Ordinal) || !string.Equals(fA, track.Artist, StringComparison.Ordinal))
             {
-                if (!dryRun) _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist);
-                retagged = true;
+                // FIX: Only count as retagged if we actually wrote to the file (or if it's a dry run where we *would* write)
+                bool wouldWrite = !dryRun ? _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist) : true;
+                if (wouldWrite) retagged = true;
             }
         }
 
@@ -65,7 +77,12 @@ public partial class LibraryService
         if (!string.Equals(Path.GetFileName(track.FilePath!), name, StringComparison.OrdinalIgnoreCase))
         {
             if (File.Exists(target)) return (retagged, false);
-            if (!dryRun) { File.Move(track.FilePath!, target); track.FilePath = target; _db.Update(track); }
+            if (!dryRun) 
+            { 
+                File.Move(track.FilePath!, target); 
+                track.FilePath = target; 
+                _db.Update(track); 
+            }
             renamed = true;
         }
         return (retagged, renamed);

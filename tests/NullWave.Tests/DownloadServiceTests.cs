@@ -61,7 +61,7 @@ public class DownloadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Duplicate_URL_fires_Failed_event_immediately_and_does_not_hang()
+    public async Task Duplicate_URL_returns_silently_and_does_not_hang()
     {
         Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang"); 
         
@@ -77,7 +77,8 @@ public class DownloadServiceTests : IDisposable
         
         await Task.WhenAny(task2, Task.Delay(2000));
 
-        Assert.Equal("Already downloading", failedReason);
+        Assert.True(task2.IsCompleted, "Duplicate request should return immediately, not hang.");
+        Assert.Null(failedReason); // duplicate click is silent now: no failure event
         
         cts1.Cancel();
         await Task.WhenAny(task1, Task.Delay(1000));
@@ -149,4 +150,13 @@ public class DownloadServiceTests : IDisposable
 
         cts.Cancel();
     }
+    
+    [Theory]
+    [InlineData(false, "mp3",  true,  "bestaudio[ext=m4a]/bestaudio/best")]
+    [InlineData(true,  "best", true,  "bestaudio[ext=m4a]/bestaudio/best")]
+    [InlineData(true,  "mp3",  true,  "bestaudio/best")]
+    [InlineData(false, "mp3",  false, "bestaudio/best")]
+    public void Format_selector_forces_m4a_only_on_windows_native_containers(
+        bool useFfmpeg, string format, bool isWindows, string expected)
+        => Assert.Equal(expected, DownloadService.ChooseFormatSelector(useFfmpeg, format, isWindows));
 }

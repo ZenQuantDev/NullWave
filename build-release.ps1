@@ -149,9 +149,9 @@ function Trim-Publish($dir) {
 
 function Publish-Build($outDir, $selfContained) {
     if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
-    dotnet publish -c Release -r win-x64 --self-contained $selfContained `
+    dotnet publish NullWave.csproj -c Release -r win-x64 --self-contained $selfContained `
         -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o $outDir -v q
-    if ($LASTEXITCODE -ne 0) { Write-Error "dotnet publish failed for $outDir." }
+    if ($LASTEXITCODE -ne 0) { Write-Error "dotnet publish NullWave.csproj failed for $outDir." }
     Trim-Publish $outDir
 }
 

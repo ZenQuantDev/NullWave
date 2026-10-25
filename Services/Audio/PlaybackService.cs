@@ -121,7 +121,9 @@ public class PlaybackService : IDisposable
         MediaPlayer? b = null;
         try
         {
-            vlc = new LibVLC("--aout=directsound", "--no-video", "--quiet");
+            vlc = OperatingSystem.IsWindows()
+    ? new LibVLC("--aout=directsound", "--no-video", "--quiet")
+    : new LibVLC("--no-video", "--quiet");
             a = new MediaPlayer(vlc);
             b = new MediaPlayer(vlc);
             Log.Information("[PlaybackService] LibVLC ready in {Ms} ms", stopwatch.ElapsedMilliseconds);
@@ -134,6 +136,28 @@ public class PlaybackService : IDisposable
             vlc?.Dispose();
             throw;
         }
+    }
+
+    private Media CreateMedia(string path)
+    {
+        var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        var media = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
+        if (isUrl)
+        {
+            media.AddOption(":network-caching=1500");
+            media.AddOption(":http-reconnect");
+        }
+        return media;
+    }
+
+    public event Action<bool>? BufferingChanged;
+    private int _buffering;
+
+    private void SetBuffering(bool on)
+    {
+        if (Interlocked.Exchange(ref _buffering, on ? 1 : 0) == (on ? 1 : 0)) return;
+        _uiPost(() => BufferingChanged?.Invoke(on));
     }
 
     /// <summary>
@@ -211,6 +235,7 @@ public class PlaybackService : IDisposable
         player.Stopped += (s, e) => OnStopped(player, e);
         player.EndReached += (s, e) => OnEndReached(player, e);
         player.EncounteredError += (s, e) => OnEncounteredError(player, e);
+        player.Buffering += (s, e) => { if (ReferenceEquals(player, _activePlayer)) SetBuffering(e.Cache < 100f); };
     }
 
     private void OnPositionChanged(MediaPlayer player, MediaPlayerPositionChangedEventArgs e)
@@ -234,6 +259,7 @@ public class PlaybackService : IDisposable
         _uiPost(() =>
         {
             if (!isActive) return;
+            SetBuffering(false);
             if (_pausePending)
             {
                 player.SetPause(true);
@@ -262,6 +288,7 @@ public class PlaybackService : IDisposable
     private void OnEndReached(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+        SetBuffering(false);
         _uiPost(() =>
         {
             StateChanged?.Invoke(PlaybackState.Stopped);
@@ -272,6 +299,7 @@ public class PlaybackService : IDisposable
     private void OnEncounteredError(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+        SetBuffering(false);
         _icyTimer?.Dispose();
         _icyTimer = null;
         _uiPost(() =>
@@ -324,7 +352,8 @@ public class PlaybackService : IDisposable
 
             var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                         path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-            _currentMedia = isUrl ? new Media(_libVlc, new Uri(path)) : new Media(_libVlc, path);
+            _currentMedia = CreateMedia(path);
+            if (isUrl) SetBuffering(true); else SetBuffering(false);
             t.Step("newMedia");
 
             _activePlayer.Media = _currentMedia;
@@ -364,10 +393,10 @@ public class PlaybackService : IDisposable
                     {
                         if (_currentMedia == null) return;
                         var nowPlaying = _currentMedia.Meta(MetadataType.NowPlaying);
-                        var titleMeta = _currentMedia.Meta(MetadataType.Title);
-                        var artistMeta = _currentMedia.Meta(MetadataType.Artist);
-                        var title = nowPlaying ?? titleMeta ?? string.Empty;
-                        var artist = artistMeta ?? string.Empty;
+                        var artist = _currentMedia.Meta(MetadataType.Artist) ?? string.Empty;
+                        var title = !string.IsNullOrWhiteSpace(nowPlaying) ? nowPlaying
+                                : !string.IsNullOrWhiteSpace(artist) ? (_currentMedia.Meta(MetadataType.Title) ?? string.Empty)
+                                : string.Empty;
 
                         if (string.IsNullOrWhiteSpace(artist) && title.Contains(" - "))
                         {
@@ -454,6 +483,7 @@ public class PlaybackService : IDisposable
         _icyTimer?.Dispose();
         _icyTimer = null;
         _activePlayer.Stop();
+        SetBuffering(false);
         Log.Debug("Playback stopped");
     }
 
@@ -593,8 +623,7 @@ public class PlaybackService : IDisposable
             incoming = _standbyPlayer;
             incoming.Stop();
             incoming.Media?.Dispose();
-            var isUrl = nextPath.StartsWith("http", StringComparison.OrdinalIgnoreCase);
-            incoming.Media = isUrl ? new Media(_libVlc, new Uri(nextPath)) : new Media(_libVlc, nextPath);
+            incoming.Media = CreateMedia(nextPath);
         }
 
         var outgoing = _activePlayer;

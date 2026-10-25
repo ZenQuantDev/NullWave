@@ -440,7 +440,7 @@ public static partial class Locales
         ["Onboarding_Import_Button"] = "Import an existing folder",
         ["OnboardingImport_Button"] = "Import an existing folder", // alias for XAML typo; fix XAML to Onboarding_Import_Button when convenient
 
-        //  Onboarding Extras (System Readiness & API Cards)
+        //  Onboarding extras (System Readiness & API Cards)
         ["Onboarding_Deps_Title"] = "SYSTEM READINESS",
         ["Onboarding_Deps_Checking"] = "Checking system dependencies...",
         ["Onboarding_Deps_Ready"] = "All core dependencies are installed and ready.",
@@ -705,7 +705,7 @@ public static partial class Locales
         ["Player_Status_EndOfLibrary"] = "End of library",
 
         // Playlist Result Count
-        ["Playlist_ResultCount_Format"] = "{0} tracks",
+        ["Playlist_RESULTCount_Format"] = "{0} tracks",
 
         // MainWindow
         ["MainWindow_Search_Placeholder"] = "Search (e.g., 'artist:tame impala', 'is:favorite', or 'ai:chill hip-hop')...",
@@ -1020,5 +1020,18 @@ public static partial class Locales
         ["Scene_abstract_Desc"] = "A diagonal duo wash with a soft center field.",
 
         ["MainWindow_Startup_Loading"] = "Waking the library…",
+
+        ["Profile_Badge_Patron"] = "Patron",
+        ["Profile_Badge_Patron_Desc"] = "Supports NullWave development.",
+        ["Profile_Badge_Artist"] = "Artist",
+        ["Profile_Badge_Artist_Desc"] = "Created custom artwork or themes.",
+        ["Profile_Badge_BugHunter"] = "Bug Hunter",
+        ["Profile_Badge_BugHunter_Desc"] = "Found and reported critical bugs.",
+        ["Profile_Badge_RadioExplorer"] = "Radio Explorer",
+        ["Profile_Badge_RadioExplorer_Desc"] = "Saved 10+ radio stations.",
+        ["Profile_Badge_Bookworm"] = "Bookworm",
+        ["Profile_Badge_Bookworm_Desc"] = "50+ hours of audiobooks.",
+
+        ["Player_Status_Buffering"] = "Buffering…",
     };
 }
