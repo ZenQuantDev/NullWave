@@ -106,10 +106,10 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 ## Requirements
 
 - .NET 8 SDK
-- libVLC - `sudo dnf install vlc-libs` (Fedora) or `sudo apt install libvlc-dev` (Debian/Ubuntu)
-- yt-dlp - `pip install yt-dlp`
-- FFmpeg (Optional, required only for audio transcoding/embedding metadata)
-- A JavaScript runtime (Node.js, Deno or Bun) on PATH - yt-dlp needs one to solve YouTube's signature challenges
+- **libVLC** (Bundled in Windows installer; Linux requires `sudo dnf install vlc-libs` or `sudo apt install libvlc-dev`)
+- **yt-dlp** (`winget install yt-dlp.yt-dlp` or `pip install yt-dlp`)
+- **JavaScript Runtime** (Node.js, Deno, or Bun on PATH - *Required to solve YouTube signature challenges*)
+- **FFmpeg** (Optional, but highly recommended for audio transcoding and embedding metadata/album art)
 
 **Windows note:** Requires .NET 8 SDK (or .NET 10 with `<RollForward>Major</RollForward>` in csproj). LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
 
