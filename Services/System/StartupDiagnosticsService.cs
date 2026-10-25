@@ -92,7 +92,23 @@ public class StartupDiagnosticsService
         NullActionLogger.StartupLine($"{"VLC",-20}→ {await GetVlcVersionAsync() ?? "not found"}");
         NullActionLogger.StartupLine($"{"yt-dlp",-20}→ {await ToolVersionProbe.GetVersionAsync("yt-dlp") ?? "not found"}");
 
+        var ffmpegExists = await ProcessRunner.CheckExistsAsync("ffmpeg", new[] { "-version" }, 2000);
+        NullActionLogger.StartupLine($"{"ffmpeg",-20}→ {(ffmpegExists ? "installed" : "not found")}");
+        NullActionLogger.StartupLine($"{"JS Runtime",-20}→ {GetJsRuntimeName()}");
+
         NullActionLogger.StartupLine(sep);
+    }
+
+    private static string GetJsRuntimeName()
+    {
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        string? OnPath(string name) {
+            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
+            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return name; } catch { }
+            return null;
+        }
+        return OnPath("deno") ?? OnPath("node") ?? OnPath("bun") ?? "not found";
     }
 
     private static async Task<string?> GetVlcVersionAsync()

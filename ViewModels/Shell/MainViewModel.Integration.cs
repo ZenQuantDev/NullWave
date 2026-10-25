@@ -336,31 +336,27 @@ public partial class MainViewModel
 
         Input.RadioCatalogRequested += async () =>
         {
-            var dialog = new Views.Dialogs.RadioCatalogDialog();
-            var added = await DialogService.Instance.ShowDialogAsync<List<Helpers.CuratedStation>>(dialog);
-            if (added != null && added.Count > 0)
+            var dialog = new Views.Dialogs.RadioCatalogDialog(station =>
             {
-                int count = 0;
-                foreach (var station in added)
+                var track = new Track
                 {
-                    if (_library.GetAll().Any(t => t.Url == station.StreamUrl)) continue;
-                    var track = new Track
-                    {
-                        Title = station.Name,
-                        Artist = station.Genre, 
-                        Url = station.StreamUrl,
-                        Source = TrackSource.Unknown, 
-                        MediaType = MediaType.Radio
-                    };
-                    _library.Add(track);
-                    count++;
-                }
-                if (count > 0)
-                {
-                    ToastService.Instance.Show($"Added {count} station(s) to your Radio library.", ToastType.Success, scope: "radio-add");
-                    Dispatcher.UIThread.Post(() => { Library.Refresh(); RadioLibrary.Refresh(); });
-                }
-            }
+                    Title = station.Name,
+                    Artist = station.Genre, 
+                    Url = station.StreamUrl,
+                    Source = TrackSource.Unknown, 
+                    MediaType = MediaType.Radio
+                };
+                
+                // Check duplicate before adding (LibraryService.Add is void and silently ignores duplicates)
+                if (_library.IsDuplicate(track)) return false;
+                
+                _library.Add(track);
+                Dispatcher.UIThread.Post(() => { Library.Refresh(); RadioLibrary.Refresh(); });
+                return true;
+            });
+            
+            // We no longer care about the dialog result, as stations are added immediately
+            await DialogService.Instance.ShowDialogAsync<object?>(dialog);
         };
 
         Input.TrackAdded += () =>

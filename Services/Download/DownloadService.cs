@@ -123,12 +123,13 @@ public class DownloadService
     private int _currentLimit = 2;
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
-
     private static bool? _ffmpegAvailable;
     private static readonly object _ffmpegLock = new();
 
     private volatile int _backoffMultiplier = 1;
     private volatile bool _rateLimitTriggered = false;
+    private static string? _cachedJsRuntime;
+    private static bool _jsRuntimeProbed;
 
     public void UpdateConcurrencyLimit(int newLimit)
     {
@@ -156,62 +157,92 @@ public class DownloadService
         Log.Debug("[DownloadService] Current download cancelled by caller");
     }
 
-    // --- STEP E: Unified ProcessRunner Detection ---
+    // --- Unified ProcessRunner Detection ---
     private static async Task<bool> IsAria2cAvailableAsync()
     {
-        if (_aria2cAvailable.HasValue) return _aria2cAvailable.Value;
+        if (_aria2cAvailable == true) return true;
         
         var exists = await ProcessRunner.CheckExistsAsync("aria2c", new[] { "--version" }, 2000);
-        lock (_aria2cLock) { _aria2cAvailable = exists; }
-
-        if (!_aria2cAvailable.Value)
-            Log.Information("[DownloadService] aria2c not found on PATH - using yt-dlp's native downloader");
-        else
+        if (exists)
+        {
+            lock (_aria2cLock) { _aria2cAvailable = true; }
             Log.Information("[DownloadService] aria2c detected - enabling multi-connection downloads");
+            return true;
+        }
 
-        return _aria2cAvailable.Value;
+        Log.Information("[DownloadService] aria2c not found on PATH - using yt-dlp's native downloader");
+        return false;
     }
 
     private static async Task<bool> IsFfmpegAvailableAsync()
     {
-        if (_ffmpegAvailable.HasValue) return _ffmpegAvailable.Value;
+        if (_ffmpegAvailable == true) return true;
         
         var exists = await ProcessRunner.CheckExistsAsync("ffmpeg", new[] { "-version" }, 2000);
-        lock (_ffmpegLock) { _ffmpegAvailable = exists; }
-
-        if (!_ffmpegAvailable.Value)
-            Log.Information("[DownloadService] ffmpeg not found on PATH - downloading native audio streams without embedding metadata/thumbnails");
-        else
+        if (exists)
+        {
+            lock (_ffmpegLock) { _ffmpegAvailable = true; }
             Log.Information("[DownloadService] ffmpeg detected - enabling metadata and thumbnail embedding");
+            return true;
+        }
 
-        return _ffmpegAvailable.Value;
+        Log.Information("[DownloadService] ffmpeg not found on PATH - downloading native audio streams without embedding metadata/thumbnails");
+        return false;
     }
 
-    // yt-dlp enables only deno by default. If the user has node or bun instead, enable it explicitly.
-    private static readonly Lazy<string?> JsRuntimeArg = new(() =>
+
+
+    private static string? GetJsRuntimeArg()
     {
+        if (_jsRuntimeProbed) return _cachedJsRuntime;
+
         static bool OnPath(string name)
         {
             var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
-            foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
             {
                 try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return true; } catch { }
             }
             return false;
         }
 
-        if (OnPath("deno")) return null;      // yt-dlp's default, no flag needed
-        if (OnPath("node")) return "node";
-        if (OnPath("bun"))  return "bun";
-        return null;
-    });
+        string? result = null;
+        bool found = false;
+        if (OnPath("deno")) { result = null; found = true; }      // yt-dlp's default
+        else if (OnPath("node")) { result = "node"; found = true; }
+        else if (OnPath("bun")) { result = "bun"; found = true; }
+
+        if (found)
+        {
+            _cachedJsRuntime = result;
+            _jsRuntimeProbed = true;
+        }
+        return result;
+    }
+
+    private static bool HasAnyJsRuntime()
+    {
+        static bool OnPath(string name)
+        {
+            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            {
+                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return true; } catch { }
+            }
+            return false;
+        }
+        return OnPath("deno") || OnPath("node") || OnPath("bun");
+    }
 
     private void AppendSpeedAndAuthArgs(List<string> args, bool useAria2c)
     {
-        if (JsRuntimeArg.Value is { } jsRuntime)
+        var jsRuntime = GetJsRuntimeArg();
+        if (jsRuntime is { } runtime)
         {
             args.Add("--js-runtimes");
-            args.Add(jsRuntime);
+            args.Add(runtime);
         }
         if (useAria2c)
         {
@@ -277,14 +308,20 @@ public class DownloadService
             "best" => "0", "320"  => "0", "192"  => "2", "128"  => "4", "96"   => "6", _ => "0"
         };
 
+        var useFfmpeg = await IsFfmpegAvailableAsync();
+
+        // If ffmpeg is missing, or if the user selected "best" (which skips --extract-audio),
+        // yt-dlp will download the native container (often WebM/Opus on YouTube).
+        // Our pruned Windows VLC build lacks the Matroska/WebM demuxer.
+        // Force m4a (AAC in MP4 container) on Windows to guarantee playback.
+        var formatSelector = ChooseFormatSelector(useFfmpeg, audioFormat, OperatingSystem.IsWindows());
+
         var args = new List<string>
         {
-            url, "-f", "bestaudio/best", "--output", outputTemplate, "--print", "after_move:filepath",
+            url, "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
             "--ignore-errors",
             "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
         };
-
-        var useFfmpeg = await IsFfmpegAvailableAsync();
         if (useFfmpeg)
         {
             args.Add("--embed-metadata");
@@ -369,6 +406,7 @@ public class DownloadService
             string? outputFilePath = null;
 
             // --- STEP E: Unified ProcessRunner Execution ---
+            var recentStdErr = new List<string>();
             var result = await ProcessRunner.RunWithStreamingAsync(
                 "yt-dlp", args,
                 onStdOutLine: line =>
@@ -397,6 +435,9 @@ public class DownloadService
                     if (!string.IsNullOrEmpty(line))
                     {
                         Log.Debug("yt-dlp stderr: {Line}", line);
+                        if (recentStdErr.Count >= 20) recentStdErr.RemoveAt(0);
+                        recentStdErr.Add(line);
+
                         if (line.Contains("429") || line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
                         {
                             lock (_aria2cLock) { _rateLimitTriggered = true; }
@@ -453,8 +494,27 @@ public class DownloadService
             {
                 job.IsFailed = true;
                 job.Status = "Failed";
-                job.ErrorMessage = $"Exit code {result.ExitCode}";
-                DownloadFailed?.Invoke(trackId, $"yt-dlp exited with code {result.ExitCode}", isInteractive);
+                
+                var errText = string.Join("\n", recentStdErr);
+                string friendlyError = $"yt-dlp exited with code {result.ExitCode}";
+
+                if ((errText.Contains("n challenge", StringComparison.OrdinalIgnoreCase) || 
+                    errText.Contains("Requested format is not available", StringComparison.OrdinalIgnoreCase)) 
+                    && !HasAnyJsRuntime())
+                {
+                    friendlyError = "YouTube signature error: Install Node.js, Deno, or Bun.";
+                }
+                else if (errText.Contains("not a bot", StringComparison.OrdinalIgnoreCase))
+                {
+                    friendlyError = "YouTube rate limit: Try using browser cookies in Settings.";
+                }
+                else if (errText.Contains("HTTP Error 429", StringComparison.OrdinalIgnoreCase))
+                {
+                    friendlyError = "YouTube rate limit (429): Wait a few minutes or use browser cookies.";
+                }
+
+                job.ErrorMessage = friendlyError;
+                DownloadFailed?.Invoke(trackId, friendlyError, isInteractive);
                 PruneCompletedJobs();
             }
         }
@@ -814,6 +874,12 @@ public class DownloadService
                 Avalonia.Threading.Dispatcher.UIThread.Post(action);
         }
         catch { }
+    }
+
+    internal static string ChooseFormatSelector(bool useFfmpeg, string audioFormat, bool isWindows)
+    {
+        var nativeContainer = !useFfmpeg || string.Equals(audioFormat, "best", StringComparison.OrdinalIgnoreCase);
+        return nativeContainer && isWindows ? "bestaudio[ext=m4a]/bestaudio/best" : "bestaudio/best";
     }
 
     public string DownloadDirectory => _downloadDir;

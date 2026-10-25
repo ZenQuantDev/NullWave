@@ -130,29 +130,4 @@ public partial class TrackListView : DockPanel
     {
         TrackList?.SelectedItems?.Clear();
     }
-
-    // Auto-fills the "Add Track" input box if a valid URL is currently in the clipboard
-    public async void OnAddFlyoutOpened(object? sender, EventArgs e)
-    {
-        if (DataContext is not MainViewModel vm) return;
-        if (!string.IsNullOrWhiteSpace(vm.Input.InputUrl)) return;
-
-        try
-        {
-            var text = await ClipboardHelper.GetTextAsync();
-            if (string.IsNullOrWhiteSpace(text)) return;
-
-            text = text.Trim();
-            vm.Input.InputUrl = text;
-
-            if (!vm.Input.IsInputUrlValid)
-            {
-                vm.Input.InputUrl = string.Empty;
-            }
-        }
-        catch
-        {
-            // Clipboard access can fail (e.g., locked by another app) - silently skip pre-fill.
-        }
-    }
 }

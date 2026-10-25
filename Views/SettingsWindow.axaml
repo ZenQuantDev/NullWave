@@ -162,7 +162,7 @@
                     </Border>
                     
                     <TextBlock DockPanel.Dock="Bottom"
-                               Text="{Binding CurrentVersion, StringFormat='System Node Build v{0}'}"
+                               Text="{Binding CurrentVersion, StringFormat='NullWave v{0}'}"
                                Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{DynamicResource FontSizeXs}"
                                HorizontalAlignment="Center"

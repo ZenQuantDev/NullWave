@@ -150,4 +150,13 @@ public class DownloadServiceTests : IDisposable
 
         cts.Cancel();
     }
+    
+    [Theory]
+    [InlineData(false, "mp3",  true,  "bestaudio[ext=m4a]/bestaudio/best")]
+    [InlineData(true,  "best", true,  "bestaudio[ext=m4a]/bestaudio/best")]
+    [InlineData(true,  "mp3",  true,  "bestaudio/best")]
+    [InlineData(false, "mp3",  false, "bestaudio/best")]
+    public void Format_selector_forces_m4a_only_on_windows_native_containers(
+        bool useFfmpeg, string format, bool isWindows, string expected)
+        => Assert.Equal(expected, DownloadService.ChooseFormatSelector(useFfmpeg, format, isWindows));
 }
