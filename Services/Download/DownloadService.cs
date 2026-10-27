@@ -115,6 +115,9 @@ public class DownloadService
     private static readonly Regex SiParamRegex1 = new(@"&si=[^&]*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex2 = new(@"\?si=[^&]*&", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    
+    // NEW: Regex to strip list= parameter from URLs
+    private static readonly Regex ListParamRegex = new(@"[?&]list=[^&]*", RegexOptions.Compiled);
 
     private readonly HashSet<string> _activeDownloads = new();
     private int _activeDownloadCount; 
@@ -190,8 +193,7 @@ public class DownloadService
         return false;
     }
 
-
-
+    // UPDATED: JS runtime detection - removed Bun (deprecated), added QuickJS
     private static string? GetJsRuntimeArg()
     {
         if (_jsRuntimeProbed) return _cachedJsRuntime;
@@ -209,9 +211,10 @@ public class DownloadService
 
         string? result = null;
         bool found = false;
+        // Order: Deno (preferred) → Node → QuickJS
         if (OnPath("deno")) { result = null; found = true; }      // yt-dlp's default
         else if (OnPath("node")) { result = "node"; found = true; }
-        else if (OnPath("bun")) { result = "bun"; found = true; }
+        else if (OnPath("qjs") || OnPath("quickjs")) { result = "qjs"; found = true; }
 
         if (found)
         {
@@ -221,6 +224,7 @@ public class DownloadService
         return result;
     }
 
+    // UPDATED: Removed Bun from detection
     private static bool HasAnyJsRuntime()
     {
         static bool OnPath(string name)
@@ -233,7 +237,7 @@ public class DownloadService
             }
             return false;
         }
-        return OnPath("deno") || OnPath("node") || OnPath("bun");
+        return OnPath("deno") || OnPath("node") || OnPath("qjs") || OnPath("quickjs");
     }
 
     private void AppendSpeedAndAuthArgs(List<string> args, bool useAria2c)
@@ -266,6 +270,21 @@ public class DownloadService
             ? Random.Shared.Next(3000, 8000)
             : Random.Shared.Next(600, 1800);
     }
+
+    private bool CheckConsent()
+    {
+        var consent = _prefsService.Current.DownloaderConsent;
+        if (consent == null || !consent.IsCurrent)
+        {
+            Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
+            ToastService.Instance.Show(
+                "Please accept the downloader terms in Settings → Downloads", 
+                ToastType.Warning, 
+                scope: "download");
+            return false;
+        }
+        return true;
+    }
     
     public async Task DownloadAsync(
         string trackId,
@@ -278,6 +297,13 @@ public class DownloadService
         string? artist = null,
         CancellationToken ct = default)
     {
+        // CRITICAL FIX: Check consent FIRST
+        if (!CheckConsent())
+        {
+            DownloadFailed?.Invoke(trackId, "Download terms not accepted", isInteractive);
+            return;
+        }
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uriResult) || 
             (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
         {
@@ -293,7 +319,16 @@ public class DownloadService
             url = SiParamRegex3.Replace(url, "");
         }
 
-        if (!allowPlaylist && (url.Contains("list=") || url.Contains("playlist?")))
+        // FIXED: Strip list= parameter instead of rejecting
+        if (!allowPlaylist && url.Contains("list="))
+        {
+            url = ListParamRegex.Replace(url, "");
+            // Clean up any trailing ? or & after removal
+            url = url.TrimEnd('?', '&');
+            Log.Information("[DownloadService] Stripped list= parameter from URL: {Url}", url);
+        }
+
+        if (!allowPlaylist && url.Contains("playlist?"))
         {
             Log.Warning("[DownloadService] Blocked playlist URL in single-track pipeline: {Url}", url);
             DownloadFailed?.Invoke(trackId, "Playlist URLs are not supported in single-track mode", isInteractive);
@@ -310,10 +345,6 @@ public class DownloadService
 
         var useFfmpeg = await IsFfmpegAvailableAsync();
 
-        // If ffmpeg is missing, or if the user selected "best" (which skips --extract-audio),
-        // yt-dlp will download the native container (often WebM/Opus on YouTube).
-        // Our pruned Windows VLC build lacks the Matroska/WebM demuxer.
-        // Force m4a (AAC in MP4 container) on Windows to guarantee playback.
         var formatSelector = ChooseFormatSelector(useFfmpeg, audioFormat, OperatingSystem.IsWindows());
 
         var args = new List<string>
@@ -352,7 +383,7 @@ public class DownloadService
             if (_activeDownloads.Contains(url))
             {
                 Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
-                return; // Silent return — duplicate clicks aren't errors, no toast needed
+                return;
             }
             _activeDownloads.Add(url);
         }
@@ -405,7 +436,6 @@ public class DownloadService
 
             string? outputFilePath = null;
 
-            // --- STEP E: Unified ProcessRunner Execution ---
             var recentStdErr = new List<string>();
             var result = await ProcessRunner.RunWithStreamingAsync(
                 "yt-dlp", args,
@@ -438,7 +468,9 @@ public class DownloadService
                         if (recentStdErr.Count >= 20) recentStdErr.RemoveAt(0);
                         recentStdErr.Add(line);
 
-                        if (line.Contains("429") || line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
+                        // FIXED: More precise 429 detection
+                        if (line.Contains("HTTP Error 429") || 
+                            line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
                         {
                             lock (_aria2cLock) { _rateLimitTriggered = true; }
                         }
@@ -498,11 +530,12 @@ public class DownloadService
                 var errText = string.Join("\n", recentStdErr);
                 string friendlyError = $"yt-dlp exited with code {result.ExitCode}";
 
+                // UPDATED: Error message now mentions QuickJS instead of Bun
                 if ((errText.Contains("n challenge", StringComparison.OrdinalIgnoreCase) || 
                     errText.Contains("Requested format is not available", StringComparison.OrdinalIgnoreCase)) 
                     && !HasAnyJsRuntime())
                 {
-                    friendlyError = "YouTube signature error: Install Node.js, Deno, or Bun.";
+                    friendlyError = "YouTube signature error: Install Deno, Node.js, or QuickJS.";
                 }
                 else if (errText.Contains("not a bot", StringComparison.OrdinalIgnoreCase))
                 {
@@ -548,10 +581,19 @@ public class DownloadService
         Action<string, string>? onTrackFailed = null,
         CancellationToken ct = default)
     {
+        // CRITICAL FIX: Check consent FIRST
+        if (!CheckConsent())
+        {
+            ToastService.Instance.Show(
+                "Please accept the downloader terms in Settings → Downloads", 
+                ToastType.Warning, 
+                scope: "download");
+            return;
+        }
+
         Log.Information("Starting playlist download: {Url}", playlistUrl);
         try
         {
-            // --- STEP E: Unified ProcessRunner Playlist Metadata ---
             var metadataResult = await ProcessRunner.RunAsync(
                 "yt-dlp",
                 new List<string> { "--flat-playlist", "--dump-json", "--ignore-errors", "--no-download", playlistUrl },
@@ -790,7 +832,7 @@ public class DownloadService
                         int backoffMultiplier;
                         lock (_aria2cLock) backoffMultiplier = _backoffMultiplier;
                         var delayMs = baseDelay * backoffMultiplier;
-                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, _backoffMultiplier);
+                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, backoffMultiplier);
                         await Task.Delay(delayMs, ct);
                     }
                 }
@@ -841,7 +883,7 @@ public class DownloadService
         {
             if (!new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(file.Extension.ToLowerInvariant())) continue;
             if (linkedPaths.Contains(file.FullName)) continue;
-            if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file; // Step C UTC fix applied
+            if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file;
         }
 
         if (newest == null) return null;

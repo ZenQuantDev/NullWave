@@ -27,6 +27,12 @@ public class OpenWeatherProvider : IWeatherProvider
     public PluginState State { get; set; } = PluginState.Unavailable;
     public bool IsEnabled { get; set; } = true;
 
+    public ProviderDescriptor Descriptor { get; } = new(
+        Id: "openweather",
+        Kind: ProviderKind.Weather,
+        DisplayName: "OpenWeather"
+    );
+
     public OpenWeatherProvider(WeatherService inner, PreferencesService prefs)
     {
         _inner = inner;

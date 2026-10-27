@@ -1,8 +1,17 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using NullWave.ViewModels;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using NullWave.Helpers;
 using NullWave.Models;
+using NullWave.Services;
+using NullWave.ViewModels;
+using NullWave.ViewModels.Base;
 
 namespace NullWave.Views.Controls;
 
@@ -13,6 +22,116 @@ public partial class PlaylistsView : DockPanel
     public PlaylistsView()
     {
         InitializeComponent();
+    }
+
+    // --- Lazy row menus (parity with TrackListView) ---
+
+    private void OnListContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not ListBox list) return;
+        var track = FindRowTrack(e.Source as Visual);
+        if (track == null) return;
+        e.Handled = true;
+        BuildRowMenu(track).ShowAt(list, true);
+    }
+
+    private void OnRowMenuClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var track = FindRowTrack(btn);
+        if (track == null) return;
+        BuildRowMenu(track).ShowAt(btn);
+    }
+
+    private static Track? FindRowTrack(Visual? source)
+    {
+        var v = source;
+        while (v != null)
+        {
+            if (v.DataContext is Track t) return t;
+            v = v.GetVisualParent();
+        }
+        return null;
+    }
+
+    private MenuFlyout BuildRowMenu(Track track)
+    {
+        var menu = new MenuFlyout();
+        if (DataContext is not MainViewModel root) return menu;
+        var lib = root.Library;
+        var loc = LocalizationService.Instance;
+
+        AddItem(menu, loc["ContextMenu_Play"], new RelayCommand(() => root.Player.PlayTrack(track)), null);
+        AddItem(menu, loc["ContextMenu_ViewDetails"], new RelayCommand(() => root.Detail.OpenFor(track)), null);
+        AddItem(menu, loc["ContextMenu_ToggleFavorite"], lib.ToggleFavoriteCommand, track);
+        AddItem(menu, loc["ContextMenu_AddToQueue"], lib.AddToQueueCommand, track);
+        AddItem(menu, loc["ContextMenu_AddToPlaylist"], root.AddTrackToPlaylistCommand, track);
+        AddItem(menu, loc["ContextMenu_CopyUrl"], lib.CopyUrlCommand, null);
+
+        if (root.Playlist.SelectedPlaylist != null)
+        {
+            menu.Items.Add(new Separator());
+            AddItem(menu, loc["ContextMenu_Remove"], root.Playlist.RemoveFromPlaylistCommand, track);
+        }
+
+        return menu;
+    }
+
+    private static void AddItem(MenuFlyout menu, string header, ICommand command, object? parameter)
+        => menu.Items.Add(new MenuItem { Header = header, Command = command, CommandParameter = parameter });
+
+    private async void OnImportM3uClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        
+        var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (window == null) return;
+
+        var dialog = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select M3U Playlist",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("M3U Playlist")
+                {
+                    Patterns = new[] { "*.m3u", "*.m3u8" }
+                }
+            }
+        };
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(dialog);
+        if (files.Count == 0) return;
+
+        var m3uPath = files[0].Path.LocalPath;
+        
+        // Get the LibraryService from MainViewModel (need to expose it)
+        // For now, use reflection or add a public property to MainViewModel
+        // Temporary workaround: create importer with the service
+        var libraryService = GetLibraryService(vm);
+        if (libraryService == null) return;
+        
+        var importer = new M3uImporter(libraryService);
+        var importVm = new ViewModels.Dialogs.M3uImportDialogViewModel(importer, m3uPath);
+        
+        var importDialog = new Views.Dialogs.M3uImportDialog { DataContext = importVm };
+        importVm.CloseRequested += () => importDialog.Close();
+        
+        await importDialog.ShowDialog(window);
+        
+        if (importVm.ImportedPlaylist != null)
+        {
+            vm.Playlist.SelectById(importVm.ImportedPlaylist.Id);
+        }
+    }
+
+    private LibraryService? GetLibraryService(MainViewModel vm)
+    {
+        // Access the private _library field via reflection (temporary solution)
+        // Better: expose LibraryService as public property in MainViewModel
+        var field = typeof(MainViewModel).GetField("_library", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return field?.GetValue(vm) as LibraryService;
     }
 
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)
@@ -28,7 +147,7 @@ public partial class PlaylistsView : DockPanel
     {
         var track = (e.Source as Control)?.DataContext as Track
                     ?? (sender as ListBox)?.SelectedItem as Track;
-        if (track != null && DataContext is MainViewModel vm)
+        if (track != null && DataContext is not null && DataContext is MainViewModel vm)
             vm.Player.PlayTrack(track);
     }
 

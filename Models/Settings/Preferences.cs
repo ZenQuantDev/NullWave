@@ -82,4 +82,5 @@ public class Preferences
     public string WallpaperBuiltInId { get; set; } = string.Empty;
     public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
     public bool EnableExperimentalFeatures { get; set; } = false;
+    public DownloaderConsent? DownloaderConsent { get; set; }
 }

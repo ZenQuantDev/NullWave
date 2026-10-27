@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels.Dialogs"
+        xmlns:loc="using:NullWave.Helpers.Localization"
+        x:Class="NullWave.Views.Dialogs.DownloaderConsentView"
+        x:DataType="vm:DownloaderConsentViewModel"
+        Title="Downloader Terms"
+        Width="500" Height="400"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <DockPanel Margin="24">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+            <Button Content="Decline" Command="{Binding DeclineCommand}" Classes="ghost"/>
+            <Button Content="Accept" Command="{Binding AcceptCommand}" Classes="primary"
+                    IsEnabled="{Binding CanAccept}"/>
+        </StackPanel>
+        
+        <ScrollViewer>
+            <StackPanel Spacing="16">
+                <TextBlock Text="Downloader Terms and Conditions" Classes="Heading"/>
+                
+                <TextBlock TextWrapping="Wrap">
+                    <Run Text="NullWave uses yt-dlp to download audio from YouTube and other platforms. Before you can use the download feature, please review and accept the following terms."/>
+                </TextBlock>
+
+                <Border Background="#FFF3CD" BorderBrush="#FFE69C" BorderThickness="1" CornerRadius="4" Padding="12">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Your Responsibility" FontWeight="Bold"/>
+                        <TextBlock TextWrapping="Wrap">
+                            <Run Text="You are solely responsible for ensuring that your use of the download feature complies with applicable laws and the terms of service of the platforms you download from. NullWave does not host, distribute, or endorse any copyrighted content."/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="What This Feature Does" FontWeight="Bold" Margin="0,8,0,0"/>
+                <TextBlock TextWrapping="Wrap">
+                    <Run Text="The download feature allows you to save audio from publicly available URLs for personal offline listening. It uses yt-dlp, an open-source tool, to extract audio streams. No content is uploaded or shared."/>
+                </TextBlock>
+
+                <CheckBox IsChecked="{Binding UserUnderstands}" Margin="0,12,0,0">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="I understand that I am responsible for complying with copyright laws and platform terms of service."/>
+                    </TextBlock>
+                </CheckBox>
+
+                <CheckBox IsChecked="{Binding UserAcceptsResponsibility}">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="I accept full responsibility for how I use this feature and agree not to use it for copyright infringement."/>
+                    </TextBlock>
+                </CheckBox>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

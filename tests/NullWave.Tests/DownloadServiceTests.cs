@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
+using NullWave.Models;
 using NullWave.Services;
 using Xunit;
 
@@ -14,6 +15,7 @@ public class DownloadServiceTests : IDisposable
 {
     private readonly string _downloadDir;
     private readonly DownloadService _service;
+    private readonly PreferencesService _prefs = null!;
 
     public DownloadServiceTests()
     {
@@ -35,8 +37,14 @@ public class DownloadServiceTests : IDisposable
         Directory.CreateDirectory(_downloadDir);
         Environment.SetEnvironmentVariable("FAKE_YTDLP_OUTDIR", _downloadDir);
 
-        var prefs = new PreferencesService();
-        _service = new DownloadService(null!, prefs, null!);
+        _prefs = new PreferencesService();
+        _prefs.Current.DownloaderConsent = new DownloaderConsent
+        {
+            AcceptedVersion = DownloaderConsent.CurrentVersion,
+            AcceptedAtUtc = DateTime.UtcNow
+        };
+        
+        _service = new DownloadService(null!, _prefs, null!);
     }
 
     public void Dispose()
@@ -78,7 +86,7 @@ public class DownloadServiceTests : IDisposable
         await Task.WhenAny(task2, Task.Delay(2000));
 
         Assert.True(task2.IsCompleted, "Duplicate request should return immediately, not hang.");
-        Assert.Null(failedReason); // duplicate click is silent now: no failure event
+        Assert.Null(failedReason);
         
         cts1.Cancel();
         await Task.WhenAny(task1, Task.Delay(1000));

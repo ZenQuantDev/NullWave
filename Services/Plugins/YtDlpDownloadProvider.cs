@@ -102,4 +102,10 @@ public class YtDlpDownloadProvider : IDownloadProvider
         // events on the Inner service.
         return Task.FromResult(DownloadResult.Succeeded(string.Empty));
     }
+
+        public ProviderDescriptor Descriptor { get; } = new(
+        Id: "yt-dlp",
+        Kind: ProviderKind.Download,
+        DisplayName: "yt-dlp (YouTube, SoundCloud, Bandcamp)"
+    );
 }
