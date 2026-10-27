@@ -24,6 +24,12 @@ public class OllamaAIProvider : IAIProvider
     public PluginState State { get; set; } = PluginState.Unavailable;
     public bool IsEnabled { get; set; } = true;
 
+    public ProviderDescriptor Descriptor { get; } = new(
+        Id: "ollama",
+        Kind: ProviderKind.Mood,
+        DisplayName: "Ollama Local AI"
+    );
+
     public LocalAIService Inner => _inner;
 
     public OllamaAIProvider(LocalAIService inner, PreferencesService prefs)

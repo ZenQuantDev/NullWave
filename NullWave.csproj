@@ -39,6 +39,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="LibVLCSharp" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" />
     <PackageReference Include="Material.Icons.Avalonia" />
     <PackageReference Include="QRCoder" />

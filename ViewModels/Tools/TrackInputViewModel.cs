@@ -347,10 +347,27 @@ public class TrackInputViewModel : ViewModelBase
     private static MediaType DetectMediaType(string url)
     {
         var value = url.ToLowerInvariant();
+        // Radio detection: be more specific to avoid false positives
         if (value.EndsWith(".m3u8") || value.EndsWith(".m3u") || value.EndsWith(".pls") ||
-            value.Contains("icecast") || value.Contains("/stream") || value.Contains("radio") ||
+            value.Contains("icecast") || value.Contains("/stream") ||
             RadioStationCatalog.TryGetChannels(url, out _, out _))
+        {
             return MediaType.Radio;
+        }
+        // More precise radio URL pattern matching
+        // Match "radio" only when it's part of the domain or a clear radio indicator
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            var host = uri.Host.ToLowerInvariant();
+            // Check if "radio" is in the domain name (but not just as part of a band name)
+            if (host.Contains("radio") && 
+                !host.Contains("radiohead") &&  // Exclude known band names
+                (host.StartsWith("radio") || host.EndsWith("radio") || host.Contains(".radio.")))
+            {
+                return MediaType.Radio;
+            }
+        }
+        // Audiobook detection
         if (value.Contains("audiobook") || value.Contains("librivox") || value.Contains("spoken word") ||
             value.Contains("full book") || value.Contains("archive.org/details/audiobook"))
             return MediaType.Audiobook;

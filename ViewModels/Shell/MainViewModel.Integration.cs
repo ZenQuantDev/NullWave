@@ -62,6 +62,9 @@ public partial class MainViewModel
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
+        // Provider registry (M3 foundation) - ASSIGN TO FIELD, not local variable
+        _providerRegistry = new ProviderRegistry(_prefsService);
+
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
         Settings.DevEffectsTierOverrideChanged += tier => _effectsTier.SetDevOverride(tier);
@@ -133,7 +136,10 @@ public partial class MainViewModel
         _aiPlaylistsFolder = _playlists.GetAllFolders().FirstOrDefault(f => f.Name == "AI Playlists") ?? _playlists.CreateFolder("AI Playlists");
         Library.AiPlaylistRequested += OnAiPlaylistRequested;
 
-        Playlist = new PlaylistViewModel(_playlists);
+        // FIX: Moved SmartPlaylistService creation up here so it can be passed to PlaylistViewModel
+        var smartPlaylistService = new SmartPlaylistService(_library, TimeProvider.System);
+
+        Playlist = new PlaylistViewModel(_playlists, smartPlaylistService);
         Playlist.RequestCreatePlaylistName = async () =>
         {
             var dialog = new Views.CreatePlaylistDialog();
@@ -156,7 +162,7 @@ public partial class MainViewModel
         Queue = new QueueViewModel(_library);
 
         Nav = new NavigationViewModel(
-            _prefsService, _playlists,
+            _prefsService, _playlists, smartPlaylistService,
             () => NavigateLibraryCommand, 
             () => NavigatePlaylistsCommand, 
             () => NavigateRadioCommand, 
@@ -167,6 +173,12 @@ public partial class MainViewModel
                 Playlist.SelectById(playlistId);
                 Nav.SetPlaylistActive(playlistId);
                 LogNav($"PinnedPlaylist:{playlistId}");
+            },
+            navigateToSmartPlaylist: smartId =>
+            {
+                CurrentPage = "Playlists";
+                Playlist.SelectSmartPlaylist(smartId);
+                LogNav($"SmartPlaylist:{smartId}");
             });
 
         var oldAiPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("AI: ", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -189,6 +201,10 @@ public partial class MainViewModel
             Playlist.Refresh();
             Nav.Rebuild();
         }
+
+        // Register providers with the new registry - USE THE FIELD
+        foreach (var plugin in _plugins.Plugins.OfType<IProvider>())
+            _providerRegistry.Register(plugin);
     }
 
     private void WireCoreEvents()

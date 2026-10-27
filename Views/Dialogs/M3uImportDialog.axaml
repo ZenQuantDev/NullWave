@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NullWave.ViewModels.Dialogs"
+        xmlns:models="using:NullWave.Services"
+        x:Class="NullWave.Views.Dialogs.M3uImportDialog"
+        x:DataType="vm:M3uImportDialogViewModel"
+        Title="Import M3U Playlist"
+        Width="700" Height="500"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Classes="secondary"/>
+            <Button Content="Import" Command="{Binding ImportCommand}" Classes="primary"
+                    IsEnabled="{Binding CanImport}"/>
+        </StackPanel>
+        
+        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Grid.Row="0" Text="{Binding SummaryText}" 
+                       FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            
+            <TextBox Grid.Column="2" Grid.Row="0" Text="{Binding PlaylistName, Mode=TwoWay}"
+                     PlaceholderText="Playlist name" Margin="8,0,0,8"/>
+            
+            <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" 
+                    BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" 
+                    CornerRadius="4" Margin="0,0,0,8">
+                <ListBox ItemsSource="{Binding Matches}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:M3uImportMatch">
+                            <Grid ColumnDefinitions="24,*,Auto" Margin="4,2">
+                                <TextBlock Grid.Column="0" 
+                                           Text="{Binding MatchType}" 
+                                           Foreground="{DynamicResource BrushTextSecondary}"
+                                           FontSize="11" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="{Binding Entry.Title}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Entry.Artist}" 
+                                               Foreground="{DynamicResource BrushTextSecondary}"
+                                               FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" 
+                                           Text="{Binding MatchedTrack.Title}" 
+                                           Foreground="{DynamicResource BrushAccent}"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding MatchedTrack, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+            
+            <TextBlock Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2" 
+                       Text="{Binding StatusText}" 
+                       Foreground="{DynamicResource BrushTextSecondary}"
+                       FontSize="12"/>
+        </Grid>
+    </DockPanel>
+</Window>
