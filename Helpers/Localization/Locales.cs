@@ -1033,5 +1033,11 @@ public static partial class Locales
         ["Profile_Badge_Bookworm_Desc"] = "50+ hours of audiobooks.",
 
         ["Player_Status_Buffering"] = "Buffering…",
+
+        ["Settings_Nav_Sources"]            = "Sources",
+        ["Settings_Sources_Header"]         = "Content Sources",
+        ["Settings_Sources_Description"]    = "Choose which engines power each feature. Single-source kinds use one provider at a time; multi-source kinds can use several in parallel.",
+        ["Settings_PageTitle_Sources"]      = "Sources",
+        ["Settings_PageDesc_Sources"]       = "Manage download, metadata, search, and AI providers",
     };
 }

@@ -1016,5 +1016,11 @@ public static partial class Locales
         ["MainWindow_Startup_Loading"] = "Пробуждаем библиотеку…",
 
         ["Player_Status_Buffering"] = "Буферизация…",
+
+        ["Settings_Nav_Sources"]            = "Источники",
+        ["Settings_Sources_Header"]         = "Источники контента",
+        ["Settings_Sources_Description"]    = "Выберите, какие движки обеспечивают каждую функцию. Одиночные источники используют один провайдер; множественные могут использовать несколько параллельно.",
+        ["Settings_PageTitle_Sources"]      = "Источники",
+        ["Settings_PageDesc_Sources"]       = "Управление провайдерами загрузки, метаданных, поиска и ИИ",
     };
 }
