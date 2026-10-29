@@ -25,7 +25,7 @@ public class DownloadServiceTests : IDisposable
         if (testsDir == null)
             throw new DirectoryNotFoundException("Could not locate the 'tests' directory from AppContext.BaseDirectory.");
 
-        var fakeExe = Path.Combine(testsDir.FullName, "FakeYtDlp", "bin", "Debug", "net8.0", 
+        var fakeExe = Path.Combine(testsDir.FullName, "FakeYtDlp", "bin", "Debug", "net10.0", 
             OperatingSystem.IsWindows() ? "FakeYtDlp.exe" : "FakeYtDlp");
             
         if (!File.Exists(fakeExe))
@@ -38,12 +38,13 @@ public class DownloadServiceTests : IDisposable
         Environment.SetEnvironmentVariable("FAKE_YTDLP_OUTDIR", _downloadDir);
 
         _prefs = new PreferencesService();
-        _prefs.Current.DownloaderConsent = new DownloaderConsent
+        var consent = new DownloaderConsent
         {
             AcceptedVersion = DownloaderConsent.CurrentVersion,
             AcceptedAtUtc = DateTime.UtcNow
         };
-        
+        _prefs.Update(p => p.DownloaderConsent = consent);
+
         _service = new DownloadService(null!, _prefs, null!);
     }
 
@@ -167,4 +168,30 @@ public class DownloadServiceTests : IDisposable
     public void Format_selector_forces_m4a_only_on_windows_native_containers(
         bool useFfmpeg, string format, bool isWindows, string expected)
         => Assert.Equal(expected, DownloadService.ChooseFormatSelector(useFfmpeg, format, isWindows));
+
+        [Fact]
+    public async Task Changing_limit_mid_download_does_not_throw_or_lose_the_track()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang");
+        string? failure = null;
+        _service.DownloadFailed += (_, reason, _) => failure = reason;
+        
+        var cts = new CancellationTokenSource();
+        var t1 = _service.DownloadAsync("a", "https://youtube.com/watch?v=LIM1", isInteractive: false, ct: cts.Token);
+        var t2 = _service.DownloadAsync("b", "https://youtube.com/watch?v=LIM2", isInteractive: false, ct: cts.Token);
+        await Task.Delay(500);
+
+        _service.UpdateConcurrencyLimit(3);
+        _service.UpdateConcurrencyLimit(1);
+        cts.Cancel();
+        await Task.WhenAll(t1, t2);
+
+        Assert.DoesNotContain("disposed", failure ?? "", StringComparison.OrdinalIgnoreCase);
+
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "success");
+        bool done = false;
+        _service.DownloadCompleted += (_, _, _) => done = true;
+        await _service.DownloadAsync("c", "https://youtube.com/watch?v=LIM3", isInteractive: false);
+        Assert.True(done);
+    }
 }

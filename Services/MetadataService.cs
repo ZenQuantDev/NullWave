@@ -19,6 +19,12 @@ public class MetadataService
     private readonly LocalMetadataFetcher _local;
     private readonly LastFmService _lastFm;
     private readonly UrlParserService _urlParser = new();
+    
+    // NEW: Generic fetchers for yt-dlp-supported sources
+    private readonly YtDlpMetadataFetcher _bandcamp;
+    private readonly YtDlpMetadataFetcher _audiomack;
+    private readonly YtDlpMetadataFetcher _archiveOrg;
+    private readonly YtDlpMetadataFetcher _mixcloud;
 
     public MetadataService(ConfigService config, LastFmService lastFm)
     {
@@ -26,6 +32,12 @@ public class MetadataService
         _soundCloud = new SoundCloudMetadataFetcher();
         _local      = new LocalMetadataFetcher();
         _lastFm     = lastFm;
+        
+        // NEW: Initialize generic fetchers
+        _bandcamp   = new YtDlpMetadataFetcher("Bandcamp");
+        _audiomack  = new YtDlpMetadataFetcher("Audiomack");
+        _archiveOrg = new YtDlpMetadataFetcher("Archive.org");
+        _mixcloud   = new YtDlpMetadataFetcher("Mixcloud");
     }
 
     public async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchFromUrlAsync(string url)
@@ -37,6 +49,11 @@ public class MetadataService
             TrackSource.SoundCloud => await _soundCloud.FetchAsync(url),
             TrackSource.Spotify    => await FetchSpotifyMetadataAsync(url),
             TrackSource.LastFm     => await FetchLastFmUrlAsync(url),
+            // NEW: Route to generic yt-dlp fetcher
+            TrackSource.Bandcamp   => await _bandcamp.FetchAsync(url),
+            TrackSource.Audiomack  => await _audiomack.FetchAsync(url),
+            TrackSource.ArchiveOrg => await _archiveOrg.FetchAsync(url),
+            TrackSource.Mixcloud   => await _mixcloud.FetchAsync(url),
             _                      => ("Unknown Title", "Unknown Artist", null, TimeSpan.Zero)
         };
     }

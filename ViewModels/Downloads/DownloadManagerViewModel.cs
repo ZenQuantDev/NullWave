@@ -22,7 +22,9 @@ public partial class DownloadManagerViewModel : ObservableObject
 
     public DownloadManagerViewModel()
     {
-        RetryCommand = new RelayCommand<DownloadJob>(job => job?.RetryAction?.Invoke());
+        RetryCommand = new RelayCommand<DownloadJob>(
+    job => job?.RetryAction?.Invoke(),
+    job => job is { IsFailed: true });
         ClearCompletedCommand = new RelayCommand(() =>
         {
             for (int i = Jobs.Count - 1; i >= 0; i--)
