@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels.Settings"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             x:Class="NullWave.Views.Settings.SourcesTab"
+             x:DataType="vm:SourcesTabViewModel">
+
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="20" MaxWidth="700">
+
+            <TextBlock Text="{loc:Loc Settings_Sources_Header}"
+                       FontSize="{DynamicResource FontSizeLg}" FontWeight="SemiBold"
+                       Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,4"/>
+            <TextBlock Text="{loc:Loc Settings_Sources_Description}"
+                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"
+                       TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+            <!-- WIP Banner for v0.6.5-beta -->
+            <Border Background="{StaticResource BrushAmberDim}" CornerRadius="{StaticResource RadiusSm}" Padding="12,8" Margin="0,0,0,12">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <material:MaterialIcon Kind="InformationOutline" Width="18" Height="18" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Preview: Provider selection is saved, but active traffic routing is coming in v0.6.6. All sources currently use the default engines."
+                               Foreground="{StaticResource BrushAmber}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding KindGroups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SourceKindGroupViewModel">
+                        <Border Classes="settings-card" Margin="0,0,0,12">
+                            <StackPanel Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"
+                                               Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
+                                    <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="6,2" VerticalAlignment="Center"
+                                            IsVisible="{Binding IsSingleActive}">
+                                        <TextBlock Text="Single" FontSize="10"
+                                                   Foreground="{StaticResource BrushTextMuted}"/>
+                                    </Border>
+                                    <Border Background="{StaticResource BrushAccentDim}" CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="6,2" VerticalAlignment="Center"
+                                            IsVisible="{Binding !IsSingleActive}">
+                                        <TextBlock Text="Multi" FontSize="10"
+                                                   Foreground="{StaticResource BrushAccent}"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding Description}"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{DynamicResource FontSizeXs}"
+                                           TextWrapping="Wrap"/>
+
+                                <!-- Pairing lock message -->
+                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="{StaticResource RadiusSm}"
+                                        Padding="8,4" IsVisible="{Binding PairingMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <material:MaterialIcon Kind="Lock" Width="14" Height="14"
+                                                               Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding PairingMessage}"
+                                                   Foreground="{StaticResource BrushAmber}"
+                                                   FontSize="{DynamicResource FontSizeXs}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Single-active: ComboBox -->
+                                <ComboBox ItemsSource="{Binding Providers}"
+                                          SelectedItem="{Binding SelectedProvider}"
+                                          IsVisible="{Binding IsSingleActive}"
+                                          HorizontalAlignment="Stretch" MinHeight="36">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SourceRowViewModel">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                                <StackPanel Grid.Column="0" Spacing="1">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontWeight="Medium" FontSize="{DynamicResource FontSizeSm}"/>
+                                                    <TextBlock Text="{Binding StatusLabel}"
+                                                               Foreground="{StaticResource BrushTextMuted}"
+                                                               FontSize="{DynamicResource FontSizeXs}"/>
+                                                </StackPanel>
+                                                <material:MaterialIcon Grid.Column="1" Kind="CheckCircle"
+                                                                       Width="16" Height="16"
+                                                                       Foreground="{StaticResource BrushGreen}"
+                                                                       IsVisible="{Binding IsActive}"
+                                                                       VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <!-- Multi-active: Checkboxes -->
+                                <ItemsControl ItemsSource="{Binding Providers}"
+                                              IsVisible="{Binding !IsSingleActive}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SourceRowViewModel">
+                                            <Border Padding="8,6" Margin="0,2"
+                                                    CornerRadius="{StaticResource RadiusSm}"
+                                                    Background="{StaticResource BrushSurface2}">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsActive}"
+                                                              VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontSize="{DynamicResource FontSizeSm}" FontWeight="Medium"/>
+                                                        <TextBlock Text="{Binding StatusLabel}"
+                                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                                   FontSize="{DynamicResource FontSizeXs}"/>
+                                                    </StackPanel>
+                                                    <material:MaterialIcon Grid.Column="2" Kind="InformationOutline"
+                                                                           Width="16" Height="16"
+                                                                           Foreground="{StaticResource BrushTextMuted}"
+                                                                           VerticalAlignment="Center"
+                                                                           ToolTip.Tip="{Binding Descriptor.Id}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Classes="BottomSpacer"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

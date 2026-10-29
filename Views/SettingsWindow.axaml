@@ -195,6 +195,12 @@
                                     <TextBlock Text="{loc:Loc Settings_Nav_Plugins}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Sources" ToolTip.Tip="{loc:Loc Settings_Nav_Sources}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Sources}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border Classes="nav-icon"><material:MaterialIcon Kind="DatabaseSearch" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{loc:Loc Settings_Nav_Sources}" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding NavigateSettingsCommand}" CommandParameter="Audio" ToolTip.Tip="{loc:Loc Settings_Nav_Audio}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Border Classes="nav-icon"><material:MaterialIcon Kind="MusicNote" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
@@ -279,6 +285,7 @@
                     <settings:AppearanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Appearance}"/>
                     <settings:ApiKeysTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=ApiKeys}"/>
                     <settings:PluginsTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Plugins}"/>
+                    <settings:SourcesTab DataContext="{Binding Sources}" IsVisible="{Binding $parent[Window].DataContext.CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Sources}"/>
                     <settings:AudioTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Audio}"/>
                     <settings:SmartSortingTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=SmartFeatures}"/>
                     <settings:MaintenanceTab DataContext="{Binding}" IsVisible="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}"/>

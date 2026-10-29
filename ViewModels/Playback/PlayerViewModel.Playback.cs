@@ -30,6 +30,14 @@ public partial class PlayerViewModel
 
     public void PlayTrack(Track? track)
     {
+        if (track == null) return;
+        // Debounce: prevent rapid re-clicks on the same track
+        if (_currentTrack?.Id == track.Id && 
+            (DateTime.UtcNow - _trackStartTime).TotalMilliseconds < 1500)
+        {
+            return;
+        }
+        
         var t = new StepTimer("PlayTrack");
         try
         {

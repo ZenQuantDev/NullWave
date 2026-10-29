@@ -65,7 +65,7 @@ public partial class MainViewModel
         // Provider registry (M3 foundation) - ASSIGN TO FIELD, not local variable
         _providerRegistry = new ProviderRegistry(_prefsService);
 
-        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
         Settings.DevEffectsTierOverrideChanged += tier => _effectsTier.SetDevOverride(tier);
         Settings.EffectsTierPreferencesChanged += () =>
@@ -74,6 +74,8 @@ public partial class MainViewModel
             _effectsTier.NotifyPreferencesChanged();
         };
     }
+
+    private readonly HashSet<string> _activePlaylistImports = new();
 
     // --- Extracted Singleton Event Handlers ---
     private void OnLibraryChanged(object? sender, EventArgs e)
@@ -296,18 +298,60 @@ public partial class MainViewModel
 
     private void WireIntegrationEvents()
     {
-        Input.PlaylistImportRequested += (playlistUrl) =>
+        Input.PlaylistImportRequested += async (playlistUrl) =>
         {
-            if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+            // Normalize URL for comparison (strip tracking params)
+            var normalizedUrl = NormalizePlaylistUrl(playlistUrl);
+            
+            // Guard: prevent double imports
+            lock (_activePlaylistImports)
             {
-                ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
-                return;
+                if (_activePlaylistImports.Contains(normalizedUrl))
+                {
+                    Log.Information("[MainViewModel] Playlist import already in progress: {Url}", normalizedUrl);
+                    ToastService.Instance.Show("This playlist is already being imported.", ToastType.Info, scope: "import");
+                    return;
+                }
+                _activePlaylistImports.Add(normalizedUrl);
             }
-            _ = _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+
+            // NEW: Detect YouTube auto-generated mixes (RD...) and cap them
+            if (playlistUrl.Contains("list=RD", StringComparison.OrdinalIgnoreCase))
             {
-                if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
-                Dispatcher.UIThread.Post(() => Library.Refresh());
-            });
+                var confirmDialog = new Views.ConfirmDialog(
+                    "Large Auto-Generated Mix",
+                    "This is a YouTube auto-generated mix that may contain 1000+ tracks. Importing it will take a long time and may hit rate limits.\n\nContinue anyway?");
+                
+                var confirmed = await DialogService.Instance.ShowDialogAsync<bool>(confirmDialog);
+                if (!confirmed)
+                {
+                    lock (_activePlaylistImports) { _activePlaylistImports.Remove(normalizedUrl); }
+                    return;
+                }
+            }
+
+            try
+            {
+                if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+                {
+                    ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
+                    return;
+                }
+
+                await _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+                {
+                    if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
+                    Dispatcher.UIThread.Post(() => Library.Refresh());
+                });
+            }
+            finally
+            {
+                // Always remove from active set
+                lock (_activePlaylistImports)
+                {
+                    _activePlaylistImports.Remove(normalizedUrl);
+                }
+            }
         };
 
         Input.RadioSiteRequested += async (stationName, channels) =>
@@ -461,6 +505,28 @@ public partial class MainViewModel
             Settings.ReportImportComplete(applied, results.Count);
             return null;
         };
+    }
+
+    private static string NormalizePlaylistUrl(string url)
+    {
+        // Strip common tracking parameters for comparison
+        var uri = new Uri(url);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        // Remove tracking params
+        query.Remove("si");
+        query.Remove("pp");
+        query.Remove("utm_source");
+        query.Remove("utm_medium");
+        query.Remove("utm_campaign");
+        
+        // Rebuild URL
+        var builder = new UriBuilder(uri)
+        {
+            Query = query.ToString()
+        };
+        
+        return builder.Uri.ToString();
     }
 
     // --- Extracted Download Event Handlers ---

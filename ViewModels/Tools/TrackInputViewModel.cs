@@ -179,7 +179,7 @@ public class TrackInputViewModel : ViewModelBase
                url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase);
     }
 
-    public void AddTrack()
+    public async void AddTrack()
     {
         var providedTitle = InputTitle.Trim();
         var url = InputUrl.Trim();
@@ -334,8 +334,15 @@ public class TrackInputViewModel : ViewModelBase
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
 
-        if (source == TrackSource.YouTube || source == TrackSource.SoundCloud)
+        if (SourceDetector.IsYtDlpSource(source))
         {
+            // Ask for consent before downloading (interactive prompt)
+            if (!await _download.EnsureConsentAsync())
+            {
+                // User declined — track is still added to library but won't download
+                return;
+            }
+
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
                     newTrack.Id.ToString(), newTrack.Url,
@@ -346,6 +353,16 @@ public class TrackInputViewModel : ViewModelBase
 
     private static MediaType DetectMediaType(string url)
     {
+        // Early return for known yt-dlp music sources to prevent false radio positives (e.g., /track/streams-of-light)
+        if (SourceDetector.IsYtDlpSource(SourceDetector.Detect(url)))
+        {
+            var lower = url.ToLowerInvariant();
+            if (lower.Contains("audiobook") || lower.Contains("librivox") || lower.Contains("spoken word") ||
+                lower.Contains("full book") || lower.Contains("archive.org/details/audiobook"))
+                return MediaType.Audiobook;
+            return MediaType.Music;
+        }
+
         var value = url.ToLowerInvariant();
         // Radio detection: be more specific to avoid false positives
         if (value.EndsWith(".m3u8") || value.EndsWith(".m3u") || value.EndsWith(".pls") ||
@@ -553,6 +570,13 @@ public class TrackInputViewModel : ViewModelBase
         TrackAdded?.Invoke();
         StatusMessage = $"Added: {track.Title}";
 
+        // Ask for consent before downloading
+        if (!await _download.EnsureConsentAsync())
+        {
+            StatusMessage = "Downloads disabled";
+            return;
+        }
+ 
         _ = Task.Run(async () =>
             await _download.DownloadAsync(
                 track.Id.ToString(), result.YouTubeUrl,

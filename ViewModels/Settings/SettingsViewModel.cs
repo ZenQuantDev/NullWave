@@ -45,7 +45,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #endregion
 
     #region Constructor
-    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
+    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins, ProviderRegistry providerRegistry)
     {
         IsDevMode = CheckDevAccess();
         _keyStore = keyStore;
@@ -55,6 +55,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _plugins = plugins;
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
+        
+        // Initialize Sources tab
+        Sources = new SourcesTabViewModel(providerRegistry);
         
         _isSettingsSidebarCollapsed = prefsService.Current.SettingsSidebarCollapsed;
         _selectedLanguage = prefsService.Current.Language;
@@ -123,6 +126,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region UI State & Navigation
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public ObservableCollection<PluginRowViewModel> PluginRows { get; private set; } = new();
+    public SourcesTabViewModel Sources { get; }
 
     private bool _isSettingsSidebarCollapsed;
     public bool IsSettingsSidebarCollapsed
