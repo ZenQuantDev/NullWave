@@ -20,7 +20,11 @@ When you use certain features, NullWave may contact these external services:
 - **somafm.com**: SomaFM internet radio streams
 
 ### Downloads (via yt-dlp)
-- **Various platforms**: YouTube, SoundCloud, Bandcamp, and 1000+ other sites supported by yt-dlp
+- **Various platforms**: YouTube, SoundCloud, Bandcamp, Audiomack, Archive.org, Mixcloud, and 1000+ other sites supported by yt-dlp
+- **bandcamp.com**: Bandcamp audio downloads and metadata
+- **audiomack.com**: Audiomack audio downloads and metadata
+- **archive.org**: Internet Archive audio downloads
+- **mixcloud.com**: Mixcloud audio downloads
 - **github.com**: yt-dlp version checks and updates
 
 ### Local AI

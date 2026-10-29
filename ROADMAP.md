@@ -529,7 +529,8 @@
 
 - 💡 **Synced Lyrics**: LRCLIB integration with playback-position line highlighting.
 - 💡 **Advanced Audio**: 10-band EQ (LibVLC) and ReplayGain/volume normalization.
-- 💡 **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
+- ✅ **M3U Import/Export**: M3U/M3U8 import and export (shipped in v0.6.5).
+- ✅ **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
 - 💡 **More Sources**: Bandcamp import, M3U/M3U8 import and export.
 - 💡 **Export & Sharing**: Batch export/archiving, P2P/Torrent-like sharing, embedded tag sync.
 - 💡 YouTube Data API fallback to yt-dlp embedded metadata when the API returns BadRequest (kills "Unknown Title" imports).
@@ -585,11 +586,11 @@ main                ← always stable, builds clean
 
 | Package                   | Version       | Notes                                   |
 | ------------------------- | ------------- | --------------------------------------- |
-| .NET                      | 8.0           | LTS                                     |
-| Avalonia                  | 12.0.4        |                                         |
-| LibVLCSharp               | 3.9.7.1       | Fedora: symlinks to /usr/lib required   |
+| .NET                      | 10.0          | LTS (supported until Nov 2028)          |
+| Avalonia                  | 12.1.3        |                                         |
+| LibVLCSharp               | 3.10.1        | Fedora: symlinks to /usr/lib required   |
 | TagLib#                   | 2.3.0         |                                         |
 | Serilog                   | latest stable | + Serilog.Filters.Expressions           |
 | sqlite-net-pcl            | 1.9.172       | Packages installed, implementation next |
 | SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux        |
-| CommunityToolkit.Mvvm     | latest stable | RelayCommand, ObservableProperty        |
+| CommunityToolkit.Mvvm     | 8.4.2         | RelayCommand, ObservableProperty        |

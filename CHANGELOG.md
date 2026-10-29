@@ -3,6 +3,32 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.5-beta] - 28-Oct-2026
+
+### Added
+- **Keystore v2**: Migrated from machine-ID-derived keys to OS-native secret storage. Windows uses DPAPI, Linux uses Secret Service when available, with safe legacy fallback. Existing keys auto-migrate on first launch.
+- **Download Consent Gate**: Downloads now require explicit first-time consent. A dialog explains that NullWave uses yt-dlp and that you're responsible for respecting copyright.
+- **.NET 10 LTS**: Retargeted from .NET 8 to .NET 10 LTS (supported until Nov 2028).
+- **Smart Playlists**: Three virtual, auto-updating playlists in the "AI Playlists" folder (Recently Added, Most Played, Forgotten Favorites).
+- **M3U Playlist Support**: Full import/export with preview dialog, relative/absolute paths, and stream URL preservation.
+- **Provider Registry Foundation**: Architecture for managing content providers (Download, Metadata, Mood, Weather) with active-selection semantics (UI preview in this release, routing in v0.6.6).
+- **New Audio Sources**: Added native yt-dlp support for Bandcamp, Audiomack, Archive.org, and Mixcloud.
+
+### Changed
+- **Radio Detection**: Early-return for known music sources prevents false positives (e.g., `radiohead.bandcamp.com` or `/track/streams-of-light`).
+- **yt-dlp Runtime**: Bun removed (deprecated). Detection order: Deno (≥2.3.0) → Node (≥22.0.0).
+- **429 Detection**: Tightened to match `HTTP Error 429` only, preventing false backoff.
+- **Privacy Documentation**: `PRIVACY.md` now lists all network hosts contacted by the app.
+- **Test Suite**: Expanded to 533 passing tests.
+
+### Fixed
+- **List Parameter Stripping**: YouTube URLs with `list=` parameter are now safely stripped using a proper URI parser, allowing single-track downloads from playlist pages without breaking the URL.
+- **Semaphore Shrink-Debt**: Fixed an edge case where changing the concurrent download limit mid-download would permanently stall the queue.
+- **Keystore Data Safety**: "Delete All Keys" now securely removes backup and quarantined files. First-run directory creation is guaranteed.
+- **Provider Descriptors**: All 4 providers now expose `Descriptor` properties for registry integration.
+- **CA2024 Warning**: Fixed `reader.EndOfStream` usage in async methods.
+
+---
 
 ## [0.6.4] - 25-Oct-2026 🏗️ "Foundations"
 
