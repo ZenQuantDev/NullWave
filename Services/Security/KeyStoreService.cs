@@ -26,6 +26,11 @@ public class KeyStoreService
     public KeyStoreService(string storePath)
     {
         _storePath = storePath;
+        Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
+        MigrateLegacyIfNeeded();
+
+        // CRITICAL FIX: Derive the legacy key so we can read v1 files
+        _encryptionKey = DeriveLegacyKey();
         
         if (OperatingSystem.IsWindows())
         {
@@ -43,6 +48,9 @@ public class KeyStoreService
         }
         
         _legacyProtector = new LegacyDerivedProtector(storePath);
+        
+        // Migrate v1 → v2 on first load
+        MigrateV1ToV2IfNeeded();
     }
 
     internal KeyStoreService(string storePath, byte[] encryptionKey)
@@ -52,6 +60,91 @@ public class KeyStoreService
         _activeProtector = new AesGcmProtector(1, "test", encryptionKey);
         _legacyProtector = _activeProtector;
         Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
+    }
+
+    private static byte[] DeriveLegacyKey()
+    {
+        var machineId = GetMachineId();
+        var username = Environment.UserName;
+        var raw = $"{machineId}:{username}:nullwave-keystore-v1";
+        return SHA256.HashData(Encoding.UTF8.GetBytes(raw));
+    }
+
+    private static string GetMachineId()
+    {
+        if (NullWavePaths.IsLinux)
+        {
+            try { return File.ReadAllText("/etc/machine-id").Trim(); } catch { }
+        }
+        return Environment.MachineName;
+    }
+
+    private void MigrateV1ToV2IfNeeded()
+    {
+        if (!File.Exists(_storePath)) return;
+        
+        try
+        {
+            var blob = File.ReadAllBytes(_storePath);
+            
+            // Check if already v2 format
+            if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
+            {
+                Log.Debug("[KeyStoreService] Keystore already v2 format");
+                return;
+            }
+            
+            // v1 format: try to decrypt with legacy key
+            Log.Information("[KeyStoreService] Detected v1 keystore, attempting migration to v2");
+            
+            var json = Encoding.UTF8.GetString(DecryptLegacy(blob));
+            var keys = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            
+            if (keys == null || keys.Count == 0)
+            {
+                Log.Warning("[KeyStoreService] v1 keystore was empty, skipping migration");
+                return;
+            }
+            
+            // Re-save as v2 with active protector
+            if (_activeProtector != null)
+            {
+                var newBlob = EncryptWithActiveProtector(json);
+                var tmp = _storePath + ".tmp";
+                File.WriteAllBytes(tmp, newBlob);
+                if (!OperatingSystem.IsWindows())
+                    File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                
+                // Backup the v1 file
+                var backup = _storePath + ".v1.bak";
+                File.Copy(_storePath, backup, overwrite: true);
+                
+                // Atomically replace
+                File.Move(tmp, _storePath, overwrite: true);
+                
+                Log.Information("[KeyStoreService] Migrated {Count} keys from v1 to v2 format. Backup at {Backup}", 
+                    keys.Count, backup);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[KeyStoreService] v1→v2 migration failed, will use v1 format");
+        }
+    }
+
+    private byte[] EncryptWithActiveProtector(string plaintext)
+    {
+        if (_activeProtector == null)
+            throw new InvalidOperationException("No active protector available");
+            
+        var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
+        var payload = _activeProtector.Protect(plaintextBytes);
+        var blob = new byte[6 + payload.Length];
+        blob[0] = (byte)'N'; blob[1] = (byte)'W'; blob[2] = (byte)'K'; blob[3] = (byte)'S';
+        blob[4] = 2; // version
+        blob[5] = _activeProtector.Id;
+        Array.Copy(payload, 0, blob, 6, payload.Length);
+        return blob;
     }
 
     private void MigrateLegacyIfNeeded()
@@ -163,6 +256,22 @@ public class KeyStoreService
                 File.Delete(_storePath);
                 Log.Warning("All API keys have been deleted");
             }
+            
+            // Clean up backups and quarantined files to ensure no recoverable copies remain
+            var dir = Path.GetDirectoryName(_storePath);
+            if (dir != null && Directory.Exists(dir))
+            {
+                var prefix = Path.GetFileName(_storePath);
+                foreach (var file in Directory.GetFiles(dir, $"{prefix}.*"))
+                {
+                    if (file.EndsWith(".v1.bak", StringComparison.OrdinalIgnoreCase) || 
+                        file.Contains(".bad-", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { File.Delete(file); } catch { }
+                    }
+                }
+            }
+            
             _cache = new Dictionary<string, string>();
         }
     }
