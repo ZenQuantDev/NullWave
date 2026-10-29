@@ -18,5 +18,10 @@ public static class NetworkHosts
         new("open.spotify.com", "Spotify page metadata (scraping)", "spotify"),
         new("github.com", "Update checks", null),
         new("ollama.ai", "Local AI model downloads", "ollama"),
+        // NEW: No-API-Key sources
+        new("bandcamp.com", "Bandcamp audio downloads and metadata", "yt-dlp"),
+        new("audiomack.com", "Audiomack audio downloads and metadata", "yt-dlp"),
+        new("archive.org", "Internet Archive audio downloads", "yt-dlp"),
+        new("mixcloud.com", "Mixcloud audio downloads", "yt-dlp"),
     };
 }

@@ -20,18 +20,12 @@ public class SourceDetectorTests
     [InlineData("https://soundcloud.com/c418/axolotl", TrackSource.SoundCloud)]
     [InlineData("https://on.soundcloud.com/AbCdEf", TrackSource.SoundCloud)]
     [InlineData("https://www.last.fm/music/Tame+Impala/_/Let+It+Happen", TrackSource.LastFm)]
+    [InlineData("https://tameimpala.bandcamp.com/track/let-it-happen", TrackSource.Bandcamp)]
+    [InlineData("https://audiomack.com/artist/song/example", TrackSource.Audiomack)]
+    [InlineData("https://archive.org/details/GratefulDead1977-05-08", TrackSource.ArchiveOrg)]
+    [InlineData("https://www.mixcloud.com/example/dj-mix/", TrackSource.Mixcloud)]
     public void Detect_recognises_known_sources(string url, TrackSource expected)
         => Assert.Equal(expected, SourceDetector.Detect(url));
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(@"C:\Music\song.mp3")]
-    [InlineData("/home/alex/Music/song.flac")]
-    [InlineData("https://bandcamp.com/some/track")]
-    public void Detect_gives_Unknown_for_empty_local_or_other_sites(string? url)
-        => Assert.Equal(TrackSource.Unknown, SourceDetector.Detect(url!));
 
     [Theory]
     [InlineData("https://www.youtube.com/watch?v=abc123")]
@@ -61,6 +55,16 @@ public class SourceDetectorTests
     [InlineData("https://www.last.fm/")]
     public void IsPlayableUrl_rejects_bare_roots_and_non_track_pages(string url)
         => Assert.False(SourceDetector.IsPlayableUrl(url));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(@"C:\Music\song.mp3")]
+    [InlineData("/home/alex/Music/song.flac")]
+    // REMOVED: [InlineData("https://bandcamp.com/some/track")] — Bandcamp is now a recognized source
+    public void Detect_gives_Unknown_for_empty_local_or_other_sites(string? url)
+        => Assert.Equal(TrackSource.Unknown, SourceDetector.Detect(url!));
 
     // ---------- Known gaps (skipped until SourceDetector is patched) ----------
 

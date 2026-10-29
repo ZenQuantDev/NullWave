@@ -7,5 +7,14 @@ public enum TrackSource
     SoundCloud, 
     LastFm, 
     Local, 
-    Unknown 
+    Unknown,
+    // --- No-API-Key Sources (yt-dlp native) ---
+    Bandcamp,
+    Audiomack,
+    ArchiveOrg,
+    Mixcloud,
+    // --- API-Backed Sources (future) ---
+    // Jamendo,
+    // FreeMusicArchive,
+    // Deezer
 }
