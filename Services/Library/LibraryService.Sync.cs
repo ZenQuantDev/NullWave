@@ -97,6 +97,8 @@ public partial class LibraryService
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
-        return new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
+        var sanitized = new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
+        // Collapse repeated spaces into a single space
+        return System.Text.RegularExpressions.Regex.Replace(sanitized, @"\s+", " ");
     }
 }

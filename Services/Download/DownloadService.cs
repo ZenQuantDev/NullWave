@@ -120,6 +120,8 @@ public class DownloadService
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     
     private static readonly Regex ListParamRegex = new(@"[?&]list=[^&]*", RegexOptions.Compiled);
+    private static readonly Regex YtIdRegex = new(@"(?:[?&]v=|youtu\.be/)([A-Za-z0-9_-]{11})", RegexOptions.Compiled);
+    private static readonly string[] AudioExts = { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" };
 
     private readonly HashSet<string> _activeDownloads = new();
     private readonly HashSet<string> _activePlaylists = new(); 
@@ -464,6 +466,8 @@ public class DownloadService
         };
 
         var src = SourceDetector.Detect(url);
+        var videoId = src == TrackSource.YouTube && YtIdRegex.Match(url) is { Success: true } idm ? idm.Groups[1].Value : null;
+
         if (src is TrackSource.YouTube or TrackSource.SoundCloud)
         {
             args.Add("--parse-metadata"); args.Add("uploader:%(artist)s");
@@ -520,8 +524,6 @@ public class DownloadService
         cts.CancelAfter(TimeSpan.FromMinutes(20));
         ct = cts.Token;
 
-        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
-
         var activeDownloadCounted = false;
         DownloadJob? job = null;
 
@@ -531,6 +533,8 @@ public class DownloadService
             await _gate.WaitAsync(ct);
             Interlocked.Increment(ref _activeDownloadCount);
             activeDownloadCounted = true;
+
+            Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
 
             job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
             job.Status = "Downloading...";
@@ -620,10 +624,13 @@ public class DownloadService
             }
             else if (result.ExitCode == 0)
             {
-                var recent = FindMostRecentUnlinkedDownload(title);
+                if (outputFilePath != null)
+                    Log.Warning("[DownloadService] yt-dlp printed a path that doesn't exist: {Path}", outputFilePath);
+                    
+                var recent = FindMostRecentUnlinkedDownload(title, videoId);
                 if (recent != null)
                 {
-                    Log.Warning("[DownloadService] filepath not captured, using most recent: {Path}", recent);
+                    Log.Information("[DownloadService] output located via fallback: {Path}", recent);
                     job.IsCompleted = true;
                     job.Status = "Completed";
                     job.Progress = 100;
@@ -1064,7 +1071,7 @@ public class DownloadService
         }
     }
 
-    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null)
+    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null, string? videoId = null)
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
@@ -1074,10 +1081,27 @@ public class DownloadService
             .Select(t => Path.GetFullPath(t.FilePath!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // FIX: Try to find by YouTube video ID first (ASCII, bypasses encoding issues)
+        if (!string.IsNullOrEmpty(videoId))
+        {
+            var tag = $"[{videoId}]";
+            var byId = dir.GetFiles()
+                .Where(f => AudioExts.Contains(f.Extension.ToLowerInvariant())
+                            && f.Name.Contains(tag, StringComparison.Ordinal)
+                            && !linkedPaths.Contains(f.FullName))
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .FirstOrDefault();
+            if (byId != null)
+            {
+                Log.Information("[DownloadService] Recovered output by video id: {Path}", byId.FullName);
+                return byId.FullName;
+            }
+        }
+
         FileInfo? newest = null;
         foreach (var file in dir.GetFiles())
         {
-            if (!new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(file.Extension.ToLowerInvariant())) continue;
+            if (!AudioExts.Contains(file.Extension.ToLowerInvariant())) continue;
             if (linkedPaths.Contains(file.FullName)) continue;
             if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file;
         }
@@ -1089,8 +1113,7 @@ public class DownloadService
             static string Norm(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
             var want = Norm(expectedTitle);
             var match = dir.GetFiles()
-                .Where(f => !linkedPaths.Contains(f.FullName) &&
-                            new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(f.Extension.ToLowerInvariant()))
+                .Where(f => !linkedPaths.Contains(f.FullName) && AudioExts.Contains(f.Extension.ToLowerInvariant()))
                 .FirstOrDefault(f => Norm(Path.GetFileNameWithoutExtension(f.Name)) == want);
             if (match != null) return match.FullName;
         }

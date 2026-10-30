@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NullWave.Models;
+using NullWave.Services;
 
 namespace NullWave.Helpers;
 
@@ -33,7 +34,16 @@ public static class SourceDetector
         
         if (!text.Contains("://") && Detect(text) is not (TrackSource.Unknown or TrackSource.Local))
             text = "https://" + text;
-            
+
+        // FIX: Strip &list= from single-track YouTube URLs so metadata fetches don't fail
+        if (text.Contains("v=", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("list=", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("/playlist", StringComparison.OrdinalIgnoreCase)
+            && Detect(text) == TrackSource.YouTube)
+        {
+            text = DownloadService.StripListParam(text);
+        }
+
         return text;
     }
 

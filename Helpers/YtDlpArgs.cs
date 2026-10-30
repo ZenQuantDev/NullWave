@@ -8,6 +8,10 @@ internal static class YtDlpArgs
 {
     public static void AppendNetworkArgs(List<string> args, Preferences p)
     {
+        // Force UTF-8 output to prevent dropping fullwidth/special characters on non-UTF-8 locales (e.g. cp1251)
+        args.Add("--encoding");
+        args.Add("utf-8");
+
         if (!string.IsNullOrWhiteSpace(p.YtDlpProxy))
         {
             args.Add("--proxy");

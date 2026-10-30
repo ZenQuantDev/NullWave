@@ -253,6 +253,7 @@ public class DownloadServiceTests : IDisposable
             var args = File.ReadAllLines(argsFile);
             Assert.Equal(playlistItems, args.Contains("--playlist-items"));
             Assert.Equal(parseMetadata, args.Contains("--parse-metadata"));
+            Assert.Contains("--encoding", args);
         }
         finally
         {
