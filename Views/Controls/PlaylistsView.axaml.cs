@@ -83,11 +83,9 @@ public partial class PlaylistsView : DockPanel
     private async void OnImportM3uClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel vm) return;
-        
         var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow : null;
         if (window == null) return;
-
         var dialog = new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
             Title = "Select M3U Playlist",
@@ -100,38 +98,20 @@ public partial class PlaylistsView : DockPanel
                 }
             }
         };
-
         var files = await window.StorageProvider.OpenFilePickerAsync(dialog);
         if (files.Count == 0) return;
 
         var m3uPath = files[0].Path.LocalPath;
-        
-        // Get the LibraryService from MainViewModel (need to expose it)
-        // For now, use reflection or add a public property to MainViewModel
-        // Temporary workaround: create importer with the service
-        var libraryService = GetLibraryService(vm);
-        if (libraryService == null) return;
-        
-        var importer = new M3uImporter(libraryService);
+        var importer = new M3uImporter(vm.LibraryService);
         var importVm = new ViewModels.Dialogs.M3uImportDialogViewModel(importer, m3uPath);
-        
         var importDialog = new Views.Dialogs.M3uImportDialog { DataContext = importVm };
         importVm.CloseRequested += () => importDialog.Close();
-        
         await importDialog.ShowDialog(window);
-        
-        if (importVm.ImportedPlaylist != null)
+        // WIRE FIX: Pass the result to PlaylistViewModel to handle the DB insertion
+        if (importVm.DialogResult != null)
         {
-            vm.Playlist.SelectById(importVm.ImportedPlaylist.Id);
+            await vm.Playlist.ImportM3uPlaylistAsync(importVm.DialogResult.Preview, importVm.DialogResult.PlaylistName);
         }
-    }
-
-    private LibraryService? GetLibraryService(MainViewModel vm)
-    {
-        // Access the private _library field via reflection (temporary solution)
-        // Better: expose LibraryService as public property in MainViewModel
-        var field = typeof(MainViewModel).GetField("_library", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        return field?.GetValue(vm) as LibraryService;
     }
 
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)

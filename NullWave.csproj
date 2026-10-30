@@ -9,7 +9,7 @@
     <!-- Strip all localized NuGet resources except English and Russian -->
     <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
 
-    <Version>0.6.5-beta</Version>
+    <Version>0.6.5-beta.1</Version>
     <Company>ZenQuant</Company>
     <Product>NullWave</Product>
   </PropertyGroup>

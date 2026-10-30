@@ -26,7 +26,7 @@
 | **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
 | **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
 | **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
-| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.             |
+| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
 | **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
@@ -474,8 +474,8 @@
 - ✅ Badge catalog JSON with v2 signing, KeyId rotation support and expired-badge handling.
 - ✅ v9/v10 migrations (UTC LastPlayed) run synchronously in one transaction.
 - ✅ yt-dlp JS runtime auto-detection; silent duplicate clicks; playback-hijack guard; duplicate import guard with YouTube URL canonicalization; "- Topic" stripping on single imports.
----
 
+---
 
 ## Phase 25 - v0.6.4 "Notifications" 📋
 
@@ -587,8 +587,8 @@ main                ← always stable, builds clean
 | Package                   | Version       | Notes                                   |
 | ------------------------- | ------------- | --------------------------------------- |
 | .NET                      | 10.0          | LTS (supported until Nov 2028)          |
-| Avalonia                  | 12.1.3        |                                         |
-| LibVLCSharp               | 3.10.1        | Fedora: symlinks to /usr/lib required   |
+| Avalonia                  | 12.1.4        |                                         |
+| LibVLCSharp               | 3.10.2        | Fedora: symlinks to /usr/lib required   |
 | TagLib#                   | 2.3.0         |                                         |
 | Serilog                   | latest stable | + Serilog.Filters.Expressions           |
 | sqlite-net-pcl            | 1.9.172       | Packages installed, implementation next |

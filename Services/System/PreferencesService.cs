@@ -30,9 +30,9 @@ public class PreferencesService : IDisposable
 
     public Preferences Current => _prefs;
 
-    public PreferencesService()
+    public PreferencesService(string? prefsPath = null)
     {
-        _prefsPath = NullWavePaths.PrefsPath;
+        _prefsPath = prefsPath ?? NullWavePaths.PrefsPath;
         _prefs = Load();
     }
 

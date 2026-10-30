@@ -76,7 +76,6 @@ public class DependencyUpdateService
     private static async Task<string> UpdateYtDlpCoreAsync()
     {
         // 1. ALWAYS try yt-dlp's native self-updater first.
-        // This works for standalone .exe, pip, and most package managers.
         var selfUpdate = await RunCommandAsync("yt-dlp", "-U");
         if (selfUpdate != null)
         {
@@ -84,7 +83,7 @@ public class DependencyUpdateService
             return "Update completed via yt-dlp";
         }
 
-        // 2. Fallback for Windows: try winget (only works if originally installed via winget)
+        // 2. Fallback for Windows: try winget
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             Log.Information("[DependencyUpdate] Native update failed, attempting winget fallback...");
@@ -96,12 +95,16 @@ public class DependencyUpdateService
             }
         }
 
-        // 3. Fallback for Linux: try pip
-        var pipUpdate = await RunCommandAsync("pip", "install", "--upgrade", "yt-dlp");
-        if (pipUpdate != null)
+        // 3. Fallback for Linux: try pip (S7 FIX: STRICTLY GATED TO LINUX)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
-            return "Update completed via pip";
+            Log.Information("[DependencyUpdate] Native update failed, attempting pip fallback...");
+            var pipUpdate = await RunCommandAsync("pip", "install", "--upgrade", "yt-dlp");
+            if (pipUpdate != null)
+            {
+                Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
+                return "Update completed via pip";
+            }
         }
 
         return "Update failed: Ensure yt-dlp is installed correctly.";

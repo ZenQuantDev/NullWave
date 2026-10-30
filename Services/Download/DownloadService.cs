@@ -279,6 +279,7 @@ public class DownloadService
     }
 
     private static bool _jsRuntimeFound;
+    private static long _negativeProbeTicks;
 
     private static async Task<bool> RuntimeOkAsync(string name, Version min)
     {
@@ -297,19 +298,22 @@ public class DownloadService
 
     private static async Task<bool> ProbeJsAsync()
     {
-        if (_jsRuntimeProbed) return _jsRuntimeFound;
+        if (_jsRuntimeProbed) 
+        {
+            if (!_jsRuntimeFound && Environment.TickCount64 - _negativeProbeTicks > 120_000) 
+                _jsRuntimeProbed = false;
+            else 
+                return _jsRuntimeFound;
+        }
         
         if (await RuntimeOkAsync("deno", new Version(2, 3, 0))) 
-        { 
-            _cachedJsRuntime = null; _jsRuntimeFound = true; _jsRuntimeProbed = true; 
-        }
+        { _cachedJsRuntime = null; _jsRuntimeFound = true; _jsRuntimeProbed = true; }
         else if (await RuntimeOkAsync("node", new Version(22, 0, 0))) 
-        { 
-            _cachedJsRuntime = "node"; _jsRuntimeFound = true; _jsRuntimeProbed = true; 
-        }
+        { _cachedJsRuntime = "node"; _jsRuntimeFound = true; _jsRuntimeProbed = true; }
         else 
         { 
             _jsRuntimeFound = false; _jsRuntimeProbed = true; 
+            _negativeProbeTicks = Environment.TickCount64;
         }
         return _jsRuntimeFound;
     }
@@ -318,7 +322,8 @@ public class DownloadService
 
     private async Task AppendSpeedAndAuthArgsAsync(List<string> args, bool useAria2c)
     {
-    var jsRuntime = await GetJsRuntimeArgAsync();
+        YtDlpArgs.AppendNetworkArgs(args, _prefsService.Current);
+        var jsRuntime = await GetJsRuntimeArgAsync();
         if (jsRuntime is { } runtime)
         {
             args.Add("--js-runtimes");
@@ -348,19 +353,18 @@ public class DownloadService
             : Random.Shared.Next(600, 1800);
     }
 
+    private bool HasConsent() => _prefsService.Current.DownloaderConsent is { IsCurrent: true };
+
     private bool CheckConsent()
     {
-        var consent = _prefsService.Current.DownloaderConsent;
-        if (consent == null || !consent.IsCurrent)
-        {
-            Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
-            ToastService.Instance.Show(
-                "Please accept the downloader terms in Settings → Downloads", 
-                ToastType.Warning, 
-                scope: "download");
-            return false;
-        }
-        return true;
+        if (HasConsent()) return true;
+
+        Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
+        ToastService.Instance.Show(
+            "Please accept the downloader terms in Settings → Downloads", 
+            ToastType.Warning, 
+            scope: "download");
+        return false;
     }
 
     /// <summary>
@@ -369,7 +373,7 @@ public class DownloadService
     /// </summary>
     public async Task<bool> EnsureConsentAsync()
     {
-        if (CheckConsent()) return true;
+        if (HasConsent()) return true; // FIX: Use silent check to avoid double-toast
 
         var dialog = new Views.ConfirmDialog(
             "Enable Downloads?",
@@ -456,9 +460,15 @@ public class DownloadService
         var args = new List<string>
         {
             url, "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
-            "--ignore-errors",
-            "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
+            "--ignore-errors"
         };
+
+        var src = SourceDetector.Detect(url);
+        if (src is TrackSource.YouTube or TrackSource.SoundCloud)
+        {
+            args.Add("--parse-metadata"); args.Add("uploader:%(artist)s");
+            args.Add("--parse-metadata"); args.Add("channel:%(artist)s");
+        }
         if (useFfmpeg)
         {
             args.Add("--embed-metadata");
@@ -484,6 +494,12 @@ public class DownloadService
         if (!allowPlaylist) args.Add("--no-playlist");
         else args.Add("--yes-playlist");
 
+        if (!allowPlaylist && src != TrackSource.YouTube)
+        {
+            args.Add("--playlist-items");
+            args.Add("1");
+        }
+
         lock (_activeDownloads)
         {
             if (_activeDownloads.Contains(url))
@@ -497,16 +513,8 @@ public class DownloadService
         CancellationTokenSource cts;
         lock (this)
         {
-            if (isInteractive)
-            {
-                _currentDownloadCts?.Cancel();
-                cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                _currentDownloadCts = cts;
-            }
-            else
-            {
-                cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            }
+            cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            if (isInteractive) _currentDownloadCts = cts; // Stop button still targets the latest
         }
 
         cts.CancelAfter(TimeSpan.FromMinutes(20));
@@ -1113,4 +1121,5 @@ public class DownloadService
     }
 
     public string DownloadDirectory => _downloadDir;
+    internal int AvailablePermits => _gate.CurrentCount;
 }

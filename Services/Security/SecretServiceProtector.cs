@@ -5,6 +5,8 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using NullWave.Helpers;
+using Serilog;
 
 namespace NullWave.Services.Security;
 
@@ -18,26 +20,27 @@ internal sealed class SecretServiceProtector : ISecretProtector
 
     public byte Id => 3;
     public string Name => "Linux Secret Service (GNOME Keyring / KWallet)";
-    public bool IsAvailable => CheckAvailable();
+    
+    // Cache availability to avoid spawning processes on every check
+    private static bool? _isAvailable;
 
-    private static bool CheckAvailable()
+    public bool IsAvailable
     {
-        if (!OperatingSystem.IsLinux()) return false;
-        try
+        get
         {
-            var psi = new ProcessStartInfo("secret-tool")
+            if (_isAvailable.HasValue) return _isAvailable.Value;
+            if (!OperatingSystem.IsLinux()) return (_isAvailable = false).Value;
+            
+            try
             {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            psi.ArgumentList.Add("--version");
-            using var p = Process.Start(psi);
-            p?.WaitForExit(2000);
-            return p?.ExitCode == 0;
+                // Use ProcessRunner for safe, timeout-bound execution
+                var result = ProcessRunner.RunAsync("secret-tool", new[] { "--version" }, TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+                _isAvailable = result.ExitCode == 0 && !result.TimedOut;
+            }
+            catch { _isAvailable = false; }
+            
+            return _isAvailable.Value;
         }
-        catch { return false; }
     }
 
     public byte[] Protect(byte[] plain)
@@ -66,33 +69,23 @@ internal sealed class SecretServiceProtector : ISecretProtector
 
     private byte[]? LookupMasterKey()
     {
-        var psi = new ProcessStartInfo("secret-tool")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        psi.ArgumentList.Add("lookup");
-        psi.ArgumentList.Add(AttrApp);
-        psi.ArgumentList.Add(SchemaName);
-        psi.ArgumentList.Add(AttrPurpose);
-        psi.ArgumentList.Add("keystore-master");
+        var args = new[] { "lookup", AttrApp, SchemaName, AttrPurpose, "keystore-master" };
+        var result = ProcessRunner.RunAsync("secret-tool", args, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        
+        if (result.ExitCode != 0 || result.TimedOut || string.IsNullOrWhiteSpace(result.StandardOutput)) 
+            return null;
 
-        using var p = Process.Start(psi);
-        if (p == null) return null;
-        var output = p.StandardOutput.ReadToEnd();
-        p.WaitForExit(5000);
-        if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(output)) return null;
-
-        var base64 = output.Trim();
-        try { return Convert.FromBase64String(base64); }
+        try { return Convert.FromBase64String(result.StandardOutput.Trim()); }
         catch { return null; }
     }
 
     private void StoreMasterKey(byte[] key)
     {
         var base64 = Convert.ToBase64String(key);
+        var args = new[] { "store", "--label", Label, AttrApp, SchemaName, AttrPurpose, "keystore-master" };
+        
+        // Note: ProcessRunner doesn't currently support stdin injection natively in the snippet provided.
+        // For secret-tool, we must echo the base64 string into it.
         var psi = new ProcessStartInfo("secret-tool")
         {
             RedirectStandardInput = true,
@@ -101,13 +94,7 @@ internal sealed class SecretServiceProtector : ISecretProtector
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        psi.ArgumentList.Add("store");
-        psi.ArgumentList.Add("--label");
-        psi.ArgumentList.Add(Label);
-        psi.ArgumentList.Add(AttrApp);
-        psi.ArgumentList.Add(SchemaName);
-        psi.ArgumentList.Add(AttrPurpose);
-        psi.ArgumentList.Add("keystore-master");
+        foreach (var arg in args) psi.ArgumentList.Add(arg);
 
         using var p = Process.Start(psi);
         if (p == null) throw new InvalidOperationException("Failed to start secret-tool");
@@ -119,6 +106,7 @@ internal sealed class SecretServiceProtector : ISecretProtector
         if (p.ExitCode != 0)
         {
             var err = p.StandardError.ReadToEnd();
+            Log.Warning("[SecretService] store failed: {Err}", err);
             throw new InvalidOperationException($"secret-tool store failed: {err}");
         }
     }

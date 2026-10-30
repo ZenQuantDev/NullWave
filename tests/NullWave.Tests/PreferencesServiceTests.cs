@@ -10,7 +10,7 @@ namespace NullWave.Tests;
 [Collection("Database")]   // Ensures it uses the safe temp data folder
 public class PreferencesServiceTests
 {
-    private static string PrefsPath => Path.Combine(NullWavePaths.DataDir, "prefs.json");
+    private readonly string _testPrefsPath;
 
     public PreferencesServiceTests()
     {
@@ -18,43 +18,45 @@ public class PreferencesServiceTests
             throw new InvalidOperationException("Refusing to run: data folder is not a temp folder.");
             
         Directory.CreateDirectory(NullWavePaths.DataDir);
-        foreach (var file in Directory.GetFiles(NullWavePaths.DataDir, "prefs.json*"))
-            File.Delete(file);
+        
+        // FIX: Use a unique file for each test to prevent race conditions with 
+        // PreferencesService.Shared or other parallel tests triggering debounced saves
+        _testPrefsPath = Path.Combine(NullWavePaths.DataDir, $"prefs_test_{Guid.NewGuid():N}.json");
     }
 
     [Fact]
     public void A_change_made_just_before_shutdown_is_saved()
     {
-        using (var first = new PreferencesService())
+        using (var first = new PreferencesService(_testPrefsPath))
             first.Update(p => p.DownloadDirectory = "Test_Dir_Shutdown");     // Dispose() must save it
             
-        using var second = new PreferencesService();
+        using var second = new PreferencesService(_testPrefsPath);
         Assert.Equal("Test_Dir_Shutdown", second.Current.DownloadDirectory);
     }
 
     [Fact]
     public void A_corrupt_file_is_kept_aside_and_defaults_are_used()
     {
-        File.WriteAllText(PrefsPath, "{ this is not json");
-        using var service = new PreferencesService();
+        File.WriteAllText(_testPrefsPath, "{ this is not json");
+        using var service = new PreferencesService(_testPrefsPath);
         
         Assert.False(string.IsNullOrEmpty(service.Current.DownloadDirectory));   // defaults were applied
-        Assert.Single(Directory.GetFiles(NullWavePaths.DataDir, "prefs.json.bad-*"));
+        Assert.Single(Directory.GetFiles(NullWavePaths.DataDir, Path.GetFileName(_testPrefsPath) + ".bad-*"));
     }
 
     [Fact]
     public void Saving_leaves_no_temp_file_behind()
     {
-        using (var service = new PreferencesService())
+        using (var service = new PreferencesService(_testPrefsPath))
             service.Update(p => p.DownloadDirectory = "X");
             
-        Assert.Empty(Directory.GetFiles(NullWavePaths.DataDir, "prefs.json.tmp"));
+        Assert.Empty(Directory.GetFiles(NullWavePaths.DataDir, Path.GetFileName(_testPrefsPath) + ".tmp"));
     }
 
     [Fact]
     public void Wallpaper_preferences_round_trip()
     {
-        using (var first = new PreferencesService())
+        using (var first = new PreferencesService(_testPrefsPath))
         {
             first.Update(p =>
             {
@@ -66,7 +68,7 @@ public class PreferencesServiceTests
             });
         }
 
-        using var second = new PreferencesService();
+        using var second = new PreferencesService(_testPrefsPath);
         Assert.Equal("Custom", second.Current.WallpaperStyle);
         Assert.Equal("wallpaper-test.png", second.Current.WallpaperPath);
         Assert.Equal(73, second.Current.WallpaperOpacity);

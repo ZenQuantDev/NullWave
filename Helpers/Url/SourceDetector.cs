@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NullWave.Models;
@@ -10,6 +11,31 @@ public static class SourceDetector
     private static readonly Regex BareHost = new(
         @"^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(/|$)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex MarkdownLink = new(@"\]\((https?://[^)\s]+)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly HashSet<string> MixcloudReservedUsers = new(StringComparer.OrdinalIgnoreCase)
+        { "discover", "search", "live", "categories", "select", "tag" };
+        
+    private static readonly HashSet<string> MixcloudReservedPages = new(StringComparer.OrdinalIgnoreCase)
+        { "uploads", "favorites", "listens", "playlists", "stream", "followers", "following", "reposts", "activity" };
+
+    /// <summary>
+    /// Cleans up pasted markdown links, angle brackets, and adds https:// to known bare hosts.
+    /// </summary>
+    public static string NormalizeUrl(string? input)
+    {
+        var text = (input ?? "").Trim();
+        var md = MarkdownLink.Match(text);
+        if (md.Success) text = md.Groups[1].Value;
+        
+        text = text.Trim('<', '>', '"', '\'');
+        
+        if (!text.Contains("://") && Detect(text) is not (TrackSource.Unknown or TrackSource.Local))
+            text = "https://" + text;
+            
+        return text;
+    }
 
     public static TrackSource Detect(string url)
     {
@@ -32,7 +58,6 @@ public static class SourceDetector
         url = url.Trim();
 
         var source = Detect(url);
-        var host = GetHost(url) ?? string.Empty;
 
         var parts = Regex.Replace(url, "^https?://", "", RegexOptions.IgnoreCase)
             .TrimEnd('/')
@@ -53,22 +78,19 @@ public static class SourceDetector
             TrackSource.LastFm =>
                 url.Contains("/music/"),
             TrackSource.Bandcamp =>
-                url.Contains("/track/", StringComparison.OrdinalIgnoreCase) ||
-                url.Contains("/album/", StringComparison.OrdinalIgnoreCase) ||
-                (parts.Length >= 3 && parts.Any(p => p.Equals("track", StringComparison.OrdinalIgnoreCase) || p.Equals("album", StringComparison.OrdinalIgnoreCase))),
+                url.Contains("/track/", StringComparison.OrdinalIgnoreCase),
             TrackSource.Audiomack =>
-                url.Contains("/song/", StringComparison.OrdinalIgnoreCase) ||
-                url.Contains("/album/", StringComparison.OrdinalIgnoreCase), // Removed /artist/ as it's a profile
+                url.Contains("/song/", StringComparison.OrdinalIgnoreCase),
             TrackSource.ArchiveOrg =>
                 url.Contains("/details/", StringComparison.OrdinalIgnoreCase),
             TrackSource.Mixcloud =>
-                parts.Length >= 3 && 
-                !parts[1].Equals("uploads", StringComparison.OrdinalIgnoreCase) &&
-                !parts[1].Equals("favorites", StringComparison.OrdinalIgnoreCase) &&
-                !parts[1].Equals("playlists", StringComparison.OrdinalIgnoreCase),
+                parts.Length >= 3 &&
+                !MixcloudReservedUsers.Contains(parts[1]) &&
+                !MixcloudReservedPages.Contains(parts[2].Split('?', '#')[0]),
+            // FIXED: Reject text that isn't a valid HTTP URL or local path
             TrackSource.Unknown =>
-                !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                Uri.TryCreate(url, UriKind.Absolute, out _),
+                (Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps))
+                || Regex.IsMatch(url, @"^([A-Za-z]:[\\/]|/|\\\\)"),
             _ => true
         };
     }

@@ -69,7 +69,19 @@ public partial class SettingsViewModel
     public void ReportSweepComplete(int scanned, int orphaned, int deleted, int failed, bool wasDryRun)
     {
         IsRepairing = false;
-        SweepStatus = wasDryRun ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to delete." : failed == 0 ? $"✓ Deleted {deleted} orphaned file(s)." : $"Deleted {deleted} file(s), {failed} failed (check logs).";
+        // C8 FIX: Handle the guard flag from LibraryService
+        if (orphaned == -1)
+        {
+            SweepStatus = "⚠ Sweep aborted: Your library appears empty. Please check your database before deleting files.";
+            ToastService.Instance.Show(SweepStatus, ToastType.Warning, scope: "maintenance");
+            return;
+        }
+        // Note: Changed "Deleted" to "Moved" because C8 moves them to _orphans/ safely!
+        SweepStatus = wasDryRun 
+            ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to move to _orphans/." 
+            : failed == 0 
+                ? $"✓ Moved {deleted} orphaned file(s) to _orphans/." 
+                : $"Moved {deleted} file(s), {failed} failed (check logs).";
         ToastService.Instance.Show(SweepStatus, failed > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
     public void ReportVacuumComplete(long beforeKB, long afterKB)

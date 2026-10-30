@@ -32,6 +32,6 @@ OF THIS SOFTWARE.
 
 ## Third-Party Services
 
-NullWave interacts with third-party APIs (YouTube Data API, Spotify Web API, SoundCloud
-API). Use of these services is governed by their respective terms of service. The
+NullWave interacts with third-party APIs (YouTube Data API) and public web pages (Spotify, SoundCloud).
+Use of these services is governed by their respective terms of service. The
 author(s) of NullWave have no affiliation with these services.

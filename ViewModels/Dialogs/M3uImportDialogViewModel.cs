@@ -21,8 +21,7 @@ public partial class M3uImportDialogViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<M3uImportMatch> _matches = new List<M3uImportMatch>();
 
     public bool CanImport => Matches.Count > 0 && !string.IsNullOrWhiteSpace(PlaylistName);
-
-    public Playlist? ImportedPlaylist { get; private set; }
+    public M3uImportResult? DialogResult { get; private set; }
 
     public M3uImportDialogViewModel(M3uImporter importer, string m3uPath)
     {
@@ -41,17 +40,18 @@ public partial class M3uImportDialogViewModel : ObservableObject
     [RelayCommand]
     private void Cancel()
     {
-        ImportedPlaylist = null;
+        DialogResult = null;
         CloseRequested?.Invoke();
     }
 
     [RelayCommand]
     private void Import()
     {
-        // The actual import happens in the calling code (PlaylistViewModel)
-        // which has access to PlaylistService
+        // Pass the preview and the user-chosen name back to the caller
+        DialogResult = new M3uImportResult(PlaylistName, _preview);
         CloseRequested?.Invoke();
     }
 
     public event Action? CloseRequested;
+    public sealed record M3uImportResult(string PlaylistName, M3uImportPreview Preview);
 }

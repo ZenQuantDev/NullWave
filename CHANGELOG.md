@@ -3,7 +3,7 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.5-beta] - 28-Oct-2026
+## [0.6.5-beta.1] - 30-Oct-2026
 
 ### Added
 - **Keystore v2**: Migrated from machine-ID-derived keys to OS-native secret storage. Windows uses DPAPI, Linux uses Secret Service when available, with safe legacy fallback. Existing keys auto-migrate on first launch.

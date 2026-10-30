@@ -188,6 +188,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public UserProfileViewModel Profile { get; private set; } = null!;
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
+    public LibraryService LibraryService => _library;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public const double RightPanelWidth = 320;

@@ -324,7 +324,11 @@ public partial class LibraryService
             { t.TitleForceCleaned = true; toUpdate.Add(t); continue; }
 
             t.Title = parsed.Value.Title; t.Artist = parsed.Value.Artist; t.TitleForceCleaned = true;
-            toUpdate.Add(t); UpdateFileTags(t); cleaned++;
+            toUpdate.Add(t); 
+            
+            // S6 FIX: Only write tags to managed downloads
+            if (IsManagedDownload(t.FilePath)) UpdateFileTags(t); 
+            cleaned++;
         }
         if (toUpdate.Count > 0) { _db.RunInTransaction(() => { foreach (var t in toUpdate) _db.Update(t); }); StateVersion++; }
         return cleaned;
@@ -341,16 +345,40 @@ public partial class LibraryService
     public (int Scanned, int Orphaned, int Deleted, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = true)
     {
         if (!Directory.Exists(downloadsDir)) return (0, 0, 0, 0);
-        var known = new HashSet<string>(GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).Select(t => Path.GetFullPath(t.FilePath!)), StringComparer.OrdinalIgnoreCase);
-        var files = Directory.GetFiles(downloadsDir, "*.*", SearchOption.TopDirectoryOnly).Where(f => f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)).ToList();
+        var known = new HashSet<string>(
+            GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).Select(t => Path.GetFullPath(t.FilePath!)), 
+            StringComparer.OrdinalIgnoreCase);  
+        // Refuse to sweep if the database looks empty or suspiciously small
+        if (known.Count == 0)
+        {
+            Log.Warning("[LibraryService] SweepOrphanedFiles aborted: Database has 0 linked files. Refusing to delete downloads.");
+            // Return a specific flag or let the UI handle the 0 known files toast
+            return (0, -1, 0, 0); // -1 orphaned signals the UI to show the "DB empty" warning
+        }
+        var audioExts = new[] { ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus" };
+        var files = Directory.GetFiles(downloadsDir, "*.*", SearchOption.TopDirectoryOnly)
+            .Where(f => audioExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .ToList();
+            
         int orphaned = 0, deleted = 0, failed = 0;
+        // Move to _orphans/ instead of permanent delete
+        var orphansDir = Path.Combine(downloadsDir, "_orphans");
         foreach (var f in files)
         {
             var full = Path.GetFullPath(f);
             if (known.Contains(full)) continue;
             orphaned++;
             if (dryRun) continue;
-            try { File.Delete(full); deleted++; } catch { failed++; }
+            try 
+            { 
+                Directory.CreateDirectory(orphansDir);
+                var dest = Path.Combine(orphansDir, Path.GetFileName(f));
+                // Handle name collisions in _orphans
+                if (File.Exists(dest)) dest = Path.Combine(orphansDir, $"{Path.GetFileNameWithoutExtension(f)}_{Guid.NewGuid():N}{Path.GetExtension(f)}");
+                File.Move(f, dest);
+                deleted++; 
+            } 
+            catch { failed++; }
         }
         return (files.Count, orphaned, deleted, failed);
     }

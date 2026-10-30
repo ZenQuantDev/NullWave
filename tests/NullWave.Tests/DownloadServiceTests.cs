@@ -194,4 +194,70 @@ public class DownloadServiceTests : IDisposable
         await _service.DownloadAsync("c", "https://youtube.com/watch?v=LIM3", isInteractive: false);
         Assert.True(done);
     }
+
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?list=PLx&v=abc", "https://www.youtube.com/watch?v=abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc&list=RDabc&index=3&start_radio=1", "https://www.youtube.com/watch?v=abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc&t=30s&list=PLx", "https://www.youtube.com/watch?v=abc&t=30s")]
+    [InlineData("https://youtu.be/abc?list=PLx", "https://youtu.be/abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc", "https://www.youtube.com/watch?v=abc")]
+    public void StripListParam_keeps_the_video_and_drops_the_list(string input, string expected)
+        => Assert.Equal(expected, DownloadService.StripListParam(input));
+
+    [Fact]
+    public async Task Limit_changes_settle_to_the_requested_number_of_permits()
+    {
+        foreach (var step in new[] { 5, 1, 5, 3, 1, 3 })
+        {
+            _service.UpdateConcurrencyLimit(step);
+            await Task.Delay(150);
+            Assert.Equal(step, _service.AvailablePermits);
+        }
+    }
+
+    [Fact]
+    public async Task Rapid_limit_flips_do_not_leave_the_gate_stuck()
+    {
+        _service.UpdateConcurrencyLimit(5); _service.UpdateConcurrencyLimit(1); _service.UpdateConcurrencyLimit(5);
+        await Task.Delay(300);
+        Assert.Equal(5, _service.AvailablePermits);
+    }
+
+    [Fact]
+    public async Task A_second_interactive_download_does_not_cancel_the_first()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang");
+        string? failed = null;
+        _service.DownloadFailed += (id, reason, _) => { if (id == "first") failed = reason; };
+        var cts = new CancellationTokenSource();
+        var t1 = _service.DownloadAsync("first",  "https://youtube.com/watch?v=INT1", ct: cts.Token);   // interactive by default
+        await Task.Delay(500);
+        var t2 = _service.DownloadAsync("second", "https://youtube.com/watch?v=INT2", ct: cts.Token);
+        await Task.Delay(500);
+        Assert.Null(failed);
+        cts.Cancel();
+        await Task.WhenAll(t1, t2);
+    }
+
+    [Theory]
+    [InlineData("https://artist.bandcamp.com/track/x", true, false)]
+    [InlineData("https://www.youtube.com/watch?v=ARGS1", false, true)]
+    public async Task Arguments_depend_on_the_source(string url, bool playlistItems, bool parseMetadata)
+    {
+        var argsFile = Path.Combine(Path.GetTempPath(), $"fy-{Guid.NewGuid():N}.txt");
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_ARGSFILE", argsFile);
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "success");
+        try
+        {
+            await _service.DownloadAsync("t", url, isInteractive: false);
+            var args = File.ReadAllLines(argsFile);
+            Assert.Equal(playlistItems, args.Contains("--playlist-items"));
+            Assert.Equal(parseMetadata, args.Contains("--parse-metadata"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("FAKE_YTDLP_ARGSFILE", null);
+            try { File.Delete(argsFile); } catch { }
+        }
+    }
 }

@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Models;
+using NullWave.Helpers;
 using Serilog;
 
 namespace NullWave.Services.Plugins;
@@ -103,9 +105,9 @@ public class YtDlpDownloadProvider : IDownloadProvider
         return Task.FromResult(DownloadResult.Succeeded(string.Empty));
     }
 
-        public ProviderDescriptor Descriptor { get; } = new(
+    public ProviderDescriptor Descriptor { get; } = new(
         Id: "yt-dlp",
         Kind: ProviderKind.Download,
-        DisplayName: "yt-dlp (YouTube, SoundCloud, Bandcamp)"
+        DisplayName: $"yt-dlp ({string.Join(", ", SupportedSites.All.Where(s => s.IsYtDlpNative).Select(s => s.DisplayName))})"
     );
 }

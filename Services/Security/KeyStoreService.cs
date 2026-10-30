@@ -22,6 +22,7 @@ public class KeyStoreService
 
     public bool WasRecovered { get; private set; }
     private bool _quarantineFailed;
+    private string? _readOnlyReason;
 
     public KeyStoreService(string storePath)
     {
@@ -49,8 +50,7 @@ public class KeyStoreService
         
         _legacyProtector = new LegacyDerivedProtector(storePath);
         
-        // Migrate v1 → v2 on first load
-        MigrateV1ToV2IfNeeded();
+        Initialize();
     }
 
     internal KeyStoreService(string storePath, byte[] encryptionKey)
@@ -60,6 +60,44 @@ public class KeyStoreService
         _activeProtector = new AesGcmProtector(1, "test", encryptionKey);
         _legacyProtector = _activeProtector;
         Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
+        Initialize();
+    }
+
+    /// <summary>
+    /// Internal ctor for migration tests: exercises the real Initialize() path with a
+    /// separate legacy key and an arbitrary active protector, mirroring the public ctor.
+    /// </summary>
+    internal KeyStoreService(string storePath, byte[] legacyKey, ISecretProtector active)
+    {
+        _storePath = storePath;
+        _encryptionKey = legacyKey;
+        _activeProtector = active;
+        _legacyProtector = new AesGcmProtector(1, "legacy", legacyKey);
+        Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
+        Initialize();
+    }
+
+    private void Initialize()
+    {
+        var migratedNow = MigrateV1ToV2IfNeeded();
+        lock (_lock) { LoadLocked(); }
+
+        // Delete the v1 backup only after a clean start where:
+        //   - we didn't just migrate (it was created this run), and
+        //   - we didn't quarantine a corrupt file, and
+        //   - we aren't in read-only mode (the original is still the authoritative copy).
+        if (!migratedNow && !WasRecovered && _readOnlyReason == null)
+        {
+            var bak = _storePath + ".v1.bak";
+            try
+            {
+                if (File.Exists(bak)) File.Delete(bak);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[KeyStoreService] Could not remove v1 backup");
+            }
+        }
     }
 
     private static byte[] DeriveLegacyKey()
@@ -79,9 +117,9 @@ public class KeyStoreService
         return Environment.MachineName;
     }
 
-    private void MigrateV1ToV2IfNeeded()
+    private bool MigrateV1ToV2IfNeeded()
     {
-        if (!File.Exists(_storePath)) return;
+        if (!File.Exists(_storePath)) return false;
         
         try
         {
@@ -91,7 +129,7 @@ public class KeyStoreService
             if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
             {
                 Log.Debug("[KeyStoreService] Keystore already v2 format");
-                return;
+                return false;
             }
             
             // v1 format: try to decrypt with legacy key
@@ -103,32 +141,46 @@ public class KeyStoreService
             if (keys == null || keys.Count == 0)
             {
                 Log.Warning("[KeyStoreService] v1 keystore was empty, skipping migration");
-                return;
+                return false;
             }
             
             // Re-save as v2 with active protector
             if (_activeProtector != null)
             {
                 var newBlob = EncryptWithActiveProtector(json);
+                
+                // SAFETY: Verify round-trip BEFORE touching the original file
+                try
+                {
+                    var payload = new byte[newBlob.Length - 6];
+                    Array.Copy(newBlob, 6, payload, 0, payload.Length);
+                    var check = _activeProtector.Unprotect(payload);
+                    if (Encoding.UTF8.GetString(check) != json)
+                        throw new CryptographicException("Round-trip mismatch");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[KeyStoreService] v1->v2 round-trip failed; keeping v1 file untouched");
+                    return false;
+                }
+
                 var tmp = _storePath + ".tmp";
                 File.WriteAllBytes(tmp, newBlob);
                 if (!OperatingSystem.IsWindows())
                     File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                
-                // Backup the v1 file
+
                 var backup = _storePath + ".v1.bak";
                 File.Copy(_storePath, backup, overwrite: true);
-                
-                // Atomically replace
                 File.Move(tmp, _storePath, overwrite: true);
-                
-                Log.Information("[KeyStoreService] Migrated {Count} keys from v1 to v2 format. Backup at {Backup}", 
-                    keys.Count, backup);
+                Log.Information("[KeyStoreService] Migrated {Count} keys from v1 to v2 format. Backup at {Backup}", keys.Count, backup);
+                return true;
             }
+            return false;
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[KeyStoreService] v1→v2 migration failed, will use v1 format");
+            return false;
         }
     }
 
@@ -183,10 +235,18 @@ public class KeyStoreService
             if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
             {
                 var protectorId = blob[5];
-                var protector = protectorId == _activeProtector?.Id ? _activeProtector : _legacyProtector;
+                var protector = protectorId == _activeProtector?.Id ? _activeProtector : 
+                                protectorId == _legacyProtector?.Id ? _legacyProtector : null;
+                                
                 if (protector == null)
-                    throw new CryptographicException($"No protector available for id {protectorId}");
-                    
+                {
+                    // SAFETY: Unknown protector (e.g. file moved from Windows DPAPI to Linux).
+                    // Do NOT quarantine. Do NOT allow overwrites. Leave the file byte-for-byte alone.
+                    _readOnlyReason = $"Keystore was written by protector {protectorId}, which isn't available here. Left untouched.";
+                    Log.Error("[KeyStoreService] {Reason}", _readOnlyReason);
+                    return _cache = new Dictionary<string, string>();
+                }
+                
                 var payload = new byte[blob.Length - 6];
                 Array.Copy(blob, 6, payload, 0, payload.Length);
                 var plaintext = protector.Unprotect(payload);
@@ -257,7 +317,7 @@ public class KeyStoreService
                 Log.Warning("All API keys have been deleted");
             }
             
-            // Clean up backups and quarantined files to ensure no recoverable copies remain
+            // Clean up backups, quarantined files, and temp files to ensure no recoverable copies remain
             var dir = Path.GetDirectoryName(_storePath);
             if (dir != null && Directory.Exists(dir))
             {
@@ -265,7 +325,8 @@ public class KeyStoreService
                 foreach (var file in Directory.GetFiles(dir, $"{prefix}.*"))
                 {
                     if (file.EndsWith(".v1.bak", StringComparison.OrdinalIgnoreCase) || 
-                        file.Contains(".bad-", StringComparison.OrdinalIgnoreCase))
+                        file.Contains(".bad-", StringComparison.OrdinalIgnoreCase) ||
+                        file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
                     {
                         try { File.Delete(file); } catch { }
                     }
@@ -273,6 +334,7 @@ public class KeyStoreService
             }
             
             _cache = new Dictionary<string, string>();
+            _readOnlyReason = null; // Allow normal writes again after explicit wipe
         }
     }
 
@@ -280,6 +342,9 @@ public class KeyStoreService
     {
         if (_quarantineFailed)
             throw new IOException("Keystore is unreadable and could not be moved aside; refusing to overwrite it.");
+
+        if (_readOnlyReason != null)
+            throw new IOException(_readOnlyReason);
 
         var json = JsonSerializer.Serialize(keys);
         byte[] blob;

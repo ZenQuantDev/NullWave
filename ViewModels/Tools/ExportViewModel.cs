@@ -19,9 +19,12 @@ public class ExportViewModel : ViewModelBase
 
     public ICommand ExportJsonCommand { get; }
     public ICommand ExportCsvCommand { get; }
+    public ICommand ExportM3uCommand { get; }
 
     public ExportViewModel(LibraryService library, ExportService export)
     {
+        ExportM3uCommand = new SafeRelayCommand(async () => await ExportAsync("m3u8"), errorScope: "export");
+
         _library = library;
         _export = export;
         
@@ -73,11 +76,29 @@ public class ExportViewModel : ViewModelBase
         try
         {
             var tracks = _library.GetAll();
-            
             if (format == "json")
+            {
                 _export.ExportToJson(tracks, path);
-            else
+            }
+            else if (format == "csv")
+            {
                 _export.ExportToCsv(tracks, path);
+            }
+            else if (format == "m3u8" || format == "m3u")
+            {
+                // M3U Export Logic
+                var result = M3uWriter.Build(tracks, path, new M3uWriteOptions(RelativePaths: true));
+                M3uWriter.WriteFile(path, result.Text);
+                
+                Log.Information("[Export] Exported {Count} tracks to M3U (skipped {Skipped} missing)", result.Written, result.SkippedMissing);
+                ToastService.Instance.Show(
+                    $"Exported {result.Written} tracks to M3U ({result.SkippedMissing} skipped missing files)",
+                    ToastType.Success,
+                    durationMs: 4000,
+                    scope: "export"
+                );
+                return; // Return early to avoid the generic toast below
+            }
 
             Log.Information("[Export] Successfully exported {Count} tracks to {Path}", tracks.Count, path);
             ToastService.Instance.Show(

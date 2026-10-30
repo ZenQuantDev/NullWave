@@ -35,20 +35,17 @@ public sealed class ProviderRegistry
             _logger.Warning("Provider {Id} already registered, skipping", id);
             return id;
         }
-
-        // First registration of a kind becomes active automatically.
-        // User's persisted choice wins if one exists.
         var kind = provider.Descriptor.Kind;
+        // Check persisted choice NOW that provider is registered
         var persisted = GetPersistedChoice(kind);
-        if (persisted != null && _providers.ContainsKey(persisted))
+        if (persisted == id || (persisted != null && _providers.ContainsKey(persisted)))
         {
-            _activeByKind[kind] = persisted;
+            _activeByKind[kind] = persisted ?? id;
         }
         else if (!_activeByKind.ContainsKey(kind))
         {
             _activeByKind[kind] = id;
         }
-
         _logger.Information("Registered provider: {Id} (kind={Kind}, name={Name})",
             id, kind, provider.Descriptor.DisplayName);
 

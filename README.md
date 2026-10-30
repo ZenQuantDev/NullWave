@@ -8,7 +8,7 @@ A personal music organizer with download, playback, and AI-powered smart sorting
 
 ## Version
 
-v0.6.5-beta "Oxeye Daisy"
+v0.6.5-beta.1 "Oxeye Daisy"
 
 ## About
 
@@ -75,8 +75,6 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - **Rolling auto-backups with retention and one-click restore from backup**
 
 ---
-
-## Tech Stack
 
 ## Tech Stack
 
