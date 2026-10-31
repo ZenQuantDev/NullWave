@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace NullWave.Services;
 
@@ -75,7 +76,7 @@ public static class SpotifyPageParser
                 .FirstOrDefault() ?? string.Empty;
         if (kind == SpotifyPageKind.Playlist) artist = string.Empty;
 
-        _ = int.TryParse(First("music:duration"), out var seconds);
+        _ = int.TryParse(First("music:duration"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds);
 
         var trackUrls = tags
             .Where(t => t.Key.Equals("music:song", StringComparison.OrdinalIgnoreCase))

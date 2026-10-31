@@ -432,6 +432,7 @@ public partial class MainViewModel
         _downloadService.PlaylistBatchStarted += OnPlaylistBatchStarted;
         _downloadService.PlaylistBatchProgress += OnPlaylistBatchProgress;
         _downloadService.PlaylistBatchCompleted += OnPlaylistBatchCompleted;
+        _downloadService.PlaylistTrackStarted += OnPlaylistTrackStarted;
 
         Settings.LastFmConnectRequested += async () =>
         {
@@ -639,7 +640,7 @@ public partial class MainViewModel
         if (_prefsService.Current.AutoGenerateMoodPlaylist) _ = RunMoodPlaylistAsync(forceRefresh: false);
     }
 
-    private void ApplyBatteryEffectsTier(PowerState state)
+        private void ApplyBatteryEffectsTier(PowerState state)
     {
         if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
             _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
@@ -651,8 +652,8 @@ public partial class MainViewModel
     {
         try
         {
-            var ytDlpPath = PlatformHelper.ResolveExecutable("yt-dlp");
-            var result = await ProcessRunner.RunAsync(ytDlpPath, new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
+            // FIX: Pass raw name, let ProcessRunner handle the .exe resolution
+            var result = await ProcessRunner.RunAsync("yt-dlp", new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
             
             if (result.ExitCode == 0)
             {
@@ -749,5 +750,20 @@ public partial class MainViewModel
             foreach (var c in s) { h ^= c; h *= 16777619; }
             return (int)(h & 0x7FFFFFFF);
         }
+    }
+
+    private void OnPlaylistTrackStarted(string title, int current, int total)
+    {
+        LiveNotification? activity;
+        lock (_playlistBatches)
+        {
+            var match = _playlistBatches.FirstOrDefault(b => b.Total == total && b.Total > 0);
+            activity = match != default ? match.Activity : _playlistBatches.LastOrDefault().Activity;
+        }
+        if (activity == null) return;
+
+        // Truncate long titles to prevent UI overflow
+        var displayTitle = title.Length > 50 ? title[..47] + "..." : title;
+        ToastService.Instance.UpdateLiveActivity(activity, $"Downloading {current}/{total}: {displayTitle}");
     }
 }

@@ -15,15 +15,19 @@ namespace NullWave.Services.Metadata;
 public class YtDlpMetadataFetcher
 {
     private readonly string _sourceName;
+    private readonly PreferencesService _prefsService;
 
-    public YtDlpMetadataFetcher(string sourceName)
+    // FIX: Accept an optional PreferencesService for testability
+    public YtDlpMetadataFetcher(string sourceName, PreferencesService? prefs = null)
     {
         _sourceName = sourceName;
+        _prefsService = prefs ?? PreferencesService.Shared;
     }
 
     public async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchAsync(string url)
     {
-        var prefs = PreferencesService.Shared.Current;
+        // Use the injected service instead of the global singleton
+        var prefs = _prefsService.Current;
         if (!prefs.EnableYtDlp)
         {
             return (string.Empty, string.Empty, null, TimeSpan.Zero);
@@ -31,8 +35,13 @@ public class YtDlpMetadataFetcher
 
         try
         {
-            // Use artist,creator for Archive.org to avoid account names, fallback to uploader for others
-            var artistField = _sourceName == "Archive.org" ? "%(artist,creator)s" : "%(artist,creator,uploader)s";
+            // Mixcloud's 'artist' is the tracklist, so use the DJ (uploader). Archive.org avoids account names.
+            var artistField = _sourceName switch
+            {
+                "Archive.org" => "%(artist,creator)s",
+                "Mixcloud"    => "%(uploader,creator)s",
+                _             => "%(artist,creator,uploader)s",
+            };
             
             var args = new List<string> {
                 "--no-download", "--no-warnings", "--no-playlist", "--playlist-items", "1",
@@ -50,7 +59,7 @@ public class YtDlpMetadataFetcher
             if (result.ExitCode != 0 || result.TimedOut || result.Canceled)
             {
                 Log.Warning("[{Source}] metadata fetch failed or timed out for {Url}", _sourceName, url);
-                return (string.Empty, string.Empty, null, TimeSpan.Zero); // Return empty so UI knows to retry/ignore
+                return (string.Empty, string.Empty, null, TimeSpan.Zero); 
             }
 
             var lines = result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

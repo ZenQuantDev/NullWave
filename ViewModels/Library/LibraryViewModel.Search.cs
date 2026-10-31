@@ -138,18 +138,18 @@ public partial class LibraryViewModel
         FlushPending();
 
         HashSet<Guid>? ftsMatches = null;
+        var needles = globalTerms.Select(NullWave.Helpers.TrackNormalizer.SearchKey).Where(n => n.Length > 0).ToList();
         if (globalTerms.Count > 0)
-        {
             ftsMatches = _library.SearchFts(string.Join(' ', globalTerms));
-            if (ftsMatches is { Count: 0 }) return Enumerable.Empty<Track>();
-        }
 
         return tracks.Where(t =>
         {
             if (!filters.All(f => f(t))) return false;
-            if (ftsMatches != null) return ftsMatches.Contains(t.Id);
-            if (globalTerms.Count > 0) return globalTerms.All(term => t.Title.ToLowerInvariant().Contains(term) || t.Artist.ToLowerInvariant().Contains(term));
-            return true;
+            if (globalTerms.Count == 0) return true;
+            if (ftsMatches != null && ftsMatches.Contains(t.Id)) return true;
+            if (needles.Count == 0) return false;
+            var hay = NullWave.Helpers.TrackNormalizer.SearchKey(t.Title) + " " + NullWave.Helpers.TrackNormalizer.SearchKey(t.Artist);
+            return needles.All(n => hay.Contains(n, StringComparison.Ordinal));
         });
     }
 

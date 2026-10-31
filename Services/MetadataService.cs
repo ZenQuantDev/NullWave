@@ -19,6 +19,7 @@ public class MetadataService
     private readonly LocalMetadataFetcher _local;
     private readonly LastFmService _lastFm;
     private readonly UrlParserService _urlParser = new();
+    private readonly YtDlpMetadataFetcher _ytDlpFallback = new("YouTube");
     
     // NEW: Generic fetchers for yt-dlp-supported sources
     private readonly YtDlpMetadataFetcher _bandcamp;
@@ -45,7 +46,7 @@ public class MetadataService
         var source = SourceDetector.Detect(url);
         return source switch
         {
-            TrackSource.YouTube    => await _youTube.FetchAsync(url),
+            TrackSource.YouTube    => await FetchYouTubeWithFallbackAsync(url),
             TrackSource.SoundCloud => await _soundCloud.FetchAsync(url),
             TrackSource.Spotify    => await FetchSpotifyMetadataAsync(url),
             TrackSource.LastFm     => await FetchLastFmUrlAsync(url),
@@ -56,6 +57,29 @@ public class MetadataService
             TrackSource.Mixcloud   => await _mixcloud.FetchAsync(url),
             _                      => ("Unknown Title", "Unknown Artist", null, TimeSpan.Zero)
         };
+    }
+
+    private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchYouTubeWithFallbackAsync(string url)
+    {
+        try 
+        {
+            var result = await _youTube.FetchAsync(url);
+            // If the API returns placeholders or fails, use our yt-dlp fallback
+            if (result.Title == "Unknown Title" || string.IsNullOrWhiteSpace(result.Title))
+            {
+                Log.Information("[MetadataService] YouTube API returned no data, falling back to yt-dlp for {Url}", url);
+                var fb = await _ytDlpFallback.FetchAsync(url);
+                // Keep the API's thumbnail if yt-dlp didn't find one
+                return (fb.Title, fb.Artist, fb.ThumbnailPath ?? result.ThumbnailPath, fb.Duration);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // FIX: Removed reference to out-of-scope 'result' variable
+            Log.Warning(ex, "[MetadataService] YouTube API threw, falling back to yt-dlp for {Url}", url);
+            return await _ytDlpFallback.FetchAsync(url);
+        }
     }
 
     public (string? Album, int TrackNumber) FetchAlbumAndTrackNumber(string filePath)
@@ -107,7 +131,6 @@ public class MetadataService
         return (title, artist, null, TimeSpan.Zero);
     }
 
-    // FIX: Made async and wrapped in Task.Run to prevent blocking the UI thread during startup
     public async Task<string?> ExtractAlbumArtAsync(string filePath)
     {
         try

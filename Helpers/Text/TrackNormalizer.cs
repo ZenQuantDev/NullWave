@@ -320,10 +320,30 @@ public static partial class TrackNormalizer
     }
 
     private static HashSet<string> Tokens(string s) =>
-        Regex.Matches(s.ToLowerInvariant(), @"[a-z0-9]+")
+        Regex.Matches(s.Normalize(NormalizationForm.FormKC).ToLowerInvariant(), @"[\p{L}\p{M}\p{N}]+")
             .Select(m => m.Value)
             .Where(w => w.Length > 1)
             .ToHashSet();
+
+    /// <summary>Search fold: lowercase, strips accents (é→e, ü→u, ё→е) but keeps Cyrillic й.</summary>
+    public static string SearchKey(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        var d = s.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(d.Length);
+        char prev = '\0';
+        foreach (var c in d)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            {
+                bool cyrillicBase = prev >= '\u0400' && prev <= '\u04FF';
+                if (!cyrillicBase || c == '\u0308') continue;
+            }
+            sb.Append(c);
+            prev = c;
+        }
+        return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+    }
 
     public static bool HasExoticSeparator(string s) =>
         s.Contains('~') || s.Contains('∞') || s.Contains('·') || s.Contains('•') || s.Contains('⧸') || s.Contains("///");

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Globalization;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Models;
 using NullWave.Services;
@@ -30,7 +31,7 @@ public partial class PlayerViewModel
         PreviousTrackCommand = new RelayCommand(PlayPrevious);
         NextTrackCommand = new RelayCommand(PlayNext);
 
-        SetSleepTimerCommand = new RelayCommand<string>(s => { if (int.TryParse(s, out var m)) StartSleepTimer(m); });
+        SetSleepTimerCommand = new RelayCommand<string>(s => { if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var m)) StartSleepTimer(m); });
         CancelSleepTimerCommand = new RelayCommand(CancelSleepTimer);
         SetEndOfChapterTimerCommand = new RelayCommand(() => { CancelSleepTimer(); SleepTimerEndOfChapter = true; ToastService.Instance.Show(L("MiniPlayer_SleepTimer_ChapterSet"), ToastType.Success, scope: "sleep"); });
         SetPlaybackRateCommand = new RelayCommand<string>(s => { if (float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var r)) PlaybackRate = r; });

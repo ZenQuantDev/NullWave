@@ -3,7 +3,7 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.5-beta.1] - 30-Oct-2026
+## [0.6.5-beta.1] - 31-Oct-2026
 
 ### Added
 - **Keystore v2**: Migrated from machine-ID-derived keys to OS-native secret storage. Windows uses DPAPI, Linux uses Secret Service when available, with safe legacy fallback. Existing keys auto-migrate on first launch.
@@ -27,6 +27,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Keystore Data Safety**: "Delete All Keys" now securely removes backup and quarantined files. First-run directory creation is guaranteed.
 - **Provider Descriptors**: All 4 providers now expose `Descriptor` properties for registry integration.
 - **CA2024 Warning**: Fixed `reader.EndOfStream` usage in async methods.
+- **Culture-Invariant Parsing**: Fixed `FormatException` crashes on non-US systems (e.g., Russian/German) by enforcing `CultureInfo.InvariantCulture` across hardware detection, Spotify parsing, M3U import, and sleep timers.
+- **Non-English Search**: Added accent-insensitive search (`é`→`e`, `ё`→`е`) and FTS5 normalization. Searching "cafe" now finds "café".
+- **Font Fallbacks**: Added global font fallback chain (Segoe UI, Noto Sans, Microsoft YaHei) to properly render Cyrillic, CJK, and emoji characters in the UI.
+- **Download File Recovery**: Injected a unique `[nw-{hash}]` tag into yt-dlp output templates, guaranteeing file recovery even if stdout path printing fails on Bandcamp/Mixcloud.
+- **OGG Format Fix**: Mapped "ogg" to "vorbis" for yt-dlp, preventing `invalid audio format` errors.
+- **Metadata Race Conditions**: Fixed edge cases where fast consecutive URL pastes could overwrite the wrong track's metadata or input fields.
+- **Live Toast Activities**: Download and playlist progress toasts no longer auto-dismiss while the operation is still running.
+- **YouTube Fallback**: Added automatic yt-dlp fallback when the YouTube Data API returns `BadRequest` or empty metadata.
 
 ---
 

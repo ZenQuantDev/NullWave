@@ -24,5 +24,16 @@
         <FluentTheme />
         <StyleInclude Source="avares://NullWave/Themes/ControlStyles.axaml"/>
         <materialIcons:MaterialIconStyles />
+        
+        <!-- Global Font Fallback for Non-English Characters -->
+        <!-- TextBlock covers standalone text. -->
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI, Roboto, Noto Sans, Microsoft YaHei, Apple Color Emoji, Segoe UI Emoji" />
+        </Style>
+        <!-- TemplatedControl covers text inside Buttons, TextBoxes, Labels, etc. 
+             It automatically cascades down to their internal TextPresenters. -->
+        <Style Selector="TemplatedControl">
+            <Setter Property="FontFamily" Value="Segoe UI, Roboto, Noto Sans, Microsoft YaHei, Apple Color Emoji, Segoe UI Emoji" />
+        </Style>
     </Application.Styles>
 </Application>

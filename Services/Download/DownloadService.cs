@@ -109,6 +109,7 @@ public class DownloadService
     public event Action<int>? PlaylistBatchStarted;
     public event Action<int, int, int>? PlaylistBatchProgress;
     public event Action<int, int, int>? PlaylistBatchCompleted;
+    public event Action<string, int, int>? PlaylistTrackStarted;
 
     private static readonly Regex ProgressRegex = new(
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
@@ -293,7 +294,10 @@ public class DownloadService
 
     private static async Task<string?> GetJsRuntimeArgAsync()
     {
-        if (_jsRuntimeProbed) return _cachedJsRuntime;
+        // FIX: Only return early if we found a runtime, OR if the 2-minute negative cache hasn't expired
+        if (_jsRuntimeProbed && (_jsRuntimeFound || Environment.TickCount64 - _negativeProbeTicks <= 120_000)) 
+            return _cachedJsRuntime;
+            
         await ProbeJsAsync();
         return _cachedJsRuntime;
     }
@@ -449,7 +453,9 @@ public class DownloadService
         }
 
         var safeDownloadDir = Path.GetFullPath(_downloadDir);
-        var outputTemplate = Path.Combine(safeDownloadDir, "%(title).150B [%(id)s].%(ext)s");
+        var trackHash = trackId.Length >= 8 ? trackId[..8] : trackId;
+        // FIX: Inject a unique NullWave hash so we can ALWAYS find the file, even on Bandcamp/SoundCloud
+        var outputTemplate = Path.Combine(safeDownloadDir, $"%(title).200s [nw-{trackHash}-%(id)s].%(ext)s");
         
         var qualityValue = audioQuality switch
         {
@@ -481,8 +487,10 @@ public class DownloadService
             {
                 args.Add("--embed-thumbnail");
                 args.Add("--extract-audio");
+                // FIX: yt-dlp doesn't accept "ogg", it expects "vorbis" or "opus"
+                var ytDlpFormat = audioFormat.Equals("ogg", StringComparison.OrdinalIgnoreCase) ? "vorbis" : audioFormat;
                 args.Add("--audio-format");
-                args.Add(audioFormat);
+                args.Add(ytDlpFormat);
                 args.Add("--audio-quality");
                 args.Add(qualityValue);
             }
@@ -529,17 +537,16 @@ public class DownloadService
 
         try
         {
-            // FIXED: Use _gate directly, no more semaphore replacement
+            job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
+            job.Status = "Queued..."; // FIX: Show queued status while waiting for semaphore
+            job.IsIndeterminate = true;
+            // Wait for an open slot in the concurrency gate
             await _gate.WaitAsync(ct);
             Interlocked.Increment(ref _activeDownloadCount);
             activeDownloadCounted = true;
-
-            Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
-
-            job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
-            job.Status = "Downloading...";
+            job.Status = "Downloading..."; // Now it's actually downloading
             job.IsIndeterminate = false;
-
+            Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
             string? outputFilePath = null;
             var recentStdErr = new List<string>();
 
@@ -560,9 +567,18 @@ public class DownloadService
                         job.Progress = pct;
                         return;
                     }
+                    // 1. Raw path output
                     if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
                     {
-                        outputFilePath = line;
+                        outputFilePath = line.Trim().Trim('"');
+                        return;
+                    }
+
+                    // 2. Catch "Destination: " or "[Merger] Merging formats into "
+                    var destMatch = Regex.Match(line, @"(?:Destination:\s*|Merging formats into\s*""|Moving to\s*"")([A-Za-z]:\\[^\r\n""]+|/[^\r\n""]+)");
+                    if (destMatch.Success)
+                    {
+                        outputFilePath = destMatch.Groups[1].Value.Trim().Trim('"');
                         return;
                     }
                     Log.Debug("yt-dlp: {Line}", line);
@@ -627,7 +643,7 @@ public class DownloadService
                 if (outputFilePath != null)
                     Log.Warning("[DownloadService] yt-dlp printed a path that doesn't exist: {Path}", outputFilePath);
                     
-                var recent = FindMostRecentUnlinkedDownload(title, videoId);
+                var recent = FindMostRecentUnlinkedDownload(title, videoId, trackHash);
                 if (recent != null)
                 {
                     Log.Information("[DownloadService] output located via fallback: {Path}", recent);
@@ -876,6 +892,7 @@ public class DownloadService
 
                 var (title, artist, url, videoId) = tracks[i];
                 onTrackStarted?.Invoke(title, i + 1, tracks.Count);
+                PlaylistTrackStarted?.Invoke(title, i + 1, tracks.Count);
 
                 var trackId = Guid.NewGuid();
                 var cleanUrl = url.Split('&')[0];
@@ -1071,7 +1088,7 @@ public class DownloadService
         }
     }
 
-    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null, string? videoId = null)
+    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null, string? videoId = null, string? trackHash = null)
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
@@ -1081,20 +1098,20 @@ public class DownloadService
             .Select(t => Path.GetFullPath(t.FilePath!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // FIX: Try to find by YouTube video ID first (ASCII, bypasses encoding issues)
-        if (!string.IsNullOrEmpty(videoId))
+        // FIX: Try to find by NullWave Track Hash first (Works for ALL sources)
+        if (!string.IsNullOrEmpty(trackHash))
         {
-            var tag = $"[{videoId}]";
-            var byId = dir.GetFiles()
+            var tag = $"[nw-{trackHash}";
+            var byHash = dir.GetFiles()
                 .Where(f => AudioExts.Contains(f.Extension.ToLowerInvariant())
-                            && f.Name.Contains(tag, StringComparison.Ordinal)
+                            && f.Name.Contains(tag, StringComparison.OrdinalIgnoreCase)
                             && !linkedPaths.Contains(f.FullName))
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .FirstOrDefault();
-            if (byId != null)
+            if (byHash != null)
             {
-                Log.Information("[DownloadService] Recovered output by video id: {Path}", byId.FullName);
-                return byId.FullName;
+                Log.Information("[DownloadService] Recovered output by track hash: {Path}", byHash.FullName);
+                return byHash.FullName;
             }
         }
 

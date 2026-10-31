@@ -37,6 +37,10 @@ public class TrackInputViewModel : ViewModelBase
     private string _inputArtist = string.Empty;
     private TrackSource _selectedSource = TrackSource.Unknown;
     private CancellationTokenSource? _fetchDebounce;
+    private string? _autoTitle;
+    private string? _autoArtist;
+    private readonly Dictionary<string, Guid> _pendingIds = new(); // FIX: Track IDs for in-flight fetches
+    
     public event Action? RadioCatalogRequested;
     private bool _isFetching;
     private bool _isUrlInputVisible;
@@ -83,6 +87,14 @@ public class TrackInputViewModel : ViewModelBase
             OnPropertyChanged(nameof(IsInputUrlValid));
             
             var normalized = SourceDetector.NormalizeUrl(value);
+
+            if (normalized != _lastFetchedUrl)
+            {
+                if (InputTitle == _autoTitle)   InputTitle = string.Empty;
+                if (InputArtist == _autoArtist) InputArtist = string.Empty;
+                _autoTitle = _autoArtist = null;
+                _lastFetchedThumbnail = null;
+            }
 
             if (ShareLink.TryParseTrack(normalized, out _, out _))
             {
@@ -201,7 +213,7 @@ public class TrackInputViewModel : ViewModelBase
     private async Task AddTrackAsync()
     {
         var providedTitle = InputTitle.Trim();
-        var url = SourceDetector.NormalizeUrl(InputUrl); // FIX: Normalize before processing
+        var url = SourceDetector.NormalizeUrl(InputUrl); 
         if (string.IsNullOrWhiteSpace(url))
         {
             IsUrlInputVisible = true;
@@ -354,7 +366,8 @@ public class TrackInputViewModel : ViewModelBase
 
         if (usedFallbackTitle)
         {
-            _ = FetchMetadataAsync(url);
+            // FIX: Pass the track ID so backfill can find it even if the URL was canonicalized
+            _ = FetchMetadataAsync(url, newTrack.Id);
         }
 
         ClearInputs();
@@ -363,12 +376,7 @@ public class TrackInputViewModel : ViewModelBase
 
         if (SourceDetector.IsYtDlpSource(source))
         {
-            // Ask for consent before downloading (interactive prompt)
-            if (!await _download.EnsureConsentAsync())
-            {
-                // User declined — track is still added to library but won't download
-                return;
-            }
+            if (!await _download.EnsureConsentAsync()) return;
 
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
@@ -380,7 +388,6 @@ public class TrackInputViewModel : ViewModelBase
 
     internal static MediaType DetectMediaType(string url)
     {
-        // Early return for known yt-dlp music sources to prevent false radio positives (e.g., /track/streams-of-light)
         if (SourceDetector.IsYtDlpSource(SourceDetector.Detect(url)))
         {
             var lower = url.ToLowerInvariant();
@@ -391,27 +398,22 @@ public class TrackInputViewModel : ViewModelBase
         }
 
         var value = url.ToLowerInvariant();
-        // Radio detection: be more specific to avoid false positives
         if (value.EndsWith(".m3u8") || value.EndsWith(".m3u") || value.EndsWith(".pls") ||
             value.Contains("icecast") || value.Contains("/stream") ||
             RadioStationCatalog.TryGetChannels(url, out _, out _))
         {
             return MediaType.Radio;
         }
-        // More precise radio URL pattern matching
-        // Match "radio" only when it's part of the domain or a clear radio indicator
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             var host = uri.Host.ToLowerInvariant();
-            // Check if "radio" is in the domain name (but not just as part of a band name)
             if (host.Contains("radio") && 
-                !host.Contains("radiohead") &&  // Exclude known band names
+                !host.Contains("radiohead") &&  
                 (host.StartsWith("radio") || host.EndsWith("radio") || host.Contains(".radio.")))
             {
                 return MediaType.Radio;
             }
         }
-        // Audiobook detection
         if (value.Contains("audiobook") || value.Contains("librivox") || value.Contains("spoken word") ||
             value.Contains("full book") || value.Contains("archive.org/details/audiobook"))
             return MediaType.Audiobook;
@@ -425,10 +427,13 @@ public class TrackInputViewModel : ViewModelBase
             : url;
     }
 
-    private async Task FetchMetadataAsync(string url)
+    private async Task FetchMetadataAsync(string url, Guid? trackId = null)
     {
         if (!_fetchesInFlight.Add(url))
         {
+            // FIX: If a fetch is already running, map the new trackId to the URL 
+            // so the running fetch can update the correct database row when it finishes.
+            if (trackId is { } pid) _pendingIds[url] = pid;
             Log.Debug("[{Source}] Skipping duplicate in-flight metadata fetch for {Url}",
                 nameof(TrackInputViewModel), url);
             return;
@@ -438,14 +443,33 @@ public class TrackInputViewModel : ViewModelBase
         try
         {
             var (title, artist, thumbnail, duration) = await _metadata.FetchFromUrlAsync(url);
-            if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
-            if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
-            _lastFetchedThumbnail = thumbnail;
+            
+            // FIX: Recover the trackId if it was registered while we were waiting
+            if (trackId == null && _pendingIds.Remove(url, out var pending)) trackId = pending;
+            
+            // FIX: Only touch the form if the user is still on this URL
+            if (SourceDetector.NormalizeUrl(InputUrl) == url)
+            {
+                if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle))
+                { 
+                    InputTitle = title; 
+                    _autoTitle = title; 
+                }
+                if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) 
+                { 
+                    InputArtist = artist; 
+                    _autoArtist = artist; 
+                }
+                _lastFetchedThumbnail = thumbnail;
+            }
+            
             Log.Information("[{Source}] Metadata fetched: {Title} by {Artist}",
                 nameof(TrackInputViewModel), title, artist);
 
-            var existing = _library.GetAll()
-                .FirstOrDefault(t => t.Url == url);
+            // FIX: Look up by track ID first to survive URL canonicalization
+            var existing = trackId is { } id
+                ? _library.GetAll().FirstOrDefault(t => t.Id == id)
+                : _library.GetAll().FirstOrDefault(t => t.Url == url);
 
             if (existing != null)
             {
@@ -484,6 +508,7 @@ public class TrackInputViewModel : ViewModelBase
         finally
         {
             _fetchesInFlight.Remove(url);
+            _pendingIds.Remove(url);
             IsFetching = false;
         }
     }
@@ -597,7 +622,6 @@ public class TrackInputViewModel : ViewModelBase
         TrackAdded?.Invoke();
         StatusMessage = $"Added: {track.Title}";
 
-        // Ask for consent before downloading
         if (!await _download.EnsureConsentAsync())
         {
             StatusMessage = "Downloads disabled";
@@ -618,5 +642,7 @@ public class TrackInputViewModel : ViewModelBase
         InputArtist = string.Empty;
         SelectedSource = TrackSource.Unknown;
         _lastFetchedThumbnail = null;
+        _lastFetchedUrl = string.Empty;
+        _autoTitle = _autoArtist = null;
     }
 }

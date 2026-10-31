@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,10 +9,6 @@ using Serilog;
 
 namespace NullWave.Services.Plugins;
 
-/// <summary>
-/// Wraps DownloadService as an optional plugin. When yt-dlp is missing or disabled,
-/// all download methods return graceful failures and the UI can hide download controls.
-/// </summary>
 public class YtDlpDownloadProvider : IDownloadProvider
 {
     private readonly DownloadService _inner;
@@ -23,15 +20,8 @@ public class YtDlpDownloadProvider : IDownloadProvider
     public PluginState State { get; set; } = PluginState.Unavailable;
     public bool IsEnabled { get; set; } = true;
 
-    // I expose the inner service so MainViewModel can still wire events
-    // (PlaylistBatchStarted, etc.) during the migration period.
     public DownloadService Inner => _inner;
 
-    /// <param name="versionProbe">
-    /// Asks which yt-dlp version is installed (null = not found). Defaults to the shared
-    /// <see cref="ToolVersionProbe"/>, which the startup diagnostics also use, so yt-dlp is looked
-    /// up once per run instead of being launched again for every check.
-    /// </param>
     public YtDlpDownloadProvider(DownloadService inner, PreferencesService prefs, Func<Task<string?>>? versionProbe = null)
     {
         _inner = inner;
@@ -76,10 +66,8 @@ public class YtDlpDownloadProvider : IDownloadProvider
         if (!IsEnabled || State != PluginState.Available)
             return false;
 
-        return url.Contains("youtube", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("soundcloud", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("bandcamp", StringComparison.OrdinalIgnoreCase);
+        // FIX: Use SourceDetector so Audiomack, Archive.org, and Mixcloud are recognized
+        return SourceDetector.IsYtDlpSource(SourceDetector.Detect(url));
     }
 
     public Task<DownloadResult> DownloadAsync(string url, DownloadOptions options, CancellationToken ct = default)
@@ -87,7 +75,6 @@ public class YtDlpDownloadProvider : IDownloadProvider
         if (!IsEnabled || State != PluginState.Available)
             return Task.FromResult(DownloadResult.Failed("yt-dlp provider not available"));
 
-        // I generate a fresh track ID since the inner service expects one
         var trackId = Guid.NewGuid().ToString();
 
         _ = _inner.DownloadAsync(
@@ -99,9 +86,6 @@ public class YtDlpDownloadProvider : IDownloadProvider
             isInteractive: true,
             ct: ct);
 
-        // Note: DownloadService is fire-and-forget with events. I return success
-        // here because the real result arrives via the ProgressChanged/DownloadCompleted
-        // events on the Inner service.
         return Task.FromResult(DownloadResult.Succeeded(string.Empty));
     }
 

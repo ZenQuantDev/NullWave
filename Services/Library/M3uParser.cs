@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -73,7 +74,7 @@ public static class M3uParser
 
         int? seconds = null;
         var m = Regex.Match(head.Trim(), @"^-?\d+");
-        if (m.Success && int.TryParse(m.Value, out var s) && s >= 0) seconds = s;
+        if (m.Success && int.TryParse(m.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var s) && s >= 0) seconds = s;
 
         if (display.Length == 0) return (seconds, null, null);
         var sep = display.IndexOf(" - ", StringComparison.Ordinal);
