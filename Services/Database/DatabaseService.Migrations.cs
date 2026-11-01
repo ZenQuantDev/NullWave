@@ -29,7 +29,16 @@ public partial class DatabaseService
                 void Step(int target, string sql)
                 {
                     if (v >= target) return;
-                    _db.Execute(sql);
+                    try
+                    {
+                        _db.Execute(sql);
+                    }
+                    catch (SQLite.SQLiteException ex) when (ex.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // sqlite-net's CreateTable already added this column based on the TrackRecord model.
+                        // Safe to ignore and bump the version.
+                        Log.Debug("[DatabaseService] Migration {Target}: column already exists, skipping ALTER TABLE.", target);
+                    }
                     v = target;
                     _db.Execute($"PRAGMA user_version = {target};");
                 }
@@ -49,6 +58,8 @@ public partial class DatabaseService
                     v = 8;
                     _db.Execute("PRAGMA user_version = 8;");
                 }
+
+                Step(11, "ALTER TABLE Tracks ADD COLUMN IsOffline INTEGER DEFAULT 0;");
 
                 Log.Information("[DatabaseService] Schema is at version {Version}", v);
             }

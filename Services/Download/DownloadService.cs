@@ -467,7 +467,7 @@ public class DownloadService
 
         var args = new List<string>
         {
-            url, "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
+            "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
             "--ignore-errors"
         };
 
@@ -511,6 +511,10 @@ public class DownloadService
             args.Add("--playlist-items");
             args.Add("1");
         }
+
+        // SECURITY: Defense in depth against URLs starting with '-'
+        args.Add("--");
+        args.Add(url);
 
         lock (_activeDownloads)
         {

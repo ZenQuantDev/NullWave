@@ -52,6 +52,7 @@ public class YtDlpMetadataFetcher
             };
             
             YtDlpArgs.AppendNetworkArgs(args, prefs);
+            args.Add("--");
             args.Add(url);
 
             var result = await ProcessRunner.RunAsync("yt-dlp", args.ToArray(), TimeSpan.FromSeconds(15), resolveViaPath: true);

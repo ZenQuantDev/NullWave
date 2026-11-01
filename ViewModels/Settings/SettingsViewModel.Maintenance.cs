@@ -134,10 +134,17 @@ public partial class SettingsViewModel
     {
         ToastService.Instance.Show($"Updated duration for {updated} track(s).", ToastType.Success, scope: "maintenance");
     }
-    public void ReportRepairPathsComplete(int total, int missing, int cleared)
+    public void ReportRepairPathsComplete(int total, int missing, int cleared, int relinked)
     {
         IsRepairing = false;
-        RepairStatus = missing == 0 ? $"✓ All {total} file paths are valid." : $"Found {missing} missing file(s) - {cleared} path(s) cleared.";
+        if (missing == 0)
+        {
+            RepairStatus = $"✓ All {total} file paths are valid.";
+        }
+        else
+        {
+            RepairStatus = $"Found {missing} missing file(s) - {cleared} path(s) cleared. Auto-relinked {relinked} file(s)!";
+        }
         ToastService.Instance.Show(RepairStatus, missing == 0 ? ToastType.Success : ToastType.Warning, scope: "maintenance");
     }
     public void ReportReimportComplete(int relinked)

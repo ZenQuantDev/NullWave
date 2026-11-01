@@ -20,9 +20,22 @@ public static class NullWavePaths
         }
     }
 
-    public static string DataDir => HomeOverride ?? (IsWindows
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave"));
+    public static string DataDir
+    {
+        get
+        {
+            if (HomeOverride is { } home) return home;
+
+        #if DEBUG
+            // SAFETY NET: In debug builds, default to a sandbox folder
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NullWaveDev");
+        #else
+            return IsWindows
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+        #endif
+        }
+    }
 
     public static string LegacyDataDir => HomeOverride is { } home
         ? Path.Combine(home, "legacy-none")

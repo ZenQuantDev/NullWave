@@ -47,6 +47,8 @@ public partial class LibraryService : IDisposable
         _prefs = prefs;
         lock (_tracksLock) { _tracks = _db.LoadAll(); }
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
+        Log.Information("[LibraryService] By type: {Counts}", 
+            string.Join(", ", _tracks.GroupBy(t => t.MediaType).Select(g => $"{g.Key}={g.Count()}")));
 
         if (!startBackgroundWork) return;
 
@@ -93,8 +95,27 @@ public partial class LibraryService : IDisposable
         try
         {
             var fullPath = Path.GetFullPath(filePath);
-            var downloadsDir = Path.GetFullPath(NullWavePaths.DownloadsDir);
-            return fullPath.StartsWith(downloadsDir, StringComparison.OrdinalIgnoreCase);
+            
+            // Check both the default path AND the user-configured path from Preferences
+            var dirsToCheck = new List<string> { Path.GetFullPath(NullWavePaths.DownloadsDir) };
+            if (_prefs != null && !string.IsNullOrWhiteSpace(_prefs.Current.DownloadDirectory))
+            {
+                try { dirsToCheck.Add(Path.GetFullPath(_prefs.Current.DownloadDirectory)); } catch { }
+            }
+
+            foreach (var dir in dirsToCheck)
+            {
+                var checkDir = dir.EndsWith(Path.DirectorySeparatorChar.ToString()) 
+                    ? dir 
+                    : dir + Path.DirectorySeparatorChar;
+                    
+                if (fullPath.StartsWith(checkDir, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(fullPath, dir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
         catch { return false; }
     }
@@ -195,15 +216,12 @@ public partial class LibraryService : IDisposable
 
         if (_prefs?.Current.AutoCleanMetadata == true)
         {
-            var split = TrackNormalizer.TrySplit(track.Title);
-            if (split != null && !string.IsNullOrWhiteSpace(split.Value.Artist) && !string.IsNullOrWhiteSpace(split.Value.Title))
+            var (cleanArtist, cleanTitle) = TrackNormalizer.ResolveArtistTitle(track.Title, track.Artist);
+            if (cleanTitle != track.Title || cleanArtist != track.Artist)
             {
-                if (TrackNormalizer.IsPlaceholderArtist(track.Artist))
-                    track.Artist = split.Value.Artist;
-                if (TrackNormalizer.IsPlaceholderTitle(track.Title))
-                    track.Title = split.Value.Title;
-                
-                Update(track); 
+                track.Title = cleanTitle;
+                track.Artist = cleanArtist;
+                Update(track);
             }
         }
     }

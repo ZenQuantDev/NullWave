@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using NullWave.Helpers;
 using NullWave.Models;
@@ -23,5 +24,8 @@ public partial class LibraryService
     }
 
     private static HashSet<string> Tokenize(string s) =>
-        Regex.Matches(s.ToLowerInvariant(), @"[a-z0-9]+").Select(m => m.Value).Where(w => w.Length > 2).ToHashSet();
+        Regex.Matches(s.Normalize(NormalizationForm.FormKC).ToLowerInvariant(), @"[\p{L}\p{M}\p{N}]+")
+            .Select(m => m.Value)
+            .Where(w => w.Length > 2 || w.Any(c => c > '\u02FF'))
+            .ToHashSet();
 }

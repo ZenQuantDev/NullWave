@@ -26,6 +26,7 @@ public class Track : NotifyBase
     private List<string> _tags = new();
     private string? _notes;
     private bool _titleForceCleaned;
+    private bool _isOffline;
 
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -79,6 +80,7 @@ public class Track : NotifyBase
     public List<string> Tags { get => _tags; set => SetField(ref _tags, value); }
     public string? Notes { get => _notes; set => SetField(ref _notes, value); }
     public bool TitleForceCleaned { get => _titleForceCleaned; set => SetField(ref _titleForceCleaned, value); }
+    public bool IsOffline { get => _isOffline; set => SetField(ref _isOffline, value); }
 
     public string DisplayDuration => Duration.ToString(@"m\:ss");
 }

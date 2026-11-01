@@ -17,7 +17,7 @@ public static partial class TrackNormalizer
 {
     // --- Regex patterns ---
     
-    [GeneratedRegex(@"[\(\[\{«「『][^\)\]\}»」』]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|explicit|clean|hq|hd|4k|uncensored|download|caption|captions|cc|unreleased|spatial|atmos)s?\b[^\)\]\}»」』]*?[\)\]\}»」』]", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"[\(\[\{«「『][^\)\]\}»」』]*?\b(?:official|video|audio|music|lyric|lyrics|visualizer|clip|explicit|clean|hq|hd|4k|uncensored|download|caption|captions|cc|unreleased|spatial|atmos|официальн\w*|клип|премьера|аудио|видео|текст|лирика)s?\b[^\)\]\}»」』]*?[\)\]\}»」』]", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex BracketGarbageRegex();
 
     [GeneratedRegex(@"\b(official\s+video|official\s+music\s+video|official\s+audio|lyric\s+video|lyrics|official\s+visualizer|unreleased|explicit\s+version|clean\s+version)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
@@ -343,6 +343,39 @@ public static partial class TrackNormalizer
             prev = c;
         }
         return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+    }
+
+    /// <summary>Like TrySplit, but uses the artist we already know (yt-dlp channel) to resolve
+    /// "Song – Artist" vs "Artist – Song".</summary>
+    public static (string Artist, string Title)? SplitWithKnownArtist(string rawTitle, string? knownArtist)
+    {
+        var split = TrySplit(rawTitle);
+        if (split is null || IsPlaceholderArtist(knownArtist)) return split;
+
+        var known = NormalizeForCompare(CleanArtist(knownArtist!));
+        if (known.Length == 0) return split;
+
+        bool Same(string s)
+        {
+            var n = NormalizeForCompare(s);
+            if (n.Length == 0) return false;
+            if (n == known) return true;
+            var (shorter, longer) = n.Length <= known.Length ? (n, known) : (known, n);
+            return shorter.Length >= 4 && longer.Contains(shorter, StringComparison.Ordinal);
+        }
+
+        var (artist, title) = split.Value;
+        if (!Same(artist) && Same(title)) return (title, artist);   // "Song – Artist" -> swap!
+        return split;
+    }
+
+    /// <summary>Central fallback: tries to split, otherwise uses the known artist and cleans the title.</summary>
+    public static (string Artist, string Title) ResolveArtistTitle(string rawTitle, string? knownArtist)
+    {
+        if (SplitWithKnownArtist(rawTitle, knownArtist) is { } s) return s;
+        var artist = IsPlaceholderArtist(knownArtist) ? "Unknown" : CleanArtist(knownArtist!);
+        var t = CleanTitle(rawTitle);
+        return (artist, string.IsNullOrWhiteSpace(t) ? rawTitle.Trim() : t);
     }
 
     public static bool HasExoticSeparator(string s) =>

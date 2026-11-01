@@ -24,7 +24,7 @@ public static class SourceDetector
     /// <summary>
     /// Cleans up pasted markdown links, angle brackets, and adds https:// to known bare hosts.
     /// </summary>
-    public static string NormalizeUrl(string? input)
+    public static string NormalizeUrl(string? input, bool keepListParam = false)
     {
         var text = (input ?? "").Trim();
         var md = MarkdownLink.Match(text);
@@ -35,8 +35,9 @@ public static class SourceDetector
         if (!text.Contains("://") && Detect(text) is not (TrackSource.Unknown or TrackSource.Local))
             text = "https://" + text;
 
-        // FIX: Strip &list= from single-track YouTube URLs so metadata fetches don't fail
-        if (text.Contains("v=", StringComparison.OrdinalIgnoreCase)
+        // Only strip list= if keepListParam is false
+        if (!keepListParam &&
+            text.Contains("v=", StringComparison.OrdinalIgnoreCase)
             && text.Contains("list=", StringComparison.OrdinalIgnoreCase)
             && !text.Contains("/playlist", StringComparison.OrdinalIgnoreCase)
             && Detect(text) == TrackSource.YouTube)
@@ -88,7 +89,8 @@ public static class SourceDetector
             TrackSource.LastFm =>
                 url.Contains("/music/"),
             TrackSource.Bandcamp =>
-                url.Contains("/track/", StringComparison.OrdinalIgnoreCase),
+                url.Contains("/track/", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("/album/", StringComparison.OrdinalIgnoreCase),
             TrackSource.Audiomack =>
                 url.Contains("/song/", StringComparison.OrdinalIgnoreCase),
             TrackSource.ArchiveOrg =>

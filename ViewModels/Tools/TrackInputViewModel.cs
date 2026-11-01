@@ -213,7 +213,36 @@ public class TrackInputViewModel : ViewModelBase
     private async Task AddTrackAsync()
     {
         var providedTitle = InputTitle.Trim();
-        var url = SourceDetector.NormalizeUrl(InputUrl); 
+        var rawUrl = InputUrl.Trim();
+
+        // --- MIX / PLAYLIST FRONT DOOR ---
+        // Inspect the URL *before* NormalizeUrl strips the list= parameter
+        var withList = SourceDetector.NormalizeUrl(rawUrl, keepListParam: true);
+        if (SourceDetector.Detect(withList) == TrackSource.YouTube && 
+            withList.Contains("list=", StringComparison.OrdinalIgnoreCase) &&
+            !withList.Contains("/playlist?", StringComparison.OrdinalIgnoreCase))
+        {
+            var isMix = withList.Contains("list=RD", StringComparison.OrdinalIgnoreCase) || 
+                        withList.Contains("start_radio=1", StringComparison.OrdinalIgnoreCase);
+            
+            var msg = isMix
+                ? "This is a YouTube Mix (endless radio).\n\nImport the first 50 tracks as a playlist, or just add this single song?"
+                : "This song is inside a YouTube Playlist.\n\nImport the whole playlist, or just add this single song?";
+
+            var importList = await DialogService.Instance.ShowDialogAsync<bool>(
+                new Views.ConfirmDialog(isMix ? "YouTube Mix" : "YouTube Playlist", msg));
+
+            if (importList)
+            {
+                PlaylistImportRequested?.Invoke(withList);
+                ClearInputs();
+                IsUrlInputVisible = false;
+                return;
+            }
+        }
+
+        // Standard normalization (strips list= if they chose single song)
+        var url = SourceDetector.NormalizeUrl(rawUrl); 
         if (string.IsNullOrWhiteSpace(url))
         {
             IsUrlInputVisible = true;
@@ -246,7 +275,7 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        if (IsYouTubePlaylist(url))
+        if (IsYouTubePlaylist(url) || (SelectedSource == TrackSource.Bandcamp && url.Contains("/album/", StringComparison.OrdinalIgnoreCase)))
         {
             PlaylistImportRequested?.Invoke(url);
             ClearInputs();
@@ -475,14 +504,7 @@ public class TrackInputViewModel : ViewModelBase
             {
                 if (!string.IsNullOrWhiteSpace(title))
                 {
-                    var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(title);
-                    var cleanTitle  = title;
-                    var cleanArtist = artist;
-                    if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Title))
-                    {
-                        cleanTitle = parsed.Value.Title;
-                        if (!string.IsNullOrWhiteSpace(parsed.Value.Artist)) cleanArtist = parsed.Value.Artist;
-                    }
+                    var (cleanArtist, cleanTitle) = NullWave.Helpers.TrackNormalizer.ResolveArtistTitle(title, artist);
                     if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(existing.Title))  existing.Title  = cleanTitle;
                     if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(existing.Artist) &&
                         !string.IsNullOrWhiteSpace(cleanArtist))              existing.Artist = cleanArtist;

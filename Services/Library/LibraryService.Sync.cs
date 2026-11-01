@@ -41,6 +41,10 @@ public partial class LibraryService
         if (currentlyPlayingPath != null && string.Equals(Path.GetFullPath(track.FilePath!), Path.GetFullPath(currentlyPlayingPath), StringComparison.OrdinalIgnoreCase))
             return (false, false);
 
+        // S6 SAFETY GUARD: Never touch imported user files. Only sync files NullWave downloaded.
+        if (!IsManagedDownload(track.FilePath)) 
+            return (false, false);
+
         bool retagged = false, renamed = false;
         if (_metadata != null)
         {

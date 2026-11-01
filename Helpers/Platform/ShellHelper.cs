@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Generic; 
 using System.IO;
 using System.Runtime.InteropServices;
 using Serilog;
@@ -31,6 +32,11 @@ public static class ShellHelper
         }
     }
 
+    private static readonly HashSet<string> AllowedMediaExts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus", ".aac", ".wma", ".mp4", ".webm", ".mkv"
+    };
+
     /// <summary>
     /// Opens a file with the system's default application.
     /// </summary>
@@ -38,6 +44,13 @@ public static class ShellHelper
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
 
+        // SECURITY: Prevent arbitrary code execution from imported playlists
+        var ext = Path.GetExtension(path);
+        if (!AllowedMediaExts.Contains(ext))
+        {
+            Log.Warning("[ShellHelper] Blocked execution of non-media file: {Path}", path);
+            return;
+        }
         try
         {
             Launch(path, isUrl: false, isFolder: false);

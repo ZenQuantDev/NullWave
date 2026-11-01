@@ -16,15 +16,73 @@ public partial class LibraryService
     private void CleanupBadUrls()
     {
         List<Track> bad;
-        lock (_tracksLock) { bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) && !SourceDetector.IsPlayableUrl(t.Url) && string.IsNullOrEmpty(t.FilePath)).ToList(); }
+        lock (_tracksLock) 
+        { 
+            bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) 
+                                  && !SourceDetector.IsPlayableUrl(t.Url) 
+                                  && string.IsNullOrEmpty(t.FilePath) 
+                                  && !t.IsOffline).ToList(); 
+        }
         if (bad.Count == 0) return;
 
         foreach (var t in bad)
-            Log.Warning("[LibraryService] Removing unplayable URL from DB: {Url}", t.Url);
-
-        lock (_tracksLock) { foreach (var t in bad) { _tracks.Remove(t); _db.Delete(t.Id); } }
+        {
+            t.IsOffline = true;
+            _db.Update(t);
+            Log.Warning("[LibraryService] Found unplayable URL, marking as offline: {Url}", t.Url);
+        }
         StateVersion++;
-        Log.Information("[LibraryService] Cleaned {Count} bad tracks from DB", bad.Count);
+        Log.Information("[LibraryService] Marked {Count} bad tracks as offline in DB", bad.Count);
+    }
+
+    public int RelinkMissingFiles()
+    {
+        var missing = GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath) && !File.Exists(t.FilePath)).ToList();
+        if (missing.Count == 0) return 0;
+
+        var pref = _prefs?.Current.DownloadDirectory;
+        var downloadsDir = string.IsNullOrWhiteSpace(pref) ? NullWavePaths.DownloadsDir : pref;
+        if (string.IsNullOrWhiteSpace(downloadsDir) || !Directory.Exists(downloadsDir)) return 0;
+
+        var audioExts = new[] { ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus" };
+        var orphans = Directory.EnumerateFiles(downloadsDir, "*.*", SearchOption.AllDirectories)
+            .Where(f => audioExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .ToList();
+
+        int relinked = 0;
+        foreach (var track in missing)
+        {
+            var urlId = ExtractYouTubeId(track.Url);
+            var id8 = track.Id.ToString("N")[..8]; // First 8 chars of the GUID without hyphens
+
+            var match = orphans.FirstOrDefault(f =>
+            {
+                var fileName = Path.GetFileNameWithoutExtension(f);
+                // Match patterns like: "Song Name [nw-1e7de1ff-kXYiU_JCYtU]"
+                if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase)) return true;
+                if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase)) return true;
+                return false;
+            });
+
+            if (match != null)
+            {
+                track.FilePath = match;
+                _db.Update(track);
+                orphans.Remove(match); // Prevent double-linking
+                relinked++;
+                Log.Information("[LibraryService] Relinked track {Title} to {Path}", track.Title, match);
+            }
+        }
+        if (relinked > 0) StateVersion++;
+        Log.Information("[LibraryService] Auto-relinked {Count} missing tracks using filename suffixes.", relinked);
+        return relinked;
+    }
+
+    private static string? ExtractYouTubeId(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(url, @"(?:v=|\/)([0-9A-Za-z_-]{11})");
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     // PERF: collects results off-UI, then applies them in ONE UI-thread wave via
@@ -225,7 +283,7 @@ public partial class LibraryService
         var targets = GetAll().Where(t => t.Duration == TimeSpan.Zero && !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath)).ToList();
         foreach (var t in targets)
         {
-            var (_, _, dur) = fetcher.Fetch(t.FilePath!);
+            var (_, _, dur) = fetcher.FetchFromLocalFile(t.FilePath!);
             if (dur > TimeSpan.Zero) { t.Duration = dur; Update(t); updated++; }
         }
         return updated;

@@ -89,7 +89,61 @@ public class MetadataService
         => _local.DetectMediaType(filePath);
 
     public (string Title, string Artist, TimeSpan Duration) FetchFromLocalFile(string filePath)
-        => _local.Fetch(filePath);
+    {
+        TagLib.File? file = null;
+        
+        // Retry loop to handle file locks from yt-dlp or LibVLC
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                file = TagLib.File.Create(filePath);
+                break; // Success, exit loop
+            }
+            catch (IOException) when (attempt < 2)
+            {
+                // File is locked by another process, wait a bit and try again
+                System.Threading.Thread.Sleep(200 * (attempt + 1)); 
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "TagLib failed for {Path}, falling back to filename", filePath);
+                return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+            }
+        }
+
+        if (file == null)
+        {
+            Log.Debug("TagLib file locked or unreadable after retries, falling back to filename: {Path}", filePath);
+            return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+        }
+
+        try
+        {
+            using (file) // Ensure proper disposal
+            {
+                var title = file.Tag.Title;
+                var artist = file.Tag.FirstPerformer
+                             ?? (file.Tag.Performers.Length > 0
+                                 ? string.Join(", ", file.Tag.Performers)
+                                 : null);
+                var duration = file.Properties.Duration;
+
+                if (string.IsNullOrWhiteSpace(title))
+                    title = Path.GetFileNameWithoutExtension(filePath);
+                if (string.IsNullOrWhiteSpace(artist))
+                    artist = "Unknown";
+
+                Log.Information("Local file tags read: {Title} by {Artist}", title, artist);
+                return (title, artist, duration);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "TagLib read failed for {Path}, falling back to filename", filePath);
+            return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+        }
+    }
 
     private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
 

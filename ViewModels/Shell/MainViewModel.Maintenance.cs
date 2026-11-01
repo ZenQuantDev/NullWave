@@ -92,8 +92,13 @@ public partial class MainViewModel
 
         Settings.RepairPathsRequested += () => RunMaintenanceTask("RepairPaths", false, async () =>
         {
+            // 1. Auto-relink them using the [nw-id-videoId] suffix FIRST!
+            var relinked = await Task.Run(() => _library.RelinkMissingFiles());
+            
+            // 2. Clear remaining dead paths
             var (total, missing, removed) = await Task.Run(() => _library.RepairPaths(removeDeadEntries: true));
-            return () => { Library.Refresh(); Settings.ReportRepairPathsComplete(total, missing, removed); };
+
+            return () => { Library.Refresh(); Settings.ReportRepairPathsComplete(total, missing, removed, relinked); };
         });
 
         Settings.ReimportAssetsRequested += () => RunMaintenanceTask("ReimportAssets", false, async () =>

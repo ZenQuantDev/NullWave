@@ -90,6 +90,7 @@ public class SourceDetectorTests
 
     [Theory]
     [InlineData("https://artist.bandcamp.com/track/slug")]
+    [InlineData("https://artist.bandcamp.com/album/slug")]
     [InlineData("https://audiomack.com/artist/song/slug")]
     [InlineData("https://archive.org/details/some-item")]
     [InlineData("https://www.mixcloud.com/user/some-mix/")]
@@ -99,7 +100,6 @@ public class SourceDetectorTests
     [Theory]
     [InlineData("https://artist.bandcamp.com/")]
     [InlineData("https://artist.bandcamp.com/music")]
-    [InlineData("https://artist.bandcamp.com/album/slug")]
     [InlineData("https://bandcamp.com/some/track")]
     [InlineData("https://audiomack.com/artist")]
     [InlineData("https://audiomack.com/artist/album/slug")]

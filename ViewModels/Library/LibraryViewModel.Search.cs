@@ -216,7 +216,7 @@ public partial class LibraryViewModel
             // ai: playlists are music playlists: never pull radio streams or audiobooks
             // into them (keyword matches like "pop" -> "Indie Pop Rocks" station).
             var allTracks = _library.GetAll().Where(t => t.MediaType == MediaType.Music).ToArray();
-            var keywords = query.ToLowerInvariant().Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Where(k => k.Length > 2).ToArray();
+            var keywords = query.ToLowerInvariant().Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Where(k => k.Length > 2 || k.Any(c => c > '\u02FF')).ToArray();
             var candidateTracks = allTracks.Where(t =>
             {
                 var searchText = $"{t.Title} {t.Artist} {string.Join(" ", t.Tags)}".ToLowerInvariant();
