@@ -62,9 +62,29 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     private DateTime _lastNavigationTime = DateTime.MinValue;
     private static readonly TimeSpan NavigationDebounce = TimeSpan.FromMilliseconds(300);
     private DateTime _lastPlayPauseTime = DateTime.MinValue;
+
+    // Patch A: cached duration
+    private TimeSpan _durationCache;
+    private long _durationCacheAt;
+
     private static string L(string key) => LocalizationService.Instance[key];
 
+    private TimeSpan TrackDuration
+    {
+        get
+        {
+            var now = Environment.TickCount64;
+            if (_durationCache <= TimeSpan.Zero || now - _durationCacheAt > 5000)
+            {
+                _durationCache = _playback.Duration;
+                _durationCacheAt = now;
+            }
+            return _durationCache;
+        }
+    }
+
     public bool SleepTimerEndOfChapter { get => _sleepTimerEndOfChapter; set { _sleepTimerEndOfChapter = value; OnPropertyChanged(); } }
+    
     public float PlaybackRate
     {
         get => _playbackRate;
@@ -81,7 +101,6 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _playbackRate = _settings.AudiobookPlaybackRate;
         _playback.Volume = _volume;
 
-        // Subscribe using named methods for clean disposal
         _playback.PositionChanged += OnPlaybackPositionChanged;
         _playback.StateChanged += OnPlaybackStateChanged;
         _playback.TrackFinished += OnPlaybackTrackFinished;
@@ -99,7 +118,6 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        // Unsubscribe from Singleton services to prevent memory leaks during hot-reloads or testing
         _playback.PositionChanged -= OnPlaybackPositionChanged;
         _playback.StateChanged -= OnPlaybackStateChanged;
         _playback.TrackFinished -= OnPlaybackTrackFinished;
@@ -116,10 +134,12 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _sleepTimer?.Dispose();
     }
 
-    // --- Extracted Event Handlers ---
-
     private void OnPlaybackPositionChanged(float pos) 
-        => Dispatcher.UIThread.Post(() => { Position = pos; CheckPlayRecorded(); CheckCrossfade(pos); });
+    {
+        void Apply() { Position = pos; CheckPlayRecorded(); CheckCrossfade(pos); }
+        if (Dispatcher.UIThread.CheckAccess()) Apply(); 
+        else Dispatcher.UIThread.Post(Apply);
+    }
 
     private void OnPlaybackStateChanged(PlaybackState state) 
         => Dispatcher.UIThread.Post(() => { 
@@ -171,57 +191,108 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
             IsDownloading = false;
             StatusText = L("Player_Status_DownloadComplete");
             NullActionLogger.ImportCompleted(filePath, trackId, 0, nameof(PlayerViewModel));
-
-            if (Guid.TryParse(trackId, out var id))
-            {
-                var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                if (track != null)
-                {
-                    track.FilePath = filePath;
-                    var (tagTitle, tagArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                    tagArtist = System.Text.RegularExpressions.Regex.Replace(tagArtist ?? "", @"\s*-\s*Topic\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-
-                    if (!string.IsNullOrWhiteSpace(tagTitle))
-                    {
-                        var parsedTags = NullWave.Helpers.TrackNormalizer.TrySplit(tagTitle);
-                        var cleanTitle  = tagTitle;
-                        var cleanArtist = tagArtist;
-                        if (parsedTags != null && !string.IsNullOrWhiteSpace(parsedTags.Value.Title))
-                        {
-                            cleanTitle = parsedTags.Value.Title;
-                            if (!string.IsNullOrWhiteSpace(parsedTags.Value.Artist))
-                                cleanArtist = parsedTags.Value.Artist;
-                        }
-
-                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title) || System.Text.RegularExpressions.Regex.IsMatch(track.Title ?? "", @"\([A-Za-z0-9_-]{11}\)$")) track.Title = cleanTitle;
-                        if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) && !string.IsNullOrWhiteSpace(cleanArtist)) track.Artist = cleanArtist;
-
-                        _download.UpdateJobMetadata(trackId, track.Title, track.Artist);
-                    }
-
-                    track.Duration = duration;
-                    _library.Update(track);
-                    _library.NormalizeLocalFile(track);
-
-                    var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id);
-                    if (_currentTrack?.Id == id || _state != PlaybackState.Playing)
-                        PlayTrack(fresh ?? track);
-                    else
-                        ToastService.Instance.Show($"'{(fresh ?? track).Title}' downloaded.", ToastType.Success, scope: "download");
-                }
-            }
         });
+
+        if (Guid.TryParse(trackId, out var id))
+        {
+            _ = CompleteDownloadAsync(id, trackId, filePath);
+        }
+    }
+
+    private async Task CompleteDownloadAsync(Guid id, string trackId, string filePath)
+    {
+        try
+        {
+            // TagLib read off the UI thread.
+            var tags = await Task.Run(() => _metadata.FetchFromLocalFile(filePath));
+            
+            // Model mutation on the UI thread.
+            var track = await Dispatcher.UIThread.InvokeAsync(() => ApplyDownloadedTags(id, trackId, filePath, tags));
+            if (track == null) return;
+            
+            // TagLib write + rename + DB update off the UI thread.
+            await Task.Run(() => _library.NormalizeLocalFile(track));   
+            
+            Dispatcher.UIThread.Post(() =>
+            {
+                var fresh = _library.GetAll().FirstOrDefault(t => t.Id == id) ?? track;
+                
+                if (_currentTrack?.Id == id || _state != PlaybackState.Playing) 
+                    PlayTrack(fresh);
+                else 
+                    ToastService.Instance.Show($"'{fresh.Title}' downloaded.", ToastType.Success, scope: "download");
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PlayerViewModel] Download completion failed for {Path}", filePath);
+            Dispatcher.UIThread.Post(() => IsDownloading = false);
+        }
+    }
+
+    private Track? ApplyDownloadedTags(
+        Guid id, 
+        string trackId, 
+        string filePath, 
+        (string? Title, string? Artist, TimeSpan Duration) tags)
+    {
+        var track = _library.GetAll().FirstOrDefault(t => t.Id == id);
+        if (track == null) return null;
+
+        track.FilePath = filePath;
+        var (tagTitle, tagArtist, duration) = tags;
+        
+        tagArtist = System.Text.RegularExpressions.Regex.Replace(
+            tagArtist ?? "", 
+            @"\s*-\s*Topic\s*$", 
+            "", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        
+        if (!string.IsNullOrWhiteSpace(tagTitle))
+        {
+            var parsedTags = NullWave.Helpers.TrackNormalizer.TrySplit(tagTitle);
+            var cleanTitle  = tagTitle;
+            var cleanArtist = tagArtist;
+            
+            if (parsedTags != null && !string.IsNullOrWhiteSpace(parsedTags.Value.Title))
+            {
+                cleanTitle = parsedTags.Value.Title;
+                if (!string.IsNullOrWhiteSpace(parsedTags.Value.Artist))
+                    cleanArtist = parsedTags.Value.Artist;
+            }
+            
+            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(track.Title) || 
+                System.Text.RegularExpressions.Regex.IsMatch(track.Title ?? "", @"\([A-Za-z0-9_-]{11}\)$")) 
+            {
+                track.Title = cleanTitle;
+            }
+            
+            if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(track.Artist) && 
+                !string.IsNullOrWhiteSpace(cleanArtist)) 
+            {
+                track.Artist = cleanArtist;
+            }
+            
+            _download.UpdateJobMetadata(trackId, track.Title, track.Artist);
+        }
+        
+        track.Duration = duration;
+        _library.Update(track);
+        
+        return track;
     }
 
     private void OnDownloadFailed(string trackId, string? error, bool isInteractive)
     {
         if (!isInteractive) return;
         if (string.Equals(error, "Cancelled", StringComparison.OrdinalIgnoreCase))
-            return; // superseded by a newer interactive download; leave IsDownloading alone
+            return; 
+            
         Dispatcher.UIThread.Post(() => { 
             IsDownloading = false; 
             StatusText = string.Format(L("Player_Status_DownloadFailed"), error ?? L("Player_Status_UnknownError")); 
             NullActionLogger.Error(nameof(PlayerViewModel), $"Download failed: {error ?? "Unknown error"}", $"trackId={trackId}"); 
+            
             if (Guid.TryParse(trackId, out var id)) { 
                 var failedTrack = _library.GetAll().FirstOrDefault(t => t.Id == id); 
                 if (failedTrack != null) { 
@@ -244,7 +315,10 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         get => _currentTrack;
         private set
         {
-            _currentTrack = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentTrackDisplay)); OnPropertyChanged(nameof(CurrentArtistDisplay));
+            _currentTrack = value; 
+            _durationCache = TimeSpan.Zero; // Patch A: force duration re-read
+            
+            OnPropertyChanged(); OnPropertyChanged(nameof(CurrentTrackDisplay)); OnPropertyChanged(nameof(CurrentArtistDisplay));
             OnPropertyChanged(nameof(CurrentArtistOrNowPlayingDisplay)); OnPropertyChanged(nameof(HasAlbumArt)); OnPropertyChanged(nameof(AlbumArtPath));
             OnPropertyChanged(nameof(IsCurrentFavorite)); OnPropertyChanged(nameof(IsAudiobook)); OnPropertyChanged(nameof(IsRadio));
             OnPropertyChanged(nameof(Show10sSeek)); OnPropertyChanged(nameof(ArtPlaceholderKind));
@@ -278,8 +352,15 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     public MaterialIconKind PlayPauseIconKind => IsPlaying ? MaterialIconKind.Pause : MaterialIconKind.Play;
     
     public float Position { get => _position; set { _position = value; OnPropertyChanged(); OnPropertyChanged(nameof(PositionDisplay)); OnPropertyChanged(nameof(DurationDisplay)); } }
-    public string PositionDisplay { get { var total = _playback.Duration; var current = TimeSpan.FromSeconds(Position * total.TotalSeconds); return $"{(int)current.TotalMinutes:D2}:{current.Seconds:D2}"; } }
-    public string DurationDisplay { get { var total = _playback.Duration; return $"{(int)total.TotalMinutes:D2}:{total.Seconds:D2}"; } }
+    
+    public string PositionDisplay 
+    { 
+        get { var total = TrackDuration; var current = TimeSpan.FromSeconds(Position * total.TotalSeconds); return $"{(int)current.TotalMinutes:D2}:{current.Seconds:D2}"; } 
+    }
+    public string DurationDisplay 
+    { 
+        get { var total = TrackDuration; return $"{(int)total.TotalMinutes:D2}:{total.Seconds:D2}"; } 
+    }
     
     public float Volume { get => _volume; set { _volume = value; _playback.Volume = value; OnPropertyChanged(); OnPropertyChanged(nameof(VolumeIconKind)); } }
     public bool IsDownloading { get => _isDownloading; private set { _isDownloading = value; OnPropertyChanged(); } }
@@ -334,13 +415,13 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
     public string SleepTimerDisplay => IsSleepTimerActive ? $"{(int)_sleepTimerRemaining.TotalMinutes:D2}:{_sleepTimerRemaining.Seconds:D2}" : "";
 
     private void OnBufferingChanged(bool isBuffering)
-    => Dispatcher.UIThread.Post(() => IsBuffering = isBuffering);
+        => Dispatcher.UIThread.Post(() => IsBuffering = isBuffering);
 
     private void OnRadioMetadataChanged(string title, string artist)
-    => Dispatcher.UIThread.Post(() => {
-        if (_currentTrack?.MediaType != MediaType.Radio) return;
-        NowPlayingTitle = title ?? string.Empty;
-        NowPlayingArtist = artist ?? string.Empty;
-        if (HasNowPlaying) StatusText = NowPlayingDisplay;
-    });
+        => Dispatcher.UIThread.Post(() => {
+            if (_currentTrack?.MediaType != MediaType.Radio) return;
+            NowPlayingTitle = title ?? string.Empty;
+            NowPlayingArtist = artist ?? string.Empty;
+            if (HasNowPlaying) StatusText = NowPlayingDisplay;
+        });
 }

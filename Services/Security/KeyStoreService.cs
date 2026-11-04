@@ -19,7 +19,6 @@ public class KeyStoreService
     private readonly ISecretProtector? _legacyProtector;
     private readonly object _lock = new();
     private Dictionary<string, string>? _cache;
-
     public bool WasRecovered { get; private set; }
     private bool _quarantineFailed;
     private string? _readOnlyReason;
@@ -32,7 +31,7 @@ public class KeyStoreService
 
         // CRITICAL FIX: Derive the legacy key so we can read v1 files
         _encryptionKey = DeriveLegacyKey();
-        
+
         if (OperatingSystem.IsWindows())
         {
             var dpapi = new DpapiProtector();
@@ -47,9 +46,7 @@ public class KeyStoreService
         {
             _activeProtector = new LegacyDerivedProtector(storePath);
         }
-        
         _legacyProtector = new LegacyDerivedProtector(storePath);
-        
         Initialize();
     }
 
@@ -120,7 +117,6 @@ public class KeyStoreService
     private bool MigrateV1ToV2IfNeeded()
     {
         if (!File.Exists(_storePath)) return false;
-        
         try
         {
             var blob = File.ReadAllBytes(_storePath);
@@ -131,19 +127,17 @@ public class KeyStoreService
                 Log.Debug("[KeyStoreService] Keystore already v2 format");
                 return false;
             }
-            
+
             // v1 format: try to decrypt with legacy key
             Log.Information("[KeyStoreService] Detected v1 keystore, attempting migration to v2");
-            
             var json = Encoding.UTF8.GetString(DecryptLegacy(blob));
             var keys = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            
             if (keys == null || keys.Count == 0)
             {
                 Log.Warning("[KeyStoreService] v1 keystore was empty, skipping migration");
                 return false;
             }
-            
+
             // Re-save as v2 with active protector
             if (_activeProtector != null)
             {
@@ -168,10 +162,11 @@ public class KeyStoreService
                 File.WriteAllBytes(tmp, newBlob);
                 if (!OperatingSystem.IsWindows())
                     File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-
+                
                 var backup = _storePath + ".v1.bak";
                 File.Copy(_storePath, backup, overwrite: true);
                 File.Move(tmp, _storePath, overwrite: true);
+                
                 Log.Information("[KeyStoreService] Migrated {Count} keys from v1 to v2 format. Backup at {Backup}", keys.Count, backup);
                 return true;
             }
@@ -188,7 +183,7 @@ public class KeyStoreService
     {
         if (_activeProtector == null)
             throw new InvalidOperationException("No active protector available");
-            
+
         var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
         var payload = _activeProtector.Protect(plaintextBytes);
         var blob = new byte[6 + payload.Length];
@@ -207,6 +202,7 @@ public class KeyStoreService
             if (File.Exists(_storePath) || !File.Exists(legacy)) return;
             if (string.Equals(Path.GetFullPath(legacy), Path.GetFullPath(_storePath),
                 StringComparison.OrdinalIgnoreCase)) return;
+
             File.Move(legacy, _storePath);
             Log.Information("Migrated keys.enc to {Path}", _storePath);
         }
@@ -235,9 +231,9 @@ public class KeyStoreService
             if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
             {
                 var protectorId = blob[5];
-                var protector = protectorId == _activeProtector?.Id ? _activeProtector : 
+                var protector = protectorId == _activeProtector?.Id ? _activeProtector :
                                 protectorId == _legacyProtector?.Id ? _legacyProtector : null;
-                                
+                
                 if (protector == null)
                 {
                     // SAFETY: Unknown protector (e.g. file moved from Windows DPAPI to Linux).
@@ -246,7 +242,7 @@ public class KeyStoreService
                     Log.Error("[KeyStoreService] {Reason}", _readOnlyReason);
                     return _cache = new Dictionary<string, string>();
                 }
-                
+
                 var payload = new byte[blob.Length - 6];
                 Array.Copy(blob, 6, payload, 0, payload.Length);
                 var plaintext = protector.Unprotect(payload);
@@ -257,12 +253,18 @@ public class KeyStoreService
                 // v1 format (legacy encryption)
                 json = Encoding.UTF8.GetString(DecryptLegacy(blob));
             }
-            
+
             return _cache = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is CryptographicException or JsonException or FormatException or ArgumentException)
         {
             Quarantine(ex);
+            return _cache = new Dictionary<string, string>();
+        }
+        catch (Exception ex)   // I/O or other temporary trouble: leave the file where it is
+        {
+            _readOnlyReason = $"Keystore could not be read right now ({ex.GetType().Name}). Left untouched.";
+            Log.Error(ex, "[KeyStoreService] {Reason}", _readOnlyReason);
             return _cache = new Dictionary<string, string>();
         }
     }
@@ -316,7 +318,7 @@ public class KeyStoreService
                 File.Delete(_storePath);
                 Log.Warning("All API keys have been deleted");
             }
-            
+
             // Clean up backups, quarantined files, and temp files to ensure no recoverable copies remain
             var dir = Path.GetDirectoryName(_storePath);
             if (dir != null && Directory.Exists(dir))
@@ -324,7 +326,7 @@ public class KeyStoreService
                 var prefix = Path.GetFileName(_storePath);
                 foreach (var file in Directory.GetFiles(dir, $"{prefix}.*"))
                 {
-                    if (file.EndsWith(".v1.bak", StringComparison.OrdinalIgnoreCase) || 
+                    if (file.EndsWith(".v1.bak", StringComparison.OrdinalIgnoreCase) ||
                         file.Contains(".bad-", StringComparison.OrdinalIgnoreCase) ||
                         file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
                     {
@@ -332,7 +334,6 @@ public class KeyStoreService
                     }
                 }
             }
-            
             _cache = new Dictionary<string, string>();
             _readOnlyReason = null; // Allow normal writes again after explicit wipe
         }
@@ -342,13 +343,12 @@ public class KeyStoreService
     {
         if (_quarantineFailed)
             throw new IOException("Keystore is unreadable and could not be moved aside; refusing to overwrite it.");
-
         if (_readOnlyReason != null)
             throw new IOException(_readOnlyReason);
 
         var json = JsonSerializer.Serialize(keys);
         byte[] blob;
-        
+
         if (_activeProtector != null)
         {
             // v2 format: NWKS | version(1) | protectorId(1) | payload
@@ -365,11 +365,12 @@ public class KeyStoreService
             // Legacy format
             blob = EncryptLegacy(json);
         }
-        
+
         var tmp = _storePath + ".tmp";
         File.WriteAllBytes(tmp, blob);
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
         ReplaceStoreFile(tmp);
         _cache = new Dictionary<string, string>(keys);
     }
@@ -411,7 +412,7 @@ public class KeyStoreService
     {
         if (_encryptionKey == null)
             throw new InvalidOperationException("Encryption key not set");
-            
+
         var nonce = new byte[12];
         var tag = new byte[16];
         RandomNumberGenerator.Fill(nonce);
@@ -435,7 +436,6 @@ public class KeyStoreService
     {
         if (_encryptionKey == null)
             throw new InvalidOperationException("Encryption key not set");
-            
         if (blob.Length < 28) throw new CryptographicException("Invalid ciphertext size");
 
         var nonce = blob.AsSpan(0, 12);
@@ -448,48 +448,49 @@ public class KeyStoreService
 
         return plaintext;
     }
+}
 
-    [SupportedOSPlatform("windows")]
-    internal sealed class DpapiProtector : ISecretProtector
+[SupportedOSPlatform("windows")]
+internal sealed class DpapiProtector : ISecretProtector
+{
+    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("NullWave.KeyStore.v2");
+
+    public byte Id => 2;
+    public string Name => "Windows DPAPI";
+    public bool IsAvailable => OperatingSystem.IsWindows();
+
+    public byte[] Protect(byte[] plain) =>
+        ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser);
+
+    public byte[] Unprotect(byte[] payload) =>
+        ProtectedData.Unprotect(payload, Entropy, DataProtectionScope.CurrentUser);
+}
+
+internal sealed class LegacyDerivedProtector : ISecretProtector
+{
+    private readonly byte[] _key;
+
+    public LegacyDerivedProtector(string storePath)
     {
-        private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("NullWave.KeyStore.v2");
-        public byte Id => 2;
-        public string Name => "Windows DPAPI";
-        public bool IsAvailable => OperatingSystem.IsWindows();
-        
-        public byte[] Protect(byte[] plain) => 
-            ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser);
-            
-        public byte[] Unprotect(byte[] payload) => 
-            ProtectedData.Unprotect(payload, Entropy, DataProtectionScope.CurrentUser);
+        var machineId = GetMachineId();
+        var username = Environment.UserName;
+        var raw = $"{machineId}:{username}:nullwave-keystore-v1";
+        _key = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
     }
 
-    internal sealed class LegacyDerivedProtector : ISecretProtector
-    {
-        private readonly byte[] _key;
-        
-        public LegacyDerivedProtector(string storePath)
-        {
-            var machineId = GetMachineId();
-            var username = Environment.UserName;
-            var raw = $"{machineId}:{username}:nullwave-keystore-v1";
-            _key = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
-        }
-        
-        public byte Id => 1;
-        public string Name => "Legacy (Machine ID)";
-        public bool IsAvailable => true;
-        
-        public byte[] Protect(byte[] plain) => new AesGcmProtector(Id, Name, _key).Protect(plain);
-        public byte[] Unprotect(byte[] payload) => new AesGcmProtector(Id, Name, _key).Unprotect(payload);
+    public byte Id => 1;
+    public string Name => "Legacy (Machine ID)";
+    public bool IsAvailable => true;
 
-        private static string GetMachineId()
+    public byte[] Protect(byte[] plain) => new AesGcmProtector(Id, Name, _key).Protect(plain);
+    public byte[] Unprotect(byte[] payload) => new AesGcmProtector(Id, Name, _key).Unprotect(payload);
+
+    private static string GetMachineId()
+    {
+        if (NullWavePaths.IsLinux)
         {
-            if (NullWavePaths.IsLinux)
-            {
-                try { return File.ReadAllText("/etc/machine-id").Trim(); } catch { }
-            }
-            return Environment.MachineName;
+            try { return File.ReadAllText("/etc/machine-id").Trim(); } catch { }
         }
+        return Environment.MachineName;
     }
 }

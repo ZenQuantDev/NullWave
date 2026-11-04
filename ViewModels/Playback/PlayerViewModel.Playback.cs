@@ -32,12 +32,11 @@ public partial class PlayerViewModel
     {
         if (track == null) return;
         // Debounce: prevent rapid re-clicks on the same track
-        if (_currentTrack?.Id == track.Id && 
+        if (_currentTrack?.Id == track.Id &&
             (DateTime.UtcNow - _trackStartTime).TotalMilliseconds < 1500)
         {
             return;
         }
-        
         var t = new StepTimer("PlayTrack");
         try
         {
@@ -78,17 +77,14 @@ public partial class PlayerViewModel
 
             var contextChanged = _currentTrack == null || _currentTrack.MediaType != track.MediaType || (track.MediaType == MediaType.Audiobook && (_currentTrack.Album != track.Album || _currentTrack.Artist != track.Artist));
             _playSessionId = Guid.NewGuid();
-            
             CurrentTrack = track;
-            t.Step("setCurrentTrack"); 
-            
+            t.Step("setCurrentTrack");
             _navigator.CurrentTrack = track;
             if (contextChanged) _navigator.InvalidateDeck();
             AlbumArtPath = track.AlbumArtPath;
             t.Step("navigator");
 
             _playRecorded = false;
-
             if (track.MediaType == MediaType.Radio && !string.IsNullOrEmpty(track.Url))
             {
                 _pendingResumeTicks = 0;
@@ -101,14 +97,24 @@ public partial class PlayerViewModel
                 return;
             }
 
+            // Patch D: Try to relink missing files before giving up and redownloading
+            if (!string.IsNullOrEmpty(track.FilePath) && !File.Exists(track.FilePath))
+            {
+                _library.TryRelink(track);
+                t.Step("relink");
+            }
+
             if (!string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
             {
                 _pendingResumeTicks = track.MediaType == MediaType.Audiobook && _settings.AutoResumeAudiobooks ? track.PlaybackPositionTicks : 0;
                 _playback.Play(track.FilePath);
                 t.Step("playFile");
                 if (track.MediaType == MediaType.Audiobook) _playback.SetRate(_playbackRate); else _playback.SetRate(1.0f);
-                if (track.MediaType == MediaType.Audiobook) { _audiobookSaveTimer?.Dispose(); _audiobookSaveTimer = new System.Threading.Timer(_ => SaveAudiobookProgress(), null, 5000, 5000); }
+                
+                // Patch D: marshal audiobook progress saves to the UI thread.
+                if (track.MediaType == MediaType.Audiobook) { _audiobookSaveTimer?.Dispose(); _audiobookSaveTimer = new System.Threading.Timer(_ => Dispatcher.UIThread.Post(SaveAudiobookProgress), null, 5000, 5000); }
                 else { _audiobookSaveTimer?.Dispose(); _audiobookSaveTimer = null; }
+                
                 _trackStartTime = DateTime.UtcNow;
                 StatusText = CurrentTrackDisplay;
                 NullActionLogger.TrackPlayed(track.Id.ToString(), track.Title, track.Artist, nameof(PlayerViewModel));
@@ -117,13 +123,18 @@ public partial class PlayerViewModel
 
             if (!string.IsNullOrEmpty(track.Url))
             {
+                // Patch B: label the download branch so the next [SLOW] line names the culprit.
                 _playback.Stop();
+                t.Step("stop");
                 Position = 0;
                 IsDownloading = true;
                 StatusText = L("Player_Status_DownloadingBeforePlayback");
+                t.Step("state");
                 NullActionLogger.ImportStarted(track.Url, nameof(PlayerViewModel));
+                t.Step("log");
                 _ = _download.DownloadAsync(track.Id.ToString(), track.Url, _settings.AudioFormat, _settings.AudioQuality,
                     title: track.Title, artist: track.Artist);
+                t.Step("startDownload");
                 return;
             }
 
@@ -283,7 +294,6 @@ public partial class PlayerViewModel
             StatusText = "End of Audiobook";
             return;
         }
-        
         var head = _library.GetQueue();
         if (head.Count > 0)
         {
@@ -297,7 +307,6 @@ public partial class PlayerViewModel
                 return;
             }
         }
-
         if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
         {
             Track? pick = null;
@@ -319,7 +328,6 @@ public partial class PlayerViewModel
             StatusText = $"End of '{_activePlaylist.Name}'.";
             return;
         }
-
         var queuedAuto = _library.DequeueNext();
         if (queuedAuto != null) { PlayTrack(queuedAuto); RefillAutoQueue(); return; }
         var next = _navigator.GetNextTrack(_currentTrack);
@@ -350,7 +358,6 @@ public partial class PlayerViewModel
         var autoCount = _library.GetQueue().Count(e => !e.IsManual);
         var needed = target - autoCount;
         if (needed <= 0) return;
-
         if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
         {
             var adds = new System.Collections.Generic.List<Track>();
@@ -380,7 +387,9 @@ public partial class PlayerViewModel
     {
         if (_currentTrack?.MediaType is MediaType.Radio or MediaType.Audiobook) return;
         if (!_settings.CrossfadeEnabled || _isCrossfading || _hasTriggeredCrossfade || _currentTrack == null) return;
-        var duration = _playback.Duration.TotalSeconds;
+        
+        // Patch A: use cached duration.
+        var duration = TrackDuration.TotalSeconds;
         if (duration <= 0) return;
         var remaining = duration - (pos * duration);
         if (remaining <= _settings.CrossfadeDurationSeconds)
@@ -417,6 +426,10 @@ public partial class PlayerViewModel
                 _queueInterrupt = false;
                 RebuildAutoQueue();
             }
+
+            // Patch D: don't silently lose a queued track whose file moved.
+            if (next != null && !string.IsNullOrEmpty(next.FilePath) && !File.Exists(next.FilePath))
+                _library.TryRelink(next);
 
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && File.Exists(next.FilePath))
             {
@@ -456,7 +469,9 @@ public partial class PlayerViewModel
     private void CheckPlayRecorded()
     {
         if (_currentTrack == null || _playRecorded) return;
-        var duration = _playback.Duration.TotalSeconds;
+        
+        // Patch A: use cached duration.
+        var duration = TrackDuration.TotalSeconds;
         if (duration <= 0) return;
         var elapsed = Position * duration;
         if (elapsed >= Math.Min(30, duration * _settings.ScrobbleThreshold)) { _playRecorded = true; _library.RecordPlay(_currentTrack.Id); }

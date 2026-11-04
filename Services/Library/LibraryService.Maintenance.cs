@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using NullWave.Helpers;
@@ -16,12 +18,12 @@ public partial class LibraryService
     private void CleanupBadUrls()
     {
         List<Track> bad;
-        lock (_tracksLock) 
-        { 
-            bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url) 
-                                  && !SourceDetector.IsPlayableUrl(t.Url) 
-                                  && string.IsNullOrEmpty(t.FilePath) 
-                                  && !t.IsOffline).ToList(); 
+        lock (_tracksLock)
+        {
+            bad = _tracks.Where(t => !string.IsNullOrEmpty(t.Url)
+                                     && !SourceDetector.IsPlayableUrl(t.Url)
+                                     && string.IsNullOrEmpty(t.FilePath)
+                                     && !t.IsOffline).ToList();
         }
         if (bad.Count == 0) return;
 
@@ -42,6 +44,7 @@ public partial class LibraryService
 
         var pref = _prefs?.Current.DownloadDirectory;
         var downloadsDir = string.IsNullOrWhiteSpace(pref) ? NullWavePaths.DownloadsDir : pref;
+
         if (string.IsNullOrWhiteSpace(downloadsDir) || !Directory.Exists(downloadsDir)) return 0;
 
         var audioExts = new[] { ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus" };
@@ -50,15 +53,14 @@ public partial class LibraryService
             .ToList();
 
         int relinked = 0;
+
         foreach (var track in missing)
         {
             var urlId = ExtractYouTubeId(track.Url);
-            var id8 = track.Id.ToString("N")[..8]; // First 8 chars of the GUID without hyphens
-
+            var id8 = track.Id.ToString("N")[..8]; 
             var match = orphans.FirstOrDefault(f =>
             {
                 var fileName = Path.GetFileNameWithoutExtension(f);
-                // Match patterns like: "Song Name [nw-1e7de1ff-kXYiU_JCYtU]"
                 if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase)) return true;
                 if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase)) return true;
                 return false;
@@ -68,29 +70,89 @@ public partial class LibraryService
             {
                 track.FilePath = match;
                 _db.Update(track);
-                orphans.Remove(match); // Prevent double-linking
+                orphans.Remove(match); 
                 relinked++;
                 Log.Information("[LibraryService] Relinked track {Title} to {Path}", track.Title, match);
             }
         }
+
         if (relinked > 0) StateVersion++;
         Log.Information("[LibraryService] Auto-relinked {Count} missing tracks using filename suffixes.", relinked);
         return relinked;
     }
 
+    /// <summary>
+    /// Attempts to find and relink a single track whose file is missing.
+    /// Checks ID tags, URL IDs, and falls back to normalized "Artist - Title" matching 
+    /// for files that were already renamed by the sync engine.
+    /// </summary>
+    public bool TryRelink(Track track)
+    {
+        if (track == null || string.IsNullOrEmpty(track.FilePath) || File.Exists(track.FilePath))
+            return false;
+
+        var pref = _prefs?.Current.DownloadDirectory;
+        var downloadsDir = string.IsNullOrWhiteSpace(pref) ? NullWavePaths.DownloadsDir : pref;
+
+        if (string.IsNullOrWhiteSpace(downloadsDir) || !Directory.Exists(downloadsDir))
+            return false;
+
+        var audioExts = new[] { ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus" };
+        var urlId = ExtractYouTubeId(track.Url);
+        var id8 = track.Id.ToString("N")[..8];
+        var wanted = TrackNormalizer.NormalizeForCompare($"{track.Artist} - {track.Title}");
+
+        string? match = null;
+
+        try
+        {
+            match = Directory.EnumerateFiles(downloadsDir, "*.*", SearchOption.AllDirectories)
+                .Where(f => audioExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .FirstOrDefault(f =>
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(f);
+
+                    // Match patterns like: "Song Name [nw-1e7de1ff-kXYiU_JCYtU]"
+                    if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase))
+                        return true;
+
+                    if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase))
+                        return true;
+
+                    // Fallback: match by normalized "Artist - Title" for files already renamed by Sync
+                    if (!string.IsNullOrWhiteSpace(track.Artist) && !string.IsNullOrWhiteSpace(track.Title) &&
+                        TrackNormalizer.NormalizeForCompare(fileName) == wanted)
+                        return true;
+
+                    return false;
+                });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[LibraryService] TryRelink scan failed for {Title}", track.Title);
+            return false;
+        }
+
+        if (match == null) return false;
+
+        track.FilePath = match;
+        _db.Update(track);
+        StateVersion++;
+
+        Log.Information("[LibraryService] TryRelink repaired {Title} -> {Path}", track.Title, match);
+        return true;
+    }
+
     private static string? ExtractYouTubeId(string? url)
     {
         if (string.IsNullOrEmpty(url)) return null;
-        var match = System.Text.RegularExpressions.Regex.Match(url, @"(?:v=|\/)([0-9A-Za-z_-]{11})");
+        var match = Regex.Match(url, @"(?:v=|\/)([0-9A-Za-z_-]{11})");
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    // PERF: collects results off-UI, then applies them in ONE UI-thread wave via
-    // ApplyArtBatch. No per-track PropertyChanged storm, no LibraryChanged rebuild.
     private async Task BackfillAlbumArt()
     {
         if (_metadata == null) return;
-
         List<Track> targets;
         lock (_tracksLock)
         {
@@ -100,7 +162,6 @@ public partial class LibraryService
         }
         if (targets.Count == 0) return;
 
-        // Let the window finish its first paints before touching the disk
         await Task.Delay(1500);
 
         var results = new List<(Track Track, string Path)>();
@@ -118,7 +179,6 @@ public partial class LibraryService
             }
             if (++count % 25 == 0) await Task.Delay(16);
         }
-
         ApplyArtBatch(results);
     }
 
@@ -140,7 +200,6 @@ public partial class LibraryService
             }
             catch (Exception ex) { Log.Warning(ex, "[LibraryService] YT thumb backfill failed for {Title}", t.Title); }
         }
-
         ApplyArtBatch(results);
     }
 
@@ -171,7 +230,6 @@ public partial class LibraryService
 
         if (results.Count == 0 && metaUpdates.Count == 0) return;
 
-        // ONE UI-thread wave for all mutations, then ONE DB transaction.
         Dispatcher.UIThread.Post(() =>
         {
             foreach (var (t, p) in results) t.AlbumArtPath = p;
@@ -189,17 +247,9 @@ public partial class LibraryService
         });
     }
 
-    /// <summary>
-    /// Applies fetched art in a single UI-thread wave and persists in one transaction.
-    /// Deliberately does NOT raise LibraryChanged: that event triggers
-    /// LibraryViewModel.Refresh() -> Tracks.ReplaceAll(), which rebuilds every row
-    /// container and invalidates the whole window (the full-screen flash we captured).
-    /// Per-row PropertyChanged is sufficient: rows bind AlbumArtPath directly.
-    /// </summary>
     private void ApplyArtBatch(List<(Track Track, string Path)> results)
     {
         if (results.Count == 0) return;
-
         Dispatcher.UIThread.Post(() =>
         {
             foreach (var (t, p) in results) t.AlbumArtPath = p;
@@ -211,13 +261,6 @@ public partial class LibraryService
         });
     }
 
-    /// <summary>
-    /// Surgical cache heal: deletes every cached YouTube thumbnail (yt_*.jpg),
-    /// invalidates its decoded cache entries, nulls AlbumArtPath on the tracks that
-    /// pointed at them, and persists in one transaction. Caller then runs
-    /// RebackfillThumbnails() to regenerate via the aspect-preserving ladder.
-    /// Embedded (hex-named) art is untouched - those are true 1:1 album covers.
-    /// </summary>
     public int RefetchYouTubeThumbnails()
     {
         List<Track> affected;
@@ -226,7 +269,7 @@ public partial class LibraryService
             affected = _tracks.Where(t => !string.IsNullOrEmpty(t.AlbumArtPath) &&
                                           Path.GetFileName(t.AlbumArtPath!)
                                               .StartsWith("yt_", StringComparison.OrdinalIgnoreCase))
-                              .ToList();
+                .ToList();
         }
         if (affected.Count == 0) return 0;
 
@@ -242,6 +285,7 @@ public partial class LibraryService
         _db.RunInTransaction(() => { foreach (var t in affected) _db.Update(t); });
         StateVersion++;
         Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
+
         Log.Information("[LibraryService] YouTube thumb heal: cleared {Count} path(s), deleted {Deleted} file(s)",
             affected.Count, deleted);
         return affected.Count;
@@ -264,14 +308,11 @@ public partial class LibraryService
         lock (_tracksLock) { targets = _tracks.Where(t => !string.IsNullOrEmpty(t.AlbumArtPath)).ToList(); }
         if (targets.Count == 0) return 0;
 
-        // Persist off-UI in one transaction first...
-        foreach (var t in targets) t.AlbumArtPath = null;   // model-only, off-UI thread
+        foreach (var t in targets) t.AlbumArtPath = null;   
         _db.RunInTransaction(() => { foreach (var t in targets) _db.Update(t); });
         StateVersion++;
 
-        // ...then ONE UI wave so rows drop their art in a single invalidation pass.
         Dispatcher.UIThread.Post(() => LibraryChanged?.Invoke(this, EventArgs.Empty));
-
         try { if (Directory.Exists(NullWavePaths.ArtCacheDir)) foreach (var f in Directory.EnumerateFiles(NullWavePaths.ArtCacheDir)) try { File.Delete(f); } catch { } } catch { }
         return targets.Count;
     }
@@ -309,14 +350,15 @@ public partial class LibraryService
         var exts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".mp3", ".flac", ".m4a", ".ogg", ".wav", ".aac", ".opus" };
         var files = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Where(f => exts.Contains(Path.GetExtension(f))).ToList();
         var candidates = GetAll().Where(t => string.IsNullOrEmpty(t.FilePath) || !File.Exists(t.FilePath)).ToList();
-        var matchedIds = new HashSet<Guid>(); var matchedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase); var toUpdate = new List<Track>();
 
+        var matchedIds = new HashSet<Guid>(); var matchedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase); var toUpdate = new List<Track>();
         foreach (var f in files)
         {
             var name = Path.GetFileNameWithoutExtension(f);
             var exact = candidates.FirstOrDefault(t => !matchedIds.Contains(t.Id) && string.Equals(t.Title, name, StringComparison.OrdinalIgnoreCase));
             if (exact != null) { exact.FilePath = f; matchedIds.Add(exact.Id); matchedFiles.Add(f); toUpdate.Add(exact); continue; }
         }
+
         foreach (var f in files)
         {
             if (matchedFiles.Contains(f)) continue;
@@ -325,6 +367,7 @@ public partial class LibraryService
             var match = candidates.FirstOrDefault(t => !matchedIds.Contains(t.Id) && Tokenize(t.Title).Count >= 2 && Tokenize(t.Title).IsSubsetOf(fTok));
             if (match != null) { match.FilePath = f; matchedIds.Add(match.Id); matchedFiles.Add(f); toUpdate.Add(match); }
         }
+
         foreach (var t in toUpdate) _db.Update(t);
         if (toUpdate.Count > 0) StateVersion++;
         return toUpdate.Count;
@@ -382,10 +425,9 @@ public partial class LibraryService
             { t.TitleForceCleaned = true; toUpdate.Add(t); continue; }
 
             t.Title = parsed.Value.Title; t.Artist = parsed.Value.Artist; t.TitleForceCleaned = true;
-            toUpdate.Add(t); 
+            toUpdate.Add(t);
             
-            // S6 FIX: Only write tags to managed downloads
-            if (IsManagedDownload(t.FilePath)) UpdateFileTags(t); 
+            if (IsManagedDownload(t.FilePath)) UpdateFileTags(t);
             cleaned++;
         }
         if (toUpdate.Count > 0) { _db.RunInTransaction(() => { foreach (var t in toUpdate) _db.Update(t); }); StateVersion++; }
@@ -403,41 +445,55 @@ public partial class LibraryService
     public (int Scanned, int Orphaned, int Deleted, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = true)
     {
         if (!Directory.Exists(downloadsDir)) return (0, 0, 0, 0);
+
         var known = new HashSet<string>(
-            GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).Select(t => Path.GetFullPath(t.FilePath!)), 
-            StringComparer.OrdinalIgnoreCase);  
-        // Refuse to sweep if the database looks empty or suspiciously small
+            GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath)).Select(t => Path.GetFullPath(t.FilePath!)),
+            StringComparer.OrdinalIgnoreCase);
+
         if (known.Count == 0)
         {
             Log.Warning("[LibraryService] SweepOrphanedFiles aborted: Database has 0 linked files. Refusing to delete downloads.");
-            // Return a specific flag or let the UI handle the 0 known files toast
-            return (0, -1, 0, 0); // -1 orphaned signals the UI to show the "DB empty" warning
+            return (0, -1, 0, 0); 
         }
+
         var audioExts = new[] { ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus" };
         var files = Directory.GetFiles(downloadsDir, "*.*", SearchOption.TopDirectoryOnly)
             .Where(f => audioExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
             .ToList();
-            
+
+        // SWEEP GUARD: Abort if DB paths are stale and it looks like everything is orphaned
+        var orphanCount = files.Count(f => !known.Contains(Path.GetFullPath(f)));
+        if (files.Count >= 10 && orphanCount * 2 > files.Count)
+        {
+            Log.Warning("[LibraryService] SweepOrphanedFiles aborted: {Orphans}/{Files} files look orphaned - DB paths are probably stale.", orphanCount, files.Count);
+            return (files.Count, -1, 0, 0);
+        }
+
         int orphaned = 0, deleted = 0, failed = 0;
-        // Move to _orphans/ instead of permanent delete
+
         var orphansDir = Path.Combine(downloadsDir, "_orphans");
+
         foreach (var f in files)
         {
             var full = Path.GetFullPath(f);
             if (known.Contains(full)) continue;
             orphaned++;
+
             if (dryRun) continue;
-            try 
-            { 
+
+            try
+            {
                 Directory.CreateDirectory(orphansDir);
                 var dest = Path.Combine(orphansDir, Path.GetFileName(f));
-                // Handle name collisions in _orphans
+                
                 if (File.Exists(dest)) dest = Path.Combine(orphansDir, $"{Path.GetFileNameWithoutExtension(f)}_{Guid.NewGuid():N}{Path.GetExtension(f)}");
+                
                 File.Move(f, dest);
-                deleted++; 
-            } 
+                deleted++;
+            }
             catch { failed++; }
         }
+
         return (files.Count, orphaned, deleted, failed);
     }
 
@@ -446,7 +502,6 @@ public partial class LibraryService
         var allTracks = GetAll();
         int scannedCount = allTracks.Count;
 
-        // FIX: Use IdentityKey for smarter grouping, ignore placeholders
         var groups = allTracks
             .Where(t => !TrackNormalizer.IsPlaceholderTitle(t.Title) && !TrackNormalizer.IsPlaceholderArtist(t.Artist))
             .GroupBy(t => TrackNormalizer.IdentityKey(t.Title, t.Artist))
@@ -454,6 +509,7 @@ public partial class LibraryService
             .ToList();
 
         int removed = 0;
+
         foreach (var group in groups)
         {
             var ordered = group.OrderByDescending(t => HasVerifiedFile(t))
@@ -462,18 +518,19 @@ public partial class LibraryService
                 .ThenByDescending(t => t.IsFavorite)
                 .ThenBy(t => t.DateAdded)
                 .ToList();
-                
+
             var keeper = ordered[0];
+
             foreach (var dup in ordered.Skip(1))
             {
-                if (!dryRun) 
-                { 
-                    Remove(dup.Id); // FIX: Routes through Remove() to clean queue and playlists
-                    removed++; 
+                if (!dryRun)
+                {
+                    Remove(dup.Id); 
+                    removed++;
                 }
             }
         }
-        // StateVersion is already incremented inside Remove()
+
         return (scannedCount, groups.Count, removed);
     }
 
