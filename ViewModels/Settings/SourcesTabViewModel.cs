@@ -6,6 +6,9 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Services.Plugins;
+using NullWave.Services;
+using NullWave.Helpers;
+using NullWave.Models;
 using Serilog;
 
 namespace NullWave.ViewModels.Settings;
@@ -77,18 +80,52 @@ public partial class SourceKindGroupViewModel : ObservableObject
     }
 }
 
-public partial class SourcesTabViewModel : ObservableObject
+public partial class SourcesTabViewModel : ObservableObject, IDisposable
 {
     private readonly ProviderRegistry _registry;
+    private readonly PreferencesService _prefs;
     private bool _building;
 
     public ObservableCollection<SourceKindGroupViewModel> KindGroups { get; } = new();
 
-    public SourcesTabViewModel(ProviderRegistry registry)
+    // --- Consent Gate Properties ---
+    public string ConsentStatus => _prefs.Current.DownloaderConsent is { IsCurrent: true } c
+        ? $"Accepted on {c.AcceptedAtUtc.ToLocalTime():d} (v{c.AcceptedVersion})"
+        : "Not accepted";
+
+    public bool IsConsentAccepted => _prefs.Current.DownloaderConsent is { IsCurrent: true };
+
+    [RelayCommand]
+    private void RevokeConsent()
+    {
+        _prefs.Update(p => p.DownloaderConsent = null);
+        OnPropertyChanged(nameof(ConsentStatus));
+        OnPropertyChanged(nameof(IsConsentAccepted));
+        ToastService.Instance.Show("Downloader consent revoked. You will be prompted on the next download.", type: ToastType.Info, scope: "download");
+    }
+
+    public SourcesTabViewModel(ProviderRegistry registry, PreferencesService prefs)
     {
         _registry = registry;
+        _prefs = prefs;
+        
+        // FIX: Refresh UI immediately when consent is accepted/revoked elsewhere (e.g. via Dialog)
+        _prefs.Changed += OnPrefsChanged;
+        
         BuildGroups();
         _registry.ProvidersChanged += OnProvidersChanged;
+    }
+
+    private void OnPrefsChanged(HashSet<string> changedKeys)
+    {
+        OnPropertyChanged(nameof(ConsentStatus));
+        OnPropertyChanged(nameof(IsConsentAccepted));
+    }
+
+    public void Dispose()
+    {
+        _prefs.Changed -= OnPrefsChanged;
+        _registry.ProvidersChanged -= OnProvidersChanged;
     }
 
     private void OnProvidersChanged()
@@ -129,13 +166,11 @@ public partial class SourcesTabViewModel : ObservableObject
                     group.Providers.Add(row);
                 }
 
-                // For single-active kinds, set the selected provider
                 if (single && group.Providers.Count > 0)
                 {
                     group.SelectedProvider = group.Providers.FirstOrDefault(p => p.IsActive) ?? group.Providers[0];
                 }
 
-                // Check pairing locks
                 var activeProvider = _registry.GetActive(kind);
                 if (activeProvider?.Descriptor.PairedWithProviderId != null)
                 {
@@ -164,11 +199,8 @@ public partial class SourcesTabViewModel : ObservableObject
     private void SelectProvider(SourceRowViewModel? row)
     {
         if (row == null) return;
-
         _registry.SetActive(row.Kind, row.Id);
         Log.Information("[Sources] Activated provider {Id} for kind {Kind}", row.Id, row.Kind);
-
-        // Refresh all groups to update active states
         BuildGroups();
     }
 
@@ -176,9 +208,6 @@ public partial class SourcesTabViewModel : ObservableObject
     private void ToggleProvider(SourceRowViewModel? row)
     {
         if (row == null) return;
-
-        // For multi-active kinds, toggling just enables/disables
-        // The registry handles the rest
         Log.Information("[Sources] Toggled provider {Id} for kind {Kind}", row.Id, row.Kind);
         BuildGroups();
     }

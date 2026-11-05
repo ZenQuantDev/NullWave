@@ -31,7 +31,6 @@
                                   MinWidth="200"
                                   VerticalAlignment="Center"/>
 
-                        <!-- CONFIRM / APPLY BUTTON -->
                         <Button Classes="primary"
                                 Content="{loc:Loc Settings_General_Language_Confirm}"
                                 Command="{Binding ApplyLanguageCommand}"
@@ -42,7 +41,7 @@
             </Border>
 
             <!-- BEHAVIOUR SECTION -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Behaviour}" Margin="0,0,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Behaviour}" Margin="0,24,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
@@ -96,7 +95,7 @@
             </Border>
 
             <!-- SCROBBLE THRESHOLD -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_ScrobbleThreshold}"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_ScrobbleThreshold}" Margin="0,24,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
@@ -118,7 +117,7 @@
             </Border>
 
             <!-- SKIP PENALTY -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_SkipPenalty}"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_SkipPenalty}" Margin="0,24,0,12"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
@@ -146,47 +145,20 @@
                 </StackPanel>
             </Border>
 
-            <!-- DOWNLOAD DIRECTORY -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_DownloadDir}"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{loc:Loc Settings_General_DownloadDir_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
-                    <Grid ColumnDefinitions="*,8,Auto">
-                        <TextBox Grid.Column="0" Text="{Binding DownloadDirectory, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_DownloadDir_Placeholder}" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Classes="secondary" Content="{loc:Loc Settings_General_Browse_Button}" Command="{Binding BrowseDownloadDirCommand}"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- DATABASE & BACKUPS -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Backups}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
+            <!-- EXPERIMENTAL FEATURES (Moved from Advanced) -->
+            <TextBlock Classes="section-label" Text="Preview Features" Foreground="{StaticResource BrushAmber}" Margin="0,24,0,12"/>
+            <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
                 <StackPanel Spacing="16">
+                    <TextBlock Text="🧪 Enable features that are still under active development. These may change, exhibit visual glitches, or undergo performance tuning." 
+                               Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="{loc:Loc Settings_General_AutoBackups_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Settings_General_AutoBackups_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Enable Experimental Features" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Unlocks the In-App Log Viewer, P2P Track Sharing, and other in-development tools." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableAutoBackups, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableExperimentalFeatures, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding EnableAutoBackups}"/>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableAutoBackups}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="{loc:Loc Settings_General_BackupRetention_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Settings_General_BackupRetention_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding BackupRetentionOptions}" SelectedItem="{Binding BackupRetentionCount, Mode=TwoWay}" MinWidth="110" VerticalAlignment="Center"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- NETWORK & PROXY -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Proxy}" Margin="0,16,0,12"/>
-            <Border Classes="settings-card">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{loc:Loc Settings_General_Proxy_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
-                    <TextBox Text="{Binding YtDlpProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_Proxy_Placeholder}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding YtDlpGeoProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_GeoProxy_Placeholder}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
 

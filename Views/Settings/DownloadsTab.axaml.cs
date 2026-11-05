@@ -1,10 +1,11 @@
 using Avalonia.Controls;
+using NullWave.ViewModels;
 
 namespace NullWave.Views.Settings;
 
-public partial class SourcesTab : UserControl
+public partial class DownloadsTab : UserControl
 {
-    public SourcesTab()
+    public DownloadsTab()
     {
         InitializeComponent();
     }

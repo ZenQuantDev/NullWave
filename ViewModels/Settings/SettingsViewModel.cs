@@ -57,7 +57,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _deps = new DependencyUpdateService();
         
         // Initialize Sources tab
-        Sources = new SourcesTabViewModel(providerRegistry);
+        Sources = new SourcesTabViewModel(providerRegistry, _prefsService);
         
         _isSettingsSidebarCollapsed = prefsService.Current.SettingsSidebarCollapsed;
         _selectedLanguage = prefsService.Current.Language;
@@ -291,6 +291,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         StopHealthCheck();
         LogViewer?.Dispose();
+        Sources?.Dispose();
         GC.SuppressFinalize(this);
     }
     #endregion

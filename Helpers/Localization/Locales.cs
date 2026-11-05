@@ -1039,5 +1039,18 @@ public static partial class Locales
         ["Settings_Sources_Description"]    = "Choose which engines power each feature. Single-source kinds use one provider at a time; multi-source kinds can use several in parallel.",
         ["Settings_PageTitle_Sources"]      = "Sources",
         ["Settings_PageDesc_Sources"]       = "Manage download, metadata, search, and AI providers",
+
+        ["Settings_Nav_Downloads"] = "Downloads",
+        ["Settings_Nav_Integrations"] = "Integrations",
+        ["Settings_PageTitle_Downloads"] = "Downloads",
+        ["Settings_PageDesc_Downloads"] = "Manage the download folder, engine behaviour, and network settings.",
+        ["Settings_PageTitle_Integrations"] = "Integrations",
+        ["Settings_PageDesc_Integrations"] = "Configure core services and provider routing.",
+        
+        ["Settings_Downloads_Section_Terms"] = "DOWNLOADER TERMS",
+        ["Settings_Downloads_Terms_Title"] = "Copyright & Platform Terms",
+        ["Settings_Downloads_Terms_Desc"] = "Downloads require explicit acceptance of copyright and platform terms. NullWave does not host or provide any content.",
+        ["Settings_Downloads_Revoke_Button"] = "Revoke Consent",
+        ["Settings_Downloads_Section_Engine"] = "ENGINE & BEHAVIOUR",
     };
 }

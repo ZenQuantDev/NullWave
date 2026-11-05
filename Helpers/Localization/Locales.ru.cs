@@ -1022,5 +1022,18 @@ public static partial class Locales
         ["Settings_Sources_Description"]    = "Выберите, какие движки обеспечивают каждую функцию. Одиночные источники используют один провайдер; множественные могут использовать несколько параллельно.",
         ["Settings_PageTitle_Sources"]      = "Источники",
         ["Settings_PageDesc_Sources"]       = "Управление провайдерами загрузки, метаданных, поиска и ИИ",
+
+        ["Settings_Nav_Downloads"] = "Загрузки",
+        ["Settings_Nav_Integrations"] = "Интеграции",
+        ["Settings_PageTitle_Downloads"] = "Загрузки",
+        ["Settings_PageDesc_Downloads"] = "Управление папкой загрузки, поведением движка и настройками сети.",
+        ["Settings_PageTitle_Integrations"] = "Интеграции",
+        ["Settings_PageDesc_Integrations"] = "Настройка основных сервисов и маршрутизации провайдеров.",
+        
+        ["Settings_Downloads_Section_Terms"] = "УСЛОВИЯ ЗАГРУЗКИ",
+        ["Settings_Downloads_Terms_Title"] = "Авторские права и условия платформ",
+        ["Settings_Downloads_Terms_Desc"] = "Загрузки требуют явного согласия с условиями авторских прав и платформ. NullWave не размещает и не предоставляет контент.",
+        ["Settings_Downloads_Revoke_Button"] = "Отозвать согласие",
+        ["Settings_Downloads_Section_Engine"] = "ДВИЖОК И ПОВЕДЕНИЕ",
     };
 }
