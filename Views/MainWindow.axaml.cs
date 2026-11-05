@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     // never per mouse-move, so the logger adds no GC pressure of its own.
     private string _lastHoverDescription = "none";
     private object? _lastHoverKey;
+    private UiHangDetector? _hangDetector;
 
     public MainWindow()
     {
@@ -52,6 +53,7 @@ public partial class MainWindow : Window
     {
         Opened -= OnMainWindowOpened;
         StartupTimeline.Mark("MainWindow opened");
+        _hangDetector = new UiHangDetector();
         Dispatcher.UIThread.Post(() => StartupTimeline.Mark("First frame"), DispatcherPriority.Background);
 
         try
@@ -114,6 +116,7 @@ public partial class MainWindow : Window
 
     private void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
     {
+        _hangDetector?.Dispose();
         try
         {
             if (DataContext is MainViewModel vm)
