@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using Serilog;
 using Velopack;
@@ -9,6 +10,8 @@ namespace NullWave.Services;
 public class UpdateCheckResult
 {
     public bool IsUpdateAvailable { get; init; }
+    public bool Failed { get; init; }
+    public bool NotInstalled { get; init; }
     public string CurrentVersion  { get; init; } = string.Empty;
     public string LatestVersion   { get; init; } = string.Empty;
     public string ReleaseUrl      { get; init; } = string.Empty;
@@ -17,21 +20,31 @@ public class UpdateCheckResult
 
 public class UpdateService
 {
+    private const string RepoUrl = "https://github.com/ZenQuantDev/NullWave";
+    
     private readonly UpdateManager _updateManager;
     private UpdateInfo? _pendingUpdate;
+    private readonly string _displayVersion;
 
     public UpdateService()
     {
-        var source = new GithubSource("https://github.com/ZenQuantDev/NullWave", accessToken: null, prerelease: false);
+        // Get the real build version from assembly metadata (e.g., "0.6.5-beta.1+commit")
+        var infoVer = typeof(UpdateService).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
+        _displayVersion = infoVer.Split('+')[0]; // Strip commit hash if present
+        
+        // Detect if this is a pre-release build (contains '-' like 0.6.5-beta.1)
+        var isPreRelease = _displayVersion.Contains('-');
+        
+        var source = new GithubSource(RepoUrl, accessToken: null, prerelease: isPreRelease);
         _updateManager = new UpdateManager(source);
         
-        // Log initialization state
-        Log.Information("[UpdateService] Initialized. IsInstalled={IsInstalled}, Version={Version}", 
-            _updateManager.IsInstalled, CurrentVersion);
+        Log.Information("[UpdateService] Initialized. IsInstalled={IsInstalled}, Version={Version}, PreRelease={PreRelease}", 
+            _updateManager.IsInstalled, _displayVersion, isPreRelease);
     }
 
     public bool IsInstalled => _updateManager.IsInstalled;
-    public string CurrentVersion => _updateManager.CurrentVersion?.ToString() ?? "0.0.0";
+    public string CurrentVersion => _updateManager.CurrentVersion?.ToString() ?? _displayVersion;
 
     public async Task<UpdateCheckResult> CheckForUpdateAsync()
     {
@@ -40,10 +53,11 @@ public class UpdateService
             Log.Information("[UpdateService] Skipping check: App is not installed via Velopack (dev/portable build).");
             return new UpdateCheckResult
             {
+                NotInstalled = true,
                 IsUpdateAvailable = false,
-                CurrentVersion = "dev build",
-                LatestVersion = "dev build",
-                ReleaseUrl = "https://github.com/ZenQuantDev/NullWave/releases",
+                CurrentVersion = _displayVersion,
+                LatestVersion = _displayVersion,
+                ReleaseUrl = $"{RepoUrl}/releases",
                 ReleaseNotes = "Updates are only available for installed builds."
             };
         }
@@ -61,7 +75,7 @@ public class UpdateService
                     IsUpdateAvailable = false,
                     CurrentVersion = CurrentVersion,
                     LatestVersion = CurrentVersion,
-                    ReleaseUrl = "https://github.com/ZenQuantDev/NullWave/releases"
+                    ReleaseUrl = $"{RepoUrl}/releases"
                 };
             }
 
@@ -73,8 +87,8 @@ public class UpdateService
                 IsUpdateAvailable = true,
                 CurrentVersion = CurrentVersion,
                 LatestVersion = versionString,
-                ReleaseUrl = $"https://github.com/ZenQuantDev/NullWave/releases/tag/v{versionString}",
-                ReleaseNotes = "See GitHub for release notes."
+                ReleaseUrl = $"{RepoUrl}/releases/tag/v{versionString}",
+                ReleaseNotes = _pendingUpdate.TargetFullRelease.NotesMarkdown ?? "See GitHub for release notes."
             };
         }
         catch (Exception ex)
@@ -82,6 +96,7 @@ public class UpdateService
             Log.Error(ex, "[UpdateService] Update check failed");
             return new UpdateCheckResult
             {
+                Failed = true,
                 IsUpdateAvailable = false,
                 CurrentVersion = CurrentVersion,
                 LatestVersion = "unknown"
@@ -89,7 +104,7 @@ public class UpdateService
         }
     }
 
-    public async Task<bool> StageUpdateAsync()
+    public async Task<bool> StageUpdateAsync(Action<int>? progress = null)
     {
         if (!_updateManager.IsInstalled) return false;
 
@@ -101,7 +116,7 @@ public class UpdateService
             if (_pendingUpdate == null) return false;
 
             Log.Information("[UpdateService] Downloading update v{Version}...", _pendingUpdate.TargetFullRelease.Version);
-            await _updateManager.DownloadUpdatesAsync(_pendingUpdate);
+            await _updateManager.DownloadUpdatesAsync(_pendingUpdate, progress);
             Log.Information("[UpdateService] Update staged successfully.");
             return true;
         }
@@ -120,18 +135,19 @@ public class UpdateService
             return;
         }
 
+        // FIX: No sync-over-async. If we don't have a pending update, bail out.
+        // The UI should only show this button when UpdateStaged is true, which means
+        // StageUpdateAsync already succeeded and _pendingUpdate is set.
+        if (_pendingUpdate == null)
+        {
+            Log.Warning("[UpdateService] ApplyUpdatesAndRestart called but no update is staged.");
+            return;
+        }
+        
         try
         {
-            if (_pendingUpdate == null)
-            {
-                _pendingUpdate = _updateManager.CheckForUpdatesAsync().GetAwaiter().GetResult();
-            }
-            
-            if (_pendingUpdate != null)
-            {
-                Log.Information("[UpdateService] Applying update v{Version} and restarting...", _pendingUpdate.TargetFullRelease.Version);
-                _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
-            }
+            Log.Information("[UpdateService] Applying update v{Version} and restarting...", _pendingUpdate.TargetFullRelease.Version);
+            _updateManager.ApplyUpdatesAndRestart(_pendingUpdate);
         }
         catch (Exception ex)
         {

@@ -21,7 +21,6 @@ public class DependencyInfo
 
 public class DependencyUpdateService
 {
-    // Asking a tool for its version should take a moment. Installing or updating one can take minutes.
     private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromMinutes(2);
 
@@ -36,7 +35,6 @@ public class DependencyUpdateService
     // ===== YT-DLP =====
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
-        // Shared with the startup diagnostics and the yt-dlp plugin: one lookup per run.
         var installed = await ToolVersionProbe.GetVersionAsync("yt-dlp");
         if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "yt-dlp", IsInstalled = false };
@@ -68,7 +66,6 @@ public class DependencyUpdateService
         }
         finally
         {
-            // Whatever happened, the installed version may have changed: forget the cached answer.
             ToolVersionProbe.Invalidate("yt-dlp");
         }
     }
@@ -79,6 +76,12 @@ public class DependencyUpdateService
         var selfUpdate = await RunCommandAsync("yt-dlp", "-U");
         if (selfUpdate != null)
         {
+            // FIX: Distinguish "updated" from "already up to date"
+            if (selfUpdate.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Information("[DependencyUpdate] yt-dlp is already up to date");
+                return "Already up to date";
+            }
             Log.Information("[DependencyUpdate] yt-dlp updated successfully via native self-updater (-U)");
             return "Update completed via yt-dlp";
         }
@@ -95,14 +98,14 @@ public class DependencyUpdateService
             }
         }
 
-        // 3. Fallback for Linux: try pip (S7 FIX: STRICTLY GATED TO LINUX)
+        // 3. Fallback for Linux: try pip --user (FIX: --user for Fedora/externally-managed Python)
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            Log.Information("[DependencyUpdate] Native update failed, attempting pip fallback...");
-            var pipUpdate = await RunCommandAsync("pip", "install", "--upgrade", "yt-dlp");
+            Log.Information("[DependencyUpdate] Native update failed, attempting pip --user fallback...");
+            var pipUpdate = await RunCommandAsync("pip", "install", "--user", "--upgrade", "yt-dlp");
             if (pipUpdate != null)
             {
-                Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
+                Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip --user");
                 return "Update completed via pip";
             }
         }
@@ -115,8 +118,6 @@ public class DependencyUpdateService
     {
         if (OperatingSystem.IsWindows())
         {
-            // NEVER run "vlc --version" on Windows: VLC opens its own console window, shows
-            // "Press RETURN to continue..." and waits. Read the version from vlc.exe instead.
             var found = FindWindowsVlcVersion();
             if (found != null)
             {
@@ -130,7 +131,6 @@ public class DependencyUpdateService
                 };
             }
 
-            // Bundled LibVLC ships no vlc.exe; VlcLocator already validated its DLLs, plugins and CPU arch.
             var resolution = VlcLocator.Current;
             if (resolution.Chosen != null)
             {
@@ -147,7 +147,6 @@ public class DependencyUpdateService
             return new DependencyInfo { Name = "VLC", IsInstalled = false };
         }
 
-        // Linux / macOS: the command line is safe and is how VLC is normally found.
         var installed = await ToolVersionProbe.GetVersionAsync("vlc");
         if (!string.IsNullOrWhiteSpace(installed))
         {
@@ -201,7 +200,7 @@ public class DependencyUpdateService
         if (ok != null)
         {
             Log.Information("[DependencyUpdate] VLC installed via winget");
-            VlcLocator.Invalidate();   // next ResolveVlcDirectory() sees the fresh install
+            VlcLocator.Invalidate();
             return "VLC installed via winget";
         }
         return "winget install failed - install VLC manually";
@@ -227,8 +226,6 @@ public class DependencyUpdateService
 
     public Task<DependencyInfo> GetDotNetInfoAsync()
     {
-        // NullWave ships with its own .NET runtime, so there is nothing to install. Report the one
-        // that is running instead of looking for a "dotnet" command that most users do not have.
         return Task.FromResult(new DependencyInfo
         {
             Name = ".NET",
@@ -241,11 +238,9 @@ public class DependencyUpdateService
 
     // ===== HELPERS =====
 
-    /// <summary>For "what version is this?" questions: short timeout.</summary>
     private static Task<string?> RunQueryAsync(string cmd, params string[] args)
         => RunWithTimeoutAsync(QueryTimeout, cmd, args);
 
-    /// <summary>For installs and updates: long timeout.</summary>
     private static Task<string?> RunCommandAsync(string cmd, params string[] args)
         => RunWithTimeoutAsync(ActionTimeout, cmd, args);
 
@@ -253,8 +248,6 @@ public class DependencyUpdateService
     {
         try
         {
-            // FIX (P9): Route through ProcessRunner to prevent stderr deadlocks
-            // and enforce a timeout for hung tools and package managers.
             var result = await ProcessRunner.RunAsync(cmd, args, timeout: timeout);
 
             if (result.TimedOut)
@@ -271,6 +264,15 @@ public class DependencyUpdateService
             {
                 var combined = result.StandardOutput + result.StandardError;
                 if (combined.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+                    return combined;
+            }
+            
+            // FIX: winget returns non-zero when "no updates available", treat as success
+            if (cmd == "winget" && args.Length > 0 && args[0] == "upgrade")
+            {
+                var combined = result.StandardOutput + result.StandardError;
+                if (combined.Contains("no applicable update", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("already installed", StringComparison.OrdinalIgnoreCase))
                     return combined;
             }
 

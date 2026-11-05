@@ -54,8 +54,9 @@ public partial class SettingsViewModel
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private bool _isStagingUpdate;
     [ObservableProperty] private bool _updateStaged;
+    [ObservableProperty] private bool _isCheckingDeps;
 
-    public bool IsDepsChecking => YtDlpStatus == "Checking..." || VlcStatus == "Checking...";
+    public bool IsDepsChecking => IsCheckingDeps || YtDlpStatus == "Checking..." || VlcStatus == "Checking...";
     public bool IsYtDlpReady => !string.IsNullOrEmpty(YtDlpStatus) && YtDlpStatus != "Not installed" && YtDlpStatus != "Checking...";
     public bool IsVlcReady => !string.IsNullOrEmpty(VlcStatus) && VlcStatus != "Not installed" && VlcStatus != "Checking...";
     public bool IsDepsReady => IsYtDlpReady && IsVlcReady;
@@ -73,7 +74,19 @@ public partial class SettingsViewModel
             UpdateAvailable = result.IsUpdateAvailable;
             LatestVersion = result.LatestVersion;
             ReleaseUrl = result.ReleaseUrl;
-            UpdateStatus = result.IsUpdateAvailable ? $"Update available: v{result.LatestVersion}" : $"You are up to date (v{result.CurrentVersion})";
+            
+            // FIX: Honest status messages based on result flags
+            UpdateStatus = result switch {
+                { NotInstalled: true }      => "Dev build: updates need an installed copy",
+                { Failed: true }            => "Couldn't check for updates (offline or rate-limited)",
+                { IsUpdateAvailable: true } => $"Update available: v{result.LatestVersion}",
+                _                           => $"You are up to date (v{result.CurrentVersion})"
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Settings] Update check failed");
+            UpdateStatus = "Couldn't check for updates";
         }
         finally { IsCheckingUpdate = false; }
     }
@@ -83,7 +96,6 @@ public partial class SettingsViewModel
         IsStagingUpdate = true;
         try
         {
-            // Velopack handles RID matching automatically
             UpdateStaged = await _updater.StageUpdateAsync(); 
             ToastService.Instance.Show(
                 UpdateStaged ? "Update downloaded — restart to install." : "No update available.", 
@@ -113,9 +125,21 @@ public partial class SettingsViewModel
         YtDlpStatus = "Updating yt-dlp...";
         try
         {
-            await _deps.UpdateYtDlpAsync();
+            var msg = await _deps.UpdateYtDlpAsync();
             var info = await _deps.GetYtDlpInfoAsync();
-            YtDlpStatus = info.IsInstalled ? $"yt-dlp {info.InstalledVersion} (up to date)" : "yt-dlp not found";
+            
+            // FIX: Honest status based on update result and version comparison
+            YtDlpStatus = !info.IsInstalled ? "Not installed"
+                : msg.StartsWith("Update failed") ? $"{info.InstalledVersion} (update failed)"
+                : msg == "Already up to date" ? $"{info.InstalledVersion} (up to date)"
+                : info.LatestVersion != "unknown" && info.InstalledVersion != info.LatestVersion 
+                    ? $"{info.InstalledVersion} → {info.LatestVersion}"
+                    : $"{info.InstalledVersion} (up to date)";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Settings] yt-dlp update failed");
+            YtDlpStatus = "Update failed";
         }
         finally { IsUpdatingYtDlp = false; }
     }
@@ -123,27 +147,61 @@ public partial class SettingsViewModel
     [RelayCommand] private async Task InstallVlcAsync()
     {
         VlcStatus = "Installing...";
-        VlcStatus = await _deps.InstallVlcAsync();
+        try
+        {
+            VlcStatus = await _deps.InstallVlcAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Settings] VLC install failed");
+            VlcStatus = "Install failed";
+        }
     }
 
     [RelayCommand] private async Task CheckDependenciesAsync()
     {
+        // FIX: Busy guard to prevent double-clicks
+        if (IsCheckingDeps) return;
+        
+        IsCheckingDeps = true;
         YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Checking...";
-        var ytDlp = await _deps.GetYtDlpInfoAsync();
-        var vlc = await _deps.GetVlcInfoAsync();
-        var ffmpeg = await _deps.GetFfmpegInfoAsync();
-        var dotNet = await _deps.GetDotNetInfoAsync();
-        YtDlpStatus = ytDlp.IsInstalled ? ytDlp.InstalledVersion : "Not installed";
-        VlcStatus = vlc.IsInstalled ? vlc.InstalledVersion : "Not installed";
-        FfmpegStatus = ffmpeg.IsInstalled ? ffmpeg.InstalledVersion : "Not installed";
-        DotNetStatus = dotNet.IsInstalled ? dotNet.InstalledVersion : "Not found";
+        
+        try
+        {
+            // FIX: Run all probes in parallel for faster UI response
+            var ytDlpTask = _deps.GetYtDlpInfoAsync();
+            var vlcTask = _deps.GetVlcInfoAsync();
+            var ffmpegTask = _deps.GetFfmpegInfoAsync();
+            var dotNetTask = _deps.GetDotNetInfoAsync();
+            
+            await Task.WhenAll(ytDlpTask, vlcTask, ffmpegTask, dotNetTask);
+            
+            var ytDlp = ytDlpTask.Result;
+            var vlc = vlcTask.Result;
+            var ffmpeg = ffmpegTask.Result;
+            var dotNet = dotNetTask.Result;
+            
+            YtDlpStatus = ytDlp.IsInstalled ? ytDlp.InstalledVersion : "Not installed";
+            VlcStatus = vlc.IsInstalled ? vlc.InstalledVersion : "Not installed";
+            FfmpegStatus = ffmpeg.IsInstalled ? ffmpeg.InstalledVersion : "Not installed";
+            DotNetStatus = dotNet.IsInstalled ? dotNet.InstalledVersion : "Not found";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Settings] Dependency check failed");
+            YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Check failed";
+        }
+        finally
+        {
+            IsCheckingDeps = false;
+        }
     }
 
     [RelayCommand] private void ClearYtDlpCache() => ClearYtDlpCacheRequested?.Invoke();
 
     [RelayCommand] private async Task CopyDebugInfoAsync()
     {
-        var text = $"NullWave v{CurrentVersion} “{VersionCodename}”\n" +
+        var text = $"NullWave v{CurrentVersion} \"{VersionCodename}\"\n" +
                    $"OS: {OsLabel} ({RuntimeInformation.OSDescription})\n" +
                    $"RID: {RuntimeInformation.RuntimeIdentifier}\n" +
                    $".NET: {Environment.Version}";

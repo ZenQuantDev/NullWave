@@ -57,11 +57,15 @@
         </StackPanel>
       </Border>
 
-      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_Deps}"/>
+      <!-- FIX: Added Margin for consistent spacing with other tabs -->
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_Deps}" Margin="0,24,0,12"/>
       <Border Classes="settings-card">
         <StackPanel Spacing="16">
           <Button Classes="secondary" Content="{loc:Loc Settings_Updates_CheckAll}"
-                  Command="{Binding CheckDependenciesCommand}" HorizontalAlignment="Left"/>
+                  Command="{Binding CheckDependenciesCommand}" 
+                  IsEnabled="{Binding !IsCheckingDeps}"
+                  HorizontalAlignment="Left"/>
+                  
           <Grid ColumnDefinitions="110,*,Auto">
             <TextBlock Grid.Column="0" Text="yt-dlp"
                        Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
