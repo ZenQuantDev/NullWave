@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -58,11 +57,20 @@ public partial class LibraryService
         {
             var urlId = ExtractYouTubeId(track.Url);
             var id8 = track.Id.ToString("N")[..8]; 
+            
+            // --- PATCH 3: Pre-compute normalized name for fallback ---
+            var wanted = TrackNormalizer.NormalizeForCompare($"{track.Artist} - {track.Title}");
+
             var match = orphans.FirstOrDefault(f =>
             {
                 var fileName = Path.GetFileNameWithoutExtension(f);
                 if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase)) return true;
                 if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase)) return true;
+                
+                // --- PATCH 3: Name fallback for files already renamed by Sync ---
+                if (!string.IsNullOrWhiteSpace(track.Artist) && !string.IsNullOrWhiteSpace(track.Title)
+                    && TrackNormalizer.NormalizeForCompare(fileName) == wanted) return true;
+
                 return false;
             });
 

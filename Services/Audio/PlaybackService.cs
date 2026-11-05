@@ -288,6 +288,13 @@ public class PlaybackService : IDisposable
     private void OnEndReached(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+
+        // Mid-crossfade the outgoing player reaching its end is expected: the incoming
+        // player owns the session. Forwarding Stopped here is what flips the UI button
+        // to "Play" while audio is still fading over. Only forward ends from the player
+        // the UI is actually following (PositionSource).
+        if (_isCrossfading && !ReferenceEquals(player, PositionSource)) return;
+
         SetBuffering(false);
         _uiPost(() =>
         {
@@ -657,6 +664,19 @@ public class PlaybackService : IDisposable
             if (promoted)
             {
                 outgoing.Stop();
+
+                Log.Information("[Crossfade] promoted: vol={Vol} target={Target} vmRequested={Req} mute={Mute} playing={Playing}",
+                _activePlayer.Volume, _targetVolume, targetVolume, _activePlayer.Mute, _activePlayer.IsPlaying);
+                // The incoming player's Playing/DurationDiscovered events fired while it
+                // was still the standby player and were ignored by design, so announce
+                // the new active session here. Without this the VM keeps the stale
+                // Stopped state and the play/pause button shows the wrong icon.
+                _uiPost(() =>
+                {
+                    StateChanged?.Invoke(PlaybackState.Playing);
+                    if (_ready && _activePlayer.Length > 0)
+                        DurationDiscovered?.Invoke(TimeSpan.FromMilliseconds(_activePlayer.Length));
+                });
             }
         }
         catch (OperationCanceledException)

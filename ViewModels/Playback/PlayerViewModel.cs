@@ -91,7 +91,10 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         set { _playbackRate = value; _playback.SetRate(value); OnPropertyChanged(); OnPropertyChanged(nameof(PlaybackRateDisplay)); OnPropertyChanged(nameof(PlaybackRateForeground)); OnPropertyChanged(nameof(IsRateAdjusted)); _settings.AudiobookPlaybackRate = value; }
     }
     public string PlaybackRateDisplay => $"{_playbackRate:0.0#}x";
+    
+    #pragma warning disable CS0067
     public event Action<string, string, DateTime>? TrackScrobbleRequested;
+    #pragma warning restore CS0067
     public event Action? PlaySelectedTrackRequested;
 
     public PlayerViewModel(PlaybackService playback, DownloadService download, LibraryService library, SettingsViewModel settings, MetadataService metadata)

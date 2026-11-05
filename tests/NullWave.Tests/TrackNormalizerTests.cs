@@ -198,4 +198,12 @@ public class TrackNormalizerTests
     {
         Assert.Equal(expected, TrackNormalizer.SearchKey(input));
     }
+
+    [Fact]
+    public void ResolveArtistTitle_prefixed_audio_variant_matches_clean_twin()
+    {
+        var a = TrackNormalizer.ResolveArtistTitle("Tame Impala - The Less I Know The Better (Audio)", "Tame Impala");
+        var b = TrackNormalizer.ResolveArtistTitle("The Less I Know The Better", "Tame Impala");
+        Assert.Equal(TrackNormalizer.IdentityKey(b.Title, b.Artist), TrackNormalizer.IdentityKey(a.Title, a.Artist));
+    }
 }

@@ -228,8 +228,16 @@ public class DownloadService
 
     public void CancelCurrentDownload()
     {
-        _currentDownloadCts?.Cancel();
+        var cts = _currentDownloadCts;
+        if (cts == null || cts.IsCancellationRequested) return;
+        
+        cts.Cancel();
         Log.Debug("[DownloadService] Current download cancelled by caller");
+    }
+
+    public bool IsDownloading(string url) 
+    { 
+        lock (_activeDownloads) return _activeDownloads.Contains(url); 
     }
 
     private static async Task<bool> IsAria2cAvailableAsync()
@@ -359,7 +367,7 @@ public class DownloadService
             : Random.Shared.Next(600, 1800);
     }
 
-    private bool HasConsent() => _prefsService.Current.DownloaderConsent is { IsCurrent: true };
+    public bool HasConsent() => _prefsService.Current.DownloaderConsent is { IsCurrent: true };
 
     private bool CheckConsent()
     {
@@ -913,9 +921,13 @@ public class DownloadService
                     DateAdded = DateTime.UtcNow
                 };
 
+                // --- PATCH 1: Clean metadata BEFORE duplicate check ---
+                if (_prefsService.Current.AutoCleanMetadata)
+                    (newTrack.Artist, newTrack.Title) = TrackNormalizer.ResolveArtistTitle(newTrack.Title, newTrack.Artist);
+
                 if (_prefsService.Current.PreventDuplicateDownloads && _libraryService.IsDuplicate(newTrack))
                 {
-                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", artist, title);
+                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", newTrack.Artist, newTrack.Title);
                     skippedCount++;
                     PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
                     continue;

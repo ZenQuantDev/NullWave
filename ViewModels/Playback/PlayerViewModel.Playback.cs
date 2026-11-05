@@ -37,6 +37,16 @@ public partial class PlayerViewModel
         {
             return;
         }
+
+        // --- PATCH: Prevent UI state corruption if track is still downloading ---
+        if (track.MediaType != MediaType.Radio && !string.IsNullOrEmpty(track.Url)
+            && (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath))
+            && _download.IsDownloading(track.Url))
+        {
+            ToastService.Instance.Show("Still downloading, try again in a moment.", ToastType.Info, scope: "download");
+            return;
+        }
+
         var t = new StepTimer("PlayTrack");
         try
         {
@@ -123,7 +133,17 @@ public partial class PlayerViewModel
 
             if (!string.IsNullOrEmpty(track.Url))
             {
-                // Patch B: label the download branch so the next [SLOW] line names the culprit.
+                // --- CONSENT GATE ---
+                if (!_download.HasConsent())
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        if (await _download.EnsureConsentAsync())
+                            Dispatcher.UIThread.Post(() => PlayTrack(track));
+                    });
+                    return;
+                }
+
                 _playback.Stop();
                 t.Step("stop");
                 Position = 0;
@@ -174,7 +194,13 @@ public partial class PlayerViewModel
             if (_settings.FadeOnPauseEnabled) _ = _playback.FadeAndResumeAsync(_settings.FadeOnPauseDurationMs); else _playback.Resume();
             if (_currentTrack != null) NullActionLogger.TrackPlayed(_currentTrack.Id.ToString(), _currentTrack.Title, _currentTrack.Artist, nameof(PlayerViewModel));
         }
-        else if (_currentTrack != null) PlayTrack(_currentTrack);
+        else if (_currentTrack != null)
+        {
+            // Engine and VM disagree (e.g. a state event was swallowed mid-crossfade):
+            // resync the button instead of restarting the track from zero.
+            if (_playback.IsPlaying) { _playback.ResyncState(); return; }
+            PlayTrack(_currentTrack);
+        }
         else PlaySelectedTrackRequested?.Invoke();
     }
 
@@ -206,7 +232,9 @@ public partial class PlayerViewModel
             if (_position >= _settings.ScrobbleThreshold && _currentTrack.MediaType != MediaType.Audiobook)
             {
                 var freshTrack = _library.GetAll().FirstOrDefault(t => t.Id == _currentTrack.Id);
+#if !DEBUG
                 TrackScrobbleRequested?.Invoke(freshTrack?.Title ?? _currentTrack.Title, freshTrack?.Artist ?? _currentTrack.Artist, DateTime.UtcNow);
+#endif
             }
         }
         if (_navigator.ShouldRepeatCurrent() && _currentTrack != null) PlayTrack(_currentTrack); else PlayNext();
@@ -439,7 +467,6 @@ public partial class PlayerViewModel
                 _navigator.CurrentTrack = next;
                 AlbumArtPath = next.AlbumArtPath;
                 StatusText = CurrentTrackDisplay;
-                _trackStartTime = DateTime.UtcNow;
                 Log.Information("Starting crossfade transition to {NextTitle}", next.Title);
                 var sessionId = _playSessionId;
                 var crossfadeTask = _playback.CrossfadeToAsync(next.FilePath, _settings.CrossfadeDurationSeconds * 1000, _volume);
@@ -450,9 +477,16 @@ public partial class PlayerViewModel
                         if (sessionId != _playSessionId) return;
                         _isCrossfading = false;
                         if (!t.IsCompletedSuccessfully || t.Result != _playback.CrossfadeGeneration) return;
+                        _trackStartTime = DateTime.UtcNow;
+                        // Mitigation for silent track B after crossfade
+                        _playback.Volume = _volume;
                         if (left != null) _navigator.RecordPlay(left);
                         if (left != null && _playRecorded && left.MediaType != MediaType.Audiobook)
+                        {
+                        #if !DEBUG
                             TrackScrobbleRequested?.Invoke(left.Title, left.Artist, DateTime.UtcNow);
+                        #endif
+                        }
                         _playRecorded = false;
                         _hasTriggeredCrossfade = false;
                         NullActionLogger.TrackPlayed(next.Id.ToString(), next.Title, next.Artist, nameof(PlayerViewModel));

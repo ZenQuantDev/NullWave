@@ -13,8 +13,8 @@ public partial class DownloaderConsentViewModel : ObservableObject
     private readonly Action _onDeclined;
     public bool CanAccept => UserUnderstands && UserAcceptsResponsibility;
 
-    [ObservableProperty] private bool _userUnderstands;
-    [ObservableProperty] private bool _userAcceptsResponsibility;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanAccept))] private bool _userUnderstands;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanAccept))] private bool _userAcceptsResponsibility;
 
     public DownloaderConsentViewModel(PreferencesService prefs, Action onAccepted, Action onDeclined)
     {
