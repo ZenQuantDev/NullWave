@@ -23,10 +23,10 @@
                     <Run Text="NullWave uses yt-dlp to download audio from YouTube and other platforms. Before you can use the download feature, please review and accept the following terms."/>
                 </TextBlock>
 
-                <Border Background="#FFF3CD" BorderBrush="#FFE69C" BorderThickness="1" CornerRadius="4" Padding="12">
+                <Border Background="{StaticResource BrushAmberDim}" BorderBrush="{StaticResource BrushAmber}" BorderThickness="1" CornerRadius="4" Padding="12">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Your Responsibility" FontWeight="Bold"/>
-                        <TextBlock TextWrapping="Wrap">
+                        <TextBlock Text="Your Responsibility" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}">
                             <Run Text="You are solely responsible for ensuring that your use of the download feature complies with applicable laws and the terms of service of the platforms you download from. NullWave does not host, distribute, or endorse any copyrighted content."/>
                         </TextBlock>
                     </StackPanel>

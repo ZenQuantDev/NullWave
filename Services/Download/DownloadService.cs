@@ -369,49 +369,76 @@ public class DownloadService
 
     public bool HasConsent() => _prefsService.Current.DownloaderConsent is { IsCurrent: true };
 
-    private bool CheckConsent()
-    {
-        if (HasConsent()) return true;
+    private readonly object _consentGate = new();
+    private Task<bool>? _consentTask;
 
-        Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
-        ToastService.Instance.Show(
-            "Please accept the downloader terms in Settings → Downloads", 
-            ToastType.Warning, 
-            scope: "download");
-        return false;
+    /// <summary>
+    /// Single-flight consent prompt. If multiple downloads start simultaneously, 
+    /// only one dialog is shown.
+    /// </summary>
+    public Task<bool> EnsureConsentAsync()
+    {
+        if (HasConsent()) return Task.FromResult(true);
+        lock (_consentGate) return _consentTask ??= PromptConsentAsync();
+    }
+
+    private async Task<bool> PromptConsentAsync()
+    {
+        await Task.Yield();
+        try
+        {
+            bool accepted = false;
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var window = new Views.Dialogs.DownloaderConsentView();
+                var vm = new ViewModels.Dialogs.DownloaderConsentViewModel(
+                    _prefsService,
+                    onAccepted: () => window.Close(true),
+                    onDeclined: () => window.Close(false)
+                );
+                window.DataContext = vm;
+
+                var mainWindow = Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+                if (mainWindow != null)
+                {
+                    accepted = await window.ShowDialog<bool>(mainWindow);
+                }
+            });
+
+            if (accepted)
+            {
+                Log.Information("[DownloadService] User accepted downloader consent");
+                return true;
+            }
+
+            Log.Information("[DownloadService] User declined downloader consent");
+            ToastService.Instance.Show("Downloads remain disabled. Enable them in Settings → Downloads.", ToastType.Info, scope: "download");
+            return false;
+        }
+        finally
+        {
+            lock (_consentGate) _consentTask = null;
+        }
     }
 
     /// <summary>
-    /// Interactive consent prompt. Returns true if consent is already accepted or user accepts now.
-    /// Call this from UI code (TrackInputViewModel) before starting a download.
+    /// Central gate for all download entry points. Prompts if interactive, logs and refuses if background.
     /// </summary>
-    public async Task<bool> EnsureConsentAsync()
+    private async Task<bool> GateConsentAsync(bool interactive)
     {
-        if (HasConsent()) return true; // FIX: Use silent check to avoid double-toast
-
-        var dialog = new Views.ConfirmDialog(
-            "Enable Downloads?",
-            "NullWave uses yt-dlp to download audio from YouTube, SoundCloud, and other platforms.\n\n" +
-            "• You are responsible for respecting copyright and platform terms of service.\n" +
-            "• NullWave does not host or provide any content.\n" +
-            "• You can change this anytime in Settings → Downloads.\n\n" +
-            "Enable downloading?");
-
-        var accepted = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
-
-        if (accepted)
-        {
-            _prefsService.Update(p => p.DownloaderConsent = new DownloaderConsent
-            {
-                AcceptedVersion = DownloaderConsent.CurrentVersion,
-                AcceptedAtUtc = DateTime.UtcNow
-            });
-            Log.Information("[DownloadService] User accepted downloader consent");
-            return true;
-        }
-
-        Log.Information("[DownloadService] User declined downloader consent");
-        ToastService.Instance.Show("Downloads remain disabled. Enable them in Settings → Downloads.", ToastType.Info, scope: "download");
+        if (HasConsent()) return true;
+        
+        if (interactive) return await EnsureConsentAsync();
+        
+        Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
+        ToastService.Instance.Show(
+            "Please accept the downloader terms in Settings → Downloads",
+            ToastType.Warning,
+            scope: "download");
         return false;
     }
     
@@ -426,7 +453,7 @@ public class DownloadService
         string? artist = null,
         CancellationToken ct = default)
     {
-        if (!CheckConsent())
+        if (!await GateConsentAsync(isInteractive))
         {
             DownloadFailed?.Invoke(trackId, "Download terms not accepted", isInteractive);
             return;
@@ -769,12 +796,8 @@ public class DownloadService
         Action<string, string>? onTrackFailed = null,
         CancellationToken ct = default)
     {
-        if (!CheckConsent())
+        if (!await GateConsentAsync(true))
         {
-            ToastService.Instance.Show(
-                "Please accept the downloader terms in Settings → Downloads", 
-                ToastType.Warning, 
-                scope: "download");
             return;
         }
 
