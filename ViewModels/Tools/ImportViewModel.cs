@@ -60,42 +60,57 @@ public class ImportViewModel : ViewModelBase
                 return;
             }
 
+            // N3: Ask Import Mode (Copy vs Keep in Place)
+            var copyToLibrary = await AskCopyToLibraryAsync();
+            var destDir = copyToLibrary ? NullWavePaths.DownloadsDir : null;
+            if (copyToLibrary) Directory.CreateDirectory(destDir!);
+
             activity = ToastService.Instance.StartLiveActivity(
                 "Importing Folder",
                 $"Importing 0/{files.Count}...",
                 isIndeterminate: false);
 
-            int added = 0;
-            int skipped = 0;
+            int added = 0, skipped = 0;
 
             for (int i = 0; i < files.Count; i++)
             {
-                var filePath = files[i];
-                var (rawTitle, rawArtist, duration) = _metadata.FetchFromLocalFile(filePath);
-                
-                // Use TrackNormalizer to extract artist from title if needed
-                string title = rawTitle;
-                string artist = rawArtist;
+                var originalPath = files[i];
+                var activePath = originalPath;
+
+                // N3: Execute Copy if requested
+                if (copyToLibrary)
+                {
+                    var (rawT, rawA, _) = _metadata.FetchFromLocalFile(originalPath);
+                    var ext = Path.GetExtension(originalPath);
+                    var safeName = FileNamer.Generate(rawA, rawT, Guid.NewGuid().ToString(), ext);
+                    var targetPath = Path.Combine(destDir!, safeName);
+
+                    if (File.Exists(targetPath)) 
+                        targetPath = Path.Combine(destDir!, $"{Path.GetFileNameWithoutExtension(safeName)}_{i}{ext}");
+
+                    File.Copy(originalPath, targetPath, overwrite: false);
+                    // Track ID isn't generated yet, so we log Guid.Empty for imports
+                    FileOperationJournal.Instance.Record(FileOpType.Copy, originalPath, targetPath, Guid.Empty);
+                    activePath = targetPath;
+                }
+
+                var (title, artist, duration) = _metadata.FetchFromLocalFile(activePath);
                 
                 if (string.IsNullOrWhiteSpace(artist) || artist == "Unknown")
                 {
-                    var split = NullWave.Helpers.TrackNormalizer.TrySplit(rawTitle);
-                    if (split != null)
-                    {
-                        artist = split.Value.Artist;
-                        title = split.Value.Title;
-                    }
+                    var split = NullWave.Helpers.TrackNormalizer.TrySplit(title);
+                    if (split != null) { artist = split.Value.Artist; title = split.Value.Title; }
                 }
 
                 var track = new Track
                 {
                     Title = title,
                     Artist = artist,
-                    FilePath = filePath,
+                    FilePath = activePath,
                     Source = TrackSource.Local,
                     Duration = duration
                 };
-                var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(filePath);
+                var (album, trackNum) = _metadata.FetchAlbumAndTrackNumber(activePath);
                 track.Album = album;
                 track.TrackNumber = trackNum;
 
@@ -116,12 +131,13 @@ public class ImportViewModel : ViewModelBase
                     progressValue: (i + 1) * 100.0 / files.Count,
                     isIndeterminate: false);
 
-                await Task.Delay(1); // yield to UI thread
+                await Task.Delay(1); 
             }
 
             stopwatch.Stop();
+            var modeText = copyToLibrary ? "copied to library" : "kept in place";
             ToastService.Instance.CompleteLiveActivity(
-                activity, $"Import complete - {added} added, {skipped} skipped (duplicates).");
+                activity, $"Import complete ({modeText}) - {added} added, {skipped} skipped.");
 
             NullActionLogger.ImportCompleted(folderPath, $"{added} tracks added", stopwatch.ElapsedMilliseconds, "ImportViewModel");
             Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}", added, skipped, folderPath);
@@ -140,10 +156,17 @@ public class ImportViewModel : ViewModelBase
 
     private static async Task<bool> AskIncludeSubfoldersAsync()
     {
+        var dialog = new Views.ConfirmDialog("Import Subfolders?", "Include all subfolders in the import?");
+        return await DialogService.Instance.ShowDialogAsync<bool>(dialog);
+    }
+
+    private static async Task<bool> AskCopyToLibraryAsync()
+    {
         var dialog = new Views.ConfirmDialog(
-            "Import Subfolders?",
-            "Include all subfolders in the import?");
-        var result = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
-        return result;
+            "Import Mode", 
+            "Copy these files into your NullWave library folder?\n\n" +
+            "Yes = Copy files (Safe, managed by NullWave)\n" +
+            "No = Keep in place (Files stay where they are)");
+        return await DialogService.Instance.ShowDialogAsync<bool>(dialog);
     }
 }
