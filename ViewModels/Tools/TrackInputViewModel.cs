@@ -390,12 +390,17 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
+        // FIX: Check consent BEFORE adding to the library to prevent ghost rows on decline
+        if (SourceDetector.IsYtDlpSource(source))
+        {
+            if (!await _download.EnsureConsentAsync()) return;
+        }
+
         _library.Add(newTrack);
         NullActionLogger.TrackAdded(newTrack.Id.ToString(), newTrack.Url, nameof(TrackInputViewModel));
 
         if (usedFallbackTitle)
         {
-            // FIX: Pass the track ID so backfill can find it even if the URL was canonicalized
             _ = FetchMetadataAsync(url, newTrack.Id);
         }
 
@@ -405,8 +410,6 @@ public class TrackInputViewModel : ViewModelBase
 
         if (SourceDetector.IsYtDlpSource(source))
         {
-            if (!await _download.EnsureConsentAsync()) return;
-
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
                     newTrack.Id.ToString(), newTrack.Url,
@@ -632,6 +635,13 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
+        // FIX: Check consent BEFORE adding to the library
+        if (!await _download.EnsureConsentAsync())
+        {
+            StatusMessage = "Downloads disabled";
+            return;
+        }
+
         var track = new Track
         {
             Title = result.SpotifyTitle,
@@ -639,17 +649,12 @@ public class TrackInputViewModel : ViewModelBase
             Url = result.YouTubeUrl,
             Source = TrackSource.Spotify
         };
+
         _library.Add(track);
         NullActionLogger.TrackAdded(track.Id.ToString(), result.YouTubeUrl, nameof(TrackInputViewModel));
         TrackAdded?.Invoke();
         StatusMessage = $"Added: {track.Title}";
 
-        if (!await _download.EnsureConsentAsync())
-        {
-            StatusMessage = "Downloads disabled";
-            return;
-        }
- 
         _ = Task.Run(async () =>
             await _download.DownloadAsync(
                 track.Id.ToString(), result.YouTubeUrl,

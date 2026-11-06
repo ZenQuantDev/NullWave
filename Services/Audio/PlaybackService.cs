@@ -39,6 +39,7 @@ public class PlaybackService : IDisposable
     private int _crossfadeGeneration;
     private int _targetVolume = 80;
     private int _playRequestGeneration;
+    private readonly object _playLock = new();
 
     public int CrossfadeGeneration => Volatile.Read(ref _crossfadeGeneration);
     public bool IsCrossfading => _isCrossfading;
@@ -320,8 +321,6 @@ public class PlaybackService : IDisposable
     {
         if (!_ready)
         {
-            // Engine still starting: never wait on the init lock from the UI thread.
-            // Remember the latest request and start it once the engine is up.
             Volatile.Write(ref _deferredPlayPath, path);
             _ = Task.Run(() =>
             {
@@ -329,7 +328,7 @@ public class PlaybackService : IDisposable
                 _uiPost(() =>
                 {
                     var pending = Interlocked.Exchange(ref _deferredPlayPath, null);
-                    if (pending == null) return;      // a newer request already ran
+                    if (pending == null) return;
                     if (ok) Play(pending); else ReportEngineUnavailable();
                 });
             });
@@ -345,85 +344,100 @@ public class PlaybackService : IDisposable
             _fadeCts?.Cancel();
             t.Step("abort");
 
-            _activePlayer.Stop();
-            t.Step("stop");
+            _ = Task.Run(() => StartTrack(path, playRequest, t));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Playback failed for {Path}", path);
+        }
+    }
 
-            _currentMedia?.Dispose();
-            _currentMedia = null;
-            t.Step("disposeMedia");
-
-            _icyTimer?.Dispose();
-            _icyTimer = null;
-            _lastIcyTitle = string.Empty;
-            _lastIcyArtist = string.Empty;
-
-            var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                        path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-            _currentMedia = CreateMedia(path);
-            if (isUrl) SetBuffering(true); else SetBuffering(false);
-            t.Step("newMedia");
-
-            _activePlayer.Media = _currentMedia;
-            _activePlayer.Volume = _targetVolume;
-            _activePlayer.Play();
-            t.Step("play");
-            t.Done();
-
-            Log.Information("Playback started: {Path}", path);
-
-            _ = Task.Run(async () =>
+    private void StartTrack(string path, int playRequest, StepTimer t)
+    {
+        try
+        {
+            lock (_playLock)
             {
-                await Task.Delay(2500);
-                var state = _activePlayer.State;
-                if (playRequest != Volatile.Read(ref _playRequestGeneration)
-                    || _currentMedia == null
-                    || _activePlayer.IsPlaying
-                    || (state != VLCState.Error && state != VLCState.Ended))
-                    return;
+                bool Stale() => _disposed || playRequest != Volatile.Read(ref _playRequestGeneration);
+                if (Stale()) return;
 
-                _uiPost(() =>
-                {
-                    var currentState = _activePlayer.State;
-                    if (playRequest == Volatile.Read(ref _playRequestGeneration)
-                        && _currentMedia != null
-                        && !_activePlayer.IsPlaying
-                        && (currentState == VLCState.Error || currentState == VLCState.Ended))
-                        StateChanged?.Invoke(PlaybackState.Stopped);
-                });
-            });
+                _activePlayer.Stop();
+                t.Step("stop");
+                if (Stale()) return;
 
-            if (isUrl)
-            {
-                _icyTimer = new System.Threading.Timer(_ =>
+                _currentMedia?.Dispose();
+                _currentMedia = null;
+                t.Step("disposeMedia");
+
+                _icyTimer?.Dispose();
+                _icyTimer = null;
+                _lastIcyTitle = string.Empty;
+                _lastIcyArtist = string.Empty;
+
+                var isUrl = path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                            path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+                _currentMedia = CreateMedia(path);
+                if (isUrl) SetBuffering(true); else SetBuffering(false);
+                t.Step("newMedia");
+
+                _activePlayer.Media = _currentMedia;
+                _activePlayer.Volume = _targetVolume;
+                _activePlayer.Play();
+                t.Step("play");
+                t.Done();
+
+                Log.Information("Playback started: {Path}", path);
+
+                _ = Task.Run(async () =>
                 {
-                    try
+                    await Task.Delay(2500);
+                    var state = _activePlayer.State;
+                    if (playRequest != Volatile.Read(ref _playRequestGeneration)
+                        || _currentMedia == null
+                        || _activePlayer.IsPlaying
+                        || (state != VLCState.Error && state != VLCState.Ended))
+                        return;
+
+                    _uiPost(() =>
                     {
-                        if (_currentMedia == null) return;
-                        var nowPlaying = _currentMedia.Meta(MetadataType.NowPlaying);
-                        var artist = _currentMedia.Meta(MetadataType.Artist) ?? string.Empty;
-                        var title = !string.IsNullOrWhiteSpace(nowPlaying) ? nowPlaying
+                        var currentState = _activePlayer.State;
+                        if (playRequest == Volatile.Read(ref _playRequestGeneration)
+                            && _currentMedia != null
+                            && !_activePlayer.IsPlaying
+                            && (currentState == VLCState.Error || currentState == VLCState.Ended))
+                            StateChanged?.Invoke(PlaybackState.Stopped);
+                    });
+                });
+
+                if (isUrl)
+                {
+                    _icyTimer = new System.Threading.Timer(_ =>
+                    {
+                        try
+                        {
+                            if (_currentMedia == null) return;
+                            var nowPlaying = _currentMedia.Meta(MetadataType.NowPlaying);
+                            var artist = _currentMedia.Meta(MetadataType.Artist) ?? string.Empty;
+                            var title = !string.IsNullOrWhiteSpace(nowPlaying) ? nowPlaying
                                 : !string.IsNullOrWhiteSpace(artist) ? (_currentMedia.Meta(MetadataType.Title) ?? string.Empty)
                                 : string.Empty;
 
-                        if (string.IsNullOrWhiteSpace(artist) && title.Contains(" - "))
-                        {
-                            var parts = title.Split(" - ", StringSplitOptions.None);
-                            if (parts.Length == 2)
+                            if (string.IsNullOrWhiteSpace(artist) && title.Contains(" - "))
                             {
-                                artist = parts[0].Trim();
-                                title = parts[1].Trim();
+                                var parts = title.Split(" - ", StringSplitOptions.None);
+                                if (parts.Length == 2) { artist = parts[0].Trim(); title = parts[1].Trim(); }
+                            }
+
+                            if (title != _lastIcyTitle || artist != _lastIcyArtist)
+                            {
+                                _lastIcyTitle = title;
+                                _lastIcyArtist = artist;
+                                _uiPost(() => RadioMetadataChanged?.Invoke(title, artist));
                             }
                         }
-
-                        if (title != _lastIcyTitle || artist != _lastIcyArtist)
-                        {
-                            _lastIcyTitle = title;
-                            _lastIcyArtist = artist;
-                            _uiPost(() => RadioMetadataChanged?.Invoke(title, artist));
-                        }
-                    }
-                    catch { /* ignore native teardown exceptions */ }
-                }, null, 1500, 3000);
+                        catch { /* ignore native teardown exceptions */ }
+                    }, null, 1500, 3000);
+                }
             }
         }
         catch (Exception ex)

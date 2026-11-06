@@ -155,7 +155,7 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
                             <TextBlock Text="Enable Experimental Features" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                            <TextBlock Text="Unlocks the In-App Log Viewer, P2P Track Sharing, and other in-development tools." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Unlocks the In-App Log Viewer and other in-development tools." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableExperimentalFeatures, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
