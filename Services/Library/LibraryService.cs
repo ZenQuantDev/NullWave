@@ -47,7 +47,7 @@ public partial class LibraryService : IDisposable
         _prefs = prefs;
         lock (_tracksLock) { _tracks = _db.LoadAll(); }
         Log.Information("[LibraryService] Loaded {Count} tracks from DB", _tracks.Count);
-        Log.Information("[LibraryService] By type: {Counts}", 
+        Log.Information("[LibraryService] By type: {Counts}",
             string.Join(", ", _tracks.GroupBy(t => t.MediaType).Select(g => $"{g.Key}={g.Count()}")));
 
         if (!startBackgroundWork) return;
@@ -56,10 +56,10 @@ public partial class LibraryService : IDisposable
         _ = Task.Run(BackfillAlbumArt);
         _ = Task.Run(BackfillYouTubeThumbnails);
         _ = Task.Run(BackfillSoundCloudThumbnails);
-        
+
         _ = Task.Run(async () =>
         {
-            await Task.Delay(1500); 
+            await Task.Delay(1500);
             List<Track> targets;
             lock (_tracksLock)
             {
@@ -85,9 +85,11 @@ public partial class LibraryService : IDisposable
     }
 
     /// <summary>
-    /// S6: Returns true if the file is inside the NullWave downloads directory.
-    /// We only automatically write ID3 tags to files we downloaded ourselves,
-    /// never to a user's personal imported music collection.
+    /// S6: Returns true if the file is inside a NullWave-managed downloads directory.
+    /// The default DownloadsDir is always managed. A user-configured DownloadDirectory
+    /// is only treated as managed when the file's name contains the "[nw-" marker
+    /// NullWave writes - so pointing this pref at a personal music folder doesn't
+    /// silently retag everything in it.
     /// </summary>
     private bool IsManagedDownload(string? filePath)
     {
@@ -95,29 +97,49 @@ public partial class LibraryService : IDisposable
         try
         {
             var fullPath = Path.GetFullPath(filePath);
-            
-            // Check both the default path AND the user-configured path from Preferences
-            var dirsToCheck = new List<string> { Path.GetFullPath(NullWavePaths.DownloadsDir) };
+            var defaultDir = Path.GetFullPath(NullWavePaths.DownloadsDir);
+            var defaultCheck = defaultDir.EndsWith(Path.DirectorySeparatorChar.ToString())
+                ? defaultDir : defaultDir + Path.DirectorySeparatorChar;
+
+            if (fullPath.StartsWith(defaultCheck, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fullPath, defaultDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                return true;
+
             if (_prefs != null && !string.IsNullOrWhiteSpace(_prefs.Current.DownloadDirectory))
             {
-                try { dirsToCheck.Add(Path.GetFullPath(_prefs.Current.DownloadDirectory)); } catch { }
-            }
-
-            foreach (var dir in dirsToCheck)
-            {
-                var checkDir = dir.EndsWith(Path.DirectorySeparatorChar.ToString()) 
-                    ? dir 
-                    : dir + Path.DirectorySeparatorChar;
-                    
-                if (fullPath.StartsWith(checkDir, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(fullPath, dir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    return true;
+                    var userDir = Path.GetFullPath(_prefs.Current.DownloadDirectory);
+                    if (string.Equals(userDir, defaultDir, StringComparison.OrdinalIgnoreCase)) return true;
+
+                    var userCheck = userDir.EndsWith(Path.DirectorySeparatorChar.ToString())
+                        ? userDir : userDir + Path.DirectorySeparatorChar;
+
+                    if (fullPath.StartsWith(userCheck, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(fullPath, userDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Only the FILE NAME matters: "[nw-" is what NullWave writes.
+                        return Path.GetFileName(fullPath).Contains("[nw-", StringComparison.OrdinalIgnoreCase);
+                    }
                 }
+                catch { }
             }
             return false;
         }
         catch { return false; }
+    }
+
+    /// <summary>Central rule for tag writes. All callers (Add, Sync, ForceClean) go through this.</summary>
+    internal bool CanWriteTags(string? filePath)
+    {
+        var mode = _prefs?.Current.TagWriteMode ?? TagWriteMode.DownloadsOnly;
+        return mode switch
+        {
+            TagWriteMode.Never => false,
+            TagWriteMode.DownloadsOnly => IsManagedDownload(filePath),
+            TagWriteMode.Always => !string.IsNullOrEmpty(filePath) && File.Exists(filePath),
+            _ => false
+        };
     }
 
     private void EnsureIdentityIndex()
@@ -133,10 +155,10 @@ public partial class LibraryService : IDisposable
     {
         if (!string.IsNullOrWhiteSpace(t.Url)) yield return $"url:{t.Url.ToLowerInvariant()}";
         if (!string.IsNullOrWhiteSpace(t.FilePath)) yield return $"path:{t.FilePath.ToLowerInvariant()}";
-        
+
         var normTitle = TrackNormalizer.NormalizeForCompare(t.Title);
         var normArtist = TrackNormalizer.NormalizeForCompare(t.Artist);
-        if (normTitle.Length > 0 && normArtist.Length > 0) 
+        if (normTitle.Length > 0 && normArtist.Length > 0)
             yield return $"ta:{normArtist}|{normTitle}";
     }
 
@@ -173,22 +195,22 @@ public partial class LibraryService : IDisposable
             track.FilePath = fullPath;
         }
 
-        lock (_tracksLock) 
+        lock (_tracksLock)
         {
             EnsureIdentityIndex();
-            if (GetIdentityKeys(track).Any(k => _identityIndex.TryGetValue(k, out var existingId) && existingId != track.Id)) 
-                return; 
+            if (GetIdentityKeys(track).Any(k => _identityIndex.TryGetValue(k, out var existingId) && existingId != track.Id))
+                return;
 
             _tracks.Add(track);
             foreach (var k in GetIdentityKeys(track)) _identityIndex.TryAdd(k, track.Id);
             StateVersion++;
             _identityIndexVersion = StateVersion;
         }
-        
+
         _db.Insert(track);
         OnLibraryChanged();
 
-        // N2 FIX: UpdateFileTags now respects the user's TagWriteMode setting (Never/DownloadsOnly/Always)
+        // N2: tag writes go through the central CanWriteTags rule.
         UpdateFileTags(track);
 
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
@@ -201,7 +223,7 @@ public partial class LibraryService : IDisposable
                     if (!string.IsNullOrEmpty(artPath))
                     {
                         track.AlbumArtPath = artPath;
-                        Update(track); 
+                        Update(track);
                     }
                 }
                 catch (Exception ex)
@@ -224,78 +246,55 @@ public partial class LibraryService : IDisposable
     }
 
     /// <summary>
-    /// Removes a track from the library and optionally sends its file to the recycle bin.
-    /// This is the safe deletion method that should be used for user-initiated removals.
+    /// Removes a track and optionally recycles its file. Unmanaged (user-imported) files are
+    /// NEVER deleted, even if recycleFile is true - they are only removed from the DB.
     /// </summary>
-    /// <param name="id">Track ID to remove</param>
-    /// <param name="deleteFile">If true, sends the file to OS recycle bin. If false, only removes from library.</param>
-    /// <returns>True if the track was removed, false if it wasn't found</returns>
-    public bool RemoveWithFile(Guid id, bool deleteFile = false)
+    public void Remove(Guid id, bool recycleFile = false)
     {
         Track? track;
         lock (_tracksLock)
         {
             track = _tracks.FirstOrDefault(t => t.Id == id);
-            if (track == null) return false;
-        }
-
-        // Remove from library first (this also removes from queue/playlists)
-        Remove(id);
-
-        // Optionally delete the file
-        if (deleteFile && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
-        {
-            var success = RecycleBin.SendToRecycleBin(track.FilePath);
-            if (success)
-            {
-                Log.Information("[LibraryService] Recycled file for track {Title}: {Path}", 
-                    track.Title, track.FilePath);
-            }
-            else
-            {
-                Log.Warning("[LibraryService] Failed to recycle file for track {Title}: {Path}", 
-                    track.Title, track.FilePath);
-            }
-        }
-
-        return true;
-    }
-
-    public void Remove(Guid id, bool recycleFile = false)
-    {
-        Track? track;
-        lock (_tracksLock) 
-        {
-            track = _tracks.FirstOrDefault(t => t.Id == id);
             if (track == null) return;
-            
+
             _tracks.Remove(track);
             foreach (var k in GetIdentityKeys(track)) _identityIndex.Remove(k);
             StateVersion++;
             _identityIndexVersion = StateVersion;
         }
-        
+
         var queueEntry = _queue.FirstOrDefault(e => e.Track.Id == id);
         if (queueEntry != null) { _queue.Remove(queueEntry); QueueChanged?.Invoke(this, EventArgs.Empty); }
-        
+
         _db.Delete(id);
         OnLibraryChanged();
         TrackRemovedFromLibrary?.Invoke(this, id);
 
-        // N4 FIX: Safely recycle the file if requested and it's a managed download
         if (recycleFile && track != null && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
         {
+            // Unified rule: only managed downloads may be recycled.
             if (IsManagedDownload(track.FilePath))
             {
-                var success = RecycleBin.SendToRecycleBin(track.FilePath);
-                if (success) Log.Information("[LibraryService] Recycled file for track {Title}", track.Title);
+                if (RecycleBin.SendToRecycleBin(track.FilePath))
+                    Log.Information("[LibraryService] Recycled file for track {Title}", track.Title);
+                else
+                    Log.Warning("[LibraryService] Failed to recycle file for track {Title}: {Path}", track.Title, track.FilePath);
             }
             else
             {
-                // Safety guard: Never delete user's personal imported files
                 Log.Warning("[LibraryService] Refused to recycle unmanaged user file: {Path}", track.FilePath);
             }
         }
+    }
+
+    /// <summary>Convenience wrapper. Equivalent to Remove(id, recycleFile: deleteFile).</summary>
+    public bool RemoveWithFile(Guid id, bool deleteFile = false)
+    {
+        bool existed;
+        lock (_tracksLock) existed = _tracks.Any(t => t.Id == id);
+        if (!existed) return false;
+        Remove(id, recycleFile: deleteFile);
+        return true;
     }
 
     public void Update(Track track)
@@ -306,7 +305,7 @@ public partial class LibraryService : IDisposable
             var idx = _tracks.FindIndex(t => t.Id == track.Id);
             if (idx >= 0) _tracks[idx] = track;
             StateVersion++;
-            _identityIndexVersion = -1; 
+            _identityIndexVersion = -1;
         }
         OnLibraryChanged();
     }
@@ -343,9 +342,9 @@ public partial class LibraryService : IDisposable
             SortField.Source => t => t.Source,
             SortField.PlayCount => t => t.PlayCount,
             SortField.LastPlayed => t => t.LastPlayed,
-            _ => t => t.DateAdded 
+            _ => t => t.DateAdded
         };
-        
+
         var sorted = ascending ? source.OrderBy(key) : source.OrderByDescending(key);
         return sorted.ThenBy(t => t.Title, StringComparer.OrdinalIgnoreCase).ToList();
     }
@@ -388,7 +387,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) track = _tracks.FirstOrDefault(t => t.Id == id);
         if (track == null) return;
         track.PlayCount++;
-        track.LastPlayed = DateTime.UtcNow; 
+        track.LastPlayed = DateTime.UtcNow;
         _db.UpdateAsync(track);
         StateVersion++;
         _history.Add(track);
@@ -449,9 +448,9 @@ public partial class LibraryService : IDisposable
         _changeTimer.Change(250, Timeout.Infinite);
     }
 
-    public void Dispose() 
-    { 
-        _changeTimer?.Dispose(); 
-        _db.Dispose(); 
+    public void Dispose()
+    {
+        _changeTimer?.Dispose();
+        _db.Dispose();
     }
 }

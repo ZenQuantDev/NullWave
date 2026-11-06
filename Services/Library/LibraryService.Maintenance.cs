@@ -56,29 +56,16 @@ public partial class LibraryService
         foreach (var track in missing)
         {
             var urlId = ExtractYouTubeId(track.Url);
-            var id8 = track.Id.ToString("N")[..8]; 
-            
-            // --- PATCH 3: Pre-compute normalized name for fallback ---
+            var id8 = track.Id.ToString("N")[..8];
             var wanted = TrackNormalizer.NormalizeForCompare($"{track.Artist} - {track.Title}");
 
-            var match = orphans.FirstOrDefault(f =>
-            {
-                var fileName = Path.GetFileNameWithoutExtension(f);
-                if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase)) return true;
-                if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase)) return true;
-                
-                // --- PATCH 3: Name fallback for files already renamed by Sync ---
-                if (!string.IsNullOrWhiteSpace(track.Artist) && !string.IsNullOrWhiteSpace(track.Title)
-                    && TrackNormalizer.NormalizeForCompare(fileName) == wanted) return true;
-
-                return false;
-            });
+            var match = orphans.FirstOrDefault(f => MatchesRelinkCandidate(f, id8, urlId, wanted));
 
             if (match != null)
             {
                 track.FilePath = match;
                 _db.Update(track);
-                orphans.Remove(match); 
+                orphans.Remove(match);
                 relinked++;
                 Log.Information("[LibraryService] Relinked track {Title} to {Path}", track.Title, match);
             }
@@ -89,11 +76,6 @@ public partial class LibraryService
         return relinked;
     }
 
-    /// <summary>
-    /// Attempts to find and relink a single track whose file is missing.
-    /// Checks ID tags, URL IDs, and falls back to normalized "Artist - Title" matching 
-    /// for files that were already renamed by the sync engine.
-    /// </summary>
     public bool TryRelink(Track track)
     {
         if (track == null || string.IsNullOrEmpty(track.FilePath) || File.Exists(track.FilePath))
@@ -116,24 +98,7 @@ public partial class LibraryService
         {
             match = Directory.EnumerateFiles(downloadsDir, "*.*", SearchOption.AllDirectories)
                 .Where(f => audioExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
-                .FirstOrDefault(f =>
-                {
-                    var fileName = Path.GetFileNameWithoutExtension(f);
-
-                    // Match patterns like: "Song Name [nw-1e7de1ff-kXYiU_JCYtU]"
-                    if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase))
-                        return true;
-
-                    if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase))
-                        return true;
-
-                    // Fallback: match by normalized "Artist - Title" for files already renamed by Sync
-                    if (!string.IsNullOrWhiteSpace(track.Artist) && !string.IsNullOrWhiteSpace(track.Title) &&
-                        TrackNormalizer.NormalizeForCompare(fileName) == wanted)
-                        return true;
-
-                    return false;
-                });
+                .FirstOrDefault(f => MatchesRelinkCandidate(f, id8, urlId, wanted));
         }
         catch (Exception ex)
         {
@@ -149,6 +114,30 @@ public partial class LibraryService
 
         Log.Information("[LibraryService] TryRelink repaired {Title} -> {Path}", track.Title, match);
         return true;
+    }
+
+    /// <summary>
+    /// Matches either the legacy [nw-id8-videoId] format, the new FileNamer [nw-id8] format,
+    /// or falls back to a normalized "Artist - Title" comparison.
+    /// </summary>
+    private static bool MatchesRelinkCandidate(string filePath, string id8, string? urlId, string wanted)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(filePath);
+
+        // New FileNamer format: "... [nw-{id8}]"
+        if (fileName.Contains($"[nw-{id8}]", StringComparison.OrdinalIgnoreCase)) return true;
+
+        // Legacy format: "... [nw-{id8}-{videoId}]"
+        if (fileName.Contains($"[nw-{id8}-", StringComparison.OrdinalIgnoreCase)) return true;
+
+        // Legacy video-id-only suffix
+        if (urlId != null && fileName.Contains($"-{urlId}]", StringComparison.OrdinalIgnoreCase)) return true;
+
+        // Normalized-name fallback for files renamed by older Sync versions.
+        // Guard: a track with empty artist/title has an empty wanted key, which would
+        // match any other empty-named file. Only match when wanted is non-empty.
+        return !string.IsNullOrWhiteSpace(wanted)
+            && TrackNormalizer.NormalizeForCompare(fileName) == wanted;
     }
 
     private static string? ExtractYouTubeId(string? url)

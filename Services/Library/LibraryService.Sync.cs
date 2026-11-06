@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
-using NullWave.Helpers;
 
 namespace NullWave.Services;
 
@@ -42,53 +42,52 @@ public partial class LibraryService
             return (false, false);
 
         // S6 SAFETY GUARD: Never touch imported user files. Only sync files NullWave downloaded.
-        if (!IsManagedDownload(track.FilePath)) 
+        if (!IsManagedDownload(track.FilePath))
             return (false, false);
 
         bool retagged = false, renamed = false;
         if (_metadata != null)
         {
             var (fT, fA, _) = _metadata.FetchFromLocalFile(track.FilePath!);
-            
-            // Swapped tags detection
-            if (!TrackNormalizer.LooselyMatch(track.Title, fT, track.Artist, fA) && 
+
+            if (!TrackNormalizer.LooselyMatch(track.Title, fT, track.Artist, fA) &&
                  TrackNormalizer.LooselyMatch(track.Title, fA, track.Artist, fT))
             {
-                // FIX: Only mutate in-memory track and DB if NOT a dry run
                 if (!dryRun)
                 {
-                    track.Title = TrackNormalizer.CleanTitle(fT); 
+                    track.Title = TrackNormalizer.CleanTitle(fT);
                     track.Artist = TrackNormalizer.CleanArtist(fA);
                     _db.Update(track);
                 }
                 return (true, false);
             }
-            
-            // Standard tag mismatch
+
             if (!string.Equals(fT, track.Title, StringComparison.Ordinal) || !string.Equals(fA, track.Artist, StringComparison.Ordinal))
             {
-                // FIX: Only count as retagged if we actually wrote to the file (or if it's a dry run where we *would* write)
-                bool wouldWrite = !dryRun ? _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist) : true;
-                if (wouldWrite) retagged = true;
+                // N2 FIX: route through the central CanWriteTags rule.
+                bool shouldWrite = CanWriteTags(track.FilePath);
+                if (shouldWrite)
+                {
+                    if (!dryRun) _metadata.WriteTagsToFile(track.FilePath!, track.Title, track.Artist);
+                    retagged = true;
+                }
             }
         }
 
         var dir = Path.GetDirectoryName(track.FilePath!)!;
         var ext = Path.GetExtension(track.FilePath!);
-        
-        // N1 FIX: Use unified FileNamer instead of inline sanitization
-        // This preserves the [nw-{id8}] suffix for reliable file recovery via TryRelink
+
         var name = FileNamer.Generate(track.Artist, track.Title, track.Id.ToString(), ext);
         var target = Path.Combine(dir, name);
 
         if (!string.Equals(Path.GetFileName(track.FilePath!), name, StringComparison.OrdinalIgnoreCase))
         {
             if (File.Exists(target)) return (retagged, false);
-            if (!dryRun) 
-            { 
-                File.Move(track.FilePath!, target); 
-                track.FilePath = target; 
-                _db.Update(track); 
+            if (!dryRun)
+            {
+                File.Move(track.FilePath!, target);
+                track.FilePath = target;
+                _db.Update(track);
             }
             renamed = true;
         }
@@ -98,24 +97,11 @@ public partial class LibraryService
     public void UpdateFileTags(Track track)
     {
         if (_metadata == null || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
-        var mode = _prefs?.Current.TagWriteMode ?? TagWriteMode.DownloadsOnly;
-        switch (mode)
+        // N2: central enforcement.
+        if (!CanWriteTags(track.FilePath))
         {
-            case TagWriteMode.Never:
-                Log.Debug("[LibraryService] TagWriteMode=Never, skipping tag write for {Path}", track.FilePath);
-                return;
-                
-            case TagWriteMode.DownloadsOnly:
-                if (!IsManagedDownload(track.FilePath))
-                {
-                    Log.Debug("[LibraryService] TagWriteMode=DownloadsOnly, skipping user file {Path}", track.FilePath);
-                    return;
-                }
-                break;
-                
-            case TagWriteMode.Always:
-                // Write to all files, including user imports
-                break;
+            Log.Debug("[LibraryService] TagWriteMode denied write for {Path}", track.FilePath);
+            return;
         }
         _metadata.WriteTagsToFile(track.FilePath, track.Title, track.Artist);
     }
