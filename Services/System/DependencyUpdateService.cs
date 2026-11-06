@@ -24,6 +24,10 @@ public class DependencyUpdateService
     private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromMinutes(2);
 
+    // 0x8A15002B (APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE) as a signed int.
+    // This is what winget returns when it manages a package but there is no newer version.
+    private const int WingetNoUpdateExitCode = unchecked((int)0x8A15002B);
+
     private readonly HttpClient _http;
 
     public DependencyUpdateService()
@@ -76,7 +80,6 @@ public class DependencyUpdateService
         var selfUpdate = await RunCommandAsync("yt-dlp", "-U");
         if (selfUpdate != null)
         {
-            // FIX: Distinguish "updated" from "already up to date"
             if (selfUpdate.Contains("up to date", StringComparison.OrdinalIgnoreCase))
             {
                 Log.Information("[DependencyUpdate] yt-dlp is already up to date");
@@ -95,18 +98,6 @@ public class DependencyUpdateService
             {
                 Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
                 return "Update completed via winget";
-            }
-        }
-
-        // 3. Fallback for Linux: try pip --user (FIX: --user for Fedora/externally-managed Python)
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            Log.Information("[DependencyUpdate] Native update failed, attempting pip --user fallback...");
-            var pipUpdate = await RunCommandAsync("pip", "install", "--user", "--upgrade", "yt-dlp");
-            if (pipUpdate != null)
-            {
-                Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip --user");
-                return "Update completed via pip";
             }
         }
 
@@ -267,14 +258,11 @@ public class DependencyUpdateService
                     return combined;
             }
             
-            // FIX: winget returns non-zero when "no updates available", treat as success
-            if (cmd == "winget" && args.Length > 0 && args[0] == "upgrade")
-            {
-                var combined = result.StandardOutput + result.StandardError;
-                if (combined.Contains("no applicable update", StringComparison.OrdinalIgnoreCase) ||
-                    combined.Contains("already installed", StringComparison.OrdinalIgnoreCase))
-                    return combined;
-            }
+            // winget exits with UPDATE_NOT_APPLICABLE when nothing newer exists: that's success.
+            // Any other non-zero code (like "no installed package found") is a real failure.
+            if (cmd == "winget" && args.Length > 0 && args[0] == "upgrade" 
+                && result.ExitCode == WingetNoUpdateExitCode)
+                return result.StandardOutput;
 
             if (!string.IsNullOrWhiteSpace(result.StandardError))
                 Log.Warning("[DependencyUpdate] {Cmd} exited {Code}: {Err}", cmd, result.ExitCode, result.StandardError.Trim());

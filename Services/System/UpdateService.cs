@@ -28,17 +28,15 @@ public class UpdateService
 
     public UpdateService()
     {
-        // Get the real build version from assembly metadata (e.g., "0.6.5-beta.1+commit")
         var infoVer = typeof(UpdateService).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
-        _displayVersion = infoVer.Split('+')[0]; // Strip commit hash if present
-        
-        // Detect if this is a pre-release build (contains '-' like 0.6.5-beta.1)
-        var isPreRelease = _displayVersion.Contains('-');
+            
+        _displayVersion = UpdateVersioning.Display(infoVer);
+        var isPreRelease = UpdateVersioning.IsPreRelease(infoVer);
         
         var source = new GithubSource(RepoUrl, accessToken: null, prerelease: isPreRelease);
         _updateManager = new UpdateManager(source);
-        
+
         Log.Information("[UpdateService] Initialized. IsInstalled={IsInstalled}, Version={Version}, PreRelease={PreRelease}", 
             _updateManager.IsInstalled, _displayVersion, isPreRelease);
     }
@@ -147,7 +145,7 @@ public class UpdateService
         try
         {
             Log.Information("[UpdateService] Applying update v{Version} and restarting...", _pendingUpdate.TargetFullRelease.Version);
-            _updateManager.ApplyUpdatesAndRestart(_pendingUpdate);
+            _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
         }
         catch (Exception ex)
         {

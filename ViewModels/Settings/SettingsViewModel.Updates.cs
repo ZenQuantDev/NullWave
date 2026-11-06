@@ -54,7 +54,7 @@ public partial class SettingsViewModel
     [ObservableProperty] private string _updateStatus = "Not checked yet";
     [ObservableProperty] private bool _isStagingUpdate;
     [ObservableProperty] private bool _updateStaged;
-    [ObservableProperty] private bool _isCheckingDeps;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsDepsChecking))] private bool _isCheckingDeps;
 
     public bool IsDepsChecking => IsCheckingDeps || YtDlpStatus == "Checking..." || VlcStatus == "Checking...";
     public bool IsYtDlpReady => !string.IsNullOrEmpty(YtDlpStatus) && YtDlpStatus != "Not installed" && YtDlpStatus != "Checking...";
@@ -75,13 +75,8 @@ public partial class SettingsViewModel
             LatestVersion = result.LatestVersion;
             ReleaseUrl = result.ReleaseUrl;
             
-            // FIX: Honest status messages based on result flags
-            UpdateStatus = result switch {
-                { NotInstalled: true }      => "Dev build: updates need an installed copy",
-                { Failed: true }            => "Couldn't check for updates (offline or rate-limited)",
-                { IsUpdateAvailable: true } => $"Update available: v{result.LatestVersion}",
-                _                           => $"You are up to date (v{result.CurrentVersion})"
-            };
+            // FIX: Use centralized status text logic
+            UpdateStatus = UpdateVersioning.StatusText(result);
         }
         catch (Exception ex)
         {
