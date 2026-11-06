@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks; 
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -11,7 +11,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using NullWave.Helpers;
 using NullWave.Services;
-using NullWave.Models; 
+using NullWave.Models;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -25,13 +25,13 @@ public class ExportViewModel : ViewModelBase
     public ICommand ExportJsonCommand { get; }
     public ICommand ExportCsvCommand { get; }
     public ICommand ExportM3uCommand { get; }
-    public ICommand ExportFolderCommand { get; } // Safe Export to USB/Folder
+    public ICommand ExportFolderCommand { get; }
 
     public ExportViewModel(LibraryService library, ExportService export)
     {
         _library = library;
         _export = export;
-        
+
         ExportJsonCommand = new SafeRelayCommand(async () => await ExportAsync("json"), errorScope: "export");
         ExportCsvCommand = new SafeRelayCommand(async () => await ExportAsync("csv"), errorScope: "export");
         ExportM3uCommand = new SafeRelayCommand(async () => await ExportAsync("m3u8"), errorScope: "export");
@@ -50,8 +50,8 @@ public class ExportViewModel : ViewModelBase
             FileTypeChoices = new[] { new FilePickerFileType(format.ToUpper()) { Patterns = new[] { $"*.{format}" } } }
         });
 
-        if (file == null) return; 
-        
+        if (file == null) return;
+
         var path = file.Path.LocalPath;
         if (string.IsNullOrWhiteSpace(path)) { ErrorReporter.Report("Invalid file path selected.", "export"); return; }
 
@@ -65,7 +65,7 @@ public class ExportViewModel : ViewModelBase
                 var result = M3uWriter.Build(tracks, path, new M3uWriteOptions(RelativePaths: true));
                 M3uWriter.WriteFile(path, result.Text);
                 ToastService.Instance.Show($"Exported {result.Written} tracks to M3U ({result.SkippedMissing} skipped missing files)", ToastType.Success, durationMs: 4000, scope: "export");
-                return; 
+                return;
             }
 
             ToastService.Instance.Show($"Exported {tracks.Count} tracks to {Path.GetFileName(path)}", ToastType.Success, durationMs: 4000, scope: "export");
@@ -87,9 +87,8 @@ public class ExportViewModel : ViewModelBase
         if (folders.Count == 0) return;
         var destDir = folders[0].Path.LocalPath;
 
-        // N6: Export only tracks that have a valid local file
         var tracks = _library.GetAll().Where(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath)).ToList();
-        
+
         if (tracks.Count == 0)
         {
             ToastService.Instance.Show("No tracks with local files found to export.", ToastType.Warning, scope: "export-folder");
@@ -101,12 +100,11 @@ public class ExportViewModel : ViewModelBase
         try
         {
             var cts = new CancellationTokenSource();
-            // Note: For a true progress callback, you'd pass the IProgress<T> to ExportToFolderAsync. 
-            // For now, we just run it and complete the activity.
+            // Runs on a pool thread inside ExportService.
             var result = await _export.ExportToFolderAsync(tracks, destDir, cts.Token);
-            
+
             ToastService.Instance.CompleteLiveActivity(
-                activity, 
+                activity,
                 $"Export complete: {result.Copied} copied, {result.Skipped} skipped, {result.Failed} failed.",
                 lingerMs: 5000,
                 finalType: result.Failed > 0 ? ToastType.Warning : ToastType.Success);
