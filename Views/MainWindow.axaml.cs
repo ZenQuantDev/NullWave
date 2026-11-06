@@ -119,6 +119,10 @@ public partial class MainWindow : Window
         _hangDetector?.Dispose();
         try
         {
+            // Flush the file-operation journal so the last import/export isn't lost.
+            try { Services.FileOperationJournal.Instance.Flush(); }
+            catch (Exception ex) { Log.Warning(ex, "[MainWindow] Failed to flush file-op journal on exit"); }
+
             if (DataContext is MainViewModel vm)
             {
                 vm.Settings.StopHealthCheck();

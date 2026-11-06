@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using NullWave.Helpers;
 using Serilog;
 
@@ -13,8 +14,9 @@ public enum FileOpType { Copy, Move, Delete }
 public record FileOpRecord(DateTime Utc, FileOpType Type, string Source, string Dest, Guid TrackId);
 
 /// <summary>
-/// Records file system mutations (Copy, Move, Delete) to a bounded JSON journal.
-/// Powers the "Undo last organize/import" feature and ensures D16/D17 data safety.
+/// Append-only log of file-system mutations. Records (UTC, type, source, dest, trackId)
+/// to a bounded JSON file. Does NOT implement undo (yet) - this is the audit trail that
+/// a future "Undo last import/organize" feature will consume. D16/D17 data-safety evidence.
 /// </summary>
 public class FileOperationJournal
 {
@@ -26,6 +28,11 @@ public class FileOperationJournal
     private readonly object _lock = new();
     private const int MaxRecords = 1000;
 
+    // Debounced flush: every Record() re-arms the timer; fires 2 s after the last mutation.
+    // Avoids rewriting the file on every record during a 5k-track import.
+    private Timer? _flushTimer;
+    private bool _dirty;
+
     private FileOperationJournal()
     {
         _path = Path.Combine(NullWavePaths.DataDir, "file-ops.json");
@@ -36,12 +43,16 @@ public class FileOperationJournal
     {
         try
         {
-            if (File.Exists(_path))
-            {
-                var json = File.ReadAllText(_path);
-                var ops = JsonSerializer.Deserialize<List<FileOpRecord>>(json);
-                if (ops != null) _ops.AddRange(ops);
-            }
+            if (!File.Exists(_path)) return;
+            var json = File.ReadAllText(_path);
+            if (string.IsNullOrWhiteSpace(json)) return;
+            var ops = JsonSerializer.Deserialize<List<FileOpRecord>>(json);
+            if (ops != null) _ops.AddRange(ops);
+        }
+        catch (JsonException ex)
+        {
+            Log.Warning(ex, "[Journal] file-ops.json is corrupt; quarantining and starting fresh");
+            try { File.Move(_path, _path + ".bad-" + UtcTime.FileStamp()); } catch { }
         }
         catch (Exception ex) { Log.Warning(ex, "[Journal] Failed to load file-ops.json"); }
     }
@@ -50,10 +61,11 @@ public class FileOperationJournal
     {
         try
         {
-            // Keep only the most recent operations to prevent unbounded growth
             var recent = _ops.TakeLast(MaxRecords).ToList();
             var json = JsonSerializer.Serialize(recent, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_path, json);
+            var tmp = _path + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, _path, overwrite: true);
         }
         catch (Exception ex) { Log.Warning(ex, "[Journal] Failed to save file-ops.json"); }
     }
@@ -63,7 +75,32 @@ public class FileOperationJournal
         lock (_lock)
         {
             _ops.Add(new FileOpRecord(DateTime.UtcNow, type, source, dest, trackId));
+            _dirty = true;
+            // Debounce: re-arm the timer on every mutation. Flush happens 2 s after the last one.
+            _flushTimer ??= new Timer(_ => FlushIfDirty(), null, Timeout.Infinite, Timeout.Infinite);
+            _flushTimer.Change(2000, Timeout.Infinite);
+        }
+    }
+
+    /// <summary>Called by the caller at shutdown to guarantee the journal is on disk before exit.</summary>
+    public void Flush()
+    {
+        lock (_lock)
+        {
+            _flushTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            if (!_dirty) return;
             Save();
+            _dirty = false;
+        }
+    }
+
+    private void FlushIfDirty()
+    {
+        lock (_lock)
+        {
+            if (!_dirty) return;
+            Save();
+            _dirty = false;
         }
     }
 
@@ -75,6 +112,7 @@ public class FileOperationJournal
             var last = _ops[^1];
             _ops.RemoveAt(_ops.Count - 1);
             Save();
+            _dirty = false;
             return last;
         }
     }
