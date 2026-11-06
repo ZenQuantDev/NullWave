@@ -434,8 +434,7 @@ public partial class LibraryService
 
             t.Title = parsed.Value.Title; t.Artist = parsed.Value.Artist; t.TitleForceCleaned = true;
             toUpdate.Add(t);
-            
-            if (IsManagedDownload(t.FilePath)) UpdateFileTags(t);
+            UpdateFileTags(t);
             cleaned++;
         }
         if (toUpdate.Count > 0) { _db.RunInTransaction(() => { foreach (var t in toUpdate) _db.Update(t); }); StateVersion++; }

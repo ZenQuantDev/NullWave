@@ -188,11 +188,8 @@ public partial class LibraryService : IDisposable
         _db.Insert(track);
         OnLibraryChanged();
 
-        // S6 FIX: Never automatically overwrite tags on user's local imported files.
-        if (IsManagedDownload(track.FilePath))
-        {
-            UpdateFileTags(track);
-        }
+        // N2 FIX: UpdateFileTags now respects the user's TagWriteMode setting (Never/DownloadsOnly/Always)
+        UpdateFileTags(track);
 
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
         {

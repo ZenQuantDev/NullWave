@@ -1052,5 +1052,8 @@ public static partial class Locales
         ["Settings_Downloads_Terms_Desc"] = "Downloads require explicit acceptance of copyright and platform terms. NullWave does not host or provide any content.",
         ["Settings_Downloads_Revoke_Button"] = "Revoke Consent",
         ["Settings_Downloads_Section_Engine"] = "ENGINE & BEHAVIOUR",
+
+        ["Settings_Downloads_TagWriteMode_Title"] = "Write Metadata Tags to Files",
+        ["Settings_Downloads_TagWriteMode_Desc"] = "Downloads Only: only files NullWave downloaded. Always: includes your imported music. Never: database only.",
     };
 }

@@ -349,5 +349,18 @@ public partial class SettingsViewModel
     public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
     public string ScrobbleThresholdDisplay => string.Format(L("Settings_Dynamic_Scrobble_Threshold"), ScrobbleThreshold);
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+
+    public Array TagWriteModeOptions => Enum.GetValues(typeof(TagWriteMode));
+    
+    public TagWriteMode TagWriteMode
+    {
+        get => _prefsService.Current.TagWriteMode;
+        set
+        {
+            _prefsService.Update(p => p.TagWriteMode = value);
+            OnPropertyChanged();
+            Log.Information("[Settings] TagWriteMode changed to {Mode}", value);
+        }
+    }
     
 }

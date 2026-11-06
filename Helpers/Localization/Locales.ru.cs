@@ -1035,5 +1035,8 @@ public static partial class Locales
         ["Settings_Downloads_Terms_Desc"] = "Загрузки требуют явного согласия с условиями авторских прав и платформ. NullWave не размещает и не предоставляет контент.",
         ["Settings_Downloads_Revoke_Button"] = "Отозвать согласие",
         ["Settings_Downloads_Section_Engine"] = "ДВИЖОК И ПОВЕДЕНИЕ",
+
+        ["Settings_Downloads_TagWriteMode_Title"] = "Записывать метаданные в файлы",
+        ["Settings_Downloads_TagWriteMode_Desc"] = "Только загрузки: лишь файлы, скачанные NullWave. Всегда: включая импортированную музыку. Никогда: только в базе данных.",
     };
 }

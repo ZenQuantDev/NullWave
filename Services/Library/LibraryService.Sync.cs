@@ -98,6 +98,25 @@ public partial class LibraryService
     public void UpdateFileTags(Track track)
     {
         if (_metadata == null || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
+        var mode = _prefs?.Current.TagWriteMode ?? TagWriteMode.DownloadsOnly;
+        switch (mode)
+        {
+            case TagWriteMode.Never:
+                Log.Debug("[LibraryService] TagWriteMode=Never, skipping tag write for {Path}", track.FilePath);
+                return;
+                
+            case TagWriteMode.DownloadsOnly:
+                if (!IsManagedDownload(track.FilePath))
+                {
+                    Log.Debug("[LibraryService] TagWriteMode=DownloadsOnly, skipping user file {Path}", track.FilePath);
+                    return;
+                }
+                break;
+                
+            case TagWriteMode.Always:
+                // Write to all files, including user imports
+                break;
+        }
         _metadata.WriteTagsToFile(track.FilePath, track.Title, track.Artist);
     }
 }
