@@ -490,7 +490,10 @@ public class DownloadService
         var safeDownloadDir = Path.GetFullPath(_downloadDir);
         var trackHash = trackId.Length >= 8 ? trackId[..8] : trackId;
         // FIX: Inject a unique NullWave hash so we can ALWAYS find the file, even on Bandcamp/SoundCloud
-        var outputTemplate = Path.Combine(safeDownloadDir, $"%(title).200s [nw-{trackHash}-%(id)s].%(ext)s");
+        // Use FileNamer-compatible template for consistency
+// Format: {title} [nw-{id8}-{videoId}].{ext}
+// The [nw-{id8}] suffix allows TryRelink to find files even if renamed
+var outputTemplate = Path.Combine(safeDownloadDir, $"%(title).180s [nw-{trackHash}-%(id)s].%(ext)s");
         
         var qualityValue = audioQuality switch
         {

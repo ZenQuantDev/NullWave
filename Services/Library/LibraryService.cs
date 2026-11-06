@@ -226,7 +226,45 @@ public partial class LibraryService : IDisposable
         }
     }
 
-    public void Remove(Guid id)
+    /// <summary>
+    /// Removes a track from the library and optionally sends its file to the recycle bin.
+    /// This is the safe deletion method that should be used for user-initiated removals.
+    /// </summary>
+    /// <param name="id">Track ID to remove</param>
+    /// <param name="deleteFile">If true, sends the file to OS recycle bin. If false, only removes from library.</param>
+    /// <returns>True if the track was removed, false if it wasn't found</returns>
+    public bool RemoveWithFile(Guid id, bool deleteFile = false)
+    {
+        Track? track;
+        lock (_tracksLock)
+        {
+            track = _tracks.FirstOrDefault(t => t.Id == id);
+            if (track == null) return false;
+        }
+
+        // Remove from library first (this also removes from queue/playlists)
+        Remove(id);
+
+        // Optionally delete the file
+        if (deleteFile && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
+        {
+            var success = RecycleBin.SendToRecycleBin(track.FilePath);
+            if (success)
+            {
+                Log.Information("[LibraryService] Recycled file for track {Title}: {Path}", 
+                    track.Title, track.FilePath);
+            }
+            else
+            {
+                Log.Warning("[LibraryService] Failed to recycle file for track {Title}: {Path}", 
+                    track.Title, track.FilePath);
+            }
+        }
+
+        return true;
+    }
+
+    public void Remove(Guid id, bool recycleFile = false)
     {
         Track? track;
         lock (_tracksLock) 
@@ -246,6 +284,21 @@ public partial class LibraryService : IDisposable
         _db.Delete(id);
         OnLibraryChanged();
         TrackRemovedFromLibrary?.Invoke(this, id);
+
+        // N4 FIX: Safely recycle the file if requested and it's a managed download
+        if (recycleFile && track != null && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
+        {
+            if (IsManagedDownload(track.FilePath))
+            {
+                var success = RecycleBin.SendToRecycleBin(track.FilePath);
+                if (success) Log.Information("[LibraryService] Recycled file for track {Title}", track.Title);
+            }
+            else
+            {
+                // Safety guard: Never delete user's personal imported files
+                Log.Warning("[LibraryService] Refused to recycle unmanaged user file: {Path}", track.FilePath);
+            }
+        }
     }
 
     public void Update(Track track)

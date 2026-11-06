@@ -75,7 +75,10 @@ public partial class LibraryService
 
         var dir = Path.GetDirectoryName(track.FilePath!)!;
         var ext = Path.GetExtension(track.FilePath!);
-        var name = SanitizeFileName($"{track.Artist} - {track.Title}") + ext;
+        
+        // N1 FIX: Use unified FileNamer instead of inline sanitization
+        // This preserves the [nw-{id8}] suffix for reliable file recovery via TryRelink
+        var name = FileNamer.Generate(track.Artist, track.Title, track.Id.ToString(), ext);
         var target = Path.Combine(dir, name);
 
         if (!string.Equals(Path.GetFileName(track.FilePath!), name, StringComparison.OrdinalIgnoreCase))
@@ -96,13 +99,5 @@ public partial class LibraryService
     {
         if (_metadata == null || string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath)) return;
         _metadata.WriteTagsToFile(track.FilePath, track.Title, track.Artist);
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
-        // Collapse repeated spaces into a single space
-        return System.Text.RegularExpressions.Regex.Replace(sanitized, @"\s+", " ");
     }
 }
