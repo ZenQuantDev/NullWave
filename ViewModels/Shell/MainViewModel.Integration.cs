@@ -155,7 +155,7 @@ public partial class MainViewModel
         };
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
-        Import = new ImportViewModel(_library, _metadata);
+        Import = new ImportViewModel(_library, _metadata, _prefsService);
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
