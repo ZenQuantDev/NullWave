@@ -6,19 +6,8 @@ using Serilog;
 
 namespace NullWave.Helpers;
 
-/// <summary>
-/// Cross-platform helper to send files to the OS recycle bin/trash instead of permanent deletion.
-/// Windows: Uses VisualBasic FileSystem API (SendToRecycleBin)
-/// Linux: Uses gio trash (GNOME) or kioclient (KDE)
-/// macOS: Uses osascript to move to Trash
-/// Fallback: Moves to a .trash folder in the same directory
-/// </summary>
 public static class RecycleBin
 {
-    /// <summary>
-    /// Sends a file to the OS recycle bin. Returns true if successful, false otherwise.
-    /// Never throws - all errors are logged and return false.
-    /// </summary>
     public static bool SendToRecycleBin(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -33,44 +22,20 @@ public static class RecycleBin
             return false;
         }
 
-        // Security: Resolve to absolute path and validate
         string fullPath;
-        try
-        {
-            fullPath = Path.GetFullPath(filePath);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[RecycleBin] Invalid path: {Path}", filePath);
-            return false;
-        }
+        try { fullPath = Path.GetFullPath(filePath); }
+        catch (Exception ex) { Log.Warning(ex, "[RecycleBin] Invalid path: {Path}", filePath); return false; }
 
-        // Prevent path traversal attacks
-        if (fullPath.Contains(".."))
-        {
-            Log.Warning("[RecycleBin] Blocked path traversal attempt: {Path}", fullPath);
-            return false;
-        }
+        // NOTE: we do NOT reject paths containing ".." here. GetFullPath already resolved
+        // real traversal, and the literal ".." can appear in legitimate filenames like
+        // "Wait....mp3" (truncated by FileNamer) or "Song..remix.mp3".
 
         try
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return SendToRecycleBinWindows(fullPath);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                return SendToRecycleBinLinux(fullPath);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return SendToRecycleBinMacOS(fullPath);
-            }
-            else
-            {
-                Log.Warning("[RecycleBin] Unsupported platform, using fallback");
-                return FallbackRecycle(fullPath);
-            }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return SendToRecycleBinWindows(fullPath);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))   return SendToRecycleBinLinux(fullPath);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))     return SendToRecycleBinMacOS(fullPath);
+            return FallbackRecycle(fullPath);
         }
         catch (Exception ex)
         {
@@ -104,11 +69,10 @@ public static class RecycleBin
     {
         try
         {
-            // Use SHFileOperation with FOF_ALLOWUNDO to send to Recycle Bin
             var fileOp = new SHFILEOPSTRUCT
             {
                 wFunc = FO_DELETE,
-                pFrom = filePath + '\0' + '\0', // Double null terminator required
+                pFrom = filePath + '\0' + '\0',
                 pTo = null,
                 fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT,
                 fAnyOperationsAborted = false,
@@ -117,17 +81,13 @@ public static class RecycleBin
             };
 
             int result = SHFileOperation(ref fileOp);
-            
             if (result == 0 && !fileOp.fAnyOperationsAborted)
             {
                 Log.Information("[RecycleBin] Successfully recycled (Windows): {Path}", filePath);
                 return true;
             }
-            else
-            {
-                Log.Warning("[RecycleBin] Windows SHFileOperation failed with code {Code}", result);
-                return FallbackRecycle(filePath);
-            }
+            Log.Warning("[RecycleBin] Windows SHFileOperation failed with code {Code}", result);
+            return FallbackRecycle(filePath);
         }
         catch (Exception ex)
         {
@@ -140,30 +100,22 @@ public static class RecycleBin
     {
         try
         {
-            // Try gio trash first (GNOME/GTK standard)
-            var gioResult = RunProcess("gio", $"trash \"{filePath}\"");
-            if (gioResult.ExitCode == 0)
+            // ArgumentList avoids shell injection (titles with " ' ` $ etc).
+            if (RunProcess("gio", new[] { "trash", filePath }) == 0)
             {
                 Log.Information("[RecycleBin] Successfully recycled (gio): {Path}", filePath);
                 return true;
             }
-
-            // Fallback to kioclient (KDE)
-            var kdeResult = RunProcess("kioclient5", $"move \"{filePath}\" trash:/");
-            if (kdeResult.ExitCode == 0)
+            if (RunProcess("kioclient5", new[] { "move", filePath, "trash:/" }) == 0)
             {
                 Log.Information("[RecycleBin] Successfully recycled (KDE): {Path}", filePath);
                 return true;
             }
-
-            // Fallback to trash-cli if available
-            var trashCliResult = RunProcess("trash-put", $"\"{filePath}\"");
-            if (trashCliResult.ExitCode == 0)
+            if (RunProcess("trash-put", new[] { filePath }) == 0)
             {
                 Log.Information("[RecycleBin] Successfully recycled (trash-cli): {Path}", filePath);
                 return true;
             }
-
             Log.Warning("[RecycleBin] No Linux trash command available, using fallback");
             return FallbackRecycle(filePath);
         }
@@ -178,16 +130,19 @@ public static class RecycleBin
     {
         try
         {
-            // Use osascript to move to Trash via Finder
-            var script = $"tell application \"Finder\" to delete POSIX file \"{filePath}\"";
-            var result = RunProcess("osascript", $"-e \"{script}\"");
-            
-            if (result.ExitCode == 0)
+            // Pass the path via argv, not string interpolation. This closes the
+            // AppleScript injection hole for titles containing quote characters.
+            if (RunProcess("osascript", new[]
+                {
+                    "-e", "on run argv",
+                    "-e", "tell application \"Finder\" to delete (POSIX file (item 1 of argv))",
+                    "-e", "end run",
+                    filePath
+                }) == 0)
             {
                 Log.Information("[RecycleBin] Successfully recycled (macOS): {Path}", filePath);
                 return true;
             }
-
             Log.Warning("[RecycleBin] macOS osascript failed, using fallback");
             return FallbackRecycle(filePath);
         }
@@ -202,7 +157,6 @@ public static class RecycleBin
     {
         try
         {
-            // Create a .trash folder in the same directory
             var dir = Path.GetDirectoryName(filePath);
             if (string.IsNullOrEmpty(dir))
             {
@@ -213,7 +167,6 @@ public static class RecycleBin
             var trashDir = Path.Combine(dir, ".trash");
             Directory.CreateDirectory(trashDir);
 
-            // Generate unique filename with UTC timestamp to prevent collisions
             var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
             var fileName = Path.GetFileName(filePath);
             var trashPath = Path.Combine(trashDir, $"{timestamp}_{fileName}");
@@ -229,34 +182,43 @@ public static class RecycleBin
         }
     }
 
-    private static (int ExitCode, string Output) RunProcess(string fileName, string arguments)
+    // Injection-safe: uses ArgumentList, never a single shell-parsed string.
+    private static int RunProcess(string fileName, string[] arguments)
     {
         try
         {
-            var process = new Process
+            var psi = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = fileName,
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                FileName = fileName,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
+            foreach (var a in arguments) psi.ArgumentList.Add(a);
 
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit(5000); // 5 second timeout
+            using var process = Process.Start(psi);
+            if (process == null) return -1;
 
-            return (process.ExitCode, output + error);
+            // Read streams asynchronously so a hung child process doesn't block us past the timeout.
+            var outTask = process.StandardOutput.ReadToEndAsync();
+            var errTask = process.StandardError.ReadToEndAsync();
+
+            if (!process.WaitForExit(5000))
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                return -1;
+            }
+
+            // After the process exits, drain remaining output.
+            outTask.Wait(1000);
+            errTask.Wait(1000);
+            return process.ExitCode;
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "[RecycleBin] Process execution failed: {FileName} {Args}", fileName, arguments);
-            return (-1, ex.Message);
+            Log.Debug(ex, "[RecycleBin] Process execution failed: {FileName}", fileName);
+            return -1;
         }
     }
 }
