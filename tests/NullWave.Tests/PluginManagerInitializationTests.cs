@@ -1,6 +1,10 @@
+using System;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using NullWave.Services;
 using NullWave.Services.Plugins;
+using Xunit;
 
 namespace NullWave.Tests.Plugins;
 
@@ -42,24 +46,32 @@ public class PluginManagerInitializationTests
     [Fact]
     public async Task Plugins_initialize_at_the_same_time_not_one_after_another()
     {
-        async Task<bool> Slow(CancellationToken _) { await Task.Delay(400); return true; }
-        var a = new FakePlugin("a", Slow);
-        var b = new FakePlugin("b", Slow);
-        var c = new FakePlugin("c", Slow);
+        var started = 0;
+        var allStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var clock = Stopwatch.StartNew();
+        // Finishes only once all three plugins have begun initializing.
+        // If the manager ran them sequentially, this would time out and the plugin would end up in Error.
+        async Task<bool> WaitForTheOthers(CancellationToken _)
+        {
+            if (Interlocked.Increment(ref started) == 3) allStarted.SetResult();
+            await allStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            return true;
+        }
+
+        var a = new FakePlugin("a", WaitForTheOthers);
+        var b = new FakePlugin("b", WaitForTheOthers);
+        var c = new FakePlugin("c", WaitForTheOthers);
+
         await NewManager(a, b, c).InitializeAllAsync(perPluginTimeout: TimeSpan.FromSeconds(10));
-        clock.Stop();
 
         Assert.All(new[] { a, b, c }, p => Assert.Equal(PluginState.Available, p.State));
-        Assert.True(clock.ElapsedMilliseconds < 1000,
-            $"Took {clock.ElapsedMilliseconds} ms; three 400 ms plugins one after another would take 1200 ms or more");
+        Assert.Equal(3, started);
     }
 
     [Fact]
     public async Task A_plugin_that_ignores_cancellation_is_marked_Error_and_does_not_hold_up_the_rest()
     {
-        var stuck = new FakePlugin("stuck", _ => new TaskCompletionSource<bool>().Task);   // never completes
+        var stuck = new FakePlugin("stuck", _ => new TaskCompletionSource<bool>().Task);
         var healthy = new FakePlugin("healthy", _ => Task.FromResult(true));
 
         var clock = Stopwatch.StartNew();
@@ -81,7 +93,6 @@ public class PluginManagerInitializationTests
         });
 
         await NewManager(cooperative).InitializeAllAsync(perPluginTimeout: TimeSpan.FromMilliseconds(300));
-
         Assert.Equal(PluginState.Error, cooperative.State);
     }
 
@@ -101,9 +112,7 @@ public class PluginManagerInitializationTests
     public async Task A_plugin_that_reports_false_is_not_Available()
     {
         var notConfigured = new FakePlugin("no-key", _ => Task.FromResult(false));
-
         await NewManager(notConfigured).InitializeAllAsync(perPluginTimeout: TimeSpan.FromSeconds(5));
-
         Assert.NotEqual(PluginState.Available, notConfigured.State);
     }
 
@@ -111,7 +120,6 @@ public class PluginManagerInitializationTests
     public async Task Disabled_plugins_are_not_initialized()
     {
         var disabled = new FakePlugin("off", _ => Task.FromResult(true), enabled: false);
-
         await NewManager(disabled).InitializeAllAsync(perPluginTimeout: TimeSpan.FromSeconds(5));
 
         Assert.Equal(0, disabled.InitCalls);
@@ -134,26 +142,28 @@ public class PluginManagerInitializationTests
     [Fact]
     public async Task A_plugin_whose_start_code_blocks_does_not_block_the_caller()
     {
+        using var release = new ManualResetEventSlim(false);
         var blocking = new FakePlugin("blocking", _ =>
         {
-            Thread.Sleep(500);          // synchronous work before returning, like a Process.Start + WaitForExit
+            // Synchronous block, like a Process.Start + WaitForExit
+            release.Wait(TimeSpan.FromSeconds(5));
             return Task.FromResult(true);
         });
 
-        var clock = Stopwatch.StartNew();
-        var start = NewManager(blocking).InitializeAllAsync(perPluginTimeout: TimeSpan.FromSeconds(5));
-        var callReturnedAfterMs = clock.ElapsedMilliseconds;   // time until the call itself came back
-        await start;
+        var start = NewManager(blocking).InitializeAllAsync(perPluginTimeout: TimeSpan.FromSeconds(10));
 
-        Assert.True(callReturnedAfterMs < 250,
-            $"The call took {callReturnedAfterMs} ms to return; the plugin's blocking work must run on a pool thread");
+        // The call must hand back an unfinished task while the plugin is still blocked.
+        // If the plugin ran inline on the caller's thread, the call would only return after the 5s wait.
+        Assert.False(start.IsCompleted, "The plugin's blocking work ran on the caller's thread");
+
+        release.Set();
+        await start;
         Assert.Equal(PluginState.Available, blocking.State);
     }
 }
 
 public class YtDlpDownloadProviderInitializationTests
 {
-    // InitializeAsync never touches the inner DownloadService, so tests pass null for it.
     private static YtDlpDownloadProvider NewProvider(Func<Task<string?>> probe, bool enabled = true)
     {
         var prefs = new PreferencesService();
@@ -165,7 +175,6 @@ public class YtDlpDownloadProviderInitializationTests
     public async Task Found_version_makes_the_provider_Available()
     {
         var provider = NewProvider(() => Task.FromResult<string?>("2026.08.19"));
-
         Assert.True(await provider.InitializeAsync());
         Assert.Equal(PluginState.Available, provider.State);
     }
@@ -174,7 +183,6 @@ public class YtDlpDownloadProviderInitializationTests
     public async Task Missing_yt_dlp_makes_the_provider_Unavailable()
     {
         var provider = NewProvider(() => Task.FromResult<string?>(null));
-
         Assert.False(await provider.InitializeAsync());
         Assert.Equal(PluginState.Unavailable, provider.State);
     }
