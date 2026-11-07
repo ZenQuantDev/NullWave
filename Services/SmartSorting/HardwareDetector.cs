@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -102,7 +103,7 @@ public class HardwareDetector
                 {
                     info.GpuType = parts[0].Trim();
                     info.HasNvidia = true;
-                    if (long.TryParse(parts[1].Trim(), out long mb))
+                    if (long.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long mb))
                         info.GpuVramGB = (long)Math.Round((double)mb / 1024.0);
                     return;
                 }
@@ -167,7 +168,7 @@ public class HardwareDetector
                                 if (isDiscreteAmd) info.HasAmd = true;
                                 if (isDiscreteNvidia) info.HasNvidia = true;
                                     
-                                if (long.TryParse(parts[1], out long vramBytes) && vramBytes >= 1073741824)
+                                if (long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long vramBytes) && vramBytes >= 1073741824)
                                 {
                                     info.GpuVramGB = Math.Max(4, (long)Math.Round((double)vramBytes / 1024.0 / 1024.0 / 1024.0));
                                 }

@@ -8,28 +8,39 @@
     <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="0">
 
+            <!-- DIAGNOSTICS (Moved from Advanced) -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Diagnostics}" Margin="{StaticResource MarginSectionLabel}"/>
+            <Border Classes="settings-card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_VerboseLogging}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_VerboseLogging_Tooltip}">
+                                <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding LoggingModeLabel}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding VerboseLogging}" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
             <!-- METADATA ENGINE -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Metadata}" Margin="0,0,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Metadata}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_Maintenance_AutoClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_AutoClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCleanMetadata}" VerticalAlignment="Center"/>
                     </Grid>
                     
-                    <!-- GATED: Force Clean Titles -->
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
-                                </Border>
-                            </StackPanel>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding ShowAdvancedFeatures}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAdvancedFeatures}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_ForceClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_ForceClean_Button}" Command="{Binding ForceCleanTitlesCommand}" IsEnabled="{Binding !IsRepairing}"/>
@@ -42,7 +53,7 @@
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Repair_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Repair_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -51,32 +62,19 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Repair_Button}" Command="{Binding RepairPathsCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
-                    
-                    <!-- GATED: Verify Links -->
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
-                                </Border>
-                            </StackPanel>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding ShowAdvancedFeatures}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAdvancedFeatures}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Verify_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Verify_Button}" Command="{Binding VerifyLinksCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
                     
-                    <!-- GATED: Reimport Assets -->
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
-                                </Border>
-                            </StackPanel>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding ShowAdvancedFeatures}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAdvancedFeatures}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Reimport_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Reimport_Button}" Command="{Binding ReimportAssetsCommand}" IsEnabled="{Binding !IsRepairing}"/>
@@ -89,7 +87,7 @@
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Sweep_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Sweep_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -101,9 +99,9 @@
                             <Button Classes="danger" Content="{loc:Loc Settings_Maintenance_Sweep_Button}" Command="{Binding SweepOrphanedFilesCommand}" IsEnabled="{Binding !IsRepairing}"/>
                         </StackPanel>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Dedupe_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Dedupe_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -116,16 +114,10 @@
                         </StackPanel>
                     </Grid>
                     
-                    <!-- GATED: Merge Similar Artists -->
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding IsExperimentalModeActive}"/>
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
-                                </Border>
-                            </StackPanel>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding ShowAdvancedFeatures}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAdvancedFeatures}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_Merge_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Merge_Button}" Command="{Binding MergeSimilarArtistsCommand}" IsEnabled="{Binding !IsRepairing}"/>
@@ -138,7 +130,7 @@
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Resync_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Resync_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -147,17 +139,11 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Resync_Button}" Command="{Binding ForceMetaResyncCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding ShowAdvancedFeatures}"/>
                     
-                    <!-- GATED: Sync Files -->
-                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsExperimentalModeActive}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
-                                </Border>
-                            </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAdvancedFeatures}">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_SyncFiles_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
@@ -166,9 +152,9 @@
                         </StackPanel>
                     </Grid>
                     
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Backfill_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Backfill_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -181,27 +167,27 @@
             </Border>
 
             <!-- DATA SAFETY & BACKUPS -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Safety}" Margin="0,24,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Safety}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_Maintenance_AutoBackup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_AutoBackup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableAutoBackups}" VerticalAlignment="Center"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4" IsVisible="{Binding EnableAutoBackups}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}" IsVisible="{Binding EnableAutoBackups}"/>
                     <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableAutoBackups}">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_Maintenance_BackupRetention_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_Maintenance_BackupRetention_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" ItemsSource="{Binding BackupRetentionOptions}" SelectedItem="{Binding BackupRetentionCount}" VerticalAlignment="Center" MinWidth="80"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Restore_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Restore_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -218,7 +204,7 @@
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Thumbs_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Thumbs_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -227,9 +213,9 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Thumbs_Button}" Command="{Binding ClearThumbnailsCommand}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Cache_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Cache_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -238,9 +224,9 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Cache_Button}" Command="{Binding ClearYtDlpCacheCommand}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_Maintenance_Optimize_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_Optimize_Tooltip}"><material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/></Button>
@@ -249,18 +235,86 @@
                         </StackPanel>
                         <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_Optimize_Button}" Command="{Binding VacuumDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Rebuild Search Index" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                <Button Classes="help-btn" ToolTip.Tip="Rebuilds the full-text index if search results are missing or incorrect.">
+                                <TextBlock Text="{loc:Loc Settings_Maintenance_SearchIndex_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Maintenance_SearchIndex_Tooltip}">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
                                 </Button>
                             </StackPanel>
-                            <TextBlock Text="Re-indexes titles, artists, albums, and tags for global search." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                            <TextBlock Text="{loc:Loc Settings_Maintenance_SearchIndex_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="secondary" Content="Rebuild Index" Command="{Binding RebuildSearchIndexCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Maintenance_SearchIndex_Button}" Command="{Binding RebuildSearchIndexCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- DATA & FOLDERS (Moved from Advanced) -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_DataFolders}" Margin="{StaticResource Margin2xl}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenData}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenData_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_OpenData}" Command="{Binding OpenDataFolderCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenLogs}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_OpenLogs_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_OpenLogs}" Command="{Binding OpenLogsFolderCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Backup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Backup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc Settings_Advanced_Backup_Button}" Command="{Binding BackupDatabaseCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- DANGER ZONE (Moved from Advanced) -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Danger}" Foreground="{StaticResource BrushRed}" Margin="{StaticResource Margin2xl}"/>
+            <Border Classes="settings-card" BorderBrush="{StaticResource BrushRed}">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteKeys_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteKeys_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_DeleteKeys_Button}" Command="{Binding DeleteApiKeysCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteLogs_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_DeleteLogs_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_DeleteLogs_Button}" Command="{Binding DeleteLogsCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Reset_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Reset_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_Reset_Button}" Command="{Binding ResetPreferencesCommand}"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushRedDim}" Margin="0,4"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Wipe_Title}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Bold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Wipe_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger" Content="{loc:Loc Settings_Advanced_Wipe_Button}" Command="{Binding DeleteEverythingCommand}" Margin="16,0,0,0"/>
                     </Grid>
                 </StackPanel>
             </Border>

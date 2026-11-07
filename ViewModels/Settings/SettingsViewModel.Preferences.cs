@@ -27,6 +27,8 @@ using Serilog.Events;
 
 namespace NullWave.ViewModels;
 
+public sealed record TagWriteModeOption(TagWriteMode Value, string DisplayName);
+
 public partial class SettingsViewModel
 {
     // General & Downloads
@@ -336,11 +338,24 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.EnableExperimentalFeatures = value); 
             OnPropertyChanged(); 
             OnPropertyChanged(nameof(IsExperimentalModeActive)); 
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
         } 
+    }
+
+    public bool ForceAllFeatures
+    {
+        get => _prefsService.Current.ForceAllFeatures;
+        set
+        {
+            _prefsService.Update(p => p.ForceAllFeatures = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
+        }
     }
 
     /// <summary>Returns true if Experimental Features OR Dev Mode is active.</summary>
     public bool IsExperimentalModeActive => EnableExperimentalFeatures || IsDevMode;
+    public bool ShowAdvancedFeatures => ForceAllFeatures || IsExperimentalModeActive;
 
 
     // Localized Formatters
@@ -349,5 +364,23 @@ public partial class SettingsViewModel
     public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
     public string ScrobbleThresholdDisplay => string.Format(L("Settings_Dynamic_Scrobble_Threshold"), ScrobbleThreshold);
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+
+    public IReadOnlyList<TagWriteModeOption> TagWriteModeOptions => new[]
+    {
+        new TagWriteModeOption(TagWriteMode.Never, L("Settings_Downloads_TagWriteMode_Never")),
+        new TagWriteModeOption(TagWriteMode.DownloadsOnly, L("Settings_Downloads_TagWriteMode_DownloadsOnly")),
+        new TagWriteModeOption(TagWriteMode.Always, L("Settings_Downloads_TagWriteMode_Always"))
+    };
+    
+    public TagWriteMode TagWriteMode
+    {
+        get => _prefsService.Current.TagWriteMode;
+        set
+        {
+            _prefsService.Update(p => p.TagWriteMode = value);
+            OnPropertyChanged();
+            Log.Information("[Settings] TagWriteMode changed to {Mode}", value);
+        }
+    }
     
 }

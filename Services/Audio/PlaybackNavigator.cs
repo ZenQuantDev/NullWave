@@ -28,6 +28,11 @@ public partial class PlaybackNavigator : ObservableObject
     private IReadOnlyList<Track> _cachedQueue = new List<Track>();
     private Dictionary<Guid, int> _trackIndexMap = new();
 
+    // Patch C: pool cache.
+    private int _poolVersion = -1;
+    private string? _poolKey;
+    private IReadOnlyList<Track> _pool = Array.Empty<Track>();
+
     [ObservableProperty] private bool _isShuffle;
     [ObservableProperty] private bool _isSmartShuffle;
     [ObservableProperty] private RepeatMode _repeatMode = RepeatMode.None;
@@ -38,7 +43,10 @@ public partial class PlaybackNavigator : ObservableObject
     public PlaybackNavigator(LibraryService library)
         : this(() => library.GetAll(), () => library.StateVersion) { }
 
-    public PlaybackNavigator(Func<IReadOnlyList<Track>> getAllTracks, Func<int> getStateVersion, Random? rng = null)
+    public PlaybackNavigator(
+        Func<IReadOnlyList<Track>> getAllTracks,
+        Func<int> getStateVersion,
+        Random? rng = null)
     {
         _getAllTracks = getAllTracks;
         _getStateVersion = getStateVersion;
@@ -66,20 +74,55 @@ public partial class PlaybackNavigator : ObservableObject
         _shuffleIndex = -1;
     }
 
+    // Patch C: cache by StateVersion and pool key.
     private IReadOnlyList<Track> NavigationPool(Track? context = null)
     {
         var current = context ?? CurrentTrack;
         var mediaType = current?.MediaType ?? MediaType.Music;
+
+        var key = mediaType == MediaType.Audiobook && current != null
+            ? $"A:{current.Id}"
+            : mediaType.ToString();
+
+        var version = _getStateVersion();
+
+        if (version != _poolVersion || key != _poolKey)
+        {
+            _pool = BuildPool(current, mediaType);
+            _poolVersion = version;
+            _poolKey = key;
+        }
+
+        return _pool;
+    }
+
+    private IReadOnlyList<Track> BuildPool(Track? current, MediaType mediaType)
+    {
         var all = _getAllTracks();
 
         if (mediaType == MediaType.Audiobook && current != null)
         {
             if (!string.IsNullOrWhiteSpace(current.Album) && !string.IsNullOrWhiteSpace(current.Artist))
-                return all.Where(t => t.MediaType == MediaType.Audiobook && string.Equals(t.Album, current.Album, StringComparison.OrdinalIgnoreCase) && string.Equals(t.Artist, current.Artist, StringComparison.OrdinalIgnoreCase)).ToList();
+            {
+                return all.Where(t =>
+                    t.MediaType == MediaType.Audiobook &&
+                    string.Equals(t.Album, current.Album, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(t.Artist, current.Artist, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
 
-            var currentDirectory = string.IsNullOrWhiteSpace(current.FilePath) ? null : Path.GetDirectoryName(current.FilePath);
+            var currentDirectory = string.IsNullOrWhiteSpace(current.FilePath)
+                ? null
+                : Path.GetDirectoryName(current.FilePath);
+
             if (!string.IsNullOrWhiteSpace(currentDirectory))
-                return all.Where(t => t.MediaType == MediaType.Audiobook && !string.IsNullOrWhiteSpace(t.FilePath) && string.Equals(Path.GetDirectoryName(t.FilePath), currentDirectory, StringComparison.OrdinalIgnoreCase)).ToList();
+            {
+                return all.Where(t =>
+                    t.MediaType == MediaType.Audiobook &&
+                    !string.IsNullOrWhiteSpace(t.FilePath) &&
+                    string.Equals(Path.GetDirectoryName(t.FilePath), currentDirectory, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
 
             return new[] { current };
         }
@@ -93,6 +136,7 @@ public partial class PlaybackNavigator : ObservableObject
         {
             _cachedLibraryVersion = _getStateVersion();
             _cachedQueue = queue;
+
             _trackIndexMap.Clear();
             for (int i = 0; i < queue.Count; i++)
                 _trackIndexMap[queue[i].Id] = i;
@@ -116,14 +160,17 @@ public partial class PlaybackNavigator : ObservableObject
         var filtered = allTracks.Where(t => EffectiveSkips(t) < SkipPenaltyCap).ToList();
 
         _shuffleDeck = (SkipPenaltyCap > 0 && filtered.Count >= MinEligiblePoolSize ? filtered : allTracks)
-            .Select(t => t.Id).ToList();
+            .Select(t => t.Id)
+            .ToList();
 
         for (int i = _shuffleDeck.Count - 1; i > 0; i--)
         {
             int j = _rng.Next(i + 1);
             (_shuffleDeck[i], _shuffleDeck[j]) = (_shuffleDeck[j], _shuffleDeck[i]);
         }
+
         _shuffleIndex = -1;
+
         if (CurrentTrack != null && _shuffleDeck.Count > 1)
             _shuffleDeck.Remove(CurrentTrack.Id);
     }
@@ -132,26 +179,35 @@ public partial class PlaybackNavigator : ObservableObject
     {
         var queue = NavigationPool();
         if (queue.Count == 0) return new List<Track>();
+
         EnsureIndexMap(queue);
 
         if (!IsShuffle)
         {
-            var startIdx = CurrentTrack != null && _trackIndexMap.TryGetValue(CurrentTrack.Id, out var idx) ? idx + 1 : 0;
+            var startIdx = CurrentTrack != null && _trackIndexMap.TryGetValue(CurrentTrack.Id, out var idx)
+                ? idx + 1
+                : 0;
+
             var result = new List<Track>();
+
             for (int i = 0; i < count; i++)
             {
                 var pos = startIdx + i;
+
                 if (pos >= queue.Count)
                 {
                     if (RepeatMode != RepeatMode.All) break;
                     pos %= queue.Count;
                 }
+
                 result.Add(queue[pos]);
             }
+
             return result;
         }
 
         var shuffleResult = new List<Track>();
+
         for (int i = 0; i < count; i++)
         {
             if (_shuffleDeck.Count == 0 || _shuffleIndex >= _shuffleDeck.Count - 1)
@@ -159,9 +215,14 @@ public partial class PlaybackNavigator : ObservableObject
 
             _shuffleIndex++;
             var nextId = _shuffleDeck[_shuffleIndex];
-            Track? track = _trackIndexMap.TryGetValue(nextId, out var qIdx) ? queue[qIdx] : queue.FirstOrDefault(t => t.Id == nextId);
+
+            Track? track = _trackIndexMap.TryGetValue(nextId, out var qIdx)
+                ? queue[qIdx]
+                : queue.FirstOrDefault(t => t.Id == nextId);
+
             if (track != null) shuffleResult.Add(track);
         }
+
         return shuffleResult;
     }
 
@@ -169,6 +230,7 @@ public partial class PlaybackNavigator : ObservableObject
     {
         var queue = NavigationPool(currentTrack);
         if (queue.Count == 0) return null;
+
         EnsureIndexMap(queue);
 
         if (IsShuffle)
@@ -176,7 +238,11 @@ public partial class PlaybackNavigator : ObservableObject
             if (IsSmartShuffle && currentTrack != null && _rng.NextDouble() < 0.3)
             {
                 var smart = GetSmartRecommendation(currentTrack, queue);
-                if (smart != null) { CurrentTrack = smart; return smart; }
+                if (smart != null)
+                {
+                    CurrentTrack = smart;
+                    return smart;
+                }
             }
 
             if (_shuffleDeck.Count == 0 || _shuffleIndex >= _shuffleDeck.Count - 1)
@@ -184,20 +250,34 @@ public partial class PlaybackNavigator : ObservableObject
 
             _shuffleIndex++;
             var nextId = _shuffleDeck[_shuffleIndex];
-            Track? nextTrack = _trackIndexMap.TryGetValue(nextId, out var idx) ? queue[idx] : queue.FirstOrDefault(t => t.Id == nextId);
+
+            Track? nextTrack = _trackIndexMap.TryGetValue(nextId, out var idx)
+                ? queue[idx]
+                : queue.FirstOrDefault(t => t.Id == nextId);
+
             CurrentTrack = nextTrack;
             return nextTrack;
         }
 
-        if (currentTrack == null) { CurrentTrack = queue[0]; return queue[0]; }
+        if (currentTrack == null)
+        {
+            CurrentTrack = queue[0];
+            return queue[0];
+        }
 
-        if (_trackIndexMap.TryGetValue(currentTrack.Id, out var currentIdx) && currentIdx >= 0 && currentIdx < queue.Count - 1)
+        if (_trackIndexMap.TryGetValue(currentTrack.Id, out var currentIdx) &&
+            currentIdx >= 0 &&
+            currentIdx < queue.Count - 1)
         {
             CurrentTrack = queue[currentIdx + 1];
             return queue[currentIdx + 1];
         }
 
-        if (RepeatMode == RepeatMode.All) { CurrentTrack = queue[0]; return queue[0]; }
+        if (RepeatMode == RepeatMode.All)
+        {
+            CurrentTrack = queue[0];
+            return queue[0];
+        }
 
         CurrentTrack = null;
         return null;
@@ -209,11 +289,20 @@ public partial class PlaybackNavigator : ObservableObject
         var currentTags = current.Tags.ToHashSet();
 
         var scored = queue
-            .Where(t => t.Id != current.Id && !historySet.Contains(t.Id) && (SkipPenaltyCap <= 0 || EffectiveSkips(t) < SkipPenaltyCap))
+            .Where(t =>
+                t.Id != current.Id &&
+                !historySet.Contains(t.Id) &&
+                (SkipPenaltyCap <= 0 || EffectiveSkips(t) < SkipPenaltyCap))
             .Select(t =>
             {
                 int matchingTags = t.Tags.Count(tag => currentTags.Contains(tag));
-                int score = (t.Artist == current.Artist && t.Artist != "Unknown" ? 5 : 0) + (matchingTags * 2) + (t.IsFavorite ? 1 : 0) - EffectiveSkips(t);
+
+                int score =
+                    (t.Artist == current.Artist && t.Artist != "Unknown" ? 5 : 0) +
+                    (matchingTags * 2) +
+                    (t.IsFavorite ? 1 : 0) -
+                    EffectiveSkips(t);
+
                 return (Track: t, Score: score);
             })
             .OrderByDescending(x => x.Score)
@@ -228,15 +317,17 @@ public partial class PlaybackNavigator : ObservableObject
     {
         var queue = NavigationPool(currentTrack);
         if (queue.Count == 0) return null;
+
         EnsureIndexMap(queue);
 
-        // FIX: Prevent Previous from returning the track that is already playing
+        // Prevent Previous from returning the track that is already playing
         while (_history.Count > 0 && currentTrack != null && _history[0] == currentTrack.Id)
             _history.RemoveAt(0);
 
         if (_history.Count > 0 && currentTrack != null)
         {
             var lastHistoryId = _history[0];
+
             if (_trackIndexMap.TryGetValue(currentTrack.Id, out var currentIdx))
             {
                 var sequentialPrevIdx = currentIdx > 0 ? currentIdx - 1 : -1;
@@ -267,7 +358,11 @@ public partial class PlaybackNavigator : ObservableObject
             return queue[idx - 1];
         }
 
-        if (RepeatMode == RepeatMode.All) { CurrentTrack = queue[^1]; return queue[^1]; }
+        if (RepeatMode == RepeatMode.All)
+        {
+            CurrentTrack = queue[^1];
+            return queue[^1];
+        }
 
         CurrentTrack = null;
         return null;
@@ -276,7 +371,16 @@ public partial class PlaybackNavigator : ObservableObject
     public Track? GetNextChapter(Track current)
     {
         if (current == null || string.IsNullOrEmpty(current.Album)) return null;
-        var chapters = _getAllTracks().Where(t => t.MediaType == MediaType.Audiobook && t.Album == current.Album && t.Artist == current.Artist).OrderBy(t => t.TrackNumber).ThenBy(t => t.Title).ToList();
+
+        var chapters = _getAllTracks()
+            .Where(t =>
+                t.MediaType == MediaType.Audiobook &&
+                t.Album == current.Album &&
+                t.Artist == current.Artist)
+            .OrderBy(t => t.TrackNumber)
+            .ThenBy(t => t.Title)
+            .ToList();
+
         var idx = chapters.FindIndex(t => t.Id == current.Id);
         return (idx >= 0 && idx < chapters.Count - 1) ? chapters[idx + 1] : null;
     }
@@ -284,9 +388,18 @@ public partial class PlaybackNavigator : ObservableObject
     public Track? GetPreviousChapter(Track current)
     {
         if (current == null || string.IsNullOrEmpty(current.Album)) return null;
-        var chapters = _getAllTracks().Where(t => t.MediaType == MediaType.Audiobook && t.Album == current.Album && t.Artist == current.Artist).OrderBy(t => t.TrackNumber).ThenBy(t => t.Title).ToList();
+
+        var chapters = _getAllTracks()
+            .Where(t =>
+                t.MediaType == MediaType.Audiobook &&
+                t.Album == current.Album &&
+                t.Artist == current.Artist)
+            .OrderBy(t => t.TrackNumber)
+            .ThenBy(t => t.Title)
+            .ToList();
+
         var idx = chapters.FindIndex(t => t.Id == current.Id);
-        return (idx > 0) ? chapters[idx - 1] : null;
+        return idx > 0 ? chapters[idx - 1] : null;
     }
 
     public bool ShouldRepeatCurrent() => RepeatMode == RepeatMode.One;

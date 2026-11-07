@@ -41,7 +41,7 @@
         <StackPanel Spacing="8" Margin="4">
             <!-- FIX: explicit DynamicResource foregrounds; popup-hosted content
                  does not inherit the app palette reliably in Dark mode -->
-            <TextBlock Text="Download Queue" FontWeight="Bold" FontSize="16" Margin="4,0,0,8"
+            <TextBlock Text="Download Queue" FontWeight="Bold" FontSize="{DynamicResource FontSizeLg}" Margin="4,0,0,8"
                        Foreground="{DynamicResource BrushTextPrimary}"/>
             
             <ItemsControl ItemsSource="{Binding Jobs}">
@@ -53,7 +53,7 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                                                    Foreground="{DynamicResource BrushTextPrimary}"/>
-                                        <TextBlock Text="{Binding Artist}" Foreground="{DynamicResource BrushTextMuted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Artist}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <Button Grid.Column="1" Classes="icon-btn sm" IsVisible="{Binding IsFailed}"
                                         Command="{Binding $parent[UserControl].DataContext.RetryCommand}" CommandParameter="{Binding}">
@@ -68,7 +68,7 @@
                                     <material:MaterialIcon Kind="AlertCircle" Foreground="{DynamicResource BrushRed}" IsVisible="{Binding IsFailed}" Width="14" Height="14"/>
                                     <material:MaterialIcon Kind="Download" Foreground="{DynamicResource BrushAccent}" IsVisible="{Binding !IsCompleted}" Width="14" Height="14"/>
                                     
-                                    <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

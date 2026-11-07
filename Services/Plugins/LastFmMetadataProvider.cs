@@ -23,6 +23,12 @@ public class LastFmMetadataProvider : IMetadataProvider
     public PluginState State { get; set; } = PluginState.Unavailable;
     public bool IsEnabled { get; set; } = true;
 
+    public ProviderDescriptor Descriptor { get; } = new(
+        Id: "lastfm",
+        Kind: ProviderKind.Metadata,
+        DisplayName: "Last.fm"
+    );
+
     // I expose the inner service so existing consumers (TrackDetailViewModel,
     // LastFmEnrichmentService) can still access it directly during migration.
     public LastFmService Inner => _inner;

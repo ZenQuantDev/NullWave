@@ -272,7 +272,7 @@
                                     <MenuFlyout>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Edit}" Command="{Binding OpenEditorCommand}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Export}" Click="OnExportProfileClicked"/>
-                                        <MenuItem Header="Copy Share String" Command="{Binding CopyShareStringCommand}" IsVisible="{Binding IsExperimentalModeActive}"/>
+                                        <MenuItem Header="Copy Share String" Command="{Binding CopyShareStringCommand}" IsVisible="{Binding ShowAdvancedFeatures}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_ResetAvatar}" Command="{Binding ResetAvatarCommand}" IsVisible="{Binding HasAvatar}"/>
                                         <MenuItem Header="{loc:Loc Profile_Menu_Save}" Command="{Binding ManualSaveCommand}"/>
                                     </MenuFlyout>
@@ -371,7 +371,7 @@
 
                                 <!-- GATED: QR / share footer (Experimental) -->
                                 <StackPanel Spacing="10" Margin="0,16,0,4"
-                                            IsVisible="{Binding IsExperimentalModeActive}">
+                                            IsVisible="{Binding ShowAdvancedFeatures}">
                                     <Border Height="1" Background="{StaticResource BrushBorder}"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
                                         <material:MaterialIcon Kind="Flask" Width="14" Height="14" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
@@ -389,7 +389,7 @@
                                             <TextBlock Text="{Binding ShareCode}" Foreground="{StaticResource BrushAccent}"
                                                        FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeSm}" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding ShareString}" Foreground="{StaticResource BrushTextMuted}"
-                                                       FontSize="9" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ShareString}"/>
+                                                       FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ShareString}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
                                                 <Button Classes="ghost" Padding="6,2" Command="{Binding CopyShareStringCommand}"
                                                         ToolTip.Tip="Copy share string (Ctrl+E)">
@@ -399,7 +399,7 @@
                                                     </StackPanel>
                                                 </Button>
                                                 <TextBlock Text="Powered by NullWave" Foreground="{StaticResource BrushTextMuted}"
-                                                           FontSize="9" VerticalAlignment="Center"/>
+                                                           FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -689,14 +689,14 @@
                                     </Border>
 
                                     <!-- GATED: Profile Sharing (Experimental) -->
-                                    <Border Classes="settings-card" IsVisible="{Binding IsExperimentalModeActive}">
+                                    <Border Classes="settings-card" IsVisible="{Binding ShowAdvancedFeatures}">
                                         <StackPanel Spacing="10">
                                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
                                                 <TextBlock Text="{loc:Loc Profile_Section_Sharing}" Classes="section-label" Margin="0" VerticalAlignment="Center"/>
                                                 <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <material:MaterialIcon Kind="Flask" Width="12" Height="12" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="EXPERIMENTAL" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="EXPERIMENTAL" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
@@ -720,7 +720,7 @@
                                     </Border>
 
                                     <!-- GATED: Connect with a friend (Experimental) -->
-                                    <Border Classes="settings-card" IsVisible="{Binding IsExperimentalModeActive}">
+                                    <Border Classes="settings-card" IsVisible="{Binding ShowAdvancedFeatures}">
                                         <StackPanel Spacing="10">
                                             <TextBlock Text="Connect With A Code" Classes="section-label" Margin="0"/>
                                             <TextBlock Text="Paste a friend's NullWave share string (nullwave://p/... or NW1....) to load their taste profile and see your overlap."

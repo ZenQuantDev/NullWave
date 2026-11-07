@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
+using NullWave.Models;
 using NullWave.Services;
 using Xunit;
 
@@ -14,6 +15,7 @@ public class DownloadServiceTests : IDisposable
 {
     private readonly string _downloadDir;
     private readonly DownloadService _service;
+    private readonly PreferencesService _prefs = null!;
 
     public DownloadServiceTests()
     {
@@ -23,7 +25,7 @@ public class DownloadServiceTests : IDisposable
         if (testsDir == null)
             throw new DirectoryNotFoundException("Could not locate the 'tests' directory from AppContext.BaseDirectory.");
 
-        var fakeExe = Path.Combine(testsDir.FullName, "FakeYtDlp", "bin", "Debug", "net8.0", 
+        var fakeExe = Path.Combine(testsDir.FullName, "FakeYtDlp", "bin", "Debug", "net10.0", 
             OperatingSystem.IsWindows() ? "FakeYtDlp.exe" : "FakeYtDlp");
             
         if (!File.Exists(fakeExe))
@@ -35,8 +37,15 @@ public class DownloadServiceTests : IDisposable
         Directory.CreateDirectory(_downloadDir);
         Environment.SetEnvironmentVariable("FAKE_YTDLP_OUTDIR", _downloadDir);
 
-        var prefs = new PreferencesService();
-        _service = new DownloadService(null!, prefs, null!);
+        _prefs = new PreferencesService();
+        var consent = new DownloaderConsent
+        {
+            AcceptedVersion = DownloaderConsent.CurrentVersion,
+            AcceptedAtUtc = DateTime.UtcNow
+        };
+        _prefs.Update(p => p.DownloaderConsent = consent);
+
+        _service = new DownloadService(null!, _prefs, null!);
     }
 
     public void Dispose()
@@ -78,7 +87,7 @@ public class DownloadServiceTests : IDisposable
         await Task.WhenAny(task2, Task.Delay(2000));
 
         Assert.True(task2.IsCompleted, "Duplicate request should return immediately, not hang.");
-        Assert.Null(failedReason); // duplicate click is silent now: no failure event
+        Assert.Null(failedReason);
         
         cts1.Cancel();
         await Task.WhenAny(task1, Task.Delay(1000));
@@ -159,4 +168,97 @@ public class DownloadServiceTests : IDisposable
     public void Format_selector_forces_m4a_only_on_windows_native_containers(
         bool useFfmpeg, string format, bool isWindows, string expected)
         => Assert.Equal(expected, DownloadService.ChooseFormatSelector(useFfmpeg, format, isWindows));
+
+        [Fact]
+    public async Task Changing_limit_mid_download_does_not_throw_or_lose_the_track()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang");
+        string? failure = null;
+        _service.DownloadFailed += (_, reason, _) => failure = reason;
+        
+        var cts = new CancellationTokenSource();
+        var t1 = _service.DownloadAsync("a", "https://youtube.com/watch?v=LIM1", isInteractive: false, ct: cts.Token);
+        var t2 = _service.DownloadAsync("b", "https://youtube.com/watch?v=LIM2", isInteractive: false, ct: cts.Token);
+        await Task.Delay(500);
+
+        _service.UpdateConcurrencyLimit(3);
+        _service.UpdateConcurrencyLimit(1);
+        cts.Cancel();
+        await Task.WhenAll(t1, t2);
+
+        Assert.DoesNotContain("disposed", failure ?? "", StringComparison.OrdinalIgnoreCase);
+
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "success");
+        bool done = false;
+        _service.DownloadCompleted += (_, _, _) => done = true;
+        await _service.DownloadAsync("c", "https://youtube.com/watch?v=LIM3", isInteractive: false);
+        Assert.True(done);
+    }
+
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?list=PLx&v=abc", "https://www.youtube.com/watch?v=abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc&list=RDabc&index=3&start_radio=1", "https://www.youtube.com/watch?v=abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc&t=30s&list=PLx", "https://www.youtube.com/watch?v=abc&t=30s")]
+    [InlineData("https://youtu.be/abc?list=PLx", "https://youtu.be/abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc", "https://www.youtube.com/watch?v=abc")]
+    public void StripListParam_keeps_the_video_and_drops_the_list(string input, string expected)
+        => Assert.Equal(expected, DownloadService.StripListParam(input));
+
+    [Fact]
+    public async Task Limit_changes_settle_to_the_requested_number_of_permits()
+    {
+        foreach (var step in new[] { 5, 1, 5, 3, 1, 3 })
+        {
+            _service.UpdateConcurrencyLimit(step);
+            await Task.Delay(150);
+            Assert.Equal(step, _service.AvailablePermits);
+        }
+    }
+
+    [Fact]
+    public async Task Rapid_limit_flips_do_not_leave_the_gate_stuck()
+    {
+        _service.UpdateConcurrencyLimit(5); _service.UpdateConcurrencyLimit(1); _service.UpdateConcurrencyLimit(5);
+        await Task.Delay(300);
+        Assert.Equal(5, _service.AvailablePermits);
+    }
+
+    [Fact]
+    public async Task A_second_interactive_download_does_not_cancel_the_first()
+    {
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "hang");
+        string? failed = null;
+        _service.DownloadFailed += (id, reason, _) => { if (id == "first") failed = reason; };
+        var cts = new CancellationTokenSource();
+        var t1 = _service.DownloadAsync("first",  "https://youtube.com/watch?v=INT1", ct: cts.Token);   // interactive by default
+        await Task.Delay(500);
+        var t2 = _service.DownloadAsync("second", "https://youtube.com/watch?v=INT2", ct: cts.Token);
+        await Task.Delay(500);
+        Assert.Null(failed);
+        cts.Cancel();
+        await Task.WhenAll(t1, t2);
+    }
+
+    [Theory]
+    [InlineData("https://artist.bandcamp.com/track/x", true, false)]
+    [InlineData("https://www.youtube.com/watch?v=ARGS1", false, true)]
+    public async Task Arguments_depend_on_the_source(string url, bool playlistItems, bool parseMetadata)
+    {
+        var argsFile = Path.Combine(Path.GetTempPath(), $"fy-{Guid.NewGuid():N}.txt");
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_ARGSFILE", argsFile);
+        Environment.SetEnvironmentVariable("FAKE_YTDLP_MODE", "success");
+        try
+        {
+            await _service.DownloadAsync("t", url, isInteractive: false);
+            var args = File.ReadAllLines(argsFile);
+            Assert.Equal(playlistItems, args.Contains("--playlist-items"));
+            Assert.Equal(parseMetadata, args.Contains("--parse-metadata"));
+            Assert.Contains("--encoding", args);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("FAKE_YTDLP_ARGSFILE", null);
+            try { File.Delete(argsFile); } catch { }
+        }
+    }
 }

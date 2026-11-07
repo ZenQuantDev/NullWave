@@ -20,7 +20,9 @@ public class NavigationViewModel : ViewModelBase
 {
     private readonly PreferencesService _prefs;
     private readonly PlaylistService _playlists;
+    private readonly SmartPlaylistService _smartPlaylists;
     private readonly Action<Guid> _navigateToPlaylist;
+    private readonly Action<string>? _navigateToSmartPlaylist;
     private readonly List<NavItem> _coreItems;
     private List<string> _liveOrder = new();
 
@@ -54,15 +56,19 @@ public class NavigationViewModel : ViewModelBase
     public NavigationViewModel(
         PreferencesService prefs,
         PlaylistService playlists,
+        SmartPlaylistService smartPlaylists,
         Func<ICommand> navigateLibrary,
         Func<ICommand> navigatePlaylists,
         Func<ICommand> navigateRadio,
         Func<ICommand> navigateAudiobooks,
-        Action<Guid> navigateToPlaylist)
+        Action<Guid> navigateToPlaylist,
+        Action<string> navigateToSmartPlaylist)
     {
         _prefs = prefs;
         _playlists = playlists;
+        _smartPlaylists = smartPlaylists;
         _navigateToPlaylist = navigateToPlaylist;
+        _navigateToSmartPlaylist = navigateToSmartPlaylist;
 
         _coreItems = new List<NavItem>
         {
@@ -92,13 +98,9 @@ public class NavigationViewModel : ViewModelBase
             _playlists.UpdateFolder(node.Folder);
         });
         PinPlaylistCommand = new RelayCommand<Playlist>(p => { if (p != null) PinPlaylist(p.Id, p.Name); });
-        RenameFolderCommand = new SafeRelayCommand<SidebarFolderNode>(
-    async n => await RenameFolderAsync(n),
-    errorScope: "folder"
-);        DeleteFolderCommand = new SafeRelayCommand<SidebarFolderNode>(
-    async n => await DeleteFolderAsync(n),
-    errorScope: "folder"
-);
+        RenameFolderCommand = new SafeRelayCommand<SidebarFolderNode>(async n => await RenameFolderAsync(n), errorScope: "folder");
+        DeleteFolderCommand = new SafeRelayCommand<SidebarFolderNode>(async n => await DeleteFolderAsync(n), errorScope: "folder");
+
         Items.CollectionChanged += (_, e) =>
         {
             if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Move)
@@ -137,6 +139,7 @@ public class NavigationViewModel : ViewModelBase
             if (suggestion != null) pinnedItems.Add(suggestion);
         }
 
+        // Core + pinned only. Smart playlists live inside the AI Playlists folder (see RefreshPlaylistLists).
         var all = _coreItems.Concat(pinnedItems).ToList();
         var savedOrder = _liveOrder.Count > 0 ? _liveOrder : _prefs.Current.NavOrder;
 
@@ -195,6 +198,7 @@ public class NavigationViewModel : ViewModelBase
 
     public void PinPlaylist(Guid playlistId, string label)
     {
+        if (_playlists.GetById(playlistId) == null) return; // guard: virtual/smart playlists can't be pinned
         var key = $"pin:{playlistId}";
         if (_prefs.Current.PinnedItems.Any(p => p.Key == key)) return;
 
@@ -263,13 +267,14 @@ public class NavigationViewModel : ViewModelBase
             FolderNodes.Add(node);
         }
 
+        InjectSmartPlaylistsIntoFolder();
+
         foreach (var item in Items)
         {
             if (item.Type == NavItemType.PinnedPlaylist && item.TargetPlaylistId.HasValue)
                 Decorate(item, _playlists.GetById(item.TargetPlaylistId!.Value));
         }
 
-        // 3.1 FIX: keep persisted pin labels in sync with renames/migration
         bool pinsDirty = false;
         foreach (var pin in _prefs.Current.PinnedItems)
         {
@@ -281,14 +286,62 @@ public class NavigationViewModel : ViewModelBase
                 pinsDirty = true;
             }
         }
-        
-        if (pinsDirty) 
+
+        if (pinsDirty)
         {
-            // Trigger the debounced save by reassigning the list reference
             var updatedPins = _prefs.Current.PinnedItems.ToList();
             _prefs.Update(p => p.PinnedItems = updatedPins);
-        }    
-        // 3.1 FIX: Removed manual _prefs.Save() here. Update() handles it.
+        }
+    }
+
+    /// <summary>
+    /// Smart playlists are virtual (no DB rows). We surface them as read-only placeholder
+    /// Playlist objects inside the "AI Playlists" folder so they collapse/expand like
+    /// normal playlists and are never pinned to the top level.
+    /// </summary>
+    private void InjectSmartPlaylistsIntoFolder()
+    {
+        var node = FolderNodes.FirstOrDefault(n => string.Equals(n.Folder.Name, "AI Playlists", StringComparison.OrdinalIgnoreCase));
+        if (node == null)
+        {
+            if (FolderNodes.Count == 0)
+            {
+                node = new SidebarFolderNode(new PlaylistFolder { Name = "AI Playlists" });
+                FolderNodes.Add(node);
+            }
+            else return; // no AI folder and other folders exist: leave smart playlists hidden rather than misfiled
+        }
+
+        foreach (var def in _smartPlaylists.All)
+        {
+            var virtualId = SmartPlaylistIds.ToGuid(def.Id);
+            if (virtualId == Guid.Empty) continue;
+
+            var placeholder = new Playlist
+            {
+                Id = virtualId,
+                Name = GetSmartDisplayName(def),
+                Description = "Smart playlist · auto-updates"
+            };
+
+            foreach (var track in _smartPlaylists.Resolve(def))
+                placeholder.Tracks.Add(track);
+
+            node.Playlists.Add(placeholder);
+        }
+    }
+
+    private static string GetSmartDisplayName(SmartPlaylistDefinition def)
+    {
+        var loc = LocalizationService.Instance[def.NameKey];
+        if (!string.IsNullOrEmpty(loc) && !loc.StartsWith("[")) return loc;
+        return def.Id switch
+        {
+            "smart.recently-added"      => "Recently Added",
+            "smart.most-played"         => "Most Played",
+            "smart.forgotten-favorites" => "Forgotten Favorites",
+            _ => def.NameKey
+        };
     }
 
     private void MoveUp(NavItem? item)
@@ -329,7 +382,7 @@ public class NavigationViewModel : ViewModelBase
 
         var dialog = new Views.CreateFolderDialog(node.Folder.Name);
         var name = await DialogService.Instance.ShowDialogAsync<string?>(dialog);
-        
+
         if (string.IsNullOrWhiteSpace(name)) return;
 
         _playlists.RenameFolder(node.Folder.Id, name);
@@ -345,7 +398,7 @@ public class NavigationViewModel : ViewModelBase
             $"Delete '{node.Folder.Name}'? Playlists inside move to the top level."
         );
         var ok = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
-        
+
         if (!ok) return;
 
         var folderSnapshot = node.Folder;

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -36,10 +37,17 @@ public partial class LibraryViewModel
         if (SelectedTrack?.Id == targetId) SelectedTrack = null;
         var undoTrack = target;
 
-        // 2.5 FIX: Capture playlist memberships BEFORE removing the track
+        bool recycleFile = false;
+        if (!string.IsNullOrEmpty(target.FilePath) && File.Exists(target.FilePath))
+        {
+            var msg = $"Remove '{target.Title}' from your library?\n\nDo you also want to send the audio file to the Recycle Bin?";
+            recycleFile = await DialogService.Instance.ShowDialogAsync<bool>(new Views.ConfirmDialog("Remove Track", msg));
+        }
+
         var memberships = GetPlaylistMemberships?.Invoke(targetId) ?? new List<Guid>();
 
-        await Task.Run(() => _library.Remove(targetId));
+        bool shouldRecycle = recycleFile;
+        await Task.Run(() => _library.Remove(targetId, shouldRecycle));
         NullActionLogger.TrackRemoved(targetId.ToString(), "LibraryViewModel");
         TriggerRefresh(debounce: false);
 
@@ -49,7 +57,7 @@ public partial class LibraryViewModel
                 _library.Add(undoTrack); 
                 RestorePlaylistMemberships?.Invoke(undoTrack, memberships);
                 TriggerRefresh(debounce: false); 
-                ToastService.Instance.Show("Track restored.", ToastType.Success, durationMs: 2000, scope: "library-delete"); 
+                ToastService.Instance.Show("Track restored to library.", ToastType.Success, durationMs: 2000, scope: "library-delete"); 
             },
             scope: "library-delete");
     }

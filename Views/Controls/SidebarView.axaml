@@ -1,4 +1,4 @@
-﻿<Border xmlns="https://github.com/avaloniaui"
+<Border xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:models="using:NullWave.Models"
@@ -65,11 +65,11 @@
                             <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}"
                                     BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeMd}"
                                                Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding Tracks.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
-                                        <TextBlock Text="{loc:Loc Sidebar_Label_Tracks}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                        <TextBlock Text="{Binding Tracks.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        <TextBlock Text="{loc:Loc Sidebar_Label_Tracks}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -460,10 +460,10 @@
                                             <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}"
                                                     BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
                                                 <StackPanel Spacing="4">
-                                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="13"
+                                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeMd}"
                                                                Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}"
-                                                               Foreground="{DynamicResource BrushTextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                               Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                             </Border>
                                         </ToolTip.Tip>
@@ -544,11 +544,11 @@
                                                 <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}"
                                                         BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12,10" MinWidth="180">
                                                     <StackPanel Spacing="4">
-                                                        <TextBlock Text="{Binding Folder.Name}" FontWeight="SemiBold" FontSize="13"
+                                                        <TextBlock Text="{Binding Folder.Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeMd}"
                                                                    Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <TextBlock Text="{Binding Playlists.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
-                                                            <TextBlock Text="Playlists" Foreground="{DynamicResource BrushTextMuted}" FontSize="11"/>
+                                                            <TextBlock Text="{Binding Playlists.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                                            <TextBlock Text="Playlists" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>

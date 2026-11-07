@@ -38,6 +38,7 @@ public class TrackRecord
     public bool TitleForceCleaned { get; set; } = false;
     public string? Album { get; set; }
     public int TrackNumber { get; set; } = 0;
+    public bool IsOffline { get; set; }
 
     public static TrackRecord FromTrack(Track t) => new()
     {
@@ -60,6 +61,7 @@ public class TrackRecord
         MediaType = t.MediaType.ToString(),
         PlaybackPositionTicks = t.PlaybackPositionTicks,
         TitleForceCleaned = t.TitleForceCleaned,
+        IsOffline = t.IsOffline,
         Album = t.Album,
         TrackNumber = t.TrackNumber,
     };
@@ -87,6 +89,7 @@ public class TrackRecord
         MediaType = Enum.TryParse<global::NullWave.Models.MediaType>(MediaType, out var mt) ? mt : global::NullWave.Models.MediaType.Music,
         PlaybackPositionTicks = PlaybackPositionTicks,
         TitleForceCleaned = TitleForceCleaned,
+        IsOffline = IsOffline,
         Album = Album,
         TrackNumber = TrackNumber,
     };

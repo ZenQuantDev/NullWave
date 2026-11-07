@@ -25,7 +25,7 @@ namespace NullWave.ViewModels;
 public partial class MainViewModel : ViewModelBase, IDisposable
 {
     // --- Fields & Services ---
-    private readonly KeyStoreService _keyStore = new();
+    private readonly KeyStoreService _keyStore = new(Path.Combine(NullWavePaths.DataDir, "keys.enc"));
     private SecureDeleteService _secureDelete = null!;
     private ConfigService _config = null!;
     private LibraryService _library = null!;
@@ -56,6 +56,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _initialMoodPlaylistRun;
     private DispatcherTimer? _libRefreshTimer;
     private bool _isMaintenanceRunning;
+    private ProviderRegistry _providerRegistry = null!;
+    public ProviderRegistry ProviderRegistry => _providerRegistry;
 
     // --- UI State Properties ---
     private bool _isMenuBarVisible;
@@ -186,6 +188,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public UserProfileViewModel Profile { get; private set; } = null!;
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
+    public LibraryService LibraryService => _library;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public const double RightPanelWidth = 320;

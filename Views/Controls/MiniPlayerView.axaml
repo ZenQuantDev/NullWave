@@ -5,6 +5,7 @@
         xmlns:attached="using:NullWave.Helpers.Attached"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:services="using:NullWave.Services"
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
@@ -223,7 +224,16 @@
                 <material:MaterialIcon Kind="{Binding Player.VolumeIconKind}" Width="20" Height="20"/>
             </Button>
             
-            <Slider Value="{Binding Player.Volume, Mode=TwoWay}" Minimum="0" Maximum="1" Width="90" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Volume}"/>
+            <controls:WaveSeekBar Value="{Binding Player.Volume, Mode=TwoWay}"
+                                  Minimum="0" Maximum="1"
+                                  IsPlaying="{Binding Player.IsPlaying}"
+                                  Animate="{Binding CanAnimateSeekWave, FallbackValue=True}"
+                                  WaveBrush="{DynamicResource BrushAccent}"
+                                  GrooveBrush="{DynamicResource BrushBorder}"
+                                  ThumbBrush="{DynamicResource BrushAccent}"
+                                  Width="120" Height="32"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Volume}"/>
         </StackPanel>
     </Grid>
 </Border>

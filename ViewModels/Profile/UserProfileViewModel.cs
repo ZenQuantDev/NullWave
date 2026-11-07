@@ -38,6 +38,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     private readonly PreferencesService _prefs;
     private readonly IdentityService _identity;
     private readonly PropertyChangedEventHandler _langHandler;
+    private readonly Action<HashSet<string>> _prefsHandler;
     private readonly string _badgesPath;
     private List<SignedBadge> _grantedBadges = new();
 
@@ -108,6 +109,16 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         _library = library;
         _prefs = prefs;
         _identity = identity;
+        _prefsHandler = changed =>
+        {
+            if (!changed.Contains(nameof(Preferences.ForceAllFeatures)) &&
+                !changed.Contains(nameof(Preferences.EnableExperimentalFeatures)))
+                return;
+
+            OnPropertyChanged(nameof(IsExperimentalModeActive));
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
+        };
+        _prefs.Changed += _prefsHandler;
         _badgesPath = NullWavePaths.BadgesPath;
         Load();
         _savedUsername = _username; _savedBio = _bio; _savedHasAvatar = HasAvatar; _savedAvatarPath = _avatarPath; _savedBannerImagePath = _bannerImagePath;
@@ -143,6 +154,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public bool IsDirty => _username != _savedUsername || _bio != _savedBio || HasAvatar != _savedHasAvatar || _avatarPath != _savedAvatarPath || _bannerImagePath != _savedBannerImagePath;
     public bool ShowSaveToast { get => _showSaveToast; private set { _showSaveToast = value; OnPropertyChanged(); } }
     public bool IsExperimentalModeActive => _prefs.Current.EnableExperimentalFeatures || CheckDevAccess();
+    public bool ShowAdvancedFeatures => _prefs.Current.ForceAllFeatures || IsExperimentalModeActive;
 
     
     public int TotalTracks => _totalTracks;
@@ -270,6 +282,7 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     {
         _saveTimer?.Dispose();
         LocalizationService.Instance.PropertyChanged -= _langHandler;
+        _prefs.Changed -= _prefsHandler;
         if (_library != null) _library.LibraryChanged -= OnLibraryChanged;
         _statsTimer?.Stop();
     }

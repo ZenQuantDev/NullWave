@@ -12,7 +12,7 @@
   </UserControl.Resources>
 
   <StackPanel Spacing="0">
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_ThemeMode}" Margin="0,0,0,12"/>
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_ThemeMode}" Margin="{StaticResource MarginSectionLabel}"/>
     <Border Classes="settings-card">
       <UniformGrid Columns="4">
         <Button Classes="card-select" Margin="0,0,6,0" Padding="10" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" ToolTip.Tip="{loc:Loc Settings_Appearance_Theme_Dark_Desc}" AutomationProperties.Name="{loc:Loc Settings_Appearance_Theme_Dark}">

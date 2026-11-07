@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -50,7 +51,9 @@ public class DownloadService
             Url = url,
             Title = title,
             Artist = artist,
-            RetryAction = () => _ = DownloadAsync(trackId, url)
+            RetryAction = () => _ = DownloadAsync(trackId, url,
+                _prefsService.Current.AudioFormat, _prefsService.Current.AudioQuality,
+                title: title, artist: artist)
         };
         
         void AddJob() => ActiveJobs.Insert(0, job);
@@ -106,6 +109,7 @@ public class DownloadService
     public event Action<int>? PlaylistBatchStarted;
     public event Action<int, int, int>? PlaylistBatchProgress;
     public event Action<int, int, int>? PlaylistBatchCompleted;
+    public event Action<string, int, int>? PlaylistTrackStarted;
 
     private static readonly Regex ProgressRegex = new(
         @"\[download\]\s+([\d.]+)%", RegexOptions.Compiled);
@@ -115,12 +119,23 @@ public class DownloadService
     private static readonly Regex SiParamRegex1 = new(@"&si=[^&]*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex2 = new(@"\?si=[^&]*&", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SiParamRegex3 = new(@"\?si=[^&]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    
+    private static readonly Regex ListParamRegex = new(@"[?&]list=[^&]*", RegexOptions.Compiled);
+    private static readonly Regex YtIdRegex = new(@"(?:[?&]v=|youtu\.be/)([A-Za-z0-9_-]{11})", RegexOptions.Compiled);
+    private static readonly string[] AudioExts = { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" };
 
     private readonly HashSet<string> _activeDownloads = new();
+    private readonly HashSet<string> _activePlaylists = new(); 
+    private static readonly Regex ListIdRegex = new(@"[?&]list=([^&]+)", RegexOptions.Compiled);
     private int _activeDownloadCount; 
     private CancellationTokenSource? _currentDownloadCts;
-    private SemaphoreSlim _semaphore = new(2, 5);
+    
+    // Never replace or dispose the semaphore
+    private readonly SemaphoreSlim _gate = new(2, 5);
     private int _currentLimit = 2;
+    private int _shrinkDebt;
+    private readonly object _limitLock = new();
+    
     private static bool? _aria2cAvailable;
     private static readonly object _aria2cLock = new();
     private static bool? _ffmpegAvailable;
@@ -131,14 +146,74 @@ public class DownloadService
     private static string? _cachedJsRuntime;
     private static bool _jsRuntimeProbed;
 
+    // Cookie fallback state
+    private volatile bool _cookiesDisabledForSession;
+    private int _cookieWarned;
+    private readonly ConcurrentDictionary<string, DownloadFailureKind> _failureKinds = new();
+
+    private bool CookiesActive =>
+        !_cookiesDisabledForSession && !string.IsNullOrWhiteSpace(_prefsService.Current.YtDlpBrowserCookies);
+
+    private void DisableCookiesForSession(string reason)
+    {
+        _cookiesDisabledForSession = true;
+        if (Interlocked.Exchange(ref _cookieWarned, 1) != 0) return;
+        
+        Log.Warning("[DownloadService] Browser cookies unusable ({Reason}); continuing without them this session", reason);
+        ToastService.Instance.Show(
+            "Couldn't read your browser's cookies (close the browser, or clear the cookie setting). Downloading without them.",
+            ToastType.Warning, scope: "download-cookies");
+    }
+
+    internal static string StripListParam(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return url;
+        var q = System.Web.HttpUtility.ParseQueryString(u.Query);
+        if (q["list"] == null) return url;
+        q.Remove("list"); q.Remove("index"); q.Remove("start_radio");
+        return new UriBuilder(u) { Query = q.ToString() }.Uri.AbsoluteUri;
+    }
+
     public void UpdateConcurrencyLimit(int newLimit)
     {
         newLimit = Math.Clamp(newLimit, 1, 5);
-        if (newLimit == _currentLimit) return;
-        var old = _semaphore;
-        _semaphore = new SemaphoreSlim(newLimit, 5);
-        _currentLimit = newLimit;
-        old.Dispose();
+        int release = 0, absorb = 0;
+        lock (_limitLock)
+        {
+            var delta = newLimit - _currentLimit; 
+            _currentLimit = newLimit;
+            if (delta > 0) 
+            { 
+                var repay = Math.Min(delta, _shrinkDebt); 
+                _shrinkDebt -= repay; 
+                release = delta - repay; 
+            }
+            else 
+            { 
+                _shrinkDebt += -delta; 
+                absorb = -delta; 
+            }
+        }
+        
+        if (release > 0) _gate.Release(release);
+        
+        for (var i = 0; i < absorb; i++)
+        {
+            _ = Task.Run(async () => 
+            { 
+                await _gate.WaitAsync(); 
+                lock (_limitLock) 
+                { 
+                    if (_shrinkDebt > 0) 
+                    { 
+                        _shrinkDebt--; 
+                        return; 
+                    } 
+                } 
+                _gate.Release(); 
+            });
+        }
+
         Log.Information("[DownloadService] Concurrency limit updated to {Limit}", newLimit);
     }
 
@@ -153,11 +228,18 @@ public class DownloadService
 
     public void CancelCurrentDownload()
     {
-        _currentDownloadCts?.Cancel();
+        var cts = _currentDownloadCts;
+        if (cts == null || cts.IsCancellationRequested) return;
+        
+        cts.Cancel();
         Log.Debug("[DownloadService] Current download cancelled by caller");
     }
 
-    // --- Unified ProcessRunner Detection ---
+    public bool IsDownloading(string url) 
+    { 
+        lock (_activeDownloads) return _activeDownloads.Contains(url); 
+    }
+
     private static async Task<bool> IsAria2cAvailableAsync()
     {
         if (_aria2cAvailable == true) return true;
@@ -190,55 +272,72 @@ public class DownloadService
         return false;
     }
 
-
-
-    private static string? GetJsRuntimeArg()
+    private static string? ResolveOnPath(string name)
     {
-        if (_jsRuntimeProbed) return _cachedJsRuntime;
-
-        static bool OnPath(string name)
+        var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
+        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
-            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
-            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return true; } catch { }
-            }
-            return false;
+            try { var p = Path.Combine(dir.Trim(), exe); if (File.Exists(p)) return p; } catch { }
         }
-
-        string? result = null;
-        bool found = false;
-        if (OnPath("deno")) { result = null; found = true; }      // yt-dlp's default
-        else if (OnPath("node")) { result = "node"; found = true; }
-        else if (OnPath("bun")) { result = "bun"; found = true; }
-
-        if (found)
-        {
-            _cachedJsRuntime = result;
-            _jsRuntimeProbed = true;
-        }
-        return result;
+        return null;
     }
 
-    private static bool HasAnyJsRuntime()
+    /// <summary>"major.minor.patch" from "v22.1.0" or "deno 2.3.1 (...)"; null if unreadable.</summary>
+    internal static Version? ParseVersion(string? text)
     {
-        static bool OnPath(string name)
-        {
-            var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
-            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-            foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                try { if (File.Exists(Path.Combine(dir.Trim(), exe))) return true; } catch { }
-            }
-            return false;
-        }
-        return OnPath("deno") || OnPath("node") || OnPath("bun");
+        var m = System.Text.RegularExpressions.Regex.Match(text ?? "", @"(\d+)\.(\d+)\.(\d+)");
+        return m.Success ? new Version(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value)) : null;
     }
 
-    private void AppendSpeedAndAuthArgs(List<string> args, bool useAria2c)
+    private static bool _jsRuntimeFound;
+    private static long _negativeProbeTicks;
+
+    private static async Task<bool> RuntimeOkAsync(string name, Version min)
     {
-        var jsRuntime = GetJsRuntimeArg();
+        var path = ResolveOnPath(name);
+        if (path == null) return false;
+        var r = await ProcessRunner.RunAsync(path, new[] { "--version" }, TimeSpan.FromSeconds(3), resolveViaPath: false);
+        return r.ExitCode == 0 && ParseVersion(r.StandardOutput) is { } v && v >= min;
+    }
+
+    private static async Task<string?> GetJsRuntimeArgAsync()
+    {
+        // FIX: Only return early if we found a runtime, OR if the 2-minute negative cache hasn't expired
+        if (_jsRuntimeProbed && (_jsRuntimeFound || Environment.TickCount64 - _negativeProbeTicks <= 120_000)) 
+            return _cachedJsRuntime;
+            
+        await ProbeJsAsync();
+        return _cachedJsRuntime;
+    }
+
+    private static async Task<bool> ProbeJsAsync()
+    {
+        if (_jsRuntimeProbed) 
+        {
+            if (!_jsRuntimeFound && Environment.TickCount64 - _negativeProbeTicks > 120_000) 
+                _jsRuntimeProbed = false;
+            else 
+                return _jsRuntimeFound;
+        }
+        
+        if (await RuntimeOkAsync("deno", new Version(2, 3, 0))) 
+        { _cachedJsRuntime = null; _jsRuntimeFound = true; _jsRuntimeProbed = true; }
+        else if (await RuntimeOkAsync("node", new Version(22, 0, 0))) 
+        { _cachedJsRuntime = "node"; _jsRuntimeFound = true; _jsRuntimeProbed = true; }
+        else 
+        { 
+            _jsRuntimeFound = false; _jsRuntimeProbed = true; 
+            _negativeProbeTicks = Environment.TickCount64;
+        }
+        return _jsRuntimeFound;
+    }
+
+    private static bool HasAnyJsRuntime() => _jsRuntimeFound;
+
+    private async Task AppendSpeedAndAuthArgsAsync(List<string> args, bool useAria2c)
+    {
+        YtDlpArgs.AppendNetworkArgs(args, _prefsService.Current);
+        var jsRuntime = await GetJsRuntimeArgAsync();
         if (jsRuntime is { } runtime)
         {
             args.Add("--js-runtimes");
@@ -252,19 +351,95 @@ public class DownloadService
             args.Add("aria2c:-x 16 -k 1M -s 16");
         }
 
-        var browserCookies = _prefsService.Current.YtDlpBrowserCookies;
-        if (!string.IsNullOrWhiteSpace(browserCookies))
+        // FIXED: Use CookiesActive instead of raw preference check
+        if (CookiesActive)
         {
             args.Add("--cookies-from-browser");
-            args.Add(browserCookies);
+            args.Add(_prefsService.Current.YtDlpBrowserCookies);
         }
     }
 
     private int GetThrottleDelayMs()
     {
-        return string.IsNullOrWhiteSpace(_prefsService.Current.YtDlpBrowserCookies)
+        // FIXED: Use CookiesActive instead of raw preference check
+        return !CookiesActive
             ? Random.Shared.Next(3000, 8000)
             : Random.Shared.Next(600, 1800);
+    }
+
+    public bool HasConsent() => _prefsService.Current.DownloaderConsent is { IsCurrent: true };
+
+    private readonly object _consentGate = new();
+    private Task<bool>? _consentTask;
+
+    /// <summary>
+    /// Single-flight consent prompt. If multiple downloads start simultaneously, 
+    /// only one dialog is shown.
+    /// </summary>
+    public Task<bool> EnsureConsentAsync()
+    {
+        if (HasConsent()) return Task.FromResult(true);
+        lock (_consentGate) return _consentTask ??= PromptConsentAsync();
+    }
+
+    private async Task<bool> PromptConsentAsync()
+    {
+        await Task.Yield();
+        try
+        {
+            bool accepted = false;
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var window = new Views.Dialogs.DownloaderConsentView();
+                var vm = new ViewModels.Dialogs.DownloaderConsentViewModel(
+                    _prefsService,
+                    onAccepted: () => window.Close(true),
+                    onDeclined: () => window.Close(false)
+                );
+                window.DataContext = vm;
+
+                var mainWindow = Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+                if (mainWindow != null)
+                {
+                    accepted = await window.ShowDialog<bool>(mainWindow);
+                }
+            });
+
+            if (accepted)
+            {
+                Log.Information("[DownloadService] User accepted downloader consent");
+                return true;
+            }
+
+            Log.Information("[DownloadService] User declined downloader consent");
+            ToastService.Instance.Show("Downloads remain disabled. Enable them in Settings → Downloads.", ToastType.Info, scope: "download");
+            return false;
+        }
+        finally
+        {
+            lock (_consentGate) _consentTask = null;
+        }
+    }
+
+    /// <summary>
+    /// Central gate for all download entry points. Prompts if interactive, logs and refuses if background.
+    /// </summary>
+    private async Task<bool> GateConsentAsync(bool interactive)
+    {
+        if (HasConsent()) return true;
+        
+        if (interactive) return await EnsureConsentAsync();
+        
+        Log.Warning("[DownloadService] Download blocked: consent not given or outdated");
+        ToastService.Instance.Show(
+            "Please accept the downloader terms in Settings → Downloads",
+            ToastType.Warning,
+            scope: "download");
+        return false;
     }
     
     public async Task DownloadAsync(
@@ -278,6 +453,12 @@ public class DownloadService
         string? artist = null,
         CancellationToken ct = default)
     {
+        if (!await GateConsentAsync(isInteractive))
+        {
+            DownloadFailed?.Invoke(trackId, "Download terms not accepted", isInteractive);
+            return;
+        }
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uriResult) || 
             (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
         {
@@ -293,15 +474,26 @@ public class DownloadService
             url = SiParamRegex3.Replace(url, "");
         }
 
-        if (!allowPlaylist && (url.Contains("list=") || url.Contains("playlist?")))
+        if (!allowPlaylist && url.Contains("playlist?", StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[DownloadService] Blocked playlist URL in single-track pipeline: {Url}", url);
             DownloadFailed?.Invoke(trackId, "Playlist URLs are not supported in single-track mode", isInteractive);
             return;
         }
 
+        if (!allowPlaylist && url.Contains("list=", StringComparison.OrdinalIgnoreCase))
+        {
+            url = StripListParam(url);
+            Log.Information("[DownloadService] Stripped list= parameter from URL: {Url}", url);
+        }
+
         var safeDownloadDir = Path.GetFullPath(_downloadDir);
-        var outputTemplate = Path.Combine(safeDownloadDir, "%(title).150B [%(id)s].%(ext)s");
+        var trackHash = trackId.Length >= 8 ? trackId[..8] : trackId;
+        // FIX: Inject a unique NullWave hash so we can ALWAYS find the file, even on Bandcamp/SoundCloud
+        // Use FileNamer-compatible template for consistency
+// Format: {title} [nw-{id8}-{videoId}].{ext}
+// The [nw-{id8}] suffix allows TryRelink to find files even if renamed
+var outputTemplate = Path.Combine(safeDownloadDir, $"%(title).180s [nw-{trackHash}-%(id)s].%(ext)s");
         
         var qualityValue = audioQuality switch
         {
@@ -309,19 +501,22 @@ public class DownloadService
         };
 
         var useFfmpeg = await IsFfmpegAvailableAsync();
-
-        // If ffmpeg is missing, or if the user selected "best" (which skips --extract-audio),
-        // yt-dlp will download the native container (often WebM/Opus on YouTube).
-        // Our pruned Windows VLC build lacks the Matroska/WebM demuxer.
-        // Force m4a (AAC in MP4 container) on Windows to guarantee playback.
         var formatSelector = ChooseFormatSelector(useFfmpeg, audioFormat, OperatingSystem.IsWindows());
 
         var args = new List<string>
         {
-            url, "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
-            "--ignore-errors",
-            "--parse-metadata", "uploader:%(artist)s", "--parse-metadata", "channel:%(artist)s"
+            "-f", formatSelector, "--output", outputTemplate, "--print", "after_move:filepath",
+            "--ignore-errors"
         };
+
+        var src = SourceDetector.Detect(url);
+        var videoId = src == TrackSource.YouTube && YtIdRegex.Match(url) is { Success: true } idm ? idm.Groups[1].Value : null;
+
+        if (src is TrackSource.YouTube or TrackSource.SoundCloud)
+        {
+            args.Add("--parse-metadata"); args.Add("uploader:%(artist)s");
+            args.Add("--parse-metadata"); args.Add("channel:%(artist)s");
+        }
         if (useFfmpeg)
         {
             args.Add("--embed-metadata");
@@ -330,8 +525,10 @@ public class DownloadService
             {
                 args.Add("--embed-thumbnail");
                 args.Add("--extract-audio");
+                // FIX: yt-dlp doesn't accept "ogg", it expects "vorbis" or "opus"
+                var ytDlpFormat = audioFormat.Equals("ogg", StringComparison.OrdinalIgnoreCase) ? "vorbis" : audioFormat;
                 args.Add("--audio-format");
-                args.Add(audioFormat);
+                args.Add(ytDlpFormat);
                 args.Add("--audio-quality");
                 args.Add(qualityValue);
             }
@@ -342,17 +539,27 @@ public class DownloadService
         }
 
         var useAria2c = _prefsService.Current.UseAria2c && await IsAria2cAvailableAsync();
-        AppendSpeedAndAuthArgs(args, useAria2c);
+        await AppendSpeedAndAuthArgsAsync(args, useAria2c);
 
         if (!allowPlaylist) args.Add("--no-playlist");
         else args.Add("--yes-playlist");
+
+        if (!allowPlaylist && src != TrackSource.YouTube)
+        {
+            args.Add("--playlist-items");
+            args.Add("1");
+        }
+
+        // SECURITY: Defense in depth against URLs starting with '-'
+        args.Add("--");
+        args.Add(url);
 
         lock (_activeDownloads)
         {
             if (_activeDownloads.Contains(url))
             {
                 Log.Debug("[DownloadService] Skipping duplicate download for {Url}", url);
-                return; // Silent return — duplicate clicks aren't errors, no toast needed
+                return;
             }
             _activeDownloads.Add(url);
         }
@@ -360,54 +567,33 @@ public class DownloadService
         CancellationTokenSource cts;
         lock (this)
         {
-            if (isInteractive)
-            {
-                _currentDownloadCts?.Cancel();
-                cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                _currentDownloadCts = cts;
-            }
-            else
-            {
-                cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            }
+            cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            if (isInteractive) _currentDownloadCts = cts; // Stop button still targets the latest
         }
 
         cts.CancelAfter(TimeSpan.FromMinutes(20));
         ct = cts.Token;
 
-        Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
-
-        SemaphoreSlim? acquiredSemaphore = null;
         var activeDownloadCounted = false;
         DownloadJob? job = null;
 
         try
         {
-            var sem = _semaphore;
-            try
-            {
-                await sem.WaitAsync(ct);
-            }
-            catch (ObjectDisposedException)
-            {
-                Log.Debug("[DownloadService] Semaphore rebuilt mid-wait, re-acquiring");
-                sem = _semaphore;
-                await sem.WaitAsync(ct);
-            }
-            acquiredSemaphore = sem;
-
+            job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
+            job.Status = "Queued..."; // FIX: Show queued status while waiting for semaphore
+            job.IsIndeterminate = true;
+            // Wait for an open slot in the concurrency gate
+            await _gate.WaitAsync(ct);
             Interlocked.Increment(ref _activeDownloadCount);
             activeDownloadCounted = true;
-
-            job = GetOrCreateJob(trackId, url, title ?? "Track", artist ?? "Unknown");
-            job.Status = "Downloading...";
+            job.Status = "Downloading..."; // Now it's actually downloading
             job.IsIndeterminate = false;
-
+            Log.Debug("Starting download: {Url} (format={Format}, quality={Quality})", url, audioFormat, audioQuality);
             string? outputFilePath = null;
-
-            // --- STEP E: Unified ProcessRunner Execution ---
             var recentStdErr = new List<string>();
-            var result = await ProcessRunner.RunWithStreamingAsync(
+
+            // FIXED: Wrap the run in a lambda so we can retry without cookies
+            var run = () => ProcessRunner.RunWithStreamingAsync(
                 "yt-dlp", args,
                 onStdOutLine: line =>
                 {
@@ -423,9 +609,18 @@ public class DownloadService
                         job.Progress = pct;
                         return;
                     }
+                    // 1. Raw path output
                     if (line.StartsWith("/") || line.StartsWith("~") || Regex.IsMatch(line, @"^[A-Za-z]:[\\/]"))
                     {
-                        outputFilePath = line;
+                        outputFilePath = line.Trim().Trim('"');
+                        return;
+                    }
+
+                    // 2. Catch "Destination: " or "[Merger] Merging formats into "
+                    var destMatch = Regex.Match(line, @"(?:Destination:\s*|Merging formats into\s*""|Moving to\s*"")([A-Za-z]:\\[^\r\n""]+|/[^\r\n""]+)");
+                    if (destMatch.Success)
+                    {
+                        outputFilePath = destMatch.Groups[1].Value.Trim().Trim('"');
                         return;
                     }
                     Log.Debug("yt-dlp: {Line}", line);
@@ -438,7 +633,8 @@ public class DownloadService
                         if (recentStdErr.Count >= 20) recentStdErr.RemoveAt(0);
                         recentStdErr.Add(line);
 
-                        if (line.Contains("429") || line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
+                        if (line.Contains("HTTP Error 429") || 
+                            line.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
                         {
                             lock (_aria2cLock) { _rateLimitTriggered = true; }
                         }
@@ -447,6 +643,22 @@ public class DownloadService
                 timeout: TimeSpan.FromMinutes(20),
                 ct: ct,
                 resolveViaPath: true);
+
+            var result = await run();
+
+            // FIXED: Cookie retry logic
+            if (result.ExitCode != 0 && !result.Canceled && !result.TimedOut
+                && args.Contains("--cookies-from-browser")
+                && DownloadFailureClassifier.Classify(string.Join("\n", recentStdErr), HasAnyJsRuntime())
+                    == DownloadFailureKind.CookiesUnusable)
+            {
+                DisableCookiesForSession(recentStdErr.LastOrDefault() ?? "");
+                var i = args.IndexOf("--cookies-from-browser");
+                args.RemoveRange(i, 2);
+                recentStdErr.Clear();
+                outputFilePath = null;
+                result = await run();
+            }
 
             if (result.Canceled || result.TimedOut)
             {
@@ -470,10 +682,13 @@ public class DownloadService
             }
             else if (result.ExitCode == 0)
             {
-                var recent = FindMostRecentUnlinkedDownload(title);
+                if (outputFilePath != null)
+                    Log.Warning("[DownloadService] yt-dlp printed a path that doesn't exist: {Path}", outputFilePath);
+                    
+                var recent = FindMostRecentUnlinkedDownload(title, videoId, trackHash);
                 if (recent != null)
                 {
-                    Log.Warning("[DownloadService] filepath not captured, using most recent: {Path}", recent);
+                    Log.Information("[DownloadService] output located via fallback: {Path}", recent);
                     job.IsCompleted = true;
                     job.Status = "Completed";
                     job.Progress = 100;
@@ -495,24 +710,24 @@ public class DownloadService
                 job.IsFailed = true;
                 job.Status = "Failed";
                 
+                // FIXED: Use classifier for better error messages
                 var errText = string.Join("\n", recentStdErr);
-                string friendlyError = $"yt-dlp exited with code {result.ExitCode}";
-
-                if ((errText.Contains("n challenge", StringComparison.OrdinalIgnoreCase) || 
-                    errText.Contains("Requested format is not available", StringComparison.OrdinalIgnoreCase)) 
-                    && !HasAnyJsRuntime())
+                await ProbeJsAsync(); // Ensure we have the latest probe result for the classifier
+                var kind = DownloadFailureClassifier.Classify(errText, HasAnyJsRuntime());
+                var detail = recentStdErr.LastOrDefault(l => l.Contains("ERROR", StringComparison.OrdinalIgnoreCase))
+                             ?? recentStdErr.LastOrDefault() ?? $"exit code {result.ExitCode}";
+                
+                var friendlyError = kind switch
                 {
-                    friendlyError = "YouTube signature error: Install Node.js, Deno, or Bun.";
-                }
-                else if (errText.Contains("not a bot", StringComparison.OrdinalIgnoreCase))
-                {
-                    friendlyError = "YouTube rate limit: Try using browser cookies in Settings.";
-                }
-                else if (errText.Contains("HTTP Error 429", StringComparison.OrdinalIgnoreCase))
-                {
-                    friendlyError = "YouTube rate limit (429): Wait a few minutes or use browser cookies.";
-                }
-
+                    DownloadFailureKind.CookiesUnusable   => "Browser cookies couldn't be read. Close the browser or clear the cookie setting.",
+                    DownloadFailureKind.BotCheck          => "YouTube wants a sign-in check. Try browser cookies in Settings.",
+                    DownloadFailureKind.RateLimited       => "YouTube rate limit (429). Wait a few minutes.",
+                    DownloadFailureKind.JsRuntimeMissing  => "YouTube signatures error. Install Deno 2.3+ or Node 22+.",
+                    DownloadFailureKind.Unavailable       => "This video is unavailable.",
+                    _                                     => $"yt-dlp failed: {detail}"
+                };
+                
+                _failureKinds[trackId] = kind;
                 job.ErrorMessage = friendlyError;
                 DownloadFailed?.Invoke(trackId, friendlyError, isInteractive);
                 PruneCompletedJobs();
@@ -533,8 +748,11 @@ public class DownloadService
         }
         finally
         {
-            if (activeDownloadCounted) Interlocked.Decrement(ref _activeDownloadCount);
-            acquiredSemaphore?.Release();
+            if (activeDownloadCounted)
+            {
+                Interlocked.Decrement(ref _activeDownloadCount);
+                _gate.Release(); // FIXED: Always release the gate
+            }
             lock (_activeDownloads)
                 _activeDownloads.Remove(url);
         }
@@ -548,13 +766,72 @@ public class DownloadService
         Action<string, string>? onTrackFailed = null,
         CancellationToken ct = default)
     {
+        // Extract playlist ID for deduplication
+        var m = ListIdRegex.Match(playlistUrl);
+        var key = m.Success ? m.Groups[1].Value : playlistUrl;
+        
+        lock (_activePlaylists)
+        {
+            if (!_activePlaylists.Add(key))
+            {
+                Log.Information("[DownloadService] Playlist {Key} is already importing; ignoring", key);
+                ToastService.Instance.Show("This playlist is already being imported.", ToastType.Info, scope: "download");
+                return;
+            }
+        }
+        
+        try
+        {
+            await DownloadPlaylistCoreAsync(playlistUrl, onTrackReady, onTrackStarted, 
+                onTrackCompleted, onTrackFailed, ct);
+        }
+        finally
+        {
+            lock (_activePlaylists) _activePlaylists.Remove(key);
+        }
+    }
+
+    private async Task DownloadPlaylistCoreAsync(
+        string playlistUrl,
+        Action<Track>? onTrackReady = null,
+        Action<string, int, int>? onTrackStarted = null,
+        Action<string, string, string>? onTrackCompleted = null,
+        Action<string, string>? onTrackFailed = null,
+        CancellationToken ct = default)
+    {
+        if (!await GateConsentAsync(true))
+        {
+            return;
+        }
+
+        // Detect YouTube auto-generated mixes (RD...) and cap at 50 tracks
+        var listId = ListIdRegex.Match(playlistUrl).Groups[1].Value;
+        var isMix = listId.StartsWith("RD", StringComparison.Ordinal) ||
+                    playlistUrl.Contains("start_radio=1", StringComparison.OrdinalIgnoreCase);
+        
+        if (isMix)
+        {
+            Log.Warning("[DownloadService] Detected YouTube Mix (endless playlist), capping at 50 tracks: {Url}", playlistUrl);
+            ToastService.Instance.Show(
+                "YouTube Mix detected (endless playlist). Importing first 50 tracks only.",
+                ToastType.Info,
+                durationMs: 4000,
+                scope: "download");
+        }
+
         Log.Information("Starting playlist download: {Url}", playlistUrl);
         try
         {
-            // --- STEP E: Unified ProcessRunner Playlist Metadata ---
+            var metaArgs = new List<string> { "--flat-playlist", "--dump-json", "--ignore-errors", "--no-download" };
+            if (isMix)
+            {
+                metaArgs.AddRange(new[] { "--playlist-end", "50" });
+            }
+            metaArgs.Add(playlistUrl);
+            
             var metadataResult = await ProcessRunner.RunAsync(
                 "yt-dlp",
-                new List<string> { "--flat-playlist", "--dump-json", "--ignore-errors", "--no-download", playlistUrl },
+                metaArgs,
                 timeout: TimeSpan.FromMinutes(5),
                 ct: ct,
                 resolveViaPath: true);
@@ -645,6 +922,7 @@ public class DownloadService
             int completedCount = 0;
             int failedCount = 0;
             int skippedCount = 0;
+            int envStreak = 0;
 
             for (int i = 0; i < tracks.Count; i++)
             {
@@ -652,6 +930,7 @@ public class DownloadService
 
                 var (title, artist, url, videoId) = tracks[i];
                 onTrackStarted?.Invoke(title, i + 1, tracks.Count);
+                PlaylistTrackStarted?.Invoke(title, i + 1, tracks.Count);
 
                 var trackId = Guid.NewGuid();
                 var cleanUrl = url.Split('&')[0];
@@ -668,9 +947,13 @@ public class DownloadService
                     DateAdded = DateTime.UtcNow
                 };
 
+                // --- PATCH 1: Clean metadata BEFORE duplicate check ---
+                if (_prefsService.Current.AutoCleanMetadata)
+                    (newTrack.Artist, newTrack.Title) = TrackNormalizer.ResolveArtistTitle(newTrack.Title, newTrack.Artist);
+
                 if (_prefsService.Current.PreventDuplicateDownloads && _libraryService.IsDuplicate(newTrack))
                 {
-                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", artist, title);
+                    Log.Debug("[DownloadService] Skipped duplicate: {Artist} - {Title}", newTrack.Artist, newTrack.Title);
                     skippedCount++;
                     PlaylistBatchProgress?.Invoke(completedCount, tracks.Count, skippedCount);
                     continue;
@@ -730,11 +1013,32 @@ public class DownloadService
 
                     if (!success)
                     {
-                        _libraryService.Remove(trackId);
+                        _failureKinds.TryRemove(trackId.ToString(), out var kind);
+                        var environmental = kind is DownloadFailureKind.BotCheck 
+                            or DownloadFailureKind.RateLimited
+                            or DownloadFailureKind.JsRuntimeMissing 
+                            or DownloadFailureKind.CookiesUnusable;
+                        
+                        if (!environmental)
+                        {
+                            _libraryService.Remove(trackId);
+                        }
+                        
                         failedCount++;
+                        envStreak = environmental ? envStreak + 1 : 0;
+                        
+                        if (envStreak >= 3)
+                        {
+                            Log.Warning("[DownloadService] Stopping playlist after {N} consecutive {Kind} failures", envStreak, kind);
+                            ToastService.Instance.Show(
+                                $"Playlist paused: {kind}. Fix this and re-import. Remaining tracks were not touched.",
+                                ToastType.Warning, scope: "download");
+                            break;
+                        }
                     }
                     else if (!string.IsNullOrEmpty(finalFilePath))
                     {
+                        envStreak = 0;
                         completedCount++;
                         var dbTrack = _libraryService.GetAll().FirstOrDefault(t => t.Id == trackId);
                         if (dbTrack != null)
@@ -790,7 +1094,7 @@ public class DownloadService
                         int backoffMultiplier;
                         lock (_aria2cLock) backoffMultiplier = _backoffMultiplier;
                         var delayMs = baseDelay * backoffMultiplier;
-                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, _backoffMultiplier);
+                        Log.Debug("Throttling download to avoid rate limits... sleeping for {Delay}ms (Multiplier: {Mult}x)", delayMs, backoffMultiplier);
                         await Task.Delay(delayMs, ct);
                     }
                 }
@@ -826,7 +1130,7 @@ public class DownloadService
         }
     }
 
-    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null)
+    private string? FindMostRecentUnlinkedDownload(string? expectedTitle = null, string? videoId = null, string? trackHash = null)
     {
         var dir = new DirectoryInfo(_downloadDir);
         if (!dir.Exists) return null;
@@ -836,12 +1140,29 @@ public class DownloadService
             .Select(t => Path.GetFullPath(t.FilePath!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // FIX: Try to find by NullWave Track Hash first (Works for ALL sources)
+        if (!string.IsNullOrEmpty(trackHash))
+        {
+            var tag = $"[nw-{trackHash}";
+            var byHash = dir.GetFiles()
+                .Where(f => AudioExts.Contains(f.Extension.ToLowerInvariant())
+                            && f.Name.Contains(tag, StringComparison.OrdinalIgnoreCase)
+                            && !linkedPaths.Contains(f.FullName))
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .FirstOrDefault();
+            if (byHash != null)
+            {
+                Log.Information("[DownloadService] Recovered output by track hash: {Path}", byHash.FullName);
+                return byHash.FullName;
+            }
+        }
+
         FileInfo? newest = null;
         foreach (var file in dir.GetFiles())
         {
-            if (!new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(file.Extension.ToLowerInvariant())) continue;
+            if (!AudioExts.Contains(file.Extension.ToLowerInvariant())) continue;
             if (linkedPaths.Contains(file.FullName)) continue;
-            if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file; // Step C UTC fix applied
+            if (newest == null || file.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = file;
         }
 
         if (newest == null) return null;
@@ -851,8 +1172,7 @@ public class DownloadService
             static string Norm(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
             var want = Norm(expectedTitle);
             var match = dir.GetFiles()
-                .Where(f => !linkedPaths.Contains(f.FullName) &&
-                            new[] { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac" }.Contains(f.Extension.ToLowerInvariant()))
+                .Where(f => !linkedPaths.Contains(f.FullName) && AudioExts.Contains(f.Extension.ToLowerInvariant()))
                 .FirstOrDefault(f => Norm(Path.GetFileNameWithoutExtension(f.Name)) == want);
             if (match != null) return match.FullName;
         }
@@ -883,4 +1203,5 @@ public class DownloadService
     }
 
     public string DownloadDirectory => _downloadDir;
+    internal int AvailablePermits => _gate.CurrentCount;
 }

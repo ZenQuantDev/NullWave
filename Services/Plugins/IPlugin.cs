@@ -16,23 +16,23 @@ public interface IPlugin
     Task ShutdownAsync(CancellationToken ct = default);
 }
 
-public interface IDownloadProvider : IPlugin
+public interface IDownloadProvider : IProvider
 {
     bool SupportsUrl(string url);
     Task<DownloadResult> DownloadAsync(string url, DownloadOptions options, CancellationToken ct = default);
 }
 
-public interface IMetadataProvider : IPlugin
+public interface IMetadataProvider : IProvider
 {
     Task<TrackMetadata?> FetchMetadataAsync(string identifier, TrackSource source, CancellationToken ct = default);
 }
 
-public interface IAIProvider : IPlugin
+public interface IAIProvider : IProvider
 {
     Task<IEnumerable<Track>> RankTracksAsync(IEnumerable<Track> tracks, string context, CancellationToken ct = default);
 }
 
-public interface IWeatherProvider : IPlugin
+public interface IWeatherProvider : IProvider
 {
     Task<WeatherData?> GetCurrentWeatherAsync(double lat, double lon, CancellationToken ct = default);
 }

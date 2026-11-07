@@ -62,7 +62,10 @@ public partial class MainViewModel
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
-        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
+        // Provider registry (M3 foundation) - ASSIGN TO FIELD, not local variable
+        _providerRegistry = new ProviderRegistry(_prefsService);
+
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
         Settings.DevEffectsTierOverrideChanged += tier => _effectsTier.SetDevOverride(tier);
         Settings.EffectsTierPreferencesChanged += () =>
@@ -71,6 +74,8 @@ public partial class MainViewModel
             _effectsTier.NotifyPreferencesChanged();
         };
     }
+
+    private readonly HashSet<string> _activePlaylistImports = new();
 
     // --- Extracted Singleton Event Handlers ---
     private void OnLibraryChanged(object? sender, EventArgs e)
@@ -133,7 +138,10 @@ public partial class MainViewModel
         _aiPlaylistsFolder = _playlists.GetAllFolders().FirstOrDefault(f => f.Name == "AI Playlists") ?? _playlists.CreateFolder("AI Playlists");
         Library.AiPlaylistRequested += OnAiPlaylistRequested;
 
-        Playlist = new PlaylistViewModel(_playlists);
+        // FIX: Moved SmartPlaylistService creation up here so it can be passed to PlaylistViewModel
+        var smartPlaylistService = new SmartPlaylistService(_library, TimeProvider.System);
+
+        Playlist = new PlaylistViewModel(_playlists, smartPlaylistService);
         Playlist.RequestCreatePlaylistName = async () =>
         {
             var dialog = new Views.CreatePlaylistDialog();
@@ -147,7 +155,7 @@ public partial class MainViewModel
         };
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
-        Import = new ImportViewModel(_library, _metadata);
+        Import = new ImportViewModel(_library, _metadata, _prefsService);
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
@@ -156,7 +164,7 @@ public partial class MainViewModel
         Queue = new QueueViewModel(_library);
 
         Nav = new NavigationViewModel(
-            _prefsService, _playlists,
+            _prefsService, _playlists, smartPlaylistService,
             () => NavigateLibraryCommand, 
             () => NavigatePlaylistsCommand, 
             () => NavigateRadioCommand, 
@@ -167,6 +175,12 @@ public partial class MainViewModel
                 Playlist.SelectById(playlistId);
                 Nav.SetPlaylistActive(playlistId);
                 LogNav($"PinnedPlaylist:{playlistId}");
+            },
+            navigateToSmartPlaylist: smartId =>
+            {
+                CurrentPage = "Playlists";
+                Playlist.SelectSmartPlaylist(smartId);
+                LogNav($"SmartPlaylist:{smartId}");
             });
 
         var oldAiPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("AI: ", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -189,6 +203,10 @@ public partial class MainViewModel
             Playlist.Refresh();
             Nav.Rebuild();
         }
+
+        // Register providers with the new registry - USE THE FIELD
+        foreach (var plugin in _plugins.Plugins.OfType<IProvider>())
+            _providerRegistry.Register(plugin);
     }
 
     private void WireCoreEvents()
@@ -280,18 +298,60 @@ public partial class MainViewModel
 
     private void WireIntegrationEvents()
     {
-        Input.PlaylistImportRequested += (playlistUrl) =>
+        Input.PlaylistImportRequested += async (playlistUrl) =>
         {
-            if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+            // Normalize URL for comparison (strip tracking params)
+            var normalizedUrl = NormalizePlaylistUrl(playlistUrl);
+            
+            // Guard: prevent double imports
+            lock (_activePlaylistImports)
             {
-                ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
-                return;
+                if (_activePlaylistImports.Contains(normalizedUrl))
+                {
+                    Log.Information("[MainViewModel] Playlist import already in progress: {Url}", normalizedUrl);
+                    ToastService.Instance.Show("This playlist is already being imported.", ToastType.Info, scope: "import");
+                    return;
+                }
+                _activePlaylistImports.Add(normalizedUrl);
             }
-            _ = _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+
+            // NEW: Detect YouTube auto-generated mixes (RD...) and cap them
+            if (playlistUrl.Contains("list=RD", StringComparison.OrdinalIgnoreCase))
             {
-                if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
-                Dispatcher.UIThread.Post(() => Library.Refresh());
-            });
+                var confirmDialog = new Views.ConfirmDialog(
+                    "Large Auto-Generated Mix",
+                    "This is a YouTube auto-generated mix that may contain 1000+ tracks. Importing it will take a long time and may hit rate limits.\n\nContinue anyway?");
+                
+                var confirmed = await DialogService.Instance.ShowDialogAsync<bool>(confirmDialog);
+                if (!confirmed)
+                {
+                    lock (_activePlaylistImports) { _activePlaylistImports.Remove(normalizedUrl); }
+                    return;
+                }
+            }
+
+            try
+            {
+                if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+                {
+                    ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
+                    return;
+                }
+
+                await _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+                {
+                    if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
+                    Dispatcher.UIThread.Post(() => Library.Refresh());
+                });
+            }
+            finally
+            {
+                // Always remove from active set
+                lock (_activePlaylistImports)
+                {
+                    _activePlaylistImports.Remove(normalizedUrl);
+                }
+            }
         };
 
         Input.RadioSiteRequested += async (stationName, channels) =>
@@ -372,6 +432,7 @@ public partial class MainViewModel
         _downloadService.PlaylistBatchStarted += OnPlaylistBatchStarted;
         _downloadService.PlaylistBatchProgress += OnPlaylistBatchProgress;
         _downloadService.PlaylistBatchCompleted += OnPlaylistBatchCompleted;
+        _downloadService.PlaylistTrackStarted += OnPlaylistTrackStarted;
 
         Settings.LastFmConnectRequested += async () =>
         {
@@ -445,6 +506,28 @@ public partial class MainViewModel
             Settings.ReportImportComplete(applied, results.Count);
             return null;
         };
+    }
+
+    private static string NormalizePlaylistUrl(string url)
+    {
+        // Strip common tracking parameters for comparison
+        var uri = new Uri(url);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        // Remove tracking params
+        query.Remove("si");
+        query.Remove("pp");
+        query.Remove("utm_source");
+        query.Remove("utm_medium");
+        query.Remove("utm_campaign");
+        
+        // Rebuild URL
+        var builder = new UriBuilder(uri)
+        {
+            Query = query.ToString()
+        };
+        
+        return builder.Uri.ToString();
     }
 
     // --- Extracted Download Event Handlers ---
@@ -557,7 +640,7 @@ public partial class MainViewModel
         if (_prefsService.Current.AutoGenerateMoodPlaylist) _ = RunMoodPlaylistAsync(forceRefresh: false);
     }
 
-    private void ApplyBatteryEffectsTier(PowerState state)
+        private void ApplyBatteryEffectsTier(PowerState state)
     {
         if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
             _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
@@ -569,8 +652,8 @@ public partial class MainViewModel
     {
         try
         {
-            var ytDlpPath = PlatformHelper.ResolveExecutable("yt-dlp");
-            var result = await ProcessRunner.RunAsync(ytDlpPath, new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
+            // FIX: Pass raw name, let ProcessRunner handle the .exe resolution
+            var result = await ProcessRunner.RunAsync("yt-dlp", new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
             
             if (result.ExitCode == 0)
             {
@@ -667,5 +750,20 @@ public partial class MainViewModel
             foreach (var c in s) { h ^= c; h *= 16777619; }
             return (int)(h & 0x7FFFFFFF);
         }
+    }
+
+    private void OnPlaylistTrackStarted(string title, int current, int total)
+    {
+        LiveNotification? activity;
+        lock (_playlistBatches)
+        {
+            var match = _playlistBatches.FirstOrDefault(b => b.Total == total && b.Total > 0);
+            activity = match != default ? match.Activity : _playlistBatches.LastOrDefault().Activity;
+        }
+        if (activity == null) return;
+
+        // Truncate long titles to prevent UI overflow
+        var displayTitle = title.Length > 50 ? title[..47] + "..." : title;
+        ToastService.Instance.UpdateLiveActivity(activity, $"Downloading {current}/{total}: {displayTitle}");
     }
 }

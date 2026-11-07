@@ -3,6 +3,75 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.5-beta.2] - 07-Nov-2026
+
+### Added
+- **Unified FileNamer**: one naming rule for download completion, Sync, import and export;
+  255-byte UTF-8 limit, FAT-safe characters, surrogate-safe truncation, keeps the [nw-id] suffix.
+- **TagWriteMode**: Never / Downloads only (default) / Always, through one central rule.
+- **Import modes**: Keep in place (default) or Copy into the managed library, with a duplicate
+  check before any copy; operations recorded in file-ops.json (audit only; undo not implemented).
+- **Recycle Bin removal**: removal can send the file to the OS Recycle Bin / Trash; unmanaged
+  files are never recycled or deleted.
+- **Safe export**: copies are renamed and retagged (ID3v2.3) with a relative M3U8; originals
+  are never modified.
+- **Install consent**: package-manager installs show the exact command and need your confirmation;
+  declining runs nothing; the choice can be remembered.
+- **Keystore honesty**: a notice appears when the weaker fallback key storage is in use; deleting
+  keys on Linux also clears the Secret Service entry.
+- **CI matrix**: build and full test suite on Windows and Ubuntu with banned-API enforcement.
+
+### Changed
+- **Settings reorganization**: Plugins and Sources merged into Integrations; new Downloads tab;
+  Advanced dissolved into Maintenance and Help.
+- **Honest updates**: exact package-manager exit codes, parallel dependency checks, pre-release
+  detection. The yt-dlp updater no longer falls back silently to winget; update it manually.
+- **Localization**: Downloads, Integrations, Maintenance, General and new dialogs fully translated
+  EN/RU; the experimental banner describes only available features.
+
+### Fixed
+- **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files
+  are never deleted.
+- **Keystore (Linux)**: data-loss path closed; locked or missing secret store falls back to the
+  legacy protector; unknown or newer formats open read-only and are never quarantined; temp files
+  are created 0600.
+- **Consent ghost rows**: consent is verified before the library row is inserted.
+- **Playback stalls**: native LibVLC Stop runs off the UI thread under a generation lock.
+
+## [0.6.5-beta.1] - 31-Oct-2026
+
+### Added
+- **Keystore v2**: Migrated from machine-ID-derived keys to OS-native secret storage. Windows uses DPAPI, Linux uses Secret Service when available, with safe legacy fallback. Existing keys auto-migrate on first launch.
+- **Download Consent Gate**: Downloads now require explicit first-time consent. A dialog explains that NullWave uses yt-dlp and that you're responsible for respecting copyright.
+- **.NET 10 LTS**: Retargeted from .NET 8 to .NET 10 LTS (supported until Nov 2028).
+- **Smart Playlists**: Three virtual, auto-updating playlists in the "AI Playlists" folder (Recently Added, Most Played, Forgotten Favorites).
+- **M3U Playlist Support**: Full import/export with preview dialog, relative/absolute paths, and stream URL preservation.
+- **Provider Registry Foundation**: Architecture for managing content providers (Download, Metadata, Mood, Weather) with active-selection semantics (UI preview in this release, routing in v0.6.6).
+- **New Audio Sources**: Added native yt-dlp support for Bandcamp, Audiomack, Archive.org, and Mixcloud.
+
+### Changed
+- **Radio Detection**: Early-return for known music sources prevents false positives (e.g., `radiohead.bandcamp.com` or `/track/streams-of-light`).
+- **yt-dlp Runtime**: Bun removed (deprecated). Detection order: Deno (≥2.3.0) → Node (≥22.0.0).
+- **429 Detection**: Tightened to match `HTTP Error 429` only, preventing false backoff.
+- **Privacy Documentation**: `PRIVACY.md` now lists all network hosts contacted by the app.
+- **Test Suite**: Expanded to 533 passing tests.
+
+### Fixed
+- **List Parameter Stripping**: YouTube URLs with `list=` parameter are now safely stripped using a proper URI parser, allowing single-track downloads from playlist pages without breaking the URL.
+- **Semaphore Shrink-Debt**: Fixed an edge case where changing the concurrent download limit mid-download would permanently stall the queue.
+- **Keystore Data Safety**: "Delete All Keys" now securely removes backup and quarantined files. First-run directory creation is guaranteed.
+- **Provider Descriptors**: All 4 providers now expose `Descriptor` properties for registry integration.
+- **CA2024 Warning**: Fixed `reader.EndOfStream` usage in async methods.
+- **Culture-Invariant Parsing**: Fixed `FormatException` crashes on non-US systems (e.g., Russian/German) by enforcing `CultureInfo.InvariantCulture` across hardware detection, Spotify parsing, M3U import, and sleep timers.
+- **Non-English Search**: Added accent-insensitive search (`é`→`e`, `ё`→`е`) and FTS5 normalization. Searching "cafe" now finds "café".
+- **Font Fallbacks**: Added global font fallback chain (Segoe UI, Noto Sans, Microsoft YaHei) to properly render Cyrillic, CJK, and emoji characters in the UI.
+- **Download File Recovery**: Injected a unique `[nw-{hash}]` tag into yt-dlp output templates, guaranteeing file recovery even if stdout path printing fails on Bandcamp/Mixcloud.
+- **OGG Format Fix**: Mapped "ogg" to "vorbis" for yt-dlp, preventing `invalid audio format` errors.
+- **Metadata Race Conditions**: Fixed edge cases where fast consecutive URL pastes could overwrite the wrong track's metadata or input fields.
+- **Live Toast Activities**: Download and playlist progress toasts no longer auto-dismiss while the operation is still running.
+- **YouTube Fallback**: Added automatic yt-dlp fallback when the YouTube Data API returns `BadRequest` or empty metadata.
+
+---
 
 ## [0.6.4] - 25-Oct-2026 🏗️ "Foundations"
 

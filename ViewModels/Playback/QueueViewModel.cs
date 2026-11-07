@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Windows.Input;
+using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
@@ -12,6 +15,7 @@ public class QueueViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
     private bool _isOpen;
+    private int _refreshPending;
 
     public bool IsOpen
     {
@@ -46,18 +50,15 @@ public class QueueViewModel : ViewModelBase
     public QueueViewModel(LibraryService library)
     {
         _library = library;
-        _library.QueueChanged += (_, _) => Refresh();
+        _library.QueueChanged += (_, _) => ScheduleRefresh();
         Refresh();
 
         CloseCommand = new RelayCommand(() => IsOpen = false);
-
         ClearQueueCommand = new RelayCommand(() =>
         {
             var snapshot = _library.GetQueue().ToList();
             if (snapshot.Count == 0) return;
-
             _library.ClearQueue();
-
             ToastService.Instance.Show(
                 message: $"Cleared {snapshot.Count} item(s) from queue.",
                 type: ToastType.Warning,
@@ -71,12 +72,19 @@ public class QueueViewModel : ViewModelBase
         {
             if (t != null) _library.RemoveFromQueue(t.Id);
         });
+
         MoveUpCommand = new RelayCommand<Track>(t => Move(t, -1));
         MoveDownCommand = new RelayCommand<Track>(t => Move(t, 1));
         PlayNowCommand = new RelayCommand<Track>(t =>
         {
             if (t != null) PlayTrackRequested?.Invoke(t);
         });
+    }
+
+    private void ScheduleRefresh()
+    {
+        if (Interlocked.Exchange(ref _refreshPending, 1) == 1) return;
+        Dispatcher.UIThread.Post(() => { Volatile.Write(ref _refreshPending, 0); Refresh(); }, DispatcherPriority.Background);
     }
 
     public void MoveTrackTo(Track track, int newIndex)

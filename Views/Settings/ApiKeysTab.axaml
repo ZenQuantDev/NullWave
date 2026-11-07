@@ -7,7 +7,7 @@
              x:DataType="vm:SettingsViewModel">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="0" Margin="24,20">
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_ApiKeys_Section_Metadata}" Margin="0,0,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_ApiKeys_Section_Metadata}" Margin="{StaticResource MarginSectionLabel}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <!-- YouTube -->
@@ -29,7 +29,7 @@
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <!-- Last.fm -->
                     <StackPanel Spacing="6">
@@ -57,7 +57,7 @@
                             </Border>
                         </Grid>
                     </StackPanel>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <!-- OpenWeather -->
                     <Grid ColumnDefinitions="*,8,Auto">
@@ -78,7 +78,7 @@
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <!-- SoundCloud -->
                     <Grid ColumnDefinitions="*,8,Auto">
@@ -99,7 +99,7 @@
                             <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                         </Border>
                     </Grid>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <!-- Spotify -->
                     <StackPanel Spacing="6">
@@ -155,11 +155,16 @@
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding LastFmStatusMessage}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap" IsVisible="{Binding LastFmStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <TextBlock Text="{loc:Loc Settings_ApiKeys_AccountInfo}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
+            <Border Background="{StaticResource BrushAmberDim}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" Margin="0,16,0,0"
+                    IsVisible="{Binding IsWeakerKeyStorageActive}">
+                <TextBlock Text="{Binding KeyStorageFallbackNotice}" Foreground="{StaticResource BrushTextPrimary}"
+                           FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+            </Border>
             <!-- Security Notice & Save -->
             <Border Background="{StaticResource BrushAccentDim}" CornerRadius="{StaticResource RadiusMd}" Padding="14,12" Margin="0,16,0,0">
                 <StackPanel Orientation="Horizontal" Spacing="8">

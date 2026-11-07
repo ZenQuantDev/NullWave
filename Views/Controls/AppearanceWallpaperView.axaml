@@ -4,6 +4,7 @@
              xmlns:attached="using:NullWave.Helpers.Attached"
              xmlns:converters="using:NullWave.Helpers.Converters"
              xmlns:loc="using:NullWave.Helpers.Localization"
+             xmlns:controls="using:NullWave.Views.Controls"
              xmlns:services="using:NullWave.Services"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="NullWave.Views.Controls.AppearanceWallpaperView"
@@ -13,7 +14,7 @@
   </UserControl.Resources>
 
   <StackPanel Spacing="0">
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Wallpaper}" Margin="0,0,0,12"/>
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Wallpaper}" Margin="{StaticResource MarginSectionLabel}"/>
     <Border Classes="settings-card">
       <Grid ColumnDefinitions="220,24,*">
         <Border Grid.Column="0" Height="140" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#0B1020" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1">
@@ -82,14 +83,28 @@
                 <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Opacity}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                 <TextBlock Grid.Column="1" Text="{Binding WallpaperOpacity, StringFormat='{}{0}%'}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
               </Grid>
-              <Slider Minimum="0" Maximum="100" Value="{Binding WallpaperOpacity, Mode=TwoWay}" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_OpacityTooltip}"/>
+              <controls:WaveSeekBar Minimum="0" Maximum="100"
+                                    Value="{Binding WallpaperOpacity, Mode=TwoWay}"
+                                    IsPlaying="False"
+                                    WaveBrush="{DynamicResource BrushAccent}"
+                                    GrooveBrush="{DynamicResource BrushBorder}"
+                                    ThumbBrush="{DynamicResource BrushAccent}"
+                                    Height="32"
+                                    ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_OpacityTooltip}"/>
             </StackPanel>
             <StackPanel Grid.Column="2" Spacing="4">
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Blur}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                 <TextBlock Grid.Column="1" Text="{Binding WallpaperSoftness}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
               </Grid>
-              <Slider Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding WallpaperSoftness, Mode=TwoWay}" ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_Blur_Desc}"/>
+              <controls:WaveSeekBar Minimum="0" Maximum="5"
+                                    Value="{Binding WallpaperSoftness, Mode=TwoWay}"
+                                    IsPlaying="False"
+                                    WaveBrush="{DynamicResource BrushAccent}"
+                                    GrooveBrush="{DynamicResource BrushBorder}"
+                                    ThumbBrush="{DynamicResource BrushAccent}"
+                                    Height="32"
+                                    ToolTip.Tip="{loc:Loc Settings_Appearance_Wallpaper_Blur_Desc}"/>
             </StackPanel>
           </Grid>
 
@@ -120,7 +135,7 @@
 
     <!-- BACKGROUND SCENES: procedural scenes + unlocked built-in art, one grid.
          Locked exclusives are absent from GalleryItems, so no lock overlay exists. -->
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="0,24,0,12"/>
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="{StaticResource Margin2xl}"/>
     <Border Classes="settings-card">
       <StackPanel>
         <ItemsControl ItemsSource="{Binding GalleryItems}">

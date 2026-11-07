@@ -4,11 +4,13 @@
   <img alt="NullWave — Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
 </p>
 
-A personal music organizer with download, playback, and AI-powered smart sorting capabilities, built with C#/.NET 8 and Avalonia UI on Linux.
+[![CI](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml/badge.svg)](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml)
+
+A personal music organizer with download, playback, and AI-powered smart sorting capabilities, built with C#/.NET 10 and Avalonia UI on Linux.
 
 ## Version
 
-v0.6.4 "Oxeye Daisy" "Foundations"
+v0.6.5-beta.2 "Oxeye Daisy"
 
 ## About
 
@@ -68,7 +70,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 
 ### 🛠️ Maintenance Suite
 
-- Orphaned file sweep (dry-run preview + real deletion)
+- Orphaned file sweep (dry-run preview; orphans move to an `_orphans` folder and are never deleted)
 - Duplicate detection with smart keeper selection
 - Link verification (stored metadata vs embedded tags)
 - Path repair, asset reimport, and database vacuum optimization
@@ -80,13 +82,13 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 
 | Layer                | Technology                                      |
 | -------------------- | ----------------------------------------------- |
-| Language / Framework | C# 12, .NET 8, Avalonia UI 12 (MVVM)            |
+| Language / Framework | C# 12, .NET 10 LTS, Avalonia UI 12 (MVVM)       |
 | Playback             | LibVLCSharp + system libVLC                     |
 | Download             | yt-dlp                                          |
 | Metadata             | TagLib# (ID3), YouTube Data API v3, Last.fm API |
 | Smart Sorting        | Ollama (Local AI), OpenWeather API              |
 | Logging              | Serilog (3 sinks: system, user-actions, errors) |
-| Security             | AES-256-GCM encrypted KeyStore                  |
+| Security             | DPAPI on Windows; Secret Service (`secret-tool`) on Linux; falls back to a weaker machine-derived key if unavailable |
 | Persistence          | SQLite-net-pcl                                  |
 
 ---
@@ -105,20 +107,22 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 
 ## Requirements
 
-- .NET 8 SDK
+- **.NET 10 Runtime** (LTS, supported until Nov 2028)
 - **libVLC** (Bundled in Windows installer; Linux requires `sudo dnf install vlc-libs` or `sudo apt install libvlc-dev`)
 - **yt-dlp** (`winget install yt-dlp.yt-dlp` or `pip install yt-dlp`)
-- **JavaScript Runtime** (Node.js, Deno, or Bun on PATH - *Required to solve YouTube signature challenges*)
+- **JavaScript Runtime** (Deno ≥2.3.0 **recommended**, or Node.js ≥22.0.0, or QuickJS on PATH — required for YouTube signature challenges)
 - **FFmpeg** (Optional, but highly recommended for audio transcoding and embedding metadata/album art)
 
-**Windows note:** Requires .NET 8 SDK (or .NET 10 with `<RollForward>Major</RollForward>` in csproj). LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
+**Windows note:** Requires .NET 10 Runtime. LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.
 
-**Fedora note:** libVLC installs to `/usr/lib64`. NullWave expects `/usr/lib`. Create symlinks:
+**Linux note:** libVLC installs to `/usr/lib64` on Fedora. NullWave expects `/usr/lib`. Create symlinks if needed:
 
 ```bash
 sudo ln -s /usr/lib64/libvlc.so /usr/lib/libvlc.so
 sudo ln -s /usr/lib64/libvlccore.so /usr/lib/libvlccore.so
 ```
+
+Optional secure key storage requires `libsecret-tools` on Debian/Ubuntu or `libsecret` on Fedora.
 
 ---
 
@@ -140,6 +144,8 @@ Everything NullWave writes lives under `~/.nullwave/`:
 ```
 ~/.nullwave/
   keys.enc          ← encrypted API keys
+  keys.enc.v1.bak   ← one-time legacy key backup during migration
+  file-ops.json     ← file-operation audit journal
   profile.json      ← local user profile (username, bio, avatar path)
   avatar.png        ← profile picture
   library.db        ← SQLite music library
@@ -150,6 +156,15 @@ Everything NullWave writes lives under `~/.nullwave/`:
     UserActions-DDMMYYYY.log    ← user action log
     Errors-DDMMYYYY.log         ← errors with source attribution
 ```
+
+Set `NULLWAVE_HOME` to use a separate sandbox data directory for development or tests.
+
+## File Safety
+
+Imported files kept in place and source files used for export remain unchanged; Copy and export
+work with separate files. Tag writes follow the selected TagWriteMode. Explicit removal sends
+managed audio to the OS Recycle Bin or Trash, while unmanaged files are left untouched. The
+file-operation journal is for auditing only; undo is not implemented.
 
 ---
 

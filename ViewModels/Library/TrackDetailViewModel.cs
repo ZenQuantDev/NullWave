@@ -26,7 +26,7 @@ public class TrackDetailViewModel : ViewModelBase
 {
     private const string LastFmPlaceholderImageHash = "2a96cbd8b46e442fc41c2b86b821562f";
 
-    // Per-artist memoization. Kills the 7-12? repeat log storms when you click
+    // Per-artist memoization. Kills the 7-12s repeat log storms when you click
     // multiple tracks by the same artist in sequence, and prevents re-downloading
     // the Last.fm default placeholder avatar (the "no artist image" image).
     private static readonly ConcurrentDictionary<string, LastFmArtistInfo?> ArtistInfoCache = new();
@@ -36,7 +36,7 @@ public class TrackDetailViewModel : ViewModelBase
     private readonly PluginManager _plugins;
     private readonly IdentityService _identity;
     private readonly PreferencesService _prefs;
-    
+
     private Track? _currentTrack;
     private bool _isOpen;
     private string _editTitle = string.Empty;
@@ -102,7 +102,6 @@ public class TrackDetailViewModel : ViewModelBase
             OnPropertyChanged();
             OnPropertyChanged(nameof(PanelWidth));
             OnPropertyChanged(nameof(PanelOpacity));
-
             if (!_isOpen && _currentTrack != null)
             {
                 _currentTrack.PropertyChanged -= OnTrackPropertyChanged;
@@ -114,35 +113,11 @@ public class TrackDetailViewModel : ViewModelBase
     public double PanelWidth => _isOpen ? 320 : 0;
     public double PanelOpacity => _isOpen ? 1.0 : 0.0;
 
-    public string EditTitle
-    {
-        get => _editTitle;
-        set { _editTitle = value; OnPropertyChanged(); }
-    }
-
-    public string EditArtist
-    {
-        get => _editArtist;
-        set { _editArtist = value; OnPropertyChanged(); }
-    }
-
-    public string EditNotes
-    {
-        get => _editNotes;
-        set { _editNotes = value; OnPropertyChanged(); }
-    }
-
-    public string NewTag
-    {
-        get => _newTag;
-        set { _newTag = value; OnPropertyChanged(); }
-    }
-
-    public string CopyStatus
-    {
-        get => _copyStatus;
-        set { _copyStatus = value; OnPropertyChanged(); }
-    }
+    public string EditTitle { get => _editTitle; set { _editTitle = value; OnPropertyChanged(); } }
+    public string EditArtist { get => _editArtist; set { _editArtist = value; OnPropertyChanged(); } }
+    public string EditNotes { get => _editNotes; set { _editNotes = value; OnPropertyChanged(); } }
+    public string NewTag { get => _newTag; set { _newTag = value; OnPropertyChanged(); } }
+    public string CopyStatus { get => _copyStatus; set { _copyStatus = value; OnPropertyChanged(); } }
 
     public ObservableCollection<string> Tags { get; } = new();
 
@@ -159,14 +134,13 @@ public class TrackDetailViewModel : ViewModelBase
     public string DisplayLastPlayed => _currentTrack?.LastPlayed?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public string DisplayPlayCount => _currentTrack?.PlayCount.ToString() ?? "0";
     public string DisplayDuration => _currentTrack?.DisplayDuration ?? "-";
-
+    
     public string DisplaySkipWeight
     {
         get
         {
             if (_currentTrack == null) return "0";
             var skipCount = _currentTrack.SkipCount;
-
             if (_currentTrack.LastSkipped.HasValue && _currentTrack.LastSkipped.Value != DateTime.MinValue)
             {
                 var daysSinceLastSkip = (DateTime.UtcNow - _currentTrack.LastSkipped.Value).TotalDays;
@@ -179,7 +153,6 @@ public class TrackDetailViewModel : ViewModelBase
 
     public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
-    
     public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
 
     public ICommand SaveCommand { get; }
@@ -197,7 +170,7 @@ public class TrackDetailViewModel : ViewModelBase
         _plugins = plugins;
         _identity = identity;
         _prefs = prefs;
-        
+
         SaveCommand = new RelayCommand(Save);
         CloseCommand = new RelayCommand(() => IsOpen = false);
         AddTagCommand = new RelayCommand(AddTag);
@@ -232,6 +205,7 @@ public class TrackDetailViewModel : ViewModelBase
         SimilarArtists.Clear();
         HasSimilarArtists = false;
         LibraryArtistTrackCount = 0;
+
         _ = LoadArtistInfoAsync(track);
     }
 
@@ -258,7 +232,6 @@ public class TrackDetailViewModel : ViewModelBase
     private void Save()
     {
         if (_currentTrack == null) return;
-
         _currentTrack.Title = EditTitle.Trim();
         _currentTrack.Artist = EditArtist.Trim();
         _currentTrack.Notes = EditNotes;
@@ -280,7 +253,6 @@ public class TrackDetailViewModel : ViewModelBase
     {
         var tag = NewTag.Trim();
         if (string.IsNullOrWhiteSpace(tag) || Tags.Contains(tag)) return;
-
         Tags.Add(tag);
         NewTag = string.Empty;
     }
@@ -294,10 +266,8 @@ public class TrackDetailViewModel : ViewModelBase
     private void ToggleFavorite()
     {
         if (_currentTrack == null) return;
-
         bool expectedNewState = !_currentTrack.IsFavorite;
         _library.ToggleFavorite(_currentTrack.Id);
-
         NullActionLogger.FavoriteToggled(_currentTrack.Id.ToString(), expectedNewState, "TrackDetailViewModel");
         OnPropertyChanged(nameof(IsFavorite));
     }
@@ -305,11 +275,9 @@ public class TrackDetailViewModel : ViewModelBase
     private async Task CopyUrlAsync()
     {
         if (_isCopying) return;
-
         try
         {
             _isCopying = true;
-
             if (await Helpers.ClipboardHelper.CopyTrackLinkAsync(_currentTrack, _prefs, _identity))
             {
                 CopyStatus = "Copied!";
@@ -331,10 +299,8 @@ public class TrackDetailViewModel : ViewModelBase
     private async Task CopyShareLinkAsync()
     {
         if (_currentTrack == null) return;
-        
         var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
         if (window == null) return;
-        
         var clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
         if (clipboard == null) return;
 
@@ -342,7 +308,6 @@ public class TrackDetailViewModel : ViewModelBase
         {
             var installId = _identity.Fingerprint ?? "unknown-peer";
             var shareUrl = ShareLink.Track(installId, _currentTrack.Id);
-            
             await clipboard.SetTextAsync(shareUrl);
             ToastService.Instance.Show("Track share link copied! Send it to a friend.", ToastType.Success, durationMs: 4000);
             Log.Information("Track share link copied: {Url}", shareUrl);
@@ -357,7 +322,6 @@ public class TrackDetailViewModel : ViewModelBase
     private async Task RelinkFileAsync()
     {
         if (_currentTrack == null) return;
-
         var window = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow : null;
         if (window == null) return;
@@ -370,7 +334,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (result.Path != null)
         {
             _currentTrack.FilePath = result.Path;
-            await _library.RefreshAlbumArtAsync(_currentTrack); 
+            await _library.RefreshAlbumArtAsync(_currentTrack);
             changes += $"FilePath relinked to \"{result.Path}\"";
             Log.Information("Track relinked to local file: {Title} > {Path}", _currentTrack.Title, result.Path);
         }
@@ -384,10 +348,8 @@ public class TrackDetailViewModel : ViewModelBase
         }
 
         _library.Update(_currentTrack);
-
         NullActionLogger.TrackEdited(_currentTrack.Id.ToString(), changes, "TrackDetailViewModel");
         ToastService.Instance.Show($"'{_currentTrack.Title}' re-linked.", ToastType.Success);
-
         RefreshDisplayProperties();
     }
 
@@ -424,7 +386,6 @@ public class TrackDetailViewModel : ViewModelBase
         {
             ArtistBio = info.Bio;
             ArtistListeners = info.Listeners;
-
             SimilarArtists.Clear();
             if (info.SimilarArtists.Count > 0)
             {
@@ -436,13 +397,17 @@ public class TrackDetailViewModel : ViewModelBase
         else
         {
             var normalizedTarget = NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(primaryArtist);
-            LibraryArtistTrackCount = _library.GetAll()
+            
+            // FIX: Run full library scan off the UI thread
+            var count = await Task.Run(() => _library.GetAll()
                 .Count(t => NullWave.Helpers.TrackNormalizer.SplitArtistCredits(t.Artist)
-                    .Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedTarget));
+                    .Any(name => NullWave.Helpers.TrackNormalizer.NormalizeArtistKey(name) == normalizedTarget)));
+                    
+            if (_currentTrack == null || _currentTrack.Id != trackId) return;
+            LibraryArtistTrackCount = count;
         }
 
         ResolveArtistImageAsync(info, primaryArtist, track, trackId);
-
         IsLoadingArtistInfo = false;
     }
 
@@ -467,7 +432,7 @@ public class TrackDetailViewModel : ViewModelBase
         if (isPlaceholder)
         {
             // Last.fm returns this hash for artists with no photo. Log at Debug only
-            // and fall back to album art � do NOT re-download the placeholder.
+            // and fall back to album art — do NOT re-download the placeholder.
             Log.Debug("[TrackDetailViewModel] Artist image for {Artist}: placeholder/none - using album art", primaryArtist);
             ArtistImagePathCache[primaryArtist] = null;
             ArtistImagePath = track.AlbumArtPath;
@@ -475,6 +440,7 @@ public class TrackDetailViewModel : ViewModelBase
         }
 
         Log.Information("[TrackDetailViewModel] Artist image for {Artist}: {Url}", primaryArtist, url);
+
         _ = Task.Run(async () =>
         {
             try
@@ -494,6 +460,7 @@ public class TrackDetailViewModel : ViewModelBase
                 }
 
                 ArtistImagePathCache[primaryArtist] = localPath;
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (_currentTrack != null && _currentTrack.Id == trackId)
@@ -505,6 +472,7 @@ public class TrackDetailViewModel : ViewModelBase
                 Log.Warning(ex, "[TrackDetailViewModel] Failed to download artist image for {Artist}", primaryArtist);
                 // Cache the failure so we don't retry the same broken URL.
                 ArtistImagePathCache[primaryArtist] = null;
+                
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (_currentTrack != null && _currentTrack.Id == trackId)

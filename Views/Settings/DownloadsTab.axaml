@@ -1,0 +1,132 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             x:Class="NullWave.Views.Settings.DownloadsTab"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
+
+            <!-- DOWNLOADER TERMS -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Downloads_Section_Terms}" Margin="{StaticResource MarginSectionLabel}"/>
+            <Border Classes="settings-card" Margin="{StaticResource MarginCard}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{loc:Loc Settings_Downloads_Terms_Title}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
+                        <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusFull}" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Sources.ConsentStatus}" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushTextMuted}"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="{loc:Loc Settings_Downloads_Terms_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+                    <Button Content="{loc:Loc Settings_Downloads_Revoke_Button}" Command="{Binding Sources.RevokeConsentCommand}" Classes="ghost" HorizontalAlignment="Left" IsEnabled="{Binding Sources.IsConsentAccepted}" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- STORAGE -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_DownloadDir}" Margin="{StaticResource MarginSectionLabel}"/>
+            <Border Classes="settings-card" Margin="{StaticResource MarginCard}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{loc:Loc Settings_General_DownloadDir_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                    <Grid ColumnDefinitions="*,8,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding DownloadDirectory, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_General_DownloadDir_Placeholder}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" Classes="secondary" Content="{loc:Loc Settings_General_Browse_Button}" Command="{Binding BrowseDownloadDirCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- BEHAVIOUR & ENGINE -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Downloads_Section_Engine}" Margin="{StaticResource MarginSectionLabel}"/>
+            <Border Classes="settings-card" Margin="{StaticResource MarginCard}">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_BlockDup_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_BlockDup_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding PreventDuplicateDownloads}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Downloads_TagWriteMode_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Downloads_TagWriteMode_Desc}">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Downloads_TagWriteMode_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding TagWriteModeOptions}" SelectedValue="{Binding TagWriteMode, Mode=TwoWay}" SelectedValueBinding="{Binding Value}" MinWidth="140" VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Audio_Concurrent_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ConcurrentDownloadOptions}" SelectedItem="{Binding MaxConcurrentDownloads}" MinWidth="80" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    
+                    <!-- RESTORED TOOLTIPS -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Advanced_Aria2_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Advanced_Aria2_Tooltip}">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Aria2_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseAria2c}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{loc:Loc Settings_Advanced_Cookies_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_Advanced_Cookies_Tooltip}">
+                                    <material:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14"/>
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Cookies_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding BrowserCookieOptions}" SelectedItem="{Binding YtDlpBrowserCookies, Mode=TwoWay}" MinWidth="130" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- NETWORK & PROXY -->
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_Advanced_Section_Network}" Margin="{StaticResource MarginSectionLabel}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Proxy_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Proxy_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBox Text="{Binding YtDlpProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Advanced_Proxy_Placeholder}"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Geo_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_Advanced_Geo_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBox Text="{Binding YtDlpGeoProxy, Mode=TwoWay}" PlaceholderText="{loc:Loc Settings_Advanced_Geo_Placeholder}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="BottomSpacer"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

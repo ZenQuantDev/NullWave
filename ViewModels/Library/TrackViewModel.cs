@@ -28,6 +28,10 @@ public class TrackViewModel : ViewModelBase
         TrackSource.Spotify => "♪ Spotify",
         TrackSource.SoundCloud => "☁ SoundCloud",
         TrackSource.LastFm => "◎ Last.fm",
+        TrackSource.Bandcamp => "♫ Bandcamp",
+        TrackSource.Audiomack => "▶ Audiomack",
+        TrackSource.ArchiveOrg => "⌂ Archive.org",
+        TrackSource.Mixcloud => "☁ Mixcloud",
         TrackSource.Local => "💾 Local",
         _ => "? Unknown"
     };

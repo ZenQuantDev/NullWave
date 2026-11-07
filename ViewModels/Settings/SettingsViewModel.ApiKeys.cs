@@ -66,6 +66,12 @@ public partial class SettingsViewModel
     public bool IsYouTubeKeyValid => !string.IsNullOrWhiteSpace(YouTubeApiKey) && YouTubeApiKey.StartsWith("AIza", System.StringComparison.OrdinalIgnoreCase) && YouTubeApiKey.Length >= 30;
     public bool IsLastFmKeyValid => !string.IsNullOrWhiteSpace(LastFmApiKey) && LastFmApiKey.Length == 32;
     public bool IsOpenWeatherKeyValid => !string.IsNullOrWhiteSpace(OpenWeatherApiKey) && OpenWeatherApiKey.Length == 32;
+    public bool IsWeakerKeyStorageActive => _keyStore.UsesWeakerFallback;
+    public string KeyStorageFallbackNotice => OperatingSystem.IsLinux()
+        ? L("Settings_ApiKeys_WeakerStorageLinux")
+        : OperatingSystem.IsWindows()
+            ? L("Settings_ApiKeys_WeakerStorageWindows")
+            : L("Settings_ApiKeys_WeakerStorageOther");
     #endregion
 
     #region LastFm State
@@ -100,12 +106,14 @@ public partial class SettingsViewModel
         if (!string.IsNullOrWhiteSpace(LastFmApiKey)) _keyStore.SaveKey("LastFm", LastFmApiKey);
         if (!string.IsNullOrWhiteSpace(LastFmApiSecret)) _keyStore.SaveKey("LastFm:Secret", LastFmApiSecret);
         if (!string.IsNullOrWhiteSpace(OpenWeatherApiKey)) _keyStore.SaveKey("OpenWeather", OpenWeatherApiKey);
+        RefreshKeyStorageNotice();
     }
 
     [RelayCommand] private void DeleteApiKeys()
     {
         _secureDelete.DeleteApiKeys();
         YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
+        RefreshKeyStorageNotice();
     }
 
     [RelayCommand] private void DeleteLogs() => _secureDelete.DeleteLogs();
@@ -114,13 +122,22 @@ public partial class SettingsViewModel
     {
         _secureDelete.DeleteEverything();
         YouTubeApiKey = SpotifyClientId = SpotifyClientSecret = SoundCloudClientId = LastFmApiKey = LastFmApiSecret = OpenWeatherApiKey = string.Empty;
+        RefreshKeyStorageNotice();
+    }
+
+    private void RefreshKeyStorageNotice()
+    {
+        OnPropertyChanged(nameof(IsWeakerKeyStorageActive));
+        OnPropertyChanged(nameof(KeyStorageFallbackNotice));
+        if (_keyStore.SecretServiceClearFailed)
+            ToastService.Instance.Show(L("Settings_ApiKeys_SecretServiceClearFailed"), ToastType.Warning);
     }
 
     [RelayCommand] private void ResetPreferences()
     {
         var prefsPath = System.IO.Path.Combine(NullWave.Helpers.NullWavePaths.DataDir, "prefs.json");
         if (System.IO.File.Exists(prefsPath)) { try { System.IO.File.Delete(prefsPath); } catch { } }
-        ToastService.Instance.Show("Preferences reset to defaults. Please restart NullWave to apply.", ToastType.Success);
+        ToastService.Instance.Show(L("Settings_Maintenance_Status_PreferencesReset"), ToastType.Success);
     }
 
     [RelayCommand] private void LastFmConnect()
