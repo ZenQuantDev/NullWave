@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 24-Oct-2026
+> Last updated: 07-Nov-2026
 
 ---
 
@@ -27,7 +27,7 @@
 | **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
 | **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
 | **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
-| **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
+| **v0.6.5**  | Hardening & File Safety | beta.1 shipped 31-Oct; beta.2 in review (file safety N1-N6, playback hardening, settings reorg, CI matrix).                                     |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
@@ -477,7 +477,7 @@
 
 ---
 
-## Phase 25 - v0.6.4 "Notifications" 📋
+## Phase 25 - Notifications (slipped from v0.6.4, unscheduled, post-0.6.6) 📋
 
 **Branch:** `feature/20-notifications`
 **Goal:** Configurable, localized notifications with in-app and native OS support.
@@ -489,7 +489,7 @@
 
 ---
 
-## Phase 26 - v0.6.4 "Factory Reset" 📋
+## Phase 26 - Factory Reset (slipped from v0.6.4, unscheduled, post-0.6.6) 📋
 
 **Branch:** `feature/20-factory-reset`
 **Goal:** Safe wipe with three tiers (Settings, Library, Factory).
@@ -499,12 +499,16 @@
 
 ---
 
-## Phase 27 - v0.6.5 "Premium Look & Performance" 📋
+## Phase 27 - v0.6.5 "Hardening & File Safety" 🔄
 
-**Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
+**Goal:** Ship N1-N6 file safety, playback hardening, settings reorganization, and the Windows/Ubuntu CI matrix in v0.6.5; these items belong to v0.6.5, not v0.6.6.
 
 - ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets.
-- 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
+- 🔄 **File safety N1–N6**: unified FileNamer, TagWriteMode, import modes, Recycle Bin removal, safe export pipeline
+- 🔄 **Playback hardening**: native Stop off UI thread, consent-before-add, UI watchdog
+- 🔄 **Settings reorganization**: Plugins+Sources merged into Integrations, Downloads tab, Maintenance absorbs diagnostics
+- 🔄 **CI matrix**: Windows + Ubuntu with banned-API gate
+- 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings)
 - 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, and virtualization audit remain open.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
@@ -529,11 +533,11 @@
 
 - 💡 **Synced Lyrics**: LRCLIB integration with playback-position line highlighting.
 - 💡 **Advanced Audio**: 10-band EQ (LibVLC) and ReplayGain/volume normalization.
-- ✅ **M3U Import/Export**: M3U/M3U8 import and export (shipped in v0.6.5).
+- ✅ **M3U Import/Export**: M3U/M3U8 import and export (shipped in beta.1).
 - ✅ **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
-- 💡 **More Sources**: Bandcamp import, M3U/M3U8 import and export.
+- ✅ **More Sources**: Bandcamp, Audiomack, Archive.org, and Mixcloud shipped in beta.1.
 - 💡 **Export & Sharing**: Batch export/archiving, P2P/Torrent-like sharing, embedded tag sync.
-- 💡 YouTube Data API fallback to yt-dlp embedded metadata when the API returns BadRequest (kills "Unknown Title" imports).
+- ✅ YouTube Data API BadRequest fallback to yt-dlp embedded metadata shipped in beta.1.
 - 💡 Locked badges with progress bars and unlock toasts (persisted seen-set).
 - 💡 yt-dlp child-process kill watchdog on cancel (no leaked processes).
 - 💡 BadgeIssuer private key from env var or file instead of CLI argument.
@@ -591,6 +595,6 @@ main                ← always stable, builds clean
 | LibVLCSharp               | 3.10.2        | Fedora: symlinks to /usr/lib required   |
 | TagLib#                   | 2.3.0         |                                         |
 | Serilog                   | latest stable | + Serilog.Filters.Expressions           |
-| sqlite-net-pcl            | 1.9.172       | Packages installed, implementation next |
+| sqlite-net-pcl            | 1.9.172       | In use for all persistence              |
 | SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux        |
 | CommunityToolkit.Mvvm     | 8.4.2         | RelayCommand, ObservableProperty        |

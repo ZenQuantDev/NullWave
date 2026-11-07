@@ -5,8 +5,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.6.5-beta.2] - Unreleased
 
+### Added
+- **Unified FileNamer (N1)**: one naming rule for download completion, Sync, import and export;
+  255-byte UTF-8 limit, FAT-safe characters, surrogate-safe truncation, keeps the [nw-id] suffix.
+- **TagWriteMode (N2)**: Never / Downloads only (default) / Always, through one central rule.
+- **Import modes (N3)**: Keep in place (default) or Copy into the managed library, with a duplicate
+  check before any copy; operations recorded in file-ops.json (audit only; undo not implemented).
+- **Recycle Bin removal (N4)**: removal can send the file to the OS Recycle Bin / Trash; unmanaged
+  files are never recycled or deleted.
+- **Safe export (N6)**: copies are renamed and retagged (ID3v2.3) with a relative M3U8; originals
+  are never modified.
+- **Install consent**: package-manager installs show the exact command and need your confirmation;
+  declining runs nothing; the choice can be remembered.
+- **Keystore honesty**: a notice appears when the weaker fallback key storage is in use; deleting
+  keys on Linux also clears the Secret Service entry.
+- **CI matrix**: build and full test suite on Windows and Ubuntu with banned-API enforcement.
+
+### Changed
+- **Settings reorganization**: Plugins and Sources merged into Integrations; new Downloads tab;
+  Advanced dissolved into Maintenance and Help.
+- **Honest updates**: exact package-manager exit codes, parallel dependency checks, pre-release
+  detection. The yt-dlp updater no longer falls back silently to winget; update it manually.
+- **Localization**: Downloads, Integrations, Maintenance, General and new dialogs fully translated
+  EN/RU; the experimental banner describes only available features.
+
 ### Fixed
-- **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files are never deleted.
+- **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files
+  are never deleted.
+- **Keystore (Linux)**: data-loss path closed; locked or missing secret store falls back to the
+  legacy protector; unknown or newer formats open read-only and are never quarantined; temp files
+  are created 0600.
+- **Consent ghost rows**: consent is verified before the library row is inserted.
+- **Playback stalls**: native LibVLC Stop runs off the UI thread under a generation lock.
 
 ## [0.6.5-beta.1] - 31-Oct-2026
 
