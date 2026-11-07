@@ -19,10 +19,17 @@ public partial class MainViewModel
     {
         Settings.SweepOrphanedFilesRequested += dryRun => RunMaintenanceTask("SweepOrphanedFiles", dryRun, async () =>
         {
-            var dir = _prefsService.Current.DownloadDirectory;
-            if (string.IsNullOrWhiteSpace(dir)) dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "downloads");
-            var (scanned, orphaned, deleted, failed) = await Task.Run(() => _library.SweepOrphanedFiles(dir, dryRun));
-            return () => Settings.ReportSweepComplete(scanned, orphaned, deleted, failed, dryRun);
+            var configuredDirectory = _prefsService.Current.DownloadDirectory;
+            var result = dryRun
+                ? await OrphanSweepCoordinator.PreviewAsync(_library, configuredDirectory, NullWavePaths.DownloadsDir)
+                : await OrphanSweepCoordinator.SweepAsync(
+                    _library,
+                    configuredDirectory,
+                    NullWavePaths.DownloadsDir,
+                    ConfirmOrphanSweepAsync);
+            return () => Settings.ReportSweepComplete(
+                result.Scanned, result.Orphaned, result.Moved, result.Failed, dryRun,
+                result.GuardRefused, result.UsedFallback, result.Cancelled);
         });
 
         Settings.VacuumDatabaseRequested += () => RunMaintenanceTask("VacuumDatabase", false, async () =>
@@ -196,5 +203,17 @@ public partial class MainViewModel
                 });
             }
         });
+    }
+
+    private async Task<bool> ConfirmOrphanSweepAsync(int scanned, int orphaned)
+    {
+        var strings = LocalizationService.Instance;
+        var message = string.Format(strings["Settings_Maintenance_Sweep_Confirm"], orphaned, scanned);
+        var dialog = new Views.ConfirmDialog(
+            strings["Settings_Maintenance_Sweep_Confirm_Title"],
+            message);
+        var dialogTask = await Dispatcher.UIThread.InvokeAsync(
+            () => DialogService.Instance.ShowDialogAsync<bool>(dialog));
+        return dialogTask == true;
     }
 }

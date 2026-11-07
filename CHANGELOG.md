@@ -3,6 +3,11 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.5-beta.2] - Unreleased
+
+### Fixed
+- **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files are never deleted.
+
 ## [0.6.5-beta.1] - 31-Oct-2026
 
 ### Added

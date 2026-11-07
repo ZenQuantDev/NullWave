@@ -42,8 +42,8 @@ public partial class SettingsViewModel
     [RelayCommand] private void RepairPaths() { IsRepairing = true; RepairStatus = "Scanning file paths..."; RepairPathsRequested?.Invoke(); }
     [RelayCommand] private void ReimportAssets() { IsRepairing = true; RepairStatus = "Scanning download folder..."; ReimportAssetsRequested?.Invoke(); }
     [RelayCommand] private void ForceMetaResync() { IsRepairing = true; RepairStatus = "Clearing cached tags - re-sync starting..."; ForceMetaResyncRequested?.Invoke(); }
-    [RelayCommand] private void PreviewOrphanedFiles() { IsRepairing = true; SweepStatus = "Scanning for orphaned files..."; SweepOrphanedFilesRequested?.Invoke(true); }
-    [RelayCommand] private void SweepOrphanedFiles() { IsRepairing = true; SweepStatus = "Deleting orphaned files..."; SweepOrphanedFilesRequested?.Invoke(false); }
+    [RelayCommand] private void PreviewOrphanedFiles() { IsRepairing = true; SweepStatus = LocalizationService.Instance["Settings_Maintenance_Sweep_Scanning"]; SweepOrphanedFilesRequested?.Invoke(true); }
+    [RelayCommand] private void SweepOrphanedFiles() { IsRepairing = true; SweepStatus = LocalizationService.Instance["Settings_Maintenance_Sweep_Moving"]; SweepOrphanedFilesRequested?.Invoke(false); }
     [RelayCommand] private void VacuumDatabase() { IsRepairing = true; VacuumStatus = "Optimizing database..."; VacuumDatabaseRequested?.Invoke(); }
     [RelayCommand] private void RebuildSearchIndex() { IsRepairing = true; RebuildSearchIndexRequested?.Invoke(); }
     [RelayCommand] private void VerifyLinks() { IsRepairing = true; VerifyLinksStatus = "Checking file links against embedded metadata..."; VerifyLinksRequested?.Invoke(); }
@@ -66,23 +66,31 @@ public partial class SettingsViewModel
         DedupeStatus = wasDryRun ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up." : $"✓ Removed {removed} duplicate track(s) across {groups} group(s).";
         ToastService.Instance.Show(DedupeStatus, ToastType.Success, scope: "maintenance");
     }
-    public void ReportSweepComplete(int scanned, int orphaned, int deleted, int failed, bool wasDryRun)
+    public void ReportSweepComplete(int scanned, int orphaned, int moved, int failed, bool wasDryRun, bool guardRefused, bool usedFallback, bool cancelled)
     {
         IsRepairing = false;
-        // C8 FIX: Handle the guard flag from LibraryService
-        if (orphaned == -1)
+        var strings = LocalizationService.Instance;
+        if (guardRefused)
         {
-            SweepStatus = "⚠ Sweep aborted: Your library appears empty. Please check your database before deleting files.";
+            SweepStatus = strings["Settings_Maintenance_Sweep_Guard"];
             ToastService.Instance.Show(SweepStatus, ToastType.Warning, scope: "maintenance");
             return;
         }
-        // Note: Changed "Deleted" to "Moved" because C8 moves them to _orphans/ safely!
-        SweepStatus = wasDryRun 
-            ? $"Found {orphaned} orphaned file(s) out of {scanned} scanned. Click Sweep to move to _orphans/." 
-            : failed == 0 
-                ? $"✓ Moved {deleted} orphaned file(s) to _orphans/." 
-                : $"Moved {deleted} file(s), {failed} failed (check logs).";
-        ToastService.Instance.Show(SweepStatus, failed > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
+        if (cancelled)
+            SweepStatus = strings["Settings_Maintenance_Sweep_Cancelled"];
+        else if (wasDryRun)
+            SweepStatus = string.Format(strings["Settings_Maintenance_Sweep_Preview"], orphaned, scanned);
+        else if (failed == 0)
+            SweepStatus = string.Format(strings["Settings_Maintenance_Sweep_Complete"], moved);
+        else
+            SweepStatus = string.Format(strings["Settings_Maintenance_Sweep_Failed"], moved, failed);
+
+        if (usedFallback)
+            SweepStatus = strings["Settings_Maintenance_Sweep_Fallback"] + " " + SweepStatus;
+        ToastService.Instance.Show(
+            SweepStatus,
+            usedFallback || failed > 0 ? ToastType.Warning : ToastType.Success,
+            scope: "maintenance");
     }
     public void ReportVacuumComplete(long beforeKB, long afterKB)
     {

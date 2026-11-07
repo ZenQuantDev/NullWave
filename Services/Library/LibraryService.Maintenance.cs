@@ -438,7 +438,7 @@ public partial class LibraryService
         return cleared;
     }
 
-    public (int Scanned, int Orphaned, int Deleted, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = true)
+    public (int Scanned, int Orphaned, int Moved, int Failed) SweepOrphanedFiles(string downloadsDir, bool dryRun = true)
     {
         if (!Directory.Exists(downloadsDir)) return (0, 0, 0, 0);
 
@@ -465,7 +465,7 @@ public partial class LibraryService
             return (files.Count, -1, 0, 0);
         }
 
-        int orphaned = 0, deleted = 0, failed = 0;
+        int orphaned = 0, moved = 0, failed = 0;
 
         var orphansDir = Path.Combine(downloadsDir, "_orphans");
 
@@ -480,17 +480,40 @@ public partial class LibraryService
             try
             {
                 Directory.CreateDirectory(orphansDir);
-                var dest = Path.Combine(orphansDir, Path.GetFileName(f));
-                
-                if (File.Exists(dest)) dest = Path.Combine(orphansDir, $"{Path.GetFileNameWithoutExtension(f)}_{Guid.NewGuid():N}{Path.GetExtension(f)}");
-                
-                File.Move(f, dest);
-                deleted++;
+                var name = Path.GetFileNameWithoutExtension(f);
+                var extension = Path.GetExtension(f);
+                for (var suffix = 0; ; suffix++)
+                {
+                    var destName = suffix == 0 ? Path.GetFileName(f) : $"{name}_{suffix}{extension}";
+                    var dest = Path.Combine(orphansDir, destName);
+                    if (File.Exists(dest) || Directory.Exists(dest))
+                        continue;
+
+                    try
+                    {
+                        File.Move(f, dest);
+                        break;
+                    }
+                    catch (IOException) when (File.Exists(dest) || Directory.Exists(dest))
+                    {
+                        // Another file occupied this name after the existence check.
+                    }
+                }
+                moved++;
             }
-            catch { failed++; }
+            catch (IOException ex)
+            {
+                Log.Warning(ex, "[LibraryService] Failed to move orphaned file {Path}", f);
+                failed++;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Warning(ex, "[LibraryService] Failed to move orphaned file {Path}", f);
+                failed++;
+            }
         }
 
-        return (files.Count, orphaned, deleted, failed);
+        return (files.Count, orphaned, moved, failed);
     }
 
     public (int Scanned, int DuplicateGroups, int Removed) RemoveDuplicates(bool dryRun = true)
