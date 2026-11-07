@@ -115,6 +115,11 @@ public static partial class Locales
         ["Settings_Updates_Update"] = "Update",
         ["Settings_Updates_Install"] = "Install",
         ["Settings_Updates_SystemPackage"] = "system package",
+        ["Settings_Updates_InstallConsent_Title"] = "Confirm package installation",
+        ["Settings_Updates_InstallConsent_Description"] = "NullWave is about to run this package-manager command. Review it before allowing the install:",
+        ["Settings_Updates_InstallConsent_Remember"] = "Remember my choice for future package installs",
+        ["Settings_Updates_InstallConsent_Run"] = "Run install",
+        ["Settings_Updates_InstallDeclined"] = "Installation declined.",
 
         //  Audio 
         ["Settings_Audio_Section_Download"] = "DOWNLOAD",

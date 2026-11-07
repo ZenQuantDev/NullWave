@@ -12,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
@@ -144,13 +145,30 @@ public partial class SettingsViewModel
         VlcStatus = "Installing...";
         try
         {
-            VlcStatus = await _deps.InstallVlcAsync();
+            var status = await _deps.InstallVlcAsync(ConfirmPackageInstallAsync);
+            VlcStatus = status == DependencyUpdateService.InstallCancelledStatus
+                ? LocalizationService.Instance["Settings_Updates_InstallDeclined"]
+                : status;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Settings] VLC install failed");
             VlcStatus = "Install failed";
         }
+    }
+
+    private async Task<bool> ConfirmPackageInstallAsync(string command)
+    {
+        var rememberedChoice = _prefsService.Current.PackageManagerInstallConsent;
+        if (rememberedChoice.HasValue)
+            return rememberedChoice.Value;
+
+        var dialog = new Views.Dialogs.PackageManagerInstallDialog(command);
+        var choice = await Dispatcher.UIThread.InvokeAsync(
+            () => DialogService.Instance.ShowDialogAsync<Views.Dialogs.PackageInstallConsentChoice>(dialog));
+        if (choice?.RememberChoice == true)
+            _prefsService.Update(p => p.PackageManagerInstallConsent = choice.Approved);
+        return choice?.Approved == true;
     }
 
     [RelayCommand] private async Task CheckDependenciesAsync()

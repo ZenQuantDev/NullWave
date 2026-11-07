@@ -83,6 +83,7 @@ public class Preferences
     public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
     public bool EnableExperimentalFeatures { get; set; } = false;
     public DownloaderConsent? DownloaderConsent { get; set; }
+    public bool? PackageManagerInstallConsent { get; set; }
     public TagWriteMode TagWriteMode { get; set; } = TagWriteMode.DownloadsOnly;
     public string ImportMode { get; set; } = "Ask";
 }

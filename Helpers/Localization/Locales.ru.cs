@@ -94,6 +94,11 @@ public static partial class Locales
         ["Settings_Updates_Update"] = "Обновить",
         ["Settings_Updates_Install"] = "Установить",
         ["Settings_Updates_SystemPackage"] = "системный пакет",
+        ["Settings_Updates_InstallConsent_Title"] = "Подтвердите установку пакета",
+        ["Settings_Updates_InstallConsent_Description"] = "NullWave собирается выполнить эту команду менеджера пакетов. Проверьте её перед подтверждением установки:",
+        ["Settings_Updates_InstallConsent_Remember"] = "Запомнить выбор для будущих установок пакетов",
+        ["Settings_Updates_InstallConsent_Run"] = "Запустить установку",
+        ["Settings_Updates_InstallDeclined"] = "Установка отклонена.",
 
         //  Audio 
         ["Settings_Audio_Section_Download"] = "ЗАГРУЗКА",

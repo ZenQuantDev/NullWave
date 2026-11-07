@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -19,6 +21,8 @@ public class DependencyInfo
     public bool IsInstalled { get; init; }
 }
 
+public sealed record PackageInstallExecution(bool Approved, ProcessResult? ProcessResult);
+
 public class DependencyUpdateService
 {
     private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(8);
@@ -29,11 +33,17 @@ public class DependencyUpdateService
     private const int WingetNoUpdateExitCode = unchecked((int)0x8A15002B);
 
     private readonly HttpClient _http;
+    private readonly Func<string, IList<string>, TimeSpan, Task<ProcessResult>> _packageProcessRunner;
 
-    public DependencyUpdateService()
+    public const string InstallCancelledStatus = "Install cancelled by user";
+
+    public DependencyUpdateService(
+        Func<string, IList<string>, TimeSpan, Task<ProcessResult>>? packageProcessRunner = null)
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
+        _packageProcessRunner = packageProcessRunner
+            ?? ((executable, arguments, timeout) => ProcessRunner.RunAsync(executable, arguments, timeout: timeout));
     }
 
     // ===== YT-DLP =====
@@ -181,20 +191,53 @@ public class DependencyUpdateService
         return null;
     }
 
-    public async Task<string> InstallVlcAsync()
+    public async Task<string> InstallVlcAsync(Func<string, Task<bool>> requestConsent)
     {
         if (!OperatingSystem.IsWindows())
             return "Install via your package manager (dnf/apt)";
 
-        Log.Information("[DependencyUpdate] Attempting VLC install via winget...");
-        var ok = await RunCommandAsync("winget", "install", "--id", "VideoLAN.VLC", "-e", "--accept-source-agreements", "--accept-package-agreements");
-        if (ok != null)
+        var result = await RunPackageInstallAsync(
+            "winget",
+            new List<string>
+            {
+                "install", "--id", "VideoLAN.VLC", "-e",
+                "--accept-source-agreements", "--accept-package-agreements"
+            },
+            requestConsent);
+        if (!result.Approved)
+            return InstallCancelledStatus;
+
+        var process = result.ProcessResult
+            ?? throw new InvalidOperationException("An approved package install must have a process result.");
+        if (process.ExitCode == 0 && !process.TimedOut && !process.Canceled)
         {
             Log.Information("[DependencyUpdate] VLC installed via winget");
             VlcLocator.Invalidate();
             return "VLC installed via winget";
         }
+
+        Log.Warning(
+            "[DependencyUpdate] winget install failed with exit code {ExitCode}; timed out: {TimedOut}; canceled: {Canceled}",
+            process.ExitCode, process.TimedOut, process.Canceled);
         return "winget install failed - install VLC manually";
+    }
+
+    public async Task<PackageInstallExecution> RunPackageInstallAsync(
+        string executable,
+        IList<string> arguments,
+        Func<string, Task<bool>> requestConsent)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executable);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(requestConsent);
+
+        var command = FormatCommand(executable, arguments);
+        if (!await requestConsent(command))
+            return new PackageInstallExecution(false, null);
+
+        Log.Information("[DependencyUpdate] Running approved package install: {Command}", command);
+        var result = await _packageProcessRunner(executable, arguments, ActionTimeout);
+        return new PackageInstallExecution(true, result);
     }
 
     // ===== FFMPEG & .NET =====
@@ -234,6 +277,19 @@ public class DependencyUpdateService
 
     private static Task<string?> RunCommandAsync(string cmd, params string[] args)
         => RunWithTimeoutAsync(ActionTimeout, cmd, args);
+
+    private static string FormatCommand(string executable, IList<string> arguments)
+    {
+        static string FormatArgument(string argument)
+        {
+            if (argument.Length > 0 && argument.IndexOfAny(new[] { ' ', '\t', '"' }) < 0)
+                return argument;
+            return "\"" + argument.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+        }
+
+        return string.Join(" ", new[] { executable }.Concat(arguments).Select(FormatArgument));
+    }
 
     private static async Task<string?> RunWithTimeoutAsync(TimeSpan timeout, string cmd, string[] args)
     {
