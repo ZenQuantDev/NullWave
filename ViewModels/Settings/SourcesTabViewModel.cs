@@ -23,7 +23,17 @@ public partial class SourceRowViewModel : ObservableObject
     [ObservableProperty] private string _statusLabel = string.Empty;
 
     public string Id => Descriptor.Id;
-    public string DisplayName => Descriptor.DisplayName;
+    public string DisplayName => Descriptor.Id switch
+    {
+        "yt-dlp" => Descriptor.DisplayName.Replace(
+            "yt-dlp",
+            LocalizationService.Instance["Settings_Integrations_Provider_YtDlp"],
+            StringComparison.Ordinal),
+        "lastfm" => LocalizationService.Instance["Settings_Integrations_Provider_LastFm"],
+        "openweather" => LocalizationService.Instance["Settings_Integrations_Provider_OpenWeather"],
+        "ollama" => LocalizationService.Instance["Settings_Integrations_Provider_Ollama"],
+        _ => Descriptor.DisplayName
+    };
     public ProviderKind Kind => Descriptor.Kind;
 
     public SourceRowViewModel(IProvider provider)
@@ -38,35 +48,61 @@ public partial class SourceRowViewModel : ObservableObject
     {
         StatusLabel = Provider.State switch
         {
-            PluginState.Available => "✓ Available",
-            PluginState.Loading => "⟳ Loading...",
-            PluginState.Error => "✗ Error",
-            PluginState.Unavailable => "○ Not installed",
-            PluginState.Disabled => "⊘ Disabled",
-            _ => "Unknown"
+            PluginState.Available => $"✓ {LocalizationService.Instance["Settings_Integrations_Status_Available"]}",
+            PluginState.Loading => $"⟳ {LocalizationService.Instance["Settings_Integrations_Status_Loading"]}",
+            PluginState.Error => $"✗ {LocalizationService.Instance["Settings_Integrations_Status_Error"]}",
+            PluginState.Unavailable => $"○ {LocalizationService.Instance["Settings_Integrations_Status_Unavailable"]}",
+            PluginState.Disabled => $"⊘ {LocalizationService.Instance["Settings_Integrations_Status_Disabled"]}",
+            _ => LocalizationService.Instance["Settings_Integrations_Status_Unknown"]
         };
         OnPropertyChanged(nameof(StatusLabel));
+    }
+
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(DisplayName));
+        UpdateStatusLabel();
     }
 }
 
 public partial class SourceKindGroupViewModel : ObservableObject
 {
     public ProviderKind Kind { get; }
-    public string DisplayName { get; }
-    public string Description { get; }
+    private readonly string _nameKey;
+    private readonly string _descriptionKey;
+    public string DisplayName => LocalizationService.Instance[_nameKey];
+    public string Description => LocalizationService.Instance[_descriptionKey];
     public bool IsSingleActive { get; }
 
     public ObservableCollection<SourceRowViewModel> Providers { get; } = new();
 
     [ObservableProperty] private SourceRowViewModel? _selectedProvider;
     [ObservableProperty] private string _pairingMessage = string.Empty;
+    private string? _pairedProviderId;
 
-    public SourceKindGroupViewModel(ProviderKind kind, string displayName, string description, bool isSingleActive)
+    public SourceKindGroupViewModel(ProviderKind kind, string nameKey, string descriptionKey, bool isSingleActive)
     {
         Kind = kind;
-        DisplayName = displayName;
-        Description = description;
+        _nameKey = nameKey;
+        _descriptionKey = descriptionKey;
         IsSingleActive = isSingleActive;
+    }
+
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(Description));
+        PairingMessage = _pairedProviderId is null
+            ? string.Empty
+            : string.Format(LocalizationService.Instance["Settings_Integrations_PairedWith"], _pairedProviderId);
+        foreach (var provider in Providers)
+            provider.RefreshLocalization();
+    }
+
+    public void SetPairedProvider(string? providerId)
+    {
+        _pairedProviderId = providerId;
+        RefreshLocalization();
     }
     
     public Action<SourceRowViewModel>? SelectionChanged { get; set; }
@@ -90,8 +126,8 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
 
     // --- Consent Gate Properties ---
     public string ConsentStatus => _prefs.Current.DownloaderConsent is { IsCurrent: true } c
-        ? $"Accepted on {c.AcceptedAtUtc.ToLocalTime():d} (v{c.AcceptedVersion})"
-        : "Not accepted";
+        ? string.Format(LocalizationService.Instance["Settings_Downloads_Consent_Accepted"], c.AcceptedAtUtc.ToLocalTime().ToString("d"), c.AcceptedVersion)
+        : LocalizationService.Instance["Settings_Downloads_Consent_NotAccepted"];
 
     public bool IsConsentAccepted => _prefs.Current.DownloaderConsent is { IsCurrent: true };
 
@@ -101,7 +137,7 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
         _prefs.Update(p => p.DownloaderConsent = null);
         OnPropertyChanged(nameof(ConsentStatus));
         OnPropertyChanged(nameof(IsConsentAccepted));
-        ToastService.Instance.Show("Downloader consent revoked. You will be prompted on the next download.", type: ToastType.Info, scope: "download");
+        ToastService.Instance.Show(LocalizationService.Instance["Settings_Downloads_Consent_Revoked"], type: ToastType.Info, scope: "download");
     }
 
     public SourcesTabViewModel(ProviderRegistry registry, PreferencesService prefs)
@@ -111,6 +147,7 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
         
         // FIX: Refresh UI immediately when consent is accepted/revoked elsewhere (e.g. via Dialog)
         _prefs.Changed += OnPrefsChanged;
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         
         BuildGroups();
         _registry.ProvidersChanged += OnProvidersChanged;
@@ -122,10 +159,18 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsConsentAccepted));
     }
 
+    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(ConsentStatus));
+        foreach (var group in KindGroups)
+            group.RefreshLocalization();
+    }
+
     public void Dispose()
     {
         _prefs.Changed -= OnPrefsChanged;
         _registry.ProvidersChanged -= OnProvidersChanged;
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
     }
 
     private void OnProvidersChanged()
@@ -140,23 +185,23 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
         { 
             KindGroups.Clear();
 
-            var kinds = new (ProviderKind Kind, string Name, string Desc, bool Single)[]
+            var kinds = new (ProviderKind Kind, string NameKey, string DescKey, bool Single)[]
             {
-                (ProviderKind.Download, "Download", "Audio download engines", true),
-                (ProviderKind.Metadata, "Metadata", "Track info, tags, and artwork", true),
-                (ProviderKind.Search, "Search", "Multi-source track search", false),
-                (ProviderKind.Mood, "Mood / AI", "AI ranking and mood analysis", true),
-                (ProviderKind.Weather, "Weather", "Weather data for mood playlists", true),
-                (ProviderKind.Radio, "Radio", "Radio station directories", false),
-                (ProviderKind.PlaylistImport, "Playlist Import", "M3U and playlist file import", false),
+                (ProviderKind.Download, "Settings_Integrations_Group_Download", "Settings_Integrations_Group_Download_Desc", true),
+                (ProviderKind.Metadata, "Settings_Integrations_Group_Metadata", "Settings_Integrations_Group_Metadata_Desc", true),
+                (ProviderKind.Search, "Settings_Integrations_Group_Search", "Settings_Integrations_Group_Search_Desc", false),
+                (ProviderKind.Mood, "Settings_Integrations_Group_Mood", "Settings_Integrations_Group_Mood_Desc", true),
+                (ProviderKind.Weather, "Settings_Integrations_Group_Weather", "Settings_Integrations_Group_Weather_Desc", true),
+                (ProviderKind.Radio, "Settings_Integrations_Group_Radio", "Settings_Integrations_Group_Radio_Desc", false),
+                (ProviderKind.PlaylistImport, "Settings_Integrations_Group_PlaylistImport", "Settings_Integrations_Group_PlaylistImport_Desc", false),
             };
 
-            foreach (var (kind, name, desc, single) in kinds)
+            foreach (var (kind, nameKey, descKey, single) in kinds)
             {
                 var providers = _registry.List(kind);
                 if (providers.Count == 0) continue;
 
-                var group = new SourceKindGroupViewModel(kind, name, desc, single);
+                var group = new SourceKindGroupViewModel(kind, nameKey, descKey, single);
 
                 foreach (var provider in providers)
                 {
@@ -174,7 +219,7 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
                 var activeProvider = _registry.GetActive(kind);
                 if (activeProvider?.Descriptor.PairedWithProviderId != null)
                 {
-                    group.PairingMessage = $"Locked to: {activeProvider.Descriptor.PairedWithProviderId}";
+                    group.SetPairedProvider(activeProvider.Descriptor.PairedWithProviderId);
                 }
 
                 group.SelectionChanged = row => 

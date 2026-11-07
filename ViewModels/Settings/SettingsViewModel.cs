@@ -169,6 +169,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         LocalizationService.Instance.SetLanguage(value);
         OnPropertyChanged(nameof(GalleryItems));
+        OnPropertyChanged(nameof(TagWriteModeOptions));
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
     }
 
@@ -235,7 +236,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task BrowseDownloadDirAsync()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-        var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Select Download Directory" });
+        var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = LocalizationService.Instance["Settings_Downloads_Picker_Title"]
+        });
         if (folders.Count > 0) DownloadDirectory = folders[0].Path.LocalPath;
     }
     
@@ -268,9 +272,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
         var file = await desktop.MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Backup Library Database",
+            Title = LocalizationService.Instance["Settings_Maintenance_Backup_Picker_Title"],
             SuggestedFileName = $"nullwave_backup_{DateTime.UtcNow:yyyyMMdd_HHmm}.db",
-            FileTypeChoices = new[] { new FilePickerFileType("SQLite Database") { Patterns = new[] { "*.db" } } }
+            FileTypeChoices = new[] { new FilePickerFileType(LocalizationService.Instance["Settings_Maintenance_Backup_FileType"]) { Patterns = new[] { "*.db" } } }
         });
         if (file != null)
         {
@@ -292,6 +296,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         StopHealthCheck();
         LogViewer?.Dispose();
         Sources?.Dispose();
+        foreach (var pluginRow in PluginRows)
+            pluginRow.Dispose();
         GC.SuppressFinalize(this);
     }
     #endregion

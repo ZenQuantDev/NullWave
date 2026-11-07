@@ -137,7 +137,7 @@ public partial class SettingsViewModel
     {
         var prefsPath = System.IO.Path.Combine(NullWave.Helpers.NullWavePaths.DataDir, "prefs.json");
         if (System.IO.File.Exists(prefsPath)) { try { System.IO.File.Delete(prefsPath); } catch { } }
-        ToastService.Instance.Show("Preferences reset to defaults. Please restart NullWave to apply.", ToastType.Success);
+        ToastService.Instance.Show(L("Settings_Maintenance_Status_PreferencesReset"), ToastType.Success);
     }
 
     [RelayCommand] private void LastFmConnect()

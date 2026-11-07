@@ -57,7 +57,13 @@
                             </StackPanel>
                             <TextBlock Text="{loc:Loc Settings_Downloads_TagWriteMode_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding TagWriteModeOptions}" SelectedItem="{Binding TagWriteMode, Mode=TwoWay}" MinWidth="140" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding TagWriteModeOptions}" SelectedValue="{Binding TagWriteMode, Mode=TwoWay}" SelectedValueBinding="{Binding Value}" MinWidth="140" VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </Grid>
                     <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
                     <Grid ColumnDefinitions="*,Auto">

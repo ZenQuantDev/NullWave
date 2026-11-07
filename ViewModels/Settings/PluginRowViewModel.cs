@@ -13,14 +13,29 @@ using Serilog;
 
 namespace NullWave.ViewModels.Settings;
 
-public partial class PluginRowViewModel : ObservableObject
+public partial class PluginRowViewModel : ObservableObject, IDisposable
 {
     private readonly IPlugin _plugin;
     private readonly Action<bool> _persistToggle;
     private CancellationTokenSource? _initCts;
 
-    public string Name => _plugin.Name;
-    public string Description => _plugin.Description;
+    public string Name => _plugin.Name switch
+    {
+        "yt-dlp Downloader" => LocalizationService.Instance["Settings_Integrations_Plugin_YtDlp_Name"],
+        "Last.fm" => LocalizationService.Instance["Settings_Integrations_Plugin_LastFm_Name"],
+        "OpenWeather" => LocalizationService.Instance["Settings_Integrations_Plugin_OpenWeather_Name"],
+        "Ollama Local AI" => LocalizationService.Instance["Settings_Integrations_Plugin_Ollama_Name"],
+        _ => _plugin.Name
+    };
+
+    public string Description => _plugin.Name switch
+    {
+        "yt-dlp Downloader" => LocalizationService.Instance["Settings_Integrations_Plugin_YtDlp_Desc"],
+        "Last.fm" => LocalizationService.Instance["Settings_Integrations_Plugin_LastFm_Desc"],
+        "OpenWeather" => LocalizationService.Instance["Settings_Integrations_Plugin_OpenWeather_Desc"],
+        "Ollama Local AI" => LocalizationService.Instance["Settings_Integrations_Plugin_Ollama_Desc"],
+        _ => _plugin.Description
+    };
 
     [ObservableProperty]
     private PluginState _state;
@@ -45,6 +60,20 @@ public partial class PluginRowViewModel : ObservableObject
         _persistToggle = persistToggle;
         _state = plugin.State;
         _isEnabled = plugin.IsEnabled;
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+    }
+
+    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Description));
+    }
+
+    public void Dispose()
+    {
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        _initCts?.Cancel();
+        _initCts?.Dispose();
     }
 
     // FIX: Replaced partial void OnIsEnabledChanged with an explicit method called 
@@ -90,9 +119,9 @@ public partial class PluginRowViewModel : ObservableObject
 
             var message = State switch
             {
-                PluginState.Available => $"{Name} connected successfully.",
-                PluginState.Error     => $"{Name} failed to connect - check configuration.",
-                PluginState.Unavailable => $"{Name} is unavailable right now.",
+                PluginState.Available => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Connected"], Name),
+                PluginState.Error     => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Failed"], Name),
+                PluginState.Unavailable => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Unavailable"], Name),
                 _ => null
             };
 

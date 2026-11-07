@@ -148,20 +148,20 @@ public partial class MainViewModel
                 {
                     var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
                     {
-                        Title = "Select Database Backup (.db)",
+                        Title = LocalizationService.Instance["Settings_Maintenance_Restore_Picker_Title"],
                         AllowMultiple = false,
-                        FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("SQLite Backup") { Patterns = new[] { "*.db" } } }
+                        FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType(LocalizationService.Instance["Settings_Maintenance_Restore_FileType"]) { Patterns = new[] { "*.db" } } }
                     });
                     if (files.Count > 0) selectedFile = files[0].Path.LocalPath;
                 }
             });
 
-            if (string.IsNullOrEmpty(selectedFile)) return () => ToastService.Instance.Show("Restore cancelled.", ToastType.Info);
+            if (string.IsNullOrEmpty(selectedFile)) return () => ToastService.Instance.Show(LocalizationService.Instance["Settings_Maintenance_Status_RestoreCancelled"], ToastType.Info);
 
             string targetPath = NullWavePaths.DatabasePath;
             string tempPath = targetPath + ".restoring";
             File.Copy(selectedFile, tempPath, overwrite: true);
-            return () => ToastService.Instance.Show("Backup staged! Please restart NullWave to apply.", ToastType.Success, 10000, scope: "maintenance");
+            return () => ToastService.Instance.Show(LocalizationService.Instance["Settings_Maintenance_Status_RestoreStaged"], ToastType.Success, 10000, scope: "maintenance");
         });
 
         Settings.BackupDatabaseRequested += path => RunMaintenanceTask("BackupDatabase", false, async () =>
@@ -179,10 +179,17 @@ public partial class MainViewModel
         _ = Task.Run(async () =>
         {
             LiveNotification? activity = null;
-            string prefix = dryRun ? "Previewing" : "Running";
+            string taskLabel = LocalizationService.Instance[$"Settings_Maintenance_Task_{taskName}"];
+            string activityLabel = string.Format(
+                LocalizationService.Instance[dryRun ? "Settings_Maintenance_Task_Previewing" : "Settings_Maintenance_Task_Running"],
+                taskLabel);
             
             await Dispatcher.UIThread.InvokeAsync(() =>
-                activity = ToastService.Instance.StartLiveActivity($"{prefix} {taskName}", "Processing...", isIndeterminate: true, scope: "maintenance"));
+                activity = ToastService.Instance.StartLiveActivity(
+                    activityLabel,
+                    LocalizationService.Instance["Settings_Maintenance_Task_Processing"],
+                    isIndeterminate: true,
+                    scope: "maintenance"));
 
             try
             {
@@ -198,7 +205,10 @@ public partial class MainViewModel
                 NullActionLogger.Error(nameof(MainViewModel), ex, $"{taskName} failed");
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    ToastService.Instance.CompleteLiveActivity(activity, $"{taskName} failed.", finalType: ToastType.Error);
+                    ToastService.Instance.CompleteLiveActivity(
+                        activity,
+                        string.Format(LocalizationService.Instance["Settings_Maintenance_Task_Failed"], taskLabel),
+                        finalType: ToastType.Error);
                     _isMaintenanceRunning = false;
                 });
             }

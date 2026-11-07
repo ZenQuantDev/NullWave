@@ -27,6 +27,8 @@ using Serilog.Events;
 
 namespace NullWave.ViewModels;
 
+public sealed record TagWriteModeOption(TagWriteMode Value, string DisplayName);
+
 public partial class SettingsViewModel
 {
     // General & Downloads
@@ -350,7 +352,12 @@ public partial class SettingsViewModel
     public string ScrobbleThresholdDisplay => string.Format(L("Settings_Dynamic_Scrobble_Threshold"), ScrobbleThreshold);
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
 
-    public Array TagWriteModeOptions => Enum.GetValues(typeof(TagWriteMode));
+    public IReadOnlyList<TagWriteModeOption> TagWriteModeOptions => new[]
+    {
+        new TagWriteModeOption(TagWriteMode.Never, L("Settings_Downloads_TagWriteMode_Never")),
+        new TagWriteModeOption(TagWriteMode.DownloadsOnly, L("Settings_Downloads_TagWriteMode_DownloadsOnly")),
+        new TagWriteModeOption(TagWriteMode.Always, L("Settings_Downloads_TagWriteMode_Always"))
+    };
     
     public TagWriteMode TagWriteMode
     {

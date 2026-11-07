@@ -38,21 +38,21 @@ public partial class SettingsViewModel
     [ObservableProperty] private string _dedupeStatus = string.Empty;
     [ObservableProperty] private string _syncFilesStatus = string.Empty;
 
-    [RelayCommand] private void ClearThumbnails() { ThumbnailStatus = "Clearing thumbnails..."; ClearThumbnailsRequested?.Invoke(); }
-    [RelayCommand] private void RepairPaths() { IsRepairing = true; RepairStatus = "Scanning file paths..."; RepairPathsRequested?.Invoke(); }
-    [RelayCommand] private void ReimportAssets() { IsRepairing = true; RepairStatus = "Scanning download folder..."; ReimportAssetsRequested?.Invoke(); }
-    [RelayCommand] private void ForceMetaResync() { IsRepairing = true; RepairStatus = "Clearing cached tags - re-sync starting..."; ForceMetaResyncRequested?.Invoke(); }
+    [RelayCommand] private void ClearThumbnails() { ThumbnailStatus = L("Settings_Maintenance_Status_ClearingThumbnails"); ClearThumbnailsRequested?.Invoke(); }
+    [RelayCommand] private void RepairPaths() { IsRepairing = true; RepairStatus = L("Settings_Maintenance_Status_ScanningPaths"); RepairPathsRequested?.Invoke(); }
+    [RelayCommand] private void ReimportAssets() { IsRepairing = true; RepairStatus = L("Settings_Maintenance_Status_ScanningDownloads"); ReimportAssetsRequested?.Invoke(); }
+    [RelayCommand] private void ForceMetaResync() { IsRepairing = true; RepairStatus = L("Settings_Maintenance_Status_ResyncStarting"); ForceMetaResyncRequested?.Invoke(); }
     [RelayCommand] private void PreviewOrphanedFiles() { IsRepairing = true; SweepStatus = LocalizationService.Instance["Settings_Maintenance_Sweep_Scanning"]; SweepOrphanedFilesRequested?.Invoke(true); }
     [RelayCommand] private void SweepOrphanedFiles() { IsRepairing = true; SweepStatus = LocalizationService.Instance["Settings_Maintenance_Sweep_Moving"]; SweepOrphanedFilesRequested?.Invoke(false); }
-    [RelayCommand] private void VacuumDatabase() { IsRepairing = true; VacuumStatus = "Optimizing database..."; VacuumDatabaseRequested?.Invoke(); }
+    [RelayCommand] private void VacuumDatabase() { IsRepairing = true; VacuumStatus = L("Settings_Maintenance_Status_OptimizingDatabase"); VacuumDatabaseRequested?.Invoke(); }
     [RelayCommand] private void RebuildSearchIndex() { IsRepairing = true; RebuildSearchIndexRequested?.Invoke(); }
-    [RelayCommand] private void VerifyLinks() { IsRepairing = true; VerifyLinksStatus = "Checking file links against embedded metadata..."; VerifyLinksRequested?.Invoke(); }
-    [RelayCommand] private void ForceCleanTitles() { IsRepairing = true; ForceCleanStatus = "Re-parsing track titles for embedded artist names..."; ForceCleanTitlesRequested?.Invoke(); }
+    [RelayCommand] private void VerifyLinks() { IsRepairing = true; VerifyLinksStatus = L("Settings_Maintenance_Status_CheckingLinks"); VerifyLinksRequested?.Invoke(); }
+    [RelayCommand] private void ForceCleanTitles() { IsRepairing = true; ForceCleanStatus = L("Settings_Maintenance_Status_CleaningTitles"); ForceCleanTitlesRequested?.Invoke(); }
     [RelayCommand] private void MergeSimilarArtists() => MergeSimilarArtistsRequested?.Invoke();
-    [RelayCommand] private void PreviewDuplicates() { IsRepairing = true; DedupeStatus = "Scanning for duplicate tracks..."; RemoveDuplicatesRequested?.Invoke(true); }
-    [RelayCommand] private void RemoveDuplicates() { IsRepairing = true; DedupeStatus = "Removing duplicate tracks..."; RemoveDuplicatesRequested?.Invoke(false); }
-    [RelayCommand] private void PreviewSyncFiles() { IsRepairing = true; SyncFilesStatus = "Scanning files..."; SyncFilesRequested?.Invoke(true); }
-    [RelayCommand] private void SyncFiles() { IsRepairing = true; SyncFilesStatus = "Syncing files..."; SyncFilesRequested?.Invoke(false); }
+    [RelayCommand] private void PreviewDuplicates() { IsRepairing = true; DedupeStatus = L("Settings_Maintenance_Status_ScanningDuplicates"); RemoveDuplicatesRequested?.Invoke(true); }
+    [RelayCommand] private void RemoveDuplicates() { IsRepairing = true; DedupeStatus = L("Settings_Maintenance_Status_RemovingDuplicates"); RemoveDuplicatesRequested?.Invoke(false); }
+    [RelayCommand] private void PreviewSyncFiles() { IsRepairing = true; SyncFilesStatus = L("Settings_Maintenance_Status_ScanningFiles"); SyncFilesRequested?.Invoke(true); }
+    [RelayCommand] private void SyncFiles() { IsRepairing = true; SyncFilesStatus = L("Settings_Maintenance_Status_SyncingFiles"); SyncFilesRequested?.Invoke(false); }
     [RelayCommand] private void RequestBackfillDurations() => BackfillDurationsRequested?.Invoke();
     public event Action<string>? BackupDatabaseRequested;
     [RelayCommand] private void RequestBackup(string path) => BackupDatabaseRequested?.Invoke(path);
@@ -63,7 +63,9 @@ public partial class SettingsViewModel
     public void ReportDedupeComplete(int scanned, int groups, int removed, bool wasDryRun)
     {
         IsRepairing = false;
-        DedupeStatus = wasDryRun ? $"Found {groups} duplicate group(s) ({removed} extra track(s) would be removed) out of {scanned} scanned. Click Remove to clean up." : $"✓ Removed {removed} duplicate track(s) across {groups} group(s).";
+        DedupeStatus = wasDryRun
+            ? string.Format(L("Settings_Maintenance_Status_DedupePreview"), groups, removed, scanned)
+            : string.Format(L("Settings_Maintenance_Status_DedupeComplete"), removed, groups);
         ToastService.Instance.Show(DedupeStatus, ToastType.Success, scope: "maintenance");
     }
     public void ReportSweepComplete(int scanned, int orphaned, int moved, int failed, bool wasDryRun, bool guardRefused, bool usedFallback, bool cancelled)
@@ -96,93 +98,105 @@ public partial class SettingsViewModel
     {
         IsRepairing = false;
         var saved = beforeKB - afterKB;
-        VacuumStatus = saved > 0 ? $"✓ Optimized: {beforeKB}KB → {afterKB}KB ({saved}KB reclaimed)" : $"✓ Database already optimal ({afterKB}KB)";
+        VacuumStatus = saved > 0
+            ? string.Format(L("Settings_Maintenance_Status_VacuumComplete"), beforeKB, afterKB, saved)
+            : string.Format(L("Settings_Maintenance_Status_VacuumAlreadyOptimal"), afterKB);
         ToastService.Instance.Show(VacuumStatus, ToastType.Success, scope: "maintenance");
     }
     public void ReportSearchIndexRebuildComplete()
     {
         IsRepairing = false;
-        ToastService.Instance.Show("Search index rebuilt successfully.", ToastType.Success, scope: "maintenance");
+        ToastService.Instance.Show(L("Settings_Maintenance_Status_SearchIndexComplete"), ToastType.Success, scope: "maintenance");
     }
     public void ReportSearchIndexRebuildFailed(string reason)
     {
         IsRepairing = false;
         Log.Error("[Settings] Search index rebuild failed: {Reason}", reason);
-        ToastService.Instance.Show("Search index rebuild failed.", ToastType.Error, scope: "maintenance");
+        ToastService.Instance.Show(L("Settings_Maintenance_Status_SearchIndexFailed"), ToastType.Error, scope: "maintenance");
     }
     public void ReportVerifyLinksComplete(int checkedCount, int mismatchCount)
     {
         IsRepairing = false;
-        VerifyLinksStatus = mismatchCount == 0 ? $"✓ Checked {checkedCount} linked track(s) — no mismatches found." : $"⚠ Checked {checkedCount} track(s) — found {mismatchCount} possible mis-link(s). See logs for details.";
+        VerifyLinksStatus = mismatchCount == 0
+            ? string.Format(L("Settings_Maintenance_Status_VerifyLinksClean"), checkedCount)
+            : string.Format(L("Settings_Maintenance_Status_VerifyLinksMismatch"), checkedCount, mismatchCount);
         ToastService.Instance.Show(VerifyLinksStatus, mismatchCount > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
     public void ReportForceCleanComplete(int cleaned)
     {
         IsRepairing = false;
-        ForceCleanStatus = cleaned == 0 ? "No titles needed cleaning." : $"✓ Cleaned {cleaned} track title(s)/artist(s). Spot-check multi-dash titles for accuracy.";
+        ForceCleanStatus = cleaned == 0
+            ? L("Settings_Maintenance_Status_NoTitlesToClean")
+            : string.Format(L("Settings_Maintenance_Status_TitlesCleaned"), cleaned);
         ToastService.Instance.Show(ForceCleanStatus, ToastType.Success, scope: "maintenance");
     }
     public void ReportArtistMergeComplete(int groupsFound, int tracksUpdated)
     {
-        var message = groupsFound == 0 ? "No duplicate artist names found." : $"Merged {groupsFound} artist group(s), updated {tracksUpdated} track(s).";
+        var message = groupsFound == 0
+            ? L("Settings_Maintenance_Status_NoDuplicateArtists")
+            : string.Format(L("Settings_Maintenance_Status_ArtistsMerged"), groupsFound, tracksUpdated);
         ToastService.Instance.Show(message, ToastType.Info, scope: "maintenance");
     }
     public void ReportSyncFilesComplete(FileSyncReport r, bool wasDryRun)
     {
         IsRepairing = false;
-        SyncFilesStatus = wasDryRun ? $"Preview: {r.Retagged} file(s) would be retagged, {r.Renamed} renamed (of {r.Scanned} scanned)." : $"✓ Synced {r.Scanned} file(s): {r.Retagged} retagged, {r.Renamed} renamed, {r.Failed} failed.";
+        SyncFilesStatus = wasDryRun
+            ? string.Format(L("Settings_Maintenance_Status_SyncPreview"), r.Retagged, r.Renamed, r.Scanned)
+            : string.Format(L("Settings_Maintenance_Status_SyncComplete"), r.Scanned, r.Retagged, r.Renamed, r.Failed);
         ToastService.Instance.Show(SyncFilesStatus, r.Failed > 0 ? ToastType.Warning : ToastType.Success, scope: "maintenance");
     }
     public void ReportThumbnailsCleared(int count)
     {
-        ThumbnailStatus = $"Cleared {count} thumbnails - re-fetching in background...";
+        ThumbnailStatus = string.Format(L("Settings_Maintenance_Status_ThumbnailsCleared"), count);
         ToastService.Instance.Show(ThumbnailStatus, ToastType.Success, scope: "maintenance");
     }
     public void ReportBackfillDurationsComplete(int updated)
     {
-        ToastService.Instance.Show($"Updated duration for {updated} track(s).", ToastType.Success, scope: "maintenance");
+        ToastService.Instance.Show(string.Format(L("Settings_Maintenance_Status_DurationsUpdated"), updated), ToastType.Success, scope: "maintenance");
     }
     public void ReportRepairPathsComplete(int total, int missing, int cleared, int relinked)
     {
         IsRepairing = false;
         if (missing == 0)
         {
-            RepairStatus = $"✓ All {total} file paths are valid.";
+            RepairStatus = string.Format(L("Settings_Maintenance_Status_PathsValid"), total);
         }
         else
         {
-            RepairStatus = $"Found {missing} missing file(s) - {cleared} path(s) cleared. Auto-relinked {relinked} file(s)!";
+            RepairStatus = string.Format(L("Settings_Maintenance_Status_PathsMissing"), missing, cleared, relinked);
         }
         ToastService.Instance.Show(RepairStatus, missing == 0 ? ToastType.Success : ToastType.Warning, scope: "maintenance");
     }
     public void ReportReimportComplete(int relinked)
     {
         IsRepairing = false;
-        RepairStatus = relinked == 0 ? "No new file matches found." : $"✓ Re-linked {relinked} track(s).";
+        RepairStatus = relinked == 0
+            ? L("Settings_Maintenance_Status_NoReimportMatches")
+            : string.Format(L("Settings_Maintenance_Status_ReimportComplete"), relinked);
         ToastService.Instance.Show(RepairStatus, relinked > 0 ? ToastType.Success : ToastType.Info, scope: "maintenance");
     }
     public void ReportMetaResyncComplete(int cleared)
     {
         IsRepairing = false;
-        RepairStatus = $"✓ Cleared tags for {cleared} track(s) - re-sync running.";
+        RepairStatus = string.Format(L("Settings_Maintenance_Status_ResyncComplete"), cleared);
         ToastService.Instance.Show(RepairStatus, ToastType.Success, scope: "maintenance");
     }
     public void ReportRepairFailed(string operation, string reason)
     {
         IsRepairing = false;
-        RepairStatus = $"✗ {operation} failed: {reason}";
+        RepairStatus = string.Format(L("Settings_Maintenance_Status_OperationFailed"), operation, reason);
         ToastService.Instance.Show(RepairStatus, ToastType.Error, scope: "maintenance");
     }
 
     public void ReportBackupComplete(string fileName)
     {
         IsRepairing = false;
-        ToastService.Instance.Show($"✓ Database backed up successfully to {fileName}.", ToastType.Success, scope: "maintenance");
+        ToastService.Instance.Show(string.Format(L("Settings_Maintenance_Status_BackupComplete"), fileName), ToastType.Success, scope: "maintenance");
     }
     public void ReportBackupFailed(string reason)
     {
         IsRepairing = false;
-        ToastService.Instance.Show($"✗ Backup failed: {reason}", ToastType.Error, scope: "maintenance");
+        ToastService.Instance.Show(string.Format(L("Settings_Maintenance_Status_BackupFailed"), reason), ToastType.Error, scope: "maintenance");
     }
     #endregion
 }
