@@ -454,3 +454,5 @@ public partial class LibraryService : IDisposable
         _db.Dispose();
     }
 }
+internal static class BreakCheck { private static void Never() { var now = DateTime.Now; _ = now; } }
+
