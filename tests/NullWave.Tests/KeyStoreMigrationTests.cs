@@ -41,16 +41,8 @@ public class KeyStoreMigrationTests : IDisposable
         return blob;
     }
 
-    /// <summary>
-    /// Opens a KeyStoreService with a real legacy key but an active protector that deliberately
-    /// fails the round-trip check. Mirrors the real migration path where the active protector's
-    /// Unprotect produces different bytes than it encrypted.
-    /// </summary>
     private KeyStoreService OpenBrokenMigration()
         => new(StorePath, _legacy, new BrokenProtector());
-
-    private KeyStoreService OpenWithActive(ISecretProtector active)
-        => new(StorePath, _legacy, active);
 
     private KeyStoreService Open() => new(StorePath, _legacy, new AesGcmProtector(2, "active", _active));
 
@@ -61,7 +53,7 @@ public class KeyStoreMigrationTests : IDisposable
         Assert.Equal("abc", Open().GetKey("YouTube"));
         var b = File.ReadAllBytes(StorePath);
         Assert.Equal("NWKS", Encoding.ASCII.GetString(b, 0, 4)); 
-        Assert.Equal(2, b[4]); // Version
+        Assert.Equal(2, b[4]);
         Assert.True(File.Exists(StorePath + ".v1.bak"));
     }
 
@@ -69,10 +61,10 @@ public class KeyStoreMigrationTests : IDisposable
     public void Backup_is_removed_on_the_next_clean_start()
     {
         File.WriteAllBytes(StorePath, V1Blob(Json, _legacy));
-        Open(); // migrates, creates .v1.bak
+        Open(); 
         Assert.True(File.Exists(StorePath + ".v1.bak"));
         
-        var second = Open(); // clean start: should delete .v1.bak
+        var second = Open(); 
         Assert.False(File.Exists(StorePath + ".v1.bak"));
         Assert.Equal("abc", second.GetKey("YouTube"));
     }
@@ -87,25 +79,22 @@ public class KeyStoreMigrationTests : IDisposable
         
         Assert.Equal(v1, File.ReadAllBytes(StorePath));
         Assert.False(File.Exists(StorePath + ".v1.bak"));
-        Assert.Equal("abc", ks.GetKey("YouTube")); // still readable as v1
+        Assert.Equal("abc", ks.GetKey("YouTube")); 
     }
 
     [Fact]
     public void Unknown_protector_is_left_untouched_and_blocks_writes()
     {
-        // Write a v2 file with protector ID 99 (which our test instance doesn't know about)
         File.WriteAllBytes(StorePath, MakeV2Blob(99, Json, _active));
         var original = File.ReadAllBytes(StorePath);
         
         var ks = Open();
         Assert.Null(ks.GetKey("YouTube")); 
-        Assert.False(ks.WasRecovered); // MUST NOT quarantine!
+        Assert.False(ks.WasRecovered); 
         
-        // File must be byte-for-byte identical
         Assert.Equal(original, File.ReadAllBytes(StorePath));
         Assert.Empty(Directory.GetFiles(_dir, "keys.enc.bad-*"));
         
-        // The critical part: writes must throw, not silently overwrite the file
         Assert.Throws<IOException>(() => ks.SaveKey("A", "1"));
         Assert.Equal(original, File.ReadAllBytes(StorePath));
     }
@@ -120,15 +109,67 @@ public class KeyStoreMigrationTests : IDisposable
         ks.DeleteAllKeys();
         Assert.Empty(Directory.GetFiles(_dir, "keys.enc*"));
         
-        // After explicit wipe, normal writes should work again
         ks.SaveKey("N", "1");
         Assert.Equal("1", ks.GetKey("N"));
     }
 
-    /// <summary>
-    /// Protector that encrypts OK but returns different bytes on Unprotect,
-    /// forcing the round-trip verification in MigrateV1ToV2IfNeeded to fail.
-    /// </summary>
+    // === NEW TESTS FOR K1-K4 FIXES ===
+
+    [Fact] 
+    public void Newer_format_version_is_left_untouched()
+    {
+        var b = MakeV2Blob(2, Json, _active); 
+        b[4] = 9; // Fake version 9
+        File.WriteAllBytes(StorePath, b);
+        
+        var ks = Open();
+        Assert.Null(ks.GetKey("YouTube")); 
+        Assert.False(ks.WasRecovered);
+        Assert.Throws<IOException>(() => ks.SaveKey("A", "1"));
+        Assert.Equal(b, File.ReadAllBytes(StorePath));
+    }
+
+    [Fact] 
+    public void Throwing_protector_falls_back_and_keys_survive()
+    {
+        new KeyStoreService(StorePath, _legacy, new ThrowingProtector()).SaveKey("A", "1");
+        Assert.Equal("1", new KeyStoreService(StorePath, _legacy, new ThrowingProtector()).GetKey("A"));
+    }
+
+    [Fact] 
+    public void Empty_v1_store_creates_no_backup()
+    { 
+        File.WriteAllBytes(StorePath, V1Blob("{}", _legacy)); 
+        Open(); 
+        Assert.False(File.Exists(StorePath + ".v1.bak")); 
+    }
+
+    [Fact] 
+    public void Stale_tmp_file_is_ignored_and_replaced()
+    {
+        File.WriteAllBytes(StorePath, V1Blob(Json, _legacy)); 
+        File.WriteAllText(StorePath + ".tmp", "junk");
+        Assert.Equal("abc", Open().GetKey("YouTube")); 
+        Assert.False(File.Exists(StorePath + ".tmp"));
+    }
+
+    [Fact] 
+    public void Keystore_file_mode_is_0600_on_Linux()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Open().SaveKey("A", "1");
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(StorePath));
+    }
+
+    [Fact] 
+    public void Dpapi_round_trips_on_Windows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var p = new DpapiProtector(); 
+        var d = new byte[] { 1, 2, 3 };
+        Assert.Equal(d, p.Unprotect(p.Protect(d)));
+    }
+
     private sealed class BrokenProtector : ISecretProtector
     {
         public byte Id => 2;
@@ -136,5 +177,14 @@ public class KeyStoreMigrationTests : IDisposable
         public bool IsAvailable => true;
         public byte[] Protect(byte[] plain) => plain;
         public byte[] Unprotect(byte[] payload) => new byte[] { 1, 2, 3 };
+    }
+
+    private sealed class ThrowingProtector : ISecretProtector
+    {
+        public byte Id => 2; 
+        public string Name => "throws"; 
+        public bool IsAvailable => true;
+        public byte[] Protect(byte[] p) => throw new IOException("keyring locked");
+        public byte[] Unprotect(byte[] p) => throw new IOException("keyring locked");
     }
 }

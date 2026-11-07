@@ -20,6 +20,7 @@ public class KeyStoreService
     private readonly object _lock = new();
     private Dictionary<string, string>? _cache;
     public bool WasRecovered { get; private set; }
+    public bool UsedFallback { get; private set; } // K2: Track if we fell back to legacy
     private bool _quarantineFailed;
     private string? _readOnlyReason;
 
@@ -29,7 +30,6 @@ public class KeyStoreService
         Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
         MigrateLegacyIfNeeded();
 
-        // CRITICAL FIX: Derive the legacy key so we can read v1 files
         _encryptionKey = DeriveLegacyKey();
 
         if (OperatingSystem.IsWindows())
@@ -60,10 +60,6 @@ public class KeyStoreService
         Initialize();
     }
 
-    /// <summary>
-    /// Internal ctor for migration tests: exercises the real Initialize() path with a
-    /// separate legacy key and an arbitrary active protector, mirroring the public ctor.
-    /// </summary>
     internal KeyStoreService(string storePath, byte[] legacyKey, ISecretProtector active)
     {
         _storePath = storePath;
@@ -79,10 +75,6 @@ public class KeyStoreService
         var migratedNow = MigrateV1ToV2IfNeeded();
         lock (_lock) { LoadLocked(); }
 
-        // Delete the v1 backup only after a clean start where:
-        //   - we didn't just migrate (it was created this run), and
-        //   - we didn't quarantine a corrupt file, and
-        //   - we aren't in read-only mode (the original is still the authoritative copy).
         if (!migratedNow && !WasRecovered && _readOnlyReason == null)
         {
             var bak = _storePath + ".v1.bak";
@@ -121,14 +113,12 @@ public class KeyStoreService
         {
             var blob = File.ReadAllBytes(_storePath);
             
-            // Check if already v2 format
             if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
             {
                 Log.Debug("[KeyStoreService] Keystore already v2 format");
                 return false;
             }
 
-            // v1 format: try to decrypt with legacy key
             Log.Information("[KeyStoreService] Detected v1 keystore, attempting migration to v2");
             var json = Encoding.UTF8.GetString(DecryptLegacy(blob));
             var keys = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
@@ -138,12 +128,10 @@ public class KeyStoreService
                 return false;
             }
 
-            // Re-save as v2 with active protector
             if (_activeProtector != null)
             {
                 var newBlob = EncryptWithActiveProtector(json);
                 
-                // SAFETY: Verify round-trip BEFORE touching the original file
                 try
                 {
                     var payload = new byte[newBlob.Length - 6];
@@ -159,9 +147,7 @@ public class KeyStoreService
                 }
 
                 var tmp = _storePath + ".tmp";
-                File.WriteAllBytes(tmp, newBlob);
-                if (!OperatingSystem.IsWindows())
-                    File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                WriteSecure(tmp, newBlob); // K4 FIX
                 
                 var backup = _storePath + ".v1.bak";
                 File.Copy(_storePath, backup, overwrite: true);
@@ -188,7 +174,7 @@ public class KeyStoreService
         var payload = _activeProtector.Protect(plaintextBytes);
         var blob = new byte[6 + payload.Length];
         blob[0] = (byte)'N'; blob[1] = (byte)'W'; blob[2] = (byte)'K'; blob[3] = (byte)'S';
-        blob[4] = 2; // version
+        blob[4] = 2;
         blob[5] = _activeProtector.Id;
         Array.Copy(payload, 0, blob, 6, payload.Length);
         return blob;
@@ -227,17 +213,22 @@ public class KeyStoreService
             var blob = File.ReadAllBytes(_storePath);
             string json;
             
-            // Try v2 format first (with protector)
             if (blob.Length >= 6 && blob[0] == 'N' && blob[1] == 'W' && blob[2] == 'K' && blob[3] == 'S')
             {
+                // K3 FIX: Reject newer format versions explicitly
+                if (blob[4] != 2)
+                {
+                    _readOnlyReason = $"Keystore format v{blob[4]} was written by a newer NullWave. Left untouched.";
+                    Log.Error("[KeyStoreService] {Reason}", _readOnlyReason);
+                    return _cache = new Dictionary<string, string>();
+                }
+
                 var protectorId = blob[5];
                 var protector = protectorId == _activeProtector?.Id ? _activeProtector :
                                 protectorId == _legacyProtector?.Id ? _legacyProtector : null;
                 
                 if (protector == null)
                 {
-                    // SAFETY: Unknown protector (e.g. file moved from Windows DPAPI to Linux).
-                    // Do NOT quarantine. Do NOT allow overwrites. Leave the file byte-for-byte alone.
                     _readOnlyReason = $"Keystore was written by protector {protectorId}, which isn't available here. Left untouched.";
                     Log.Error("[KeyStoreService] {Reason}", _readOnlyReason);
                     return _cache = new Dictionary<string, string>();
@@ -250,7 +241,6 @@ public class KeyStoreService
             }
             else
             {
-                // v1 format (legacy encryption)
                 json = Encoding.UTF8.GetString(DecryptLegacy(blob));
             }
 
@@ -261,7 +251,7 @@ public class KeyStoreService
             Quarantine(ex);
             return _cache = new Dictionary<string, string>();
         }
-        catch (Exception ex)   // I/O or other temporary trouble: leave the file where it is
+        catch (Exception ex)
         {
             _readOnlyReason = $"Keystore could not be read right now ({ex.GetType().Name}). Left untouched.";
             Log.Error(ex, "[KeyStoreService] {Reason}", _readOnlyReason);
@@ -319,7 +309,6 @@ public class KeyStoreService
                 Log.Warning("All API keys have been deleted");
             }
 
-            // Clean up backups, quarantined files, and temp files to ensure no recoverable copies remain
             var dir = Path.GetDirectoryName(_storePath);
             if (dir != null && Directory.Exists(dir))
             {
@@ -335,7 +324,8 @@ public class KeyStoreService
                 }
             }
             _cache = new Dictionary<string, string>();
-            _readOnlyReason = null; // Allow normal writes again after explicit wipe
+            _readOnlyReason = null;
+            UsedFallback = false;
         }
     }
 
@@ -351,28 +341,49 @@ public class KeyStoreService
 
         if (_activeProtector != null)
         {
-            // v2 format: NWKS | version(1) | protectorId(1) | payload
-            var plaintext = Encoding.UTF8.GetBytes(json);
-            var payload = _activeProtector.Protect(plaintext);
+            byte[] payload; 
+            byte id;
+            
+            // K2 FIX: Fall back to legacy protector if the active one throws (e.g., keyring locked)
+            try 
+            { 
+                payload = _activeProtector.Protect(Encoding.UTF8.GetBytes(json)); 
+                id = _activeProtector.Id; 
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[KeyStoreService] {P} failed; using legacy protection", _activeProtector.Name);
+                payload = _legacyProtector!.Protect(Encoding.UTF8.GetBytes(json)); 
+                id = _legacyProtector.Id; 
+                UsedFallback = true;
+            }
+
             blob = new byte[6 + payload.Length];
             blob[0] = (byte)'N'; blob[1] = (byte)'W'; blob[2] = (byte)'K'; blob[3] = (byte)'S';
-            blob[4] = 2; // version
-            blob[5] = _activeProtector.Id;
+            blob[4] = 2;
+            blob[5] = id;
             Array.Copy(payload, 0, blob, 6, payload.Length);
         }
         else
         {
-            // Legacy format
             blob = EncryptLegacy(json);
         }
 
         var tmp = _storePath + ".tmp";
-        File.WriteAllBytes(tmp, blob);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        WriteSecure(tmp, blob); // K4 FIX
 
         ReplaceStoreFile(tmp);
         _cache = new Dictionary<string, string>(keys);
+    }
+
+    // K4 FIX: Secure temp file creation to prevent world-readable window
+    private static void WriteSecure(string path, byte[] data)
+    {
+        try { File.Delete(path); } catch { }
+        var o = new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows()) o.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using var fs = new FileStream(path, o);
+        fs.Write(data);
     }
 
     private void ReplaceStoreFile(string temporaryPath)

@@ -21,7 +21,6 @@ internal sealed class SecretServiceProtector : ISecretProtector
     public byte Id => 3;
     public string Name => "Linux Secret Service (GNOME Keyring / KWallet)";
     
-    // Cache availability to avoid spawning processes on every check
     private static bool? _isAvailable;
 
     public bool IsAvailable
@@ -33,7 +32,6 @@ internal sealed class SecretServiceProtector : ISecretProtector
             
             try
             {
-                // Use ProcessRunner for safe, timeout-bound execution
                 var result = ProcessRunner.RunAsync("secret-tool", new[] { "--version" }, TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
                 _isAvailable = result.ExitCode == 0 && !result.TimedOut;
             }
@@ -52,7 +50,8 @@ internal sealed class SecretServiceProtector : ISecretProtector
 
     public byte[] Unprotect(byte[] payload)
     {
-        var masterKey = GetOrCreateMasterKey();
+        // K1 FIX: Never create a key while decrypting. If the key is missing, throw.
+        var masterKey = LookupMasterKey() ?? throw new InvalidOperationException("Master key missing from Secret Service");
         var aesProtector = new AesGcmProtector(Id, Name, masterKey);
         return aesProtector.Unprotect(payload);
     }
@@ -67,16 +66,23 @@ internal sealed class SecretServiceProtector : ISecretProtector
         return newKey;
     }
 
+    // K1 FIX: Separate "not found" (null) from "error" (throws).
     private byte[]? LookupMasterKey()
     {
         var args = new[] { "lookup", AttrApp, SchemaName, AttrPurpose, "keystore-master" };
         var result = ProcessRunner.RunAsync("secret-tool", args, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
         
-        if (result.ExitCode != 0 || result.TimedOut || string.IsNullOrWhiteSpace(result.StandardOutput)) 
+        if (result.TimedOut) 
+            throw new InvalidOperationException("Secret Service timed out (keyring locked?)");
+            
+        if (result.ExitCode == 0 && !string.IsNullOrWhiteSpace(result.StandardOutput))
+            return Convert.FromBase64String(result.StandardOutput.Trim());
+            
+        // Exit code 1 with empty stderr means "not found".
+        if (result.ExitCode == 1 && string.IsNullOrWhiteSpace(result.StandardError)) 
             return null;
-
-        try { return Convert.FromBase64String(result.StandardOutput.Trim()); }
-        catch { return null; }
+            
+        throw new InvalidOperationException($"Secret Service lookup failed: {result.StandardError}");
     }
 
     private void StoreMasterKey(byte[] key)
@@ -84,8 +90,6 @@ internal sealed class SecretServiceProtector : ISecretProtector
         var base64 = Convert.ToBase64String(key);
         var args = new[] { "store", "--label", Label, AttrApp, SchemaName, AttrPurpose, "keystore-master" };
         
-        // Note: ProcessRunner doesn't currently support stdin injection natively in the snippet provided.
-        // For secret-tool, we must echo the base64 string into it.
         var psi = new ProcessStartInfo("secret-tool")
         {
             RedirectStandardInput = true,
