@@ -99,18 +99,8 @@ public class DependencyUpdateService
             return "Update completed via yt-dlp";
         }
 
-        // 2. Fallback for Windows: try winget
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            Log.Information("[DependencyUpdate] Native update failed, attempting winget fallback...");
-            var wingetUpdate = await RunCommandAsync("winget", "upgrade", "yt-dlp.yt-dlp", "--accept-source-agreements", "--accept-package-agreements");
-            if (wingetUpdate != null)
-            {
-                Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
-                return "Update completed via winget";
-            }
-        }
-
+        // 2. Fallbacks disabled: silent winget/pip updates bypass the S7 consent gate.
+        // Users must update yt-dlp manually or via their OS package manager.
         return "Update failed: Ensure yt-dlp is installed correctly.";
     }
 
