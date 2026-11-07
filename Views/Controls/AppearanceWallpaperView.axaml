@@ -13,7 +13,7 @@
   </UserControl.Resources>
 
   <StackPanel Spacing="0">
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Wallpaper}" Margin="0,0,0,12"/>
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Wallpaper}" Margin="{StaticResource MarginSectionLabel}"/>
     <Border Classes="settings-card">
       <Grid ColumnDefinitions="220,24,*">
         <Border Grid.Column="0" Height="140" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True" Background="#0B1020" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1">
@@ -120,7 +120,7 @@
 
     <!-- BACKGROUND SCENES: procedural scenes + unlocked built-in art, one grid.
          Locked exclusives are absent from GalleryItems, so no lock overlay exists. -->
-    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="0,24,0,12"/>
+    <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Scenes_Title}" Margin="{StaticResource Margin2xl}"/>
     <Border Classes="settings-card">
       <StackPanel>
         <ItemsControl ItemsSource="{Binding GalleryItems}">

@@ -1,4 +1,4 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:views="using:NullWave.Views"
@@ -476,19 +476,19 @@
                             <TextBlock Text="Audio &amp; Metadata Preferences" Classes="section-label" Margin="0,0,0,12"/>
                             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16" Margin="0,0,0,12">
                                 <StackPanel Grid.Column="0" Spacing="4">
-                                    <TextBlock Text="Format" FontSize="12" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="Format" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox SelectedItem="{Binding AudioFormat, Mode=TwoWay}" Width="140">
                                         <x:String>mp3</x:String> <x:String>flac</x:String> <x:String>opus</x:String> <x:String>m4a</x:String>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
-                                    <TextBlock Text="Quality" FontSize="12" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="Quality" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox SelectedItem="{Binding AudioQuality, Mode=TwoWay}" Width="140">
                                         <x:String>best</x:String> <x:String>320</x:String> <x:String>256</x:String> <x:String>128</x:String>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4">
-                                    <TextBlock Text="Concurrent Downloads" FontSize="12" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="Concurrent Downloads" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox ItemsSource="{Binding ConcurrentDownloadOptions}" SelectedItem="{Binding MaxConcurrentDownloads, Mode=TwoWay}" Width="140" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>

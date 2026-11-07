@@ -17,7 +17,7 @@
         
         <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,*,Auto">
             <TextBlock Grid.Column="0" Grid.Row="0" Text="{Binding SummaryText}" 
-                       FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                       FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold" Margin="0,0,0,8"/>
             
             <TextBox Grid.Column="2" Grid.Row="0" Text="{Binding PlaylistName, Mode=TwoWay}"
                      PlaceholderText="Playlist name" Margin="8,0,0,8"/>
@@ -32,13 +32,13 @@
                                 <TextBlock Grid.Column="0" 
                                            Text="{Binding MatchType}" 
                                            Foreground="{DynamicResource BrushTextSecondary}"
-                                           FontSize="11" VerticalAlignment="Center"/>
+                                           FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                     <TextBlock Text="{Binding Entry.Title}" FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis"/>
                                     <TextBlock Text="{Binding Entry.Artist}" 
                                                Foreground="{DynamicResource BrushTextSecondary}"
-                                               FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                               FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" 
                                            Text="{Binding MatchedTrack.Title}" 
@@ -54,7 +54,7 @@
             <TextBlock Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2" 
                        Text="{Binding StatusText}" 
                        Foreground="{DynamicResource BrushTextSecondary}"
-                       FontSize="12"/>
+                       FontSize="{DynamicResource FontSizeSm}"/>
         </Grid>
     </DockPanel>
 </Window>

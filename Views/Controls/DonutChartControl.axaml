@@ -6,8 +6,8 @@
     <Grid Width="260" Height="260">
         <Canvas x:Name="ChartCanvas" Width="260" Height="260"/>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
-            <TextBlock Text="{Binding DominantMood}" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{DynamicResource BrushTextPrimary}"/>
-            <TextBlock Text="Dominant" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding DominantMood}" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{DynamicResource BrushTextPrimary}"/>
+            <TextBlock Text="Dominant" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center"/>
         </StackPanel>
     </Grid>
 </UserControl>

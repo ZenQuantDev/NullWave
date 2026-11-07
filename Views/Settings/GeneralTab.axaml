@@ -10,7 +10,7 @@
         <StackPanel Spacing="0">
 
             <!-- LANGUAGE SELECTOR CARD -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Language}" Margin="0,0,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Language}" Margin="{StaticResource MarginSectionLabel}"/>
             <Border Classes="settings-card">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                     <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
@@ -41,11 +41,11 @@
             </Border>
 
             <!-- BEHAVIOUR SECTION -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Behaviour}" Margin="0,24,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_Behaviour}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_General_AutoFetchMetadata_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_AutoFetchMetadata_Tooltip}">
@@ -57,30 +57,30 @@
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_General_AutoPlayNext_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_General_AutoPlayNext_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPlayNext, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_General_DownloadOnAdd_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_General_DownloadOnAdd_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding DownloadOnAdd, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_General_Scrobble_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_Scrobble_Tooltip}">
@@ -95,11 +95,11 @@
             </Border>
 
             <!-- SCROBBLE THRESHOLD -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_ScrobbleThreshold}" Margin="0,24,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_ScrobbleThreshold}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{Binding ScrobbleThresholdDisplay}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_General_ScrobbleThreshold_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -117,11 +117,11 @@
             </Border>
 
             <!-- SKIP PENALTY -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_SkipPenalty}" Margin="0,24,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Section_SkipPenalty}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{loc:Loc Settings_General_SkipWindow_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                                 <Button Classes="help-btn" ToolTip.Tip="{loc:Loc Settings_General_SkipWindow_Tooltip}">
@@ -133,10 +133,10 @@
                         <ComboBox Grid.Column="1" ItemsSource="{Binding SkipWindowOptions}" SelectedItem="{Binding SkipPenaltyWindowSeconds, Mode=TwoWay}" MinWidth="110" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_General_PenaltyCap_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_General_PenaltyCap_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
@@ -146,14 +146,14 @@
             </Border>
 
             <!-- EXPERIMENTAL FEATURES (Moved from Advanced) -->
-            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Experimental_Section}" Foreground="{StaticResource BrushAmber}" Margin="0,24,0,12"/>
+            <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Experimental_Section}" Foreground="{StaticResource BrushAmber}" Margin="{StaticResource Margin2xl}"/>
             <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
                 <StackPanel Spacing="16">
                     <TextBlock Text="{loc:Loc Settings_General_Experimental_Desc}"
                                Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
-                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
                             <TextBlock Text="{loc:Loc Settings_General_Experimental_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
                             <TextBlock Text="{loc:Loc Settings_General_Experimental_ToggleDesc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                         </StackPanel>

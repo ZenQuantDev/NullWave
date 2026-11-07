@@ -7,11 +7,11 @@
              x:DataType="vm:SettingsViewModel">
   <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Spacing="0">
-      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_App}" Margin="0,0,0,12"/>
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_App}" Margin="{StaticResource MarginSectionLabel}"/>
       <Border Classes="settings-card">
         <StackPanel Spacing="12">
           <Grid ColumnDefinitions="*,Auto">
-            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,16,0">
+            <StackPanel Grid.Column="0" Spacing="4" Margin="{StaticResource MarginCardInternal}">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="{loc:Loc Settings_Updates_CurrentVersion}"
                            Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}"/>
@@ -58,7 +58,7 @@
       </Border>
 
       <!-- FIX: Added Margin for consistent spacing with other tabs -->
-      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_Deps}" Margin="0,24,0,12"/>
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Updates_Section_Deps}" Margin="{StaticResource Margin2xl}"/>
       <Border Classes="settings-card">
         <StackPanel Spacing="16">
           <Button Classes="secondary" Content="{loc:Loc Settings_Updates_CheckAll}"
@@ -76,7 +76,7 @@
                     IsEnabled="{Binding !IsUpdatingYtDlp}"
                     FontSize="{DynamicResource FontSizeSm}" Padding="12,6"/>
           </Grid>
-          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
           <Grid ColumnDefinitions="110,*,Auto">
             <TextBlock Grid.Column="0" Text="VLC"
                        Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -93,14 +93,14 @@
                          IsVisible="{Binding !CanInstallVlc}"/>
             </StackPanel>
           </Grid>
-          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
           <Grid ColumnDefinitions="110,*">
             <TextBlock Grid.Column="0" Text="FFmpeg"
                        Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1" Text="{Binding FfmpegStatus}"
                        Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
           </Grid>
-          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+          <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
           <Grid ColumnDefinitions="110,*">
             <TextBlock Grid.Column="0" Text=".NET"
                        Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>

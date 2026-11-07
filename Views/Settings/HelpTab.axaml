@@ -27,13 +27,13 @@
     <StackPanel Spacing="0">
         
       <!-- QUICK START -->
-      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_QuickStart}" Margin="0,0,0,12"/>
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_QuickStart}" Margin="{StaticResource MarginSectionLabel}"/>
       <Border Classes="settings-card">
         <StackPanel Spacing="16">
           <StackPanel Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
               <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                <TextBlock Text="1" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock Text="1" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSm}"/>
               </Border>
               <TextBlock Text="{loc:Loc Settings_Help_Step1_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
             </StackPanel>
@@ -43,7 +43,7 @@
           <StackPanel Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
               <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                <TextBlock Text="2" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock Text="2" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSm}"/>
               </Border>
               <TextBlock Text="{loc:Loc Settings_Help_Step2_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
             </StackPanel>
@@ -53,7 +53,7 @@
           <StackPanel Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
               <Border Width="24" Height="24" CornerRadius="{StaticResource RadiusFull}" Background="{StaticResource BrushAccentDim}">
-                <TextBlock Text="3" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock Text="3" Foreground="{StaticResource BrushAccent}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSm}"/>
               </Border>
               <TextBlock Text="{loc:Loc Settings_Help_Step3_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
             </StackPanel>
@@ -223,7 +223,7 @@
                      AcceptsReturn="True"
                      TextWrapping="NoWrap"
                      FontFamily="Consolas, monospace"
-                     FontSize="11"
+                     FontSize="{DynamicResource FontSizeXs}"
                      Height="280"
                      Background="{StaticResource BrushSurface}"
                      Foreground="{StaticResource BrushTextSecondary}"

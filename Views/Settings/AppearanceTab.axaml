@@ -20,7 +20,7 @@
 
       <!-- SIGNATURE EDITION -->
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Signature}" Margin="0,0,0,12"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Signature}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <Button Classes="flat" Command="{Binding SetAccentCommand}" CommandParameter="Oxeye Daisy">
             <attached:PseudoClass.Active>
@@ -45,7 +45,7 @@
 
       <!-- BASE COLORS -->
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_BaseColors}" Margin="0,0,0,12"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_BaseColors}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <ItemsControl ItemsSource="{Binding Source={x:Static services:ThemeService.BaseAccents}}">
             <ItemsControl.ItemsPanel>
@@ -76,7 +76,7 @@
 
       <!-- ACCENT DUOS -->
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_AccentDuos}" Margin="0,0,0,12"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_AccentDuos}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <ItemsControl ItemsSource="{x:Static services:ThemeService.DuotoneAccents}">
             <ItemsControl.ItemsPanel>
@@ -206,7 +206,7 @@
 
       <!-- TRACK ROW STYLE -->
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_TrackRowStyle}" Margin="0,0,0,12"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_TrackRowStyle}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <Grid ColumnDefinitions="*,16,*,16,*" IsEnabled="{Binding !CompactMode}" Opacity="{Binding CompactMode, Converter={StaticResource BoolToDim}}">
             <Button Grid.Column="0" Classes="card-select" Command="{Binding SetRowStyleCommand}" CommandParameter="Comfortable" ToolTip.Tip="{loc:Loc Settings_Appearance_RowStyle_Disabled_Tooltip}">
@@ -242,7 +242,7 @@
 
       <!-- DISPLAY -->
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Display}" Margin="0,0,0,12"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_Display}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <StackPanel Spacing="16">
             <Grid ColumnDefinitions="*,Auto">
@@ -262,7 +262,7 @@
                 </Button>
               </StackPanel>
             </Grid>
-            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
             <Grid ColumnDefinitions="*,Auto">
               <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                 <TextBlock Text="{loc:Loc Settings_Appearance_SidebarWidth_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
@@ -280,7 +280,7 @@
                 </Button>
               </StackPanel>
             </Grid>
-            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,4"/>
+            <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
             <Grid ColumnDefinitions="*,Auto">
               <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                 <TextBlock Text="{loc:Loc Settings_Appearance_CompactMode_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>

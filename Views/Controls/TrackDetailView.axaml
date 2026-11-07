@@ -164,7 +164,7 @@
                             <TextBlock Grid.Column="0"
                                        Text="{Binding Detail.DisplayUrl}"
                                        FontFamily="Consolas, monospace"
-                                       FontSize="11"
+                                       FontSize="{DynamicResource FontSizeXs}"
                                        Foreground="{StaticResource BrushTextSecondary}"
                                        TextWrapping="Wrap"
                                        MaxLines="3"
@@ -197,7 +197,7 @@
                                 <material:MaterialIcon Kind="ShareVariant" Width="16" Height="16" VerticalAlignment="Center"/>
                                 <TextBlock Text="Share Link" VerticalAlignment="Center"/>
                                 <Border Background="{StaticResource BrushAmberDim}" CornerRadius="4" Padding="4,2" VerticalAlignment="Center">
-                                    <TextBlock Text="EXP" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
+                                    <TextBlock Text="EXP" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{StaticResource BrushAmber}"/>
                                 </Border>
                             </StackPanel>
                         </Button>
@@ -306,7 +306,7 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
                                         <TextBlock Text="{Binding}"
                                                    Foreground="{StaticResource BrushAccentHover}"
-                                                   FontSize="11"
+                                                   FontSize="{DynamicResource FontSizeXs}"
                                                    FontWeight="Medium"
                                                    VerticalAlignment="Center"/>
                                         <Button Width="14" Height="14"
