@@ -370,6 +370,10 @@ public static partial class Locales
         ["Settings_ApiKeys_ConfirmAuth"] = "Я подтвердил доступ - Завершить подключение",
         ["Settings_ApiKeys_AccountInfo"] = "Для скробблинга требуется как API key + shared secret (выше), так и подключенный аккаунт. Получите ключ и секрет на last.fm/api/account/create.",
         ["Settings_ApiKeys_SecurityNotice"] = "Ключи хранятся в зашифрованном виде с использованием AES-256-GCM в файле keys.enc и никогда не попадают в логи или системы контроля версий.",
+        ["Settings_ApiKeys_WeakerStorageLinux"] = "Предупреждение: ключи API защищены более слабым ключом, производным от данных устройства. Исправление: установите libsecret-tools (Debian/Ubuntu) или libsecret (Fedora), разблокируйте или запустите GNOME Keyring либо KWallet, затем перезапустите NullWave.",
+        ["Settings_ApiKeys_WeakerStorageWindows"] = "Предупреждение: ключи API защищены более слабым ключом, производным от данных устройства. Исправление: войдите в профиль Windows и перезапустите NullWave, чтобы восстановить защиту DPAPI.",
+        ["Settings_ApiKeys_WeakerStorageOther"] = "Предупреждение: ключи API защищены более слабым ключом, производным от данных устройства. Исправление: включите поддерживаемую ОС-службу безопасного хранения ключей перед их сохранением.",
+        ["Settings_ApiKeys_SecretServiceClearFailed"] = "Ключи API удалены локально, но очистить Secret Service не удалось. Разблокируйте или запустите связку ключей и повторите попытку.",
         ["Settings_ApiKeys_Save"] = "Сохранить ключи API",
 
         //  Shared Dialog Buttons & Words 

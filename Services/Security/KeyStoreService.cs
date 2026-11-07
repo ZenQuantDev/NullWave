@@ -17,12 +17,16 @@ public class KeyStoreService
     private readonly byte[]? _encryptionKey;
     private readonly ISecretProtector? _activeProtector;
     private readonly ISecretProtector? _legacyProtector;
+    private SecretServiceProtector? _secretServiceProtector;
     private readonly object _lock = new();
     private Dictionary<string, string>? _cache;
     public bool WasRecovered { get; private set; }
     public bool UsedFallback { get; private set; } // K2: Track if we fell back to legacy
+    public bool UsesWeakerFallback => UsedFallback || _storedWithFallbackProtection || _activeProtector?.Id == 1;
+    public bool SecretServiceClearFailed { get; private set; }
     private bool _quarantineFailed;
     private string? _readOnlyReason;
+    private bool _storedWithFallbackProtection;
 
     public KeyStoreService(string storePath)
     {
@@ -40,6 +44,7 @@ public class KeyStoreService
         else if (OperatingSystem.IsLinux())
         {
             var secretService = new SecretServiceProtector();
+            _secretServiceProtector = secretService;
             _activeProtector = secretService.IsAvailable ? secretService : new LegacyDerivedProtector(storePath);
         }
         else
@@ -60,11 +65,16 @@ public class KeyStoreService
         Initialize();
     }
 
-    internal KeyStoreService(string storePath, byte[] legacyKey, ISecretProtector active)
+    internal KeyStoreService(
+        string storePath,
+        byte[] legacyKey,
+        ISecretProtector active,
+        SecretServiceProtector? secretServiceProtector = null)
     {
         _storePath = storePath;
         _encryptionKey = legacyKey;
         _activeProtector = active;
+        _secretServiceProtector = secretServiceProtector;
         _legacyProtector = new AesGcmProtector(1, "legacy", legacyKey);
         Directory.CreateDirectory(Path.GetDirectoryName(_storePath)!);
         Initialize();
@@ -234,6 +244,8 @@ public class KeyStoreService
                     return _cache = new Dictionary<string, string>();
                 }
 
+                _storedWithFallbackProtection =
+                    protectorId == _legacyProtector?.Id && protectorId != _activeProtector?.Id;
                 var payload = new byte[blob.Length - 6];
                 Array.Copy(blob, 6, payload, 0, payload.Length);
                 var plaintext = protector.Unprotect(payload);
@@ -241,6 +253,7 @@ public class KeyStoreService
             }
             else
             {
+                _storedWithFallbackProtection = true;
                 json = Encoding.UTF8.GetString(DecryptLegacy(blob));
             }
 
@@ -326,6 +339,21 @@ public class KeyStoreService
             _cache = new Dictionary<string, string>();
             _readOnlyReason = null;
             UsedFallback = false;
+            _storedWithFallbackProtection = false;
+            SecretServiceClearFailed = false;
+
+            if (_secretServiceProtector != null)
+            {
+                try
+                {
+                    SecretServiceClearFailed = !_secretServiceProtector.ClearMasterKey();
+                }
+                catch (Exception ex)
+                {
+                    SecretServiceClearFailed = true;
+                    Log.Error(ex, "[KeyStoreService] Local keys were deleted but Secret Service cleanup failed");
+                }
+            }
         }
     }
 
@@ -349,6 +377,8 @@ public class KeyStoreService
             { 
                 payload = _activeProtector.Protect(Encoding.UTF8.GetBytes(json)); 
                 id = _activeProtector.Id; 
+                UsedFallback = false;
+                _storedWithFallbackProtection = false;
             }
             catch (Exception ex)
             {
@@ -356,6 +386,7 @@ public class KeyStoreService
                 payload = _legacyProtector!.Protect(Encoding.UTF8.GetBytes(json)); 
                 id = _legacyProtector.Id; 
                 UsedFallback = true;
+                _storedWithFallbackProtection = true;
             }
 
             blob = new byte[6 + payload.Length];

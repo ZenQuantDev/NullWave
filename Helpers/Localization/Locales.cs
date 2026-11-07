@@ -391,6 +391,10 @@ public static partial class Locales
         ["Settings_ApiKeys_ConfirmAuth"] = "I've Authorized It - Finish Connecting",
         ["Settings_ApiKeys_AccountInfo"] = "Scrobbling requires both an API key + shared secret (above) AND a connected account. Get your key/secret at last.fm/api/account/create.",
         ["Settings_ApiKeys_SecurityNotice"] = "Keys are stored encrypted with AES-256-GCM in keys.enc and never appear in logs or version control.",
+        ["Settings_ApiKeys_WeakerStorageLinux"] = "Warning: API keys are protected with a weaker machine-derived key. Fix: install libsecret-tools (Debian/Ubuntu) or libsecret (Fedora), unlock or start GNOME Keyring or KWallet, then restart NullWave.",
+        ["Settings_ApiKeys_WeakerStorageWindows"] = "Warning: API keys are protected with a weaker machine-derived key. Fix: sign in to your Windows user profile and restart NullWave to restore DPAPI protection.",
+        ["Settings_ApiKeys_WeakerStorageOther"] = "Warning: API keys are protected with a weaker machine-derived key. Fix: enable a supported OS secure-key service before saving keys.",
+        ["Settings_ApiKeys_SecretServiceClearFailed"] = "API keys were deleted locally, but Secret Service cleanup failed. Unlock or start your keyring and try again.",
         ["Settings_ApiKeys_Save"] = "Save API Keys",
 
         //  Shared Dialog Buttons & Words 

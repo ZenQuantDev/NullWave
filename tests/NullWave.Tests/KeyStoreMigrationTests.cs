@@ -132,7 +132,9 @@ public class KeyStoreMigrationTests : IDisposable
     [Fact] 
     public void Throwing_protector_falls_back_and_keys_survive()
     {
-        new KeyStoreService(StorePath, _legacy, new ThrowingProtector()).SaveKey("A", "1");
+        var store = new KeyStoreService(StorePath, _legacy, new ThrowingProtector());
+        store.SaveKey("A", "1");
+        Assert.True(store.UsesWeakerFallback);
         Assert.Equal("1", new KeyStoreService(StorePath, _legacy, new ThrowingProtector()).GetKey("A"));
     }
 
