@@ -3,6 +3,7 @@
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
              xmlns:loc="using:NullWave.Helpers.Localization"
+             xmlns:controls="using:NullWave.Views.Controls"
              x:Class="NullWave.Views.Settings.GeneralTab"
              x:DataType="vm:SettingsViewModel">
 
@@ -104,8 +105,14 @@
                             <TextBlock Text="{loc:Loc Settings_General_ScrobbleThreshold_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                         </StackPanel>
                     </Grid>
-                    <Slider Minimum="0.1" Maximum="0.9" TickFrequency="0.05" IsSnapToTickEnabled="True"
-                            Value="{Binding ScrobbleThreshold, Mode=TwoWay}" IsEnabled="{Binding ScrobbleToLastFm}"/>
+                    <controls:WaveSeekBar Minimum="0.1" Maximum="0.9"
+                                          Value="{Binding ScrobbleThreshold, Mode=TwoWay}"
+                                          IsPlaying="False"
+                                          WaveBrush="{DynamicResource BrushAccent}"
+                                          GrooveBrush="{DynamicResource BrushBorder}"
+                                          ThumbBrush="{DynamicResource BrushAccent}"
+                                          Height="32"
+                                          IsEnabled="{Binding ScrobbleToLastFm}"/>
                     <Grid ColumnDefinitions="*,*,*,*,*">
                         <TextBlock Grid.Column="0" Text="10%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Left"/>
                         <TextBlock Grid.Column="1" Text="30%" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center"/>
