@@ -338,11 +338,24 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.EnableExperimentalFeatures = value); 
             OnPropertyChanged(); 
             OnPropertyChanged(nameof(IsExperimentalModeActive)); 
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
         } 
+    }
+
+    public bool ForceAllFeatures
+    {
+        get => _prefsService.Current.ForceAllFeatures;
+        set
+        {
+            _prefsService.Update(p => p.ForceAllFeatures = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
+        }
     }
 
     /// <summary>Returns true if Experimental Features OR Dev Mode is active.</summary>
     public bool IsExperimentalModeActive => EnableExperimentalFeatures || IsDevMode;
+    public bool ShowAdvancedFeatures => ForceAllFeatures || IsExperimentalModeActive;
 
 
     // Localized Formatters

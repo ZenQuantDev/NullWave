@@ -166,6 +166,14 @@
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableExperimentalFeatures, Mode=TwoWay}" VerticalAlignment="Center"/>
                     </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="{StaticResource MarginCardInternal}">
+                            <TextBlock Text="{loc:Loc Settings_General_ForceAll_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{loc:Loc Settings_General_ForceAll_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceAllFeatures, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

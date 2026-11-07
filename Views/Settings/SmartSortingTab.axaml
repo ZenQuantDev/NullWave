@@ -24,7 +24,7 @@
 
             <!-- EXPERIMENTAL FEATURES WARNING (shown when experimental mode is off) -->
             <Border Classes="settings-banner" Margin="0,16,0,0"
-                    IsVisible="{Binding !IsExperimentalModeActive}">
+                    IsVisible="{Binding !ShowAdvancedFeatures}">
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <material:MaterialIcon Kind="Flask" Width="16" Height="16" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
@@ -36,7 +36,7 @@
             </Border>
 
             <!-- Dimmed wrapper when AI is off -->
-            <StackPanel Spacing="0" IsEnabled="{Binding AIFeaturesEnabled}" IsVisible="{Binding IsExperimentalModeActive}">
+            <StackPanel Spacing="0" IsEnabled="{Binding AIFeaturesEnabled}" IsVisible="{Binding ShowAdvancedFeatures}">
                 <StackPanel.Styles>
                     <Style Selector="StackPanel:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
                 </StackPanel.Styles>

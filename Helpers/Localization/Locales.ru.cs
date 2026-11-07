@@ -1181,5 +1181,7 @@ public static partial class Locales
         ["Settings_General_Experimental_Desc"] = "Экспериментальные настройки могут измениться или быть удалены. Здесь описаны только функции, доступные в приложении сейчас.",
         ["Settings_General_Experimental_Title"] = "Включить экспериментальные функции",
         ["Settings_General_Experimental_ToggleDesc"] = "Показывает доступные сейчас настройки с пометкой «Экспериментально».",
+        ["Settings_General_ForceAll_Title"] = "Показать все функции",
+        ["Settings_General_ForceAll_Desc"] = "Показывает все разделы расширенных функций, включая скрытые настройкой экспериментальных функций.",
     };
 }

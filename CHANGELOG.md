@@ -3,17 +3,17 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.5-beta.2] - Unreleased
+## [0.6.5-beta.2] - 07-Nov-2026
 
 ### Added
-- **Unified FileNamer (N1)**: one naming rule for download completion, Sync, import and export;
+- **Unified FileNamer**: one naming rule for download completion, Sync, import and export;
   255-byte UTF-8 limit, FAT-safe characters, surrogate-safe truncation, keeps the [nw-id] suffix.
-- **TagWriteMode (N2)**: Never / Downloads only (default) / Always, through one central rule.
-- **Import modes (N3)**: Keep in place (default) or Copy into the managed library, with a duplicate
+- **TagWriteMode**: Never / Downloads only (default) / Always, through one central rule.
+- **Import modes**: Keep in place (default) or Copy into the managed library, with a duplicate
   check before any copy; operations recorded in file-ops.json (audit only; undo not implemented).
-- **Recycle Bin removal (N4)**: removal can send the file to the OS Recycle Bin / Trash; unmanaged
+- **Recycle Bin removal**: removal can send the file to the OS Recycle Bin / Trash; unmanaged
   files are never recycled or deleted.
-- **Safe export (N6)**: copies are renamed and retagged (ID3v2.3) with a relative M3U8; originals
+- **Safe export**: copies are renamed and retagged (ID3v2.3) with a relative M3U8; originals
   are never modified.
 - **Install consent**: package-manager installs show the exact command and need your confirmation;
   declining runs nothing; the choice can be remembered.

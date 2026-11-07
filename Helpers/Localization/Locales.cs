@@ -1198,5 +1198,7 @@ public static partial class Locales
         ["Settings_General_Experimental_Desc"] = "Experimental settings may change or be removed. Only features currently available in the app are described here.",
         ["Settings_General_Experimental_Title"] = "Enable Experimental Features",
         ["Settings_General_Experimental_ToggleDesc"] = "Shows settings marked Experimental that are currently available.",
+        ["Settings_General_ForceAll_Title"] = "Force All Features",
+        ["Settings_General_ForceAll_Desc"] = "Show all advanced feature sections, including those normally hidden behind the Experimental Features toggle.",
     };
 }
