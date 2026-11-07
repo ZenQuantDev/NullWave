@@ -813,6 +813,14 @@
     </Setter>
   </Style>
 
+  <Style Selector="TabControl">
+    <Setter Property="PageTransition">
+      <Setter.Value>
+        <CrossFade Duration="0:0:0.2"/>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style Selector="Popup">
     <Setter Property="Transitions">
       <Transitions>
