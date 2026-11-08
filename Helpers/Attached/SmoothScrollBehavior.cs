@@ -121,7 +121,8 @@ public class SmoothScrollBehavior
 
         var maxY = Math.Max(0, sv.Extent.Height - sv.Viewport.Height);
         if (maxY <= 0) return;
-
+        // Don't swallow wheel events when already at edge (allows nested scrollers to pass through)
+        if ((s.Target <= 0 && e.Delta.Y > 0) || (s.Target >= maxY && e.Delta.Y < 0)) return;
         e.Handled = true;
 
         // Resync position if content extent changed under us (filter/refresh).

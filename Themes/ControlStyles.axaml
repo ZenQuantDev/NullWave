@@ -478,20 +478,37 @@
     <Setter Property="FontSize"        Value="{DynamicResource FontSizeBody}"/>
     <Setter Property="Padding"         Value="10,7"/>
   </Style>
-  <Style Selector="ComboBox:pointerover /template/ Border#border">
+  <Style Selector="ComboBox:pointerover /template/ Border#Background, ComboBox:dropdownopen /template/ Border#Background">
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
   </Style>
-  <Style Selector="ComboBoxItem">
-    <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
-    <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
-    <Setter Property="Padding"    Value="10,6"/>
-  </Style>
-  <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+  <Style Selector="ComboBox /template/ Border#PopupBorder">
     <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSub}"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}"/>
+    <Setter Property="Padding" Value="4"/>
+  </Style>
+  <Style Selector="ComboBoxItem">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}"/>
+    <Setter Property="Padding" Value="10,8"/>
+    <Setter Property="Margin" Value="0,1"/>
+  </Style>
+  <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter, ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BrushHover}"/>
   </Style>
   <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
-    <Setter Property="Foreground" Value="{StaticResource BrushAccentHover}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource BrushAccent}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <!-- Accent-colour the selected item's text explicitly; the global TextBlock style
+       otherwise overrides the inherited Foreground to BrushTextPrimary. -->
+  <Style Selector="ComboBoxItem:selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource BrushAccent}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Border.settings-card ComboBox">
+    <Setter Property="MinWidth" Value="160"/>
   </Style>
 
   <!--  TAB CONTROL  -->
@@ -733,7 +750,7 @@
     <Setter Property="Padding" Value="8,5"/>
   </Style>
 
-  <!-- SMOOTH SCROLLING: RESTORED -->
+  <!-- SMOOTH SCROLLING -->
   <Style Selector="ScrollViewer">
       <Setter Property="attached:SmoothScrollBehavior.IsEnabled" Value="True"/>
   </Style>
@@ -751,7 +768,7 @@
     <Setter Property="Opacity" Value="0.35"/>
   </Style>
 
-  <!--  KEYBOARD FOCUS ADORNMENTS: visible ring only during keyboard navigation  -->
+  <!--  KEYBOARD FOCUS ADORNMENTS  -->
   <Style Selector="Button.card-select:focus-visible">
     <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
     <Setter Property="BorderThickness" Value="2"/>
@@ -772,7 +789,7 @@
     <Setter Property="BorderThickness" Value="3"/>
   </Style>
 
-  <!-- Global interaction transitions -->
+  <!-- Global button interaction transitions (Phase 3) -->
   <Style Selector="Button">
     <Setter Property="Transitions">
       <Transitions>
@@ -813,6 +830,7 @@
     </Setter>
   </Style>
 
+  <!-- TabControl cross-fade (Avalonia 12: singular PageTransition) -->
   <Style Selector="TabControl">
     <Setter Property="PageTransition">
       <Setter.Value>
@@ -821,20 +839,7 @@
     </Setter>
   </Style>
 
-  <Style Selector="Popup">
-    <Setter Property="Transitions">
-      <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-      </Transitions>
-    </Setter>
-  </Style>
-  <Style Selector="Popup[IsOpen=false]">
-    <Setter Property="Opacity" Value="0"/>
-  </Style>
-  <Style Selector="Popup[IsOpen=true]">
-    <Setter Property="Opacity" Value="1"/>
-  </Style>
-
+  <!-- ToggleSwitch knob animation (Phase 3) -->
   <Style Selector="ToggleSwitch /template/ Border#SwitchKnob">
     <Setter Property="Transitions">
       <Transitions>

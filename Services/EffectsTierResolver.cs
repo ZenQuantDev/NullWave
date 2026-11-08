@@ -14,6 +14,7 @@ public class EffectsTierResolver : INotifyPropertyChanged
     private readonly Action<Action>? _post;
     private EffectsTier? _devOverride;
     private EffectsTier? _batteryOverride;
+    private bool _resolutionLogged;
 
     public EffectsTierResolver(PreferencesService prefs)
         : this(prefs, null, null) { }
@@ -43,35 +44,62 @@ public class EffectsTierResolver : INotifyPropertyChanged
         OnPropertyChanged(nameof(Current)); 
     }
 
-    /// <summary>
-    /// Call this when AutoEffectsTier or manual EffectsTier preferences change in the Settings UI.
-    /// </summary>
     public void NotifyPreferencesChanged() => OnPropertyChanged(nameof(Current));
 
     public EffectsTier Current
     {
         get
         {
+            EffectsTier result;
+            
             // 1. Dev override always wins (for testing in Dev Tab)
-            if (_devOverride.HasValue) return _devOverride.Value;
-
+            if (_devOverride.HasValue)
+            {
+                result = _devOverride.Value;
+            }
             // 2. Battery override forces Minimal to save power/reduce heat
-            if (_batteryOverride.HasValue && _prefs.Current.AutoEffectsTier) 
-                return _batteryOverride.Value;
-
+            else if (_batteryOverride.HasValue && _prefs.Current.AutoEffectsTier)
+            {
+                result = _batteryOverride.Value;
+            }
             // 3. Auto-detect based on hardware
-            if (_prefs.Current.AutoEffectsTier)
+            else if (_prefs.Current.AutoEffectsTier)
             {
                 var info = _hardwareProbe != null ? _hardwareProbe() : HardwareDetector.CachedOrNull();
-                return info != null && (info.HasNvidia || info.HasAmd)
+                result = info != null && (info.HasNvidia || info.HasAmd || info.HasModernGpu)
                     ? EffectsTier.Standard
                     : EffectsTier.Minimal;
             }
-
             // 4. Manual override from Settings
-            return System.Enum.TryParse<EffectsTier>(_prefs.Current.EffectsTier, out var manual)
-                ? manual
-                : EffectsTier.Standard;
+            else
+            {
+                result = System.Enum.TryParse<EffectsTier>(_prefs.Current.EffectsTier, out var manual)
+                    ? manual
+                    : EffectsTier.Standard;
+            }
+
+            // Log once when we have complete hardware info (not "pending")
+            if (!_resolutionLogged && Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Information))
+            {
+                var info = _hardwareProbe != null ? _hardwareProbe() : HardwareDetector.CachedOrNull();
+                
+                // Only log when detection is complete (not pending)
+                if (info != null || !_prefs.Current.AutoEffectsTier)
+                {
+                    _resolutionLogged = true;
+                    Serilog.Log.Information(
+                        "[EFFECTS] tier={Tier} auto={Auto} dev={DevOverride} battery={BatteryOverride} nvidia={Nvidia} amd={Amd} modern={Modern} gpu={GpuName}",
+                        result,
+                        _prefs.Current.AutoEffectsTier,
+                        _devOverride.HasValue,
+                        _batteryOverride.HasValue,
+                        info?.HasNvidia ?? false,
+                        info?.HasAmd ?? false,
+                        info?.HasModernGpu ?? false,
+                        info?.GpuName ?? "none");
+                }
+            }
+            return result;
         }
     }
 

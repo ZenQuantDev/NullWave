@@ -166,11 +166,11 @@
         </Border>
       </StackPanel>
 
-      <controls:AppearanceWallpaperView IsVisible="{Binding ShowAdvancedFeatures}"/>
+      <controls:AppearanceWallpaperView/>
 
-      <StackPanel Spacing="0" IsVisible="{Binding ShowAdvancedFeatures}">
+      <StackPanel Spacing="0">
         <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_Section_ProfileFrame}" Margin="{StaticResource MarginSectionLabel}"/>
-        <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
+        <Border Classes="settings-card">
           <StackPanel Spacing="12">
             <Border Classes="settings-banner" Margin="0">
               <StackPanel Orientation="Horizontal" Spacing="8">

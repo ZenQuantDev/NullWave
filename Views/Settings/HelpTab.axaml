@@ -186,7 +186,7 @@
       </Border>
 
       <!-- IN-APP LOG VIEWER -->
-      <StackPanel IsVisible="{Binding ShowAdvancedFeatures}">
+      <StackPanel>
         <TextBlock Classes="section-label" Text="In-App Log Viewer" Margin="{StaticResource Margin2xl}"/>
         
         <Border Classes="settings-card">

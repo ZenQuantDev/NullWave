@@ -31,6 +31,14 @@ public class WaveSeekBar : RangeBase
     public IBrush? WaveBrush { get => GetValue(WaveBrushProperty); set => SetValue(WaveBrushProperty, value); }
     public IBrush? GrooveBrush { get => GetValue(GrooveBrushProperty); set => SetValue(GrooveBrushProperty, value); }
     public IBrush? ThumbBrush { get => GetValue(ThumbBrushProperty); set => SetValue(ThumbBrushProperty, value); }
+    public static readonly StyledProperty<int> FrameIntervalMsProperty =
+    AvaloniaProperty.Register<WaveSeekBar, int>(nameof(FrameIntervalMs), 33);
+
+    public int FrameIntervalMs
+    {
+        get => GetValue(FrameIntervalMsProperty);
+        set => SetValue(FrameIntervalMsProperty, value);
+    }
 
     // --- Geometry: slim band, tall crests, clear echo ---
     private const double ThumbR       = 7.5;
@@ -66,6 +74,12 @@ public class WaveSeekBar : RangeBase
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        
+        if (change.Property == FrameIntervalMsProperty)
+        {
+            _timer.Interval = TimeSpan.FromMilliseconds(FrameIntervalMs);
+        }
+        
         if (change.Property == IsPlayingProperty || change.Property == AnimateProperty || change.Property == IsVisibleProperty)
             UpdateTimer();
 

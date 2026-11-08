@@ -189,7 +189,6 @@
                                 
                         <Button Classes="ghost" 
                                 Command="{Binding Detail.CopyShareLinkCommand}" 
-                                IsVisible="{Binding Settings.ShowAdvancedFeatures}"
                                 ToolTip.Tip="Copy NullWave P2P Share Link"
                                 Padding="12,5">
                             <StackPanel Orientation="Horizontal" Spacing="6">

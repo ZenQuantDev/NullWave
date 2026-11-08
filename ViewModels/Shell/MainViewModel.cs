@@ -171,7 +171,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         CurrentPage == "Playlists" ? Playlist.ToggleSortDirectionCommand : ActiveLibraryVM.ToggleSortDirectionCommand;
 
     public EffectsTier CurrentEffectsTier => _effectsTier.Current;
-    public bool CanAnimateSeekWave => CurrentEffectsTier != EffectsTier.Minimal;
+    public bool CanAnimateSeekWave => true; // Always animate, but at different frame rates
+    public int WaveFrameIntervalMs => CurrentEffectsTier == EffectsTier.Minimal ? 66 : 33; // 15fps on Minimal, 30fps on Standard
 
     // --- Child ViewModels ---
     public TrackInputViewModel Input { get; private set; } = null!;

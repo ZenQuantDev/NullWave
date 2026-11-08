@@ -154,7 +154,7 @@
 
             <!-- EXPERIMENTAL FEATURES (Moved from Advanced) -->
             <TextBlock Classes="section-label" Text="{loc:Loc Settings_General_Experimental_Section}" Foreground="{StaticResource BrushAmber}" Margin="{StaticResource Margin2xl}"/>
-            <Border Classes="settings-card" BorderBrush="{StaticResource BrushAmberDim}">
+            <Border Classes="settings-card">
                 <StackPanel Spacing="16">
                     <TextBlock Text="{loc:Loc Settings_General_Experimental_Desc}"
                                Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
