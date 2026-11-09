@@ -10,6 +10,7 @@ using NullWave.Services;
 using NullWave.Helpers;
 using NullWave.Models;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.ViewModels.Settings;
 

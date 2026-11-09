@@ -12,6 +12,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Plugins;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.ViewModels.Settings;
 
@@ -95,7 +96,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _persistToggle = persistToggle;
         _state = plugin.State;
         _isEnabled = plugin.IsEnabled;
-        Manifest = PluginManifest.FromBuiltIn(plugin);
+        Manifest = BuiltInPluginManifest.FromBuiltIn(plugin);
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
     }
 
@@ -151,7 +152,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         {
             var wasEnabled = _plugin.IsEnabled;
 
-            await _plugin.InitializeAsync(ct);
+            await _plugin.InitializeAsync(null!, ct);
 
             if (ct.IsCancellationRequested) return;
 

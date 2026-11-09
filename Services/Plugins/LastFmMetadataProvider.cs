@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NullWave.Models;
 using NullWave.Services;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -18,6 +19,7 @@ public class LastFmMetadataProvider : IMetadataProvider
     private readonly LastFmService _inner;
     private readonly PreferencesService _prefs;
 
+    public string Id => Descriptor.Id;
     public string Name => "Last.fm";
     public string Description => "Metadata enrichment, artist bios, and scrobbling";
     public PluginState State { get; set; } = PluginState.Unavailable;
@@ -29,8 +31,6 @@ public class LastFmMetadataProvider : IMetadataProvider
         DisplayName: "Last.fm"
     );
 
-    // I expose the inner service so existing consumers (TrackDetailViewModel,
-    // LastFmEnrichmentService) can still access it directly during migration.
     public LastFmService Inner => _inner;
 
     public LastFmMetadataProvider(LastFmService inner, PreferencesService prefs)
@@ -40,7 +40,7 @@ public class LastFmMetadataProvider : IMetadataProvider
         IsEnabled = prefs.Current.EnableLastFm;
     }
 
-    public Task<bool> InitializeAsync(CancellationToken ct = default)
+    public Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default)
     {
         if (!IsEnabled)
         {
@@ -72,7 +72,6 @@ public class LastFmMetadataProvider : IMetadataProvider
         if (!IsEnabled || State != PluginState.Available)
             return null;
 
-        // identifier is expected to be "title|artist" for Last.fm
         var parts = identifier.Split('|', 2);
         if (parts.Length != 2) return null;
 
@@ -88,16 +87,12 @@ public class LastFmMetadataProvider : IMetadataProvider
         };
     }
 
-    // Proxy for artist info to support TrackDetailViewModel's Artist Info panel
     public Task<LastFmArtistInfo?> GetArtistInfoAsync(string artist)
         => _inner.GetArtistInfoAsync(artist);
 
-    // Proxy for scrobbling to unblock MainViewModel
     public Task<bool> ScrobbleAsync(string title, string artist, DateTime playedAt)
         => _inner.ScrobbleAsync(title, artist, playedAt);
 
-    // Expose these so the rest of the app can still check configuration state 
-    // via the provider if needed, without needing direct access to _inner.
     public bool IsConfiguredForRead => _inner.IsConfiguredForRead;
     public bool IsConfiguredForScrobbling => _inner.IsConfiguredForScrobbling;
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -90,7 +91,7 @@ public class PluginManager
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
 
-            var init = Task.Run(() => plugin.InitializeAsync(cts.Token));
+            var init = Task.Run(() => plugin.InitializeAsync(null!, cts.Token));
             var finished = await Task.WhenAny(init, Task.Delay(timeout, cts.Token));
 
             if (!ReferenceEquals(finished, init))

@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.6.5-beta.2] - 07-Nov-2026
 
 ### Added
+- **Plugin Contracts SDK**: Extracted `NullWave.Plugins.Contracts` as a standalone NuGet-packageable project containing `IPlugin`, `IPluginHost`, `PluginManifest`, `ProviderKind`, and `PluginState` — the public API surface for third-party plugin authors.
+- **Plugin Discovery Engine**: `PluginDiscovery` scans the `plugins/` directory at startup, loads assemblies via isolated `AssemblyLoadContext`, validates manifests, and initializes plugins with per-plugin `PluginHost` instances.
+- **OpenWeather Reference Plugin**: First external plugin (`NullWave.Plugins.OpenWeather`) demonstrating the full plugin lifecycle — manifest declaration, `AssemblyLoadContext` isolation, host API usage, and graceful state transitions.
+- **Built-in Plugin Manifest Factory**: `BuiltInPluginManifest.FromBuiltIn()` generates manifests from existing `IProvider` implementations, bridging the legacy provider system with the new plugin architecture.
+- **Plugin Host Implementation**: `PluginHost` provides plugins with scoped access to API keys (permission-checked), logging (prefixed), toast notifications, and future library/process APIs.
+- **Provider Interface Contracts**: `IDownloadProvider`, `IMetadataProvider`, `IAIProvider`, `IWeatherProvider` now extend `IProvider : IPlugin` from the Contracts project, unifying the provider and plugin type hierarchies.
 - **Unified FileNamer**: one naming rule for download completion, Sync, import and export;
   255-byte UTF-8 limit, FAT-safe characters, surrogate-safe truncation, keeps the [nw-id] suffix.
 - **TagWriteMode**: Never / Downloads only (default) / Always, through one central rule.
@@ -22,6 +28,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI matrix**: build and full test suite on Windows and Ubuntu with banned-API enforcement.
 
 ### Changed
+- **Plugin Lifecycle Signature**: `IPlugin.InitializeAsync` now accepts `IPluginHost` as the first parameter, giving plugins access to host services without tight coupling to the main app.
+- **EffectsTierResolver Singleton**: Converted to a process-wide singleton (`EffectsTierResolver.Shared`) to ensure consistent tier resolution across the main app, Settings window, and wallpaper service.
+- **Plugin State Preservation**: `PluginManager` no longer overwrites `Unavailable` or `Disabled` states with `Error` when initialization returns false — plugins that intentionally decline startup (missing API keys, disabled by preference) retain their honest state.
+- **Type Migration**: `IPlugin`, `PluginState`, `ProviderKind`, and `PluginManifest` moved from `NullWave.Services.Plugins` to `NullWave.Plugins.Contracts` namespace, establishing a clean dependency boundary between host and plugins.
+- **Settings ViewModel**: Added `EffectsTierLabel`, `CanForceStandardTier`, and `ForceStandardEffectsTierCommand` for the new Effects Tier visibility card.
 - **Settings reorganization**: Plugins and Sources merged into Integrations; new Downloads tab;
   Advanced dissolved into Maintenance and Help.
 - **Honest updates**: exact package-manager exit codes, parallel dependency checks, pre-release
@@ -30,6 +41,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   EN/RU; the experimental banner describes only available features.
 
 ### Fixed
+- **Dependency Isolation**: Plugins load in separate `AssemblyLoadContext` instances, preventing dependency version conflicts between plugins and the host app.
+- **Permission-Gated API Access**: `PluginHost.GetApiKey()` checks the plugin's declared `Permissions.AccessApiKeys` before returning credentials, with all access logged for audit.
+- **Manifest-Driven Discovery**: Plugins declare their identity, capabilities, and permissions in `plugin.json`, enabling future store integration and automated security scanning.
 - **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files
   are never deleted.
 - **Keystore (Linux)**: data-loss path closed; locked or missing secret store falls back to the

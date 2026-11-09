@@ -9,6 +9,7 @@ using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services.SmartSorting;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -22,6 +23,7 @@ public class OpenWeatherProvider : IWeatherProvider
     private readonly WeatherService _inner;
     private readonly PreferencesService _prefs;
 
+    public string Id => Descriptor.Id;
     public string Name => "OpenWeather";
     public string Description => "Fetches local weather for AI mood playlists";
     public PluginState State { get; set; } = PluginState.Unavailable;
@@ -40,7 +42,7 @@ public class OpenWeatherProvider : IWeatherProvider
         IsEnabled = prefs.Current.EnableOpenWeather;
     }
 
-    public Task<bool> InitializeAsync(CancellationToken ct = default)
+    public Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default)
     {
         if (!IsEnabled)
         {

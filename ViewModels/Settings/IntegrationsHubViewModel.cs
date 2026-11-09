@@ -7,7 +7,8 @@ using CommunityToolkit.Mvvm.Input;
 using Material.Icons;
 using NullWave.Helpers;
 using NullWave.Services;
-using NullWave.Services.Plugins;
+using NullWave.Plugins.Contracts;
+using IPluginCatalog = NullWave.Plugins.Contracts.IPluginCatalog;
 
 namespace NullWave.ViewModels.Settings;
 

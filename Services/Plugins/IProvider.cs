@@ -1,3 +1,5 @@
+using NullWave.Plugins.Contracts;
+
 namespace NullWave.Services.Plugins;
 
 /// <summary>

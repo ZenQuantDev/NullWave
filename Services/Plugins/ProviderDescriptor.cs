@@ -1,3 +1,5 @@
+using NullWave.Plugins.Contracts;
+
 namespace NullWave.Services.Plugins;
 
 /// <summary>Identity and activation metadata for a provider.</summary>

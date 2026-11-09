@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NullWave.Models;
 using NullWave.Helpers;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -15,6 +16,7 @@ public class YtDlpDownloadProvider : IDownloadProvider
     private readonly PreferencesService _prefs;
     private readonly Func<Task<string?>> _versionProbe;
 
+    public string Id => Descriptor.Id;
     public string Name => "yt-dlp Downloader";
     public string Description => "Downloads audio from YouTube, SoundCloud, and other supported sites";
     public PluginState State { get; set; } = PluginState.Unavailable;
@@ -30,7 +32,7 @@ public class YtDlpDownloadProvider : IDownloadProvider
         IsEnabled = prefs.Current.EnableYtDlp;
     }
 
-    public async Task<bool> InitializeAsync(CancellationToken ct = default)
+    public async Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default)
     {
         if (!IsEnabled)
         {
@@ -66,7 +68,6 @@ public class YtDlpDownloadProvider : IDownloadProvider
         if (!IsEnabled || State != PluginState.Available)
             return false;
 
-        // FIX: Use SourceDetector so Audiomack, Archive.org, and Mixcloud are recognized
         return SourceDetector.IsYtDlpSource(SourceDetector.Detect(url));
     }
 

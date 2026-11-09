@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using NullWave.Services;
 using NullWave.Services.SmartSorting;
 using NullWave.Services.Plugins;
+using NullWave.Plugins.Contracts;
 using Serilog;
 
 namespace NullWave.ViewModels;

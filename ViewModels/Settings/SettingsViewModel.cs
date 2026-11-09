@@ -18,6 +18,7 @@ using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
+using NullWave.Plugins.Contracts;
 using NullWave.Services;
 using NullWave.Services.Plugins;
 using NullWave.Services.Security;

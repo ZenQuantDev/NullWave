@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 

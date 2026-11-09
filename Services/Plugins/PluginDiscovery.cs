@@ -5,7 +5,9 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
-using NullWave.Models.Plugins;
+using System.Threading;
+using System.Threading.Tasks;
+using NullWave.Plugins.Contracts;
 using Serilog;
 
 namespace NullWave.Services.Plugins;
@@ -21,7 +23,7 @@ public class PluginDiscovery
         Directory.CreateDirectory(_pluginsDirectory);
     }
 
-    public async Task<List<(PluginManifest Manifest, IPlugin Plugin)>> DiscoverAndLoadAsync(IPluginHost host)
+    public async Task<List<(PluginManifest Manifest, IPlugin Plugin)>> DiscoverAndLoadAsync(Func<PluginManifest, IPluginHost> hostFactory)
     {
         var loaded = new List<(PluginManifest, IPlugin)>();
 
@@ -29,7 +31,7 @@ public class PluginDiscovery
             return loaded;
 
         var pluginDirs = Directory.GetDirectories(_pluginsDirectory);
-        
+
         foreach (var pluginDir in pluginDirs)
         {
             try
@@ -42,10 +44,11 @@ public class PluginDiscovery
                 var manifest = JsonSerializer.Deserialize<PluginManifest>(json);
                 if (manifest == null) continue;
 
-                var dllPath = Path.Combine(pluginDir, $"{manifest.Id}.dll");
+                var dllName = manifest.EntryPoint.Split(',')[1].Trim();
+                var dllPath = Path.Combine(pluginDir, $"{dllName}.dll");
                 if (!File.Exists(dllPath))
                 {
-                    Log.Warning("[PluginDiscovery] DLL not found for {PluginId}", manifest.Id);
+                    Log.Warning("[PluginDiscovery] DLL not found for {PluginId}: {Path}", manifest.Id, dllPath);
                     continue;
                 }
 
@@ -53,23 +56,33 @@ public class PluginDiscovery
                 _contexts[manifest.Id] = context;
 
                 var assembly = context.LoadFromAssemblyPath(dllPath);
-                var pluginType = assembly.GetType(manifest.EntryPoint.Split(',')[0]);
+                var pluginTypeName = manifest.EntryPoint.Split(',')[0];
+                var pluginType = assembly.GetType(pluginTypeName);
+
                 if (pluginType == null)
                 {
-                    Log.Warning("[PluginDiscovery] Plugin type {Type} not found in {PluginId}", 
-                        manifest.EntryPoint, manifest.Id);
+                    Log.Warning("[PluginDiscovery] Plugin type {Type} not found in {PluginId}",
+                        pluginTypeName, manifest.Id);
                     continue;
                 }
 
                 var plugin = (IPlugin?)Activator.CreateInstance(pluginType);
                 if (plugin == null) continue;
 
-                var success = await plugin.InitializeAsync(host, default);
+                // Create a per-plugin host instance
+                var pluginHost = hostFactory(manifest);
+
+                var success = await plugin.InitializeAsync(pluginHost, default);
                 if (success)
                 {
                     loaded.Add((manifest, plugin));
-                    Log.Information("[PluginDiscovery] Loaded plugin: {Name} v{Version}", 
+                    Log.Information("[PluginDiscovery] Loaded plugin: {Name} v{Version}",
                         manifest.Name, manifest.Version);
+                }
+                else
+                {
+                    Log.Information("[PluginDiscovery] Plugin {Name} initialized but returned inactive (state={State})",
+                        manifest.Name, plugin.State);
                 }
             }
             catch (Exception ex)
