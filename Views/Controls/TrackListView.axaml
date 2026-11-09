@@ -19,7 +19,7 @@
         <converters:MediaTypeToVisibilityConverter x:Key="MediaTypeToVisibility"/>
         <converters:MediaTypeToIconKindConverter x:Key="MediaTypeToIconKind"/>
         <converters:RadioNowPlayingConverter x:Key="RadioNowPlaying"/>
-        
+
         <!-- Lightweight Path-based icon converters -->
         <helpers:MediaTypeToGeometryConverter x:Key="MediaTypeToGeom"/>
         <helpers:BoolToStarGeometryConverter x:Key="BoolToStarGeom"/>
@@ -118,8 +118,13 @@
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectionChanged="OnTrackSelected"
                  DoubleTapped="OnTrackDoubleTapped"
-                 ContextRequested="OnListContextRequested">
-                 
+                 ContextRequested="OnListContextRequested"
+                 Opacity="1">
+            <ListBox.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </ListBox.Transitions>
             <ListBox.Styles>
                 <Style Selector="Grid.track-row:pointerover">
                     <Setter Property="Background" Value="{StaticResource BrushRowHover}"/>

@@ -634,6 +634,11 @@
                 <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
+                    <Button.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Star" Width="20" Height="20" Foreground="{StaticResource BrushAmber}"
@@ -644,6 +649,11 @@
                 </Button>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Recent}">
+                    <Button.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="History" Width="20" Height="20" Foreground="{StaticResource BrushBlue}"
@@ -657,6 +667,11 @@
                 <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsYouTubeFilter}" Command="{Binding Library.FilterYouTubeCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_YouTube}">
+                    <Button.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Youtube" Width="20" Height="20" Foreground="#FF0000"
@@ -667,6 +682,11 @@
                 </Button>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsSoundCloudFilter}" Command="{Binding Library.FilterSoundCloudCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_SoundCloud}">
+                    <Button.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Soundcloud" Width="20" Height="20" Foreground="#FF5500"
@@ -677,6 +697,11 @@
                 </Button>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsLocalFilter}" Command="{Binding Library.FilterLocalCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_LocalFiles}">
+                    <Button.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Folder" Width="20" Height="20" Foreground="{StaticResource BrushGreen}"

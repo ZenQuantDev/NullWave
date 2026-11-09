@@ -6,8 +6,13 @@
              xmlns:attached="using:NullWave.Helpers.Attached"
              xmlns:loc="using:NullWave.Helpers.Localization"
              xmlns:sys="using:System"
+             xmlns:converters="using:NullWave.Helpers.Converters"
              x:Class="NullWave.Views.Settings.IntegrationsTab"
              x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Resources>
+        <converters:BoolToDoubleConverter x:Key="BoolToDouble"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="Border.plugin-tag">
@@ -92,8 +97,14 @@
             </Border>
 
             <!-- INSTALLED plugins -->
-            <ItemsControl ItemsSource="{Binding Hub.VisibleInstalled}"
-                          IsVisible="{Binding Hub.IsInstalledTab}">
+            <Border Opacity="{Binding Hub.IsInstalledTab, Converter={StaticResource BoolToDouble}, ConverterParameter='0,1'}">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+                    </Transitions>
+                </Border.Transitions>
+                <ItemsControl ItemsSource="{Binding Hub.VisibleInstalled}"
+                              IsVisible="{Binding Hub.IsInstalledTab}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="pvm:PluginRowViewModel">
                         <Border Classes="settings-card" Margin="0,0,0,8">
@@ -174,11 +185,18 @@
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                </ItemsControl>
+            </Border>
 
             <!-- STORE plugins -->
-            <ItemsControl ItemsSource="{Binding Hub.VisibleStore}"
-                          IsVisible="{Binding Hub.IsStoreTab}">
+            <Border Opacity="{Binding Hub.IsStoreTab, Converter={StaticResource BoolToDouble}, ConverterParameter='0,1'}">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+                    </Transitions>
+                </Border.Transitions>
+                <ItemsControl ItemsSource="{Binding Hub.VisibleStore}"
+                              IsVisible="{Binding Hub.IsStoreTab}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="pvm:StoreEntryViewModel">
                         <Border Classes="settings-card" Margin="0,0,0,8">
@@ -242,7 +260,8 @@
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                </ItemsControl>
+            </Border>
 
             <!-- Empty state -->
             <TextBlock Text="{loc:Loc Settings_Plugins_NoResults}"
