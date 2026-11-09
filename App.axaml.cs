@@ -45,9 +45,8 @@ public partial class App : Application
         NullWave.Helpers.Attached.ComboBoxScrollGuard.Register();
         
         // Attach hardware detection to effects tier resolver so it re-evaluates when detection completes
+        _ = EffectsTierResolver.Shared.AttachDetection(NullWave.Services.SmartSorting.HardwareDetector.GetCachedInfoAsync());
         var prefs = PreferencesService.Shared;
-        var resolver = new EffectsTierResolver(prefs);
-        _ = resolver.AttachDetection(NullWave.Services.SmartSorting.HardwareDetector.GetCachedInfoAsync());
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // FIX (What's New every launch): read + persist LastSeenVersion BEFORE

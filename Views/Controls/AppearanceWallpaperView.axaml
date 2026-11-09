@@ -129,6 +129,20 @@
               <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_TrueBlackWarn}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
+          <Border Classes="settings-banner" Margin="0,8,0,0">
+            <Border.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="WallpaperStyle" Converter="{StaticResource StrEq}" ConverterParameter="Scene"/>
+                <Binding Source="{x:Static services:WallpaperService.Instance}" Path="MinimalTier"/>
+              </MultiBinding>
+            </Border.IsVisible>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16" Foreground="{StaticResource BrushBlue}" VerticalAlignment="Center"/>
+              <TextBlock Text="Wallpaper scenes use reduced effects on this hardware to save power."
+                         Foreground="{StaticResource BrushTextSecondary}"
+                         FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
         </StackPanel>
       </Grid>
     </Border>

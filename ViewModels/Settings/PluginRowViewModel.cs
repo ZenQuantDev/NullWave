@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Material.Icons;
 using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Services;
@@ -18,6 +20,8 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
     private readonly IPlugin _plugin;
     private readonly Action<bool> _persistToggle;
     private CancellationTokenSource? _initCts;
+
+    public PluginManifest Manifest { get; }
 
     public string Name => _plugin.Name switch
     {
@@ -37,6 +41,36 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _ => _plugin.Description
     };
 
+    public string Author => Manifest.Author;
+    public string VersionLabel => Manifest.BuiltIn
+        ? LocalizationService.Instance["Settings_Plugins_BuiltIn"]
+        : Manifest.Version;
+    public IReadOnlyList<string> KindTags => PluginUi.Tags(Manifest.Kinds);
+    public MaterialIconKind PrimaryIcon => PluginUi.IconFor(Manifest.Kinds);
+
+    public string StatusText => State switch
+    {
+        PluginState.Available => LocalizationService.Instance["Settings_Integrations_Status_Available"],
+        PluginState.Loading => LocalizationService.Instance["Settings_Integrations_Status_Loading"],
+        PluginState.Error => LocalizationService.Instance["Settings_Integrations_Status_Error"],
+        PluginState.Disabled => LocalizationService.Instance["Settings_Integrations_Status_Disabled"],
+        PluginState.Unavailable => LocalizationService.Instance["Settings_Plugins_NeedsSetup"],
+        _ => LocalizationService.Instance["Settings_Integrations_Status_Unknown"]
+    };
+
+    /// <summary>
+    /// Which Settings page fixes an "Unavailable" plugin. Null when no setup is needed.
+    /// </summary>
+    public string? SetupPage => State != PluginState.Unavailable
+        ? null
+        : Manifest.Id switch
+        {
+            "lastfm" or "openweather" => "ApiKeys",
+            "yt-dlp" => "Updates",
+            "ollama" => "SmartFeatures",
+            _ => null
+        };
+
     [ObservableProperty]
     private PluginState _state;
 
@@ -49,9 +83,10 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
     public IBrush StatusDotBrush => State switch
     {
         PluginState.Available => (IBrush)Application.Current!.Resources["BrushGreen"]!,
-        PluginState.Loading   => (IBrush)Application.Current!.Resources["BrushAmber"]!,
-        PluginState.Error     => (IBrush)Application.Current!.Resources["BrushRed"]!,
-        _                     => (IBrush)Application.Current!.Resources["BrushTextMuted"]!
+        PluginState.Loading => (IBrush)Application.Current!.Resources["BrushAmber"]!,
+        PluginState.Error => (IBrush)Application.Current!.Resources["BrushRed"]!,
+        PluginState.Disabled => (IBrush)Application.Current!.Resources["BrushTextMuted"]!,
+        _ => (IBrush)Application.Current!.Resources["BrushAmber"]!
     };
 
     public PluginRowViewModel(IPlugin plugin, Action<bool> persistToggle)
@@ -60,13 +95,24 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _persistToggle = persistToggle;
         _state = plugin.State;
         _isEnabled = plugin.IsEnabled;
+        Manifest = PluginManifest.FromBuiltIn(plugin);
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+    }
+
+    partial void OnStateChanged(PluginState value)
+    {
+        OnPropertyChanged(nameof(StatusDotBrush));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(SetupPage));
     }
 
     private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(VersionLabel));
+        OnPropertyChanged(nameof(KindTags));
+        OnPropertyChanged(nameof(StatusText));
     }
 
     public void Dispose()
@@ -76,8 +122,11 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _initCts?.Dispose();
     }
 
-    // FIX: Replaced partial void OnIsEnabledChanged with an explicit method called 
-    // from the View's Click event. This completely eliminates the Avalonia binding 
+    public bool Matches(string query, string category) =>
+        PluginUi.Matches(Manifest, Name, Description, query, category);
+
+    // FIX: Replaced partial void OnIsEnabledChanged with an explicit method called
+    // from the View's Click event. This completely eliminates the Avalonia binding
     // coercion storm that caused background threads to mutate the UI collection.
     public void UserToggled(bool newValue)
     {
@@ -85,12 +134,12 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
 
         _plugin.IsEnabled = newValue;
         _persistToggle(newValue);
-        IsEnabled = newValue; // Update UI property
-        
+        IsEnabled = newValue;
+
         _initCts?.Cancel();
         _initCts?.Dispose();
         _initCts = new CancellationTokenSource();
-        
+
         _ = ReinitializeAsync(_initCts.Token);
     }
 
@@ -101,26 +150,23 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         try
         {
             var wasEnabled = _plugin.IsEnabled;
-            
-            // Run the actual plugin initialization
-            await _plugin.InitializeAsync(ct); 
-            
+
+            await _plugin.InitializeAsync(ct);
+
             if (ct.IsCancellationRequested) return;
 
-            // Marshal all property changes back to the UI thread
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 State = _plugin.State;
                 OnPropertyChanged(nameof(StatusDotBrush));
             });
 
-            // Only notify if the user just enabled it
             if (!wasEnabled) return;
 
             var message = State switch
             {
                 PluginState.Available => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Connected"], Name),
-                PluginState.Error     => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Failed"], Name),
+                PluginState.Error => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Failed"], Name),
                 PluginState.Unavailable => string.Format(LocalizationService.Instance["Settings_Integrations_Plugin_Unavailable"], Name),
                 _ => null
             };

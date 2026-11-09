@@ -1183,5 +1183,19 @@ public static partial class Locales
         ["Settings_General_Experimental_ToggleDesc"] = "Показывает доступные сейчас настройки с пометкой «Экспериментально».",
         ["Settings_General_ForceAll_Title"] = "Показать все функции",
         ["Settings_General_ForceAll_Desc"] = "Показывает все разделы расширенных функций, включая скрытые настройкой экспериментальных функций.",
+
+        // Integrations Hub
+        ["Settings_Plugins_Installed"] = "Установленные",
+        ["Settings_Plugins_Store"] = "Магазин",
+        ["Settings_Plugins_Search"] = "Поиск плагинов…",
+        ["Settings_Plugins_All"] = "Все",
+        ["Settings_Plugins_BuiltIn"] = "встроенный",
+        ["Settings_Plugins_NeedsSetup"] = "Требуется настройка",
+        ["Settings_Plugins_SetUp"] = "Настроить…",
+        ["Settings_Plugins_Install"] = "Установить",
+        ["Settings_Plugins_InstalledLabel"] = "Установлен",
+        ["Settings_Plugins_ComingSoon"] = "Скоро",
+        ["Settings_Plugins_NoResults"] = "Нет подходящих плагинов.",
+        ["Settings_Plugins_StorePreview"] = "Предпросмотр магазина: установка плагинов появится в одном из следующих релизов. Здесь показаны запланированные плагины.",
     };
 }

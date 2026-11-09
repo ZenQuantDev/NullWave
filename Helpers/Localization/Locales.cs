@@ -1200,5 +1200,19 @@ public static partial class Locales
         ["Settings_General_Experimental_ToggleDesc"] = "Shows settings marked Experimental that are currently available.",
         ["Settings_General_ForceAll_Title"] = "Force All Features",
         ["Settings_General_ForceAll_Desc"] = "Show all advanced feature sections, including those normally hidden behind the Experimental Features toggle.",
+
+        // Integrations Hub
+        ["Settings_Plugins_Installed"] = "Installed",
+        ["Settings_Plugins_Store"] = "Store",
+        ["Settings_Plugins_Search"] = "Search plugins…",
+        ["Settings_Plugins_All"] = "All",
+        ["Settings_Plugins_BuiltIn"] = "built-in",
+        ["Settings_Plugins_NeedsSetup"] = "Needs setup",
+        ["Settings_Plugins_SetUp"] = "Set up…",
+        ["Settings_Plugins_Install"] = "Install",
+        ["Settings_Plugins_InstalledLabel"] = "Installed",
+        ["Settings_Plugins_ComingSoon"] = "Coming soon",
+        ["Settings_Plugins_NoResults"] = "No plugins match your search.",
+        ["Settings_Plugins_StorePreview"] = "Store preview: plugin installation arrives in a later release. These are the planned plugins.",
     };
 }

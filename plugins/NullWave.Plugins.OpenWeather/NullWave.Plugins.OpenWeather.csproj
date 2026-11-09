@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>NullWave.Plugins.OpenWeather</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj" />
+    <ProjectReference Include="../../NullWave.csproj">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

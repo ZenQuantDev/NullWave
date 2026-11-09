@@ -114,7 +114,11 @@ public class PluginManager
 
             var success = await init;
             cts.Cancel();   // releases the timeout timer
-            plugin.State = success ? PluginState.Available : PluginState.Error;
+            plugin.State = success
+                ? PluginState.Available
+                : plugin.State is PluginState.Disabled or PluginState.Unavailable
+                    ? plugin.State
+                    : PluginState.Error;
 
             if (!success)
                 _logger.Information("Plugin {Name} initialized without optional configuration - its features stay off until configured", plugin.Name);

@@ -12,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
@@ -55,12 +56,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _plugins = plugins;
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
+        EffectsTierResolver.Shared.PropertyChanged += OnEffectsTierResolverPropertyChanged;
         
         // Initialize Sources tab
         Sources = new SourcesTabViewModel(providerRegistry, _prefsService);
         
         _isSettingsSidebarCollapsed = prefsService.Current.SettingsSidebarCollapsed;
         _selectedLanguage = prefsService.Current.Language;
+        UpdateWaveSpineVisibility();
         
         // API Keys Init
         _youtubeApiKey = _keyStore.GetKey("YouTube") ?? string.Empty;
@@ -96,6 +99,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 }
             }));
         }
+        Hub = new IntegrationsHubViewModel(PluginRows, new StaticPluginCatalog());
         LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
     }
     #endregion
@@ -127,6 +131,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public ObservableCollection<PluginRowViewModel> PluginRows { get; private set; } = new();
     public SourcesTabViewModel Sources { get; }
+    public IntegrationsHubViewModel Hub { get; }
 
     private bool _isSettingsSidebarCollapsed;
     public bool IsSettingsSidebarCollapsed
@@ -141,18 +146,49 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SettingsSidebarWidth));
             OnPropertyChanged(nameof(SettingsSidebarCollapseIconKind));
             _prefsService.Update(p => p.SettingsSidebarCollapsed = value);
-
+            UpdateWaveSpineVisibility();
         }
     }
     public bool IsSettingsSidebarExpanded => !IsSettingsSidebarCollapsed;
-    public double SettingsSidebarWidth => IsSettingsSidebarCollapsed ? 69 : 220;
+    public double SettingsSidebarWidth => IsSettingsSidebarCollapsed ? 64 : 220;
     public Material.Icons.MaterialIconKind SettingsSidebarCollapseIconKind =>
         IsSettingsSidebarCollapsed ? Material.Icons.MaterialIconKind.ChevronRight : Material.Icons.MaterialIconKind.ChevronLeft;
+
+    private bool _showWaveSpine;
+    public bool ShowWaveSpine
+    {
+        get => _showWaveSpine;
+        private set => SetProperty(ref _showWaveSpine, value);
+    }
+
+    private void UpdateWaveSpineVisibility()
+    {
+        ShowWaveSpine = IsSettingsSidebarExpanded &&
+                        EffectsTierResolver.Shared.Current != NullWave.Models.EffectsTier.Minimal;
+    }
+
+    public Material.Icons.MaterialIconKind CurrentSettingsPageIcon => CurrentSettingsPage switch
+    {
+        "General" => Material.Icons.MaterialIconKind.TuneVariant,
+        "Appearance" => Material.Icons.MaterialIconKind.Palette,
+        "Audio" => Material.Icons.MaterialIconKind.MusicNote,
+        "Downloads" => Material.Icons.MaterialIconKind.Download,
+        "Integrations" => Material.Icons.MaterialIconKind.Puzzle,
+        "ApiKeys" => Material.Icons.MaterialIconKind.Key,
+        "SmartFeatures" => Material.Icons.MaterialIconKind.AutoFixHigh,
+        "Maintenance" => Material.Icons.MaterialIconKind.Tools,
+        "Updates" => Material.Icons.MaterialIconKind.Update,
+        "About" => Material.Icons.MaterialIconKind.InformationOutline,
+        "Help" => Material.Icons.MaterialIconKind.HelpCircle,
+        "DevTools" => Material.Icons.MaterialIconKind.CodeTags,
+        _ => Material.Icons.MaterialIconKind.Cog
+    };
 
     [ObservableProperty] private int _currentSectionIndex = 0;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentSettingsPageTitle))]
     [NotifyPropertyChangedFor(nameof(CurrentSettingsPageDescription))]
+    [NotifyPropertyChangedFor(nameof(CurrentSettingsPageIcon))]
     private string _currentSettingsPage = "General";
 
     public string CurrentSettingsPageTitle => LocalizationService.Instance[$"Settings_PageTitle_{CurrentSettingsPage}"];
@@ -293,6 +329,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region IDisposable
     public void Dispose()
     {
+        EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierResolverPropertyChanged;
         StopHealthCheck();
         LogViewer?.Dispose();
         Sources?.Dispose();

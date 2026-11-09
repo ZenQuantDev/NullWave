@@ -12,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
@@ -113,6 +114,58 @@ public partial class SettingsViewModel
 
             EffectsTierPreferencesChanged?.Invoke();
         }
+    }
+
+    public EffectsTier CurrentEffectsTier => EffectsTierResolver.Shared.Current;
+
+    public string EffectsTierLabel
+    {
+        get
+        {
+            var gpuName = HardwareDetector.CachedOrNull()?.GpuName ?? "Unknown";
+            return CurrentEffectsTier == NullWave.Models.EffectsTier.Minimal
+                ? $"Minimal (on battery or low-end hardware: {gpuName})"
+                : $"Standard ({gpuName})";
+        }
+    }
+
+    public bool CanForceStandardTier => CurrentEffectsTier == NullWave.Models.EffectsTier.Minimal;
+
+    [RelayCommand]
+    private void ForceStandardEffectsTier()
+    {
+        _prefsService.Update(p =>
+        {
+            p.AutoEffectsTier = false;
+            p.EffectsTier = "Standard";
+        });
+
+        OnPropertyChanged(nameof(AutoEffectsTier));
+        OnPropertyChanged(nameof(EffectsTier));
+        EffectsTierResolver.Shared.NotifyPreferencesChanged();
+        OnPropertyChanged(nameof(CurrentEffectsTier));
+        OnPropertyChanged(nameof(EffectsTierLabel));
+        OnPropertyChanged(nameof(CanForceStandardTier));
+        ToastService.Instance.Show("Effects tier set to Standard", ToastType.Success);
+    }
+
+    private void OnEffectsTierResolverPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(EffectsTierResolver.Current))
+            return;
+
+        void Notify()
+        {
+            OnPropertyChanged(nameof(CurrentEffectsTier));
+            OnPropertyChanged(nameof(EffectsTierLabel));
+            OnPropertyChanged(nameof(CanForceStandardTier));
+            UpdateWaveSpineVisibility();
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            Notify();
+        else
+            Dispatcher.UIThread.Post(Notify);
     }
 
     public string ActivePresetId

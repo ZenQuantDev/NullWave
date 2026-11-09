@@ -9,6 +9,9 @@ namespace NullWave.Services;
 
 public class EffectsTierResolver : INotifyPropertyChanged
 {
+    private static readonly Lazy<EffectsTierResolver> _shared = new(() => new EffectsTierResolver(PreferencesService.Shared));
+    public static EffectsTierResolver Shared => _shared.Value;
+
     private readonly PreferencesService _prefs;
     private readonly Func<HardwareInfo?>? _hardwareProbe;
     private readonly Action<Action>? _post;

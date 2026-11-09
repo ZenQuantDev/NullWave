@@ -27,7 +27,7 @@ public partial class MainViewModel
     {
         _identity = new IdentityService(_keyStore);
         _prefsService = PreferencesService.Shared;
-        _effectsTier = new EffectsTierResolver(_prefsService);
+        _effectsTier = EffectsTierResolver.Shared;
         _effectsTier.PropertyChanged += OnEffectsTierPropertyChanged;
         
         WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;

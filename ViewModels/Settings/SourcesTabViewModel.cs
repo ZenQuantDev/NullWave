@@ -238,7 +238,15 @@ public partial class SourcesTabViewModel : ObservableObject, IDisposable
         { 
             _building = false; 
         }
+        OnPropertyChanged(nameof(RoutableGroups));
+        OnPropertyChanged(nameof(HasRoutableGroups));
     }
+
+    public IEnumerable<SourceKindGroupViewModel> RoutableGroups =>
+    KindGroups.Where(g => g.Providers.Count > 1).ToList();
+
+    public bool HasRoutableGroups =>
+        KindGroups.Any(g => g.Providers.Count > 1);
 
     [RelayCommand]
     private void SelectProvider(SourceRowViewModel? row)

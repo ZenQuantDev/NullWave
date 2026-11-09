@@ -19,6 +19,7 @@
     <AvaloniaResource Include="Assets/Art/starry-night.jpg" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="plugins/**/*.cs" />
     <Compile Remove="tests/**" />
     <Compile Remove="tools/**" />
     <InternalsVisibleTo Include="NullWave.Tests" />
@@ -53,5 +54,8 @@
     <PackageReference Include="Velopack" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <AdditionalFiles Include="BannedSymbols.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="plugins/NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj" />
   </ItemGroup>
 </Project>
