@@ -159,7 +159,7 @@ public partial class SettingsViewModel
             OnPropertyChanged(nameof(CurrentEffectsTier));
             OnPropertyChanged(nameof(EffectsTierLabel));
             OnPropertyChanged(nameof(CanForceStandardTier));
-            UpdateWaveSpineVisibility();
+            
         }
 
         if (Dispatcher.UIThread.CheckAccess())

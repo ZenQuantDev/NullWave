@@ -167,4 +167,10 @@ public partial class IntegrationsHubViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasNoResults));
     }
+
+    public void RefreshAll()
+    {
+        foreach (var r in _installed)
+            r.RefreshFromPlugin();
+    }
 }

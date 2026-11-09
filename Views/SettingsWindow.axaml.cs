@@ -4,7 +4,6 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -21,11 +20,15 @@ public partial class SettingsWindow : Window
 {
     private readonly Dictionary<string, Control> _pages = new();
     private SettingsViewModel? _vm;
+    private Transitions? _beadTransitions;
+    private bool _beadPlaced;
 
     public SettingsWindow()
     {
         InitializeComponent();
         WallpaperChromeSync.Attach(this);
+
+        _beadTransitions = SpineBead.Transitions;
 
         Opened += (_, _) => ToastService.Instance.SetActiveHost(true);
         Closed += (_, _) => { ToastService.Instance.SetActiveHost(false); Detach(); };
@@ -41,6 +44,7 @@ public partial class SettingsWindow : Window
             _vm = DataContext as SettingsViewModel;
             if (_vm == null) return;
             _vm.PropertyChanged += OnVmChanged;
+            _vm.Hub.RefreshAll();
             ShowPage(_vm.CurrentSettingsPage);
         };
     }
@@ -56,7 +60,7 @@ public partial class SettingsWindow : Window
         if (_vm == null) return;
         if (e.PropertyName == nameof(SettingsViewModel.CurrentSettingsPage)) 
             ShowPage(_vm.CurrentSettingsPage);
-        else if (e.PropertyName == nameof(SettingsViewModel.ShowWaveSpine)) 
+        else if (e.PropertyName == nameof(SettingsViewModel.IsSettingsSidebarCollapsed))
             ScheduleBead();
     }
 
@@ -88,6 +92,10 @@ public partial class SettingsWindow : Window
             ? null 
             : new CrossFade(System.TimeSpan.FromMilliseconds(200));
         PageHost.Content = page;
+        
+        if (key == "Integrations" && _vm != null)
+            _vm.Hub.RefreshAll();
+        
         ScheduleBead();
     }
 
@@ -101,8 +109,20 @@ public partial class SettingsWindow : Window
     {
         var active = this.GetVisualDescendants().OfType<Button>()
             .FirstOrDefault(b => b.Classes.Contains("nav") && b.Classes.Contains("active"));
-        if (active == null || SpineCanvas == null || SpineBead == null) return;
-        if (active.TranslatePoint(new Point(0, active.Bounds.Height / 2), SpineCanvas) is { } p)
-            Canvas.SetTop(SpineBead, p.Y - 4);
+        if (active == null) return;
+        if (active.TranslatePoint(new Point(0, active.Bounds.Height / 2), SpineCanvas) is not { } p) return;
+        var y = p.Y - 12;
+
+        if (!_beadPlaced)
+        {
+            SpineBead.Transitions = null;
+            Canvas.SetTop(SpineBead, y);
+            _beadPlaced = true;
+            Dispatcher.UIThread.Post(() => SpineBead.Transitions = _beadTransitions, DispatcherPriority.Background);
+        }
+        else
+        {
+            Canvas.SetTop(SpineBead, y);
+        }
     }
 }

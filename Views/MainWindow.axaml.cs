@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
@@ -34,6 +36,7 @@ public partial class MainWindow : Window
         DataContext = vm;
         vm.Settings.HoverTaggingChanged += OnHoverTaggingChanged;
         vm.Settings.TogglePerfOverlayRequested += OnTogglePerfOverlayRequested;
+        vm.PropertyChanged += OnVmPropertyChanged;
 
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;
@@ -45,6 +48,55 @@ public partial class MainWindow : Window
             var sidebar = mvm?.IsSidebarExpanded == true ? "expanded" : "rail";
             return "page=" + page + "|hover=" + _lastHoverDescription + "|sidebar=" + sidebar;
         });
+    }
+
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+        {
+            UpdatePageContent();
+        }
+    }
+
+    private readonly Dictionary<string, Control> _mainPages = new();
+
+    private void UpdatePageContent()
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        var pageKey = vm.CurrentPage;
+        
+        if (!_mainPages.TryGetValue(pageKey, out var page))
+        {
+            page = pageKey switch
+            {
+                "Library" => new Controls.TrackListView(),
+                "Radio" => new Controls.TrackListView(),
+                "Audiobooks" => new Controls.TrackListView(),
+                "Playlists" => new Controls.PlaylistsView(),
+                _ => null
+            };
+
+            if (page != null)
+            {
+                _mainPages[pageKey] = page;
+            }
+        }
+
+        if (page != null)
+        {
+            // Set DataContext based on page type
+            page.DataContext = pageKey switch
+            {
+                "Library" => vm.Library,
+                "Radio" => vm.RadioLibrary,
+                "Audiobooks" => vm.AudiobookLibrary,
+                "Playlists" => vm.Playlist,
+                _ => null
+            };
+
+            PageHost.Content = page;
+        }
     }
 
     // async void is only acceptable for event handlers, and an exception escaping one ends the
@@ -60,6 +112,9 @@ public partial class MainWindow : Window
         {
             if (DataContext is not MainViewModel vm) return;
 
+            // Initialize page content
+            UpdatePageContent();
+
             // FIX (kept): force the visual tree to re-evaluate CurrentPage bindings.
             var currentPage = vm.CurrentPage;
             vm.CurrentPage = string.Empty;
@@ -73,7 +128,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[MainWindow] Opened handler failed");
+            Log.Error(ex, "[MainWindow] Opened-handler failed");
         }
     }
 

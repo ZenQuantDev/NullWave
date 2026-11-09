@@ -44,6 +44,15 @@
         <Style Selector="Border.info">
             <Setter Property="Background" Value="{DynamicResource BrushBase}"/>
         </Style>
+        
+        <!-- Toolbar fade-in animation -->
+        <Style Selector="Border.chrome">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
     </Window.Styles>
 
     <Panel>
@@ -151,13 +160,14 @@
                         </Grid>
                     </Border>
 
-                    <!-- Unified List Views -->
-                    <Grid Grid.Row="1">
-                        <controls:TrackListView DataContext="{Binding Library}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Library}"/>
-                        <controls:TrackListView DataContext="{Binding RadioLibrary}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Radio}"/>
-                        <controls:TrackListView DataContext="{Binding AudiobookLibrary}" IsVisible="{Binding $parent[Window].DataContext.CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Audiobooks}"/>
-                        <controls:PlaylistsView IsVisible="{Binding CurrentPage, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Playlists}"/>
-                    </Grid>
+                    <!-- Unified List Views with Cross-Fade -->
+                    <TransitioningContentControl x:Name="PageHost" Grid.Row="1"
+                                                 HorizontalContentAlignment="Stretch"
+                                                 VerticalContentAlignment="Stretch">
+                        <TransitioningContentControl.PageTransition>
+                            <CrossFade Duration="0:0:0.18"/>
+                        </TransitioningContentControl.PageTransition>
+                    </TransitioningContentControl>
                 </Grid>
 
                 <!-- RIGHT: Detail / Queue Panel. -->

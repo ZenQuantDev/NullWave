@@ -49,7 +49,9 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
     public IReadOnlyList<string> KindTags => PluginUi.Tags(Manifest.Kinds);
     public MaterialIconKind PrimaryIcon => PluginUi.IconFor(Manifest.Kinds);
 
-    public string StatusText => State switch
+    private PluginState EffectiveState => !IsEnabled ? PluginState.Disabled : State;
+
+    public string StatusText => EffectiveState switch
     {
         PluginState.Available => LocalizationService.Instance["Settings_Integrations_Status_Available"],
         PluginState.Loading => LocalizationService.Instance["Settings_Integrations_Status_Loading"],
@@ -59,10 +61,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _ => LocalizationService.Instance["Settings_Integrations_Status_Unknown"]
     };
 
-    /// <summary>
-    /// Which Settings page fixes an "Unavailable" plugin. Null when no setup is needed.
-    /// </summary>
-    public string? SetupPage => State != PluginState.Unavailable
+    public string? SetupPage => EffectiveState != PluginState.Unavailable
         ? null
         : Manifest.Id switch
         {
@@ -71,6 +70,8 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
             "ollama" => "SmartFeatures",
             _ => null
         };
+
+    public bool NeedsAttention => IsEnabled && State == PluginState.Unavailable;
 
     [ObservableProperty]
     private PluginState _state;
@@ -81,7 +82,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isBusy;
 
-    public IBrush StatusDotBrush => State switch
+    public IBrush StatusDotBrush => EffectiveState switch
     {
         PluginState.Available => (IBrush)Application.Current!.Resources["BrushGreen"]!,
         PluginState.Loading => (IBrush)Application.Current!.Resources["BrushAmber"]!,
@@ -102,9 +103,27 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
 
     partial void OnStateChanged(PluginState value)
     {
+        NotifyStatus();
+    }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        NotifyStatus();
+    }
+
+    private void NotifyStatus()
+    {
         OnPropertyChanged(nameof(StatusDotBrush));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(SetupPage));
+        OnPropertyChanged(nameof(NeedsAttention));
+    }
+
+    public void RefreshFromPlugin()
+    {
+        State = _plugin.State;
+        IsEnabled = _plugin.IsEnabled;
+        NotifyStatus();
     }
 
     private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -126,9 +145,6 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
     public bool Matches(string query, string category) =>
         PluginUi.Matches(Manifest, Name, Description, query, category);
 
-    // FIX: Replaced partial void OnIsEnabledChanged with an explicit method called
-    // from the View's Click event. This completely eliminates the Avalonia binding
-    // coercion storm that caused background threads to mutate the UI collection.
     public void UserToggled(bool newValue)
     {
         if (_plugin.IsEnabled == newValue) return;
@@ -136,6 +152,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _plugin.IsEnabled = newValue;
         _persistToggle(newValue);
         IsEnabled = newValue;
+        NotifyStatus();
 
         _initCts?.Cancel();
         _initCts?.Dispose();
@@ -159,7 +176,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 State = _plugin.State;
-                OnPropertyChanged(nameof(StatusDotBrush));
+                NotifyStatus();
             });
 
             if (!wasEnabled) return;
@@ -180,7 +197,6 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
-            // Expected when the user toggles rapidly
         }
         catch (Exception ex)
         {

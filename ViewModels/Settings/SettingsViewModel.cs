@@ -44,6 +44,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly LocalAIService _localAI;
     private readonly PluginManager _plugins;
     private System.Threading.Timer? _aiHealthTimer;
+    public bool IntegrationsNeedsAttention => PluginRows.Any(r => r.NeedsAttention);
+    public bool ApiKeysNeedsAttention => PluginRows.Any(r => r.NeedsAttention && r.SetupPage == "ApiKeys");
     #endregion
 
     #region Constructor
@@ -64,7 +66,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         
         _isSettingsSidebarCollapsed = prefsService.Current.SettingsSidebarCollapsed;
         _selectedLanguage = prefsService.Current.Language;
-        UpdateWaveSpineVisibility();
+        
         
         // API Keys Init
         _youtubeApiKey = _keyStore.GetKey("YouTube") ?? string.Empty;
@@ -99,6 +101,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); break;
                 }
             }));
+        }
+        foreach (var row in PluginRows)
+        {
+            row.PropertyChanged += (_, e) =>
+            {
+                OnPropertyChanged(nameof(IntegrationsNeedsAttention));
+                OnPropertyChanged(nameof(ApiKeysNeedsAttention));
+            };
         }
         Hub = new IntegrationsHubViewModel(PluginRows, new StaticPluginCatalog());
         LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
@@ -147,26 +157,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SettingsSidebarWidth));
             OnPropertyChanged(nameof(SettingsSidebarCollapseIconKind));
             _prefsService.Update(p => p.SettingsSidebarCollapsed = value);
-            UpdateWaveSpineVisibility();
+            
         }
     }
     public bool IsSettingsSidebarExpanded => !IsSettingsSidebarCollapsed;
     public double SettingsSidebarWidth => IsSettingsSidebarCollapsed ? 64 : 220;
     public Material.Icons.MaterialIconKind SettingsSidebarCollapseIconKind =>
         IsSettingsSidebarCollapsed ? Material.Icons.MaterialIconKind.ChevronRight : Material.Icons.MaterialIconKind.ChevronLeft;
-
-    private bool _showWaveSpine;
-    public bool ShowWaveSpine
-    {
-        get => _showWaveSpine;
-        private set => SetProperty(ref _showWaveSpine, value);
-    }
-
-    private void UpdateWaveSpineVisibility()
-    {
-        ShowWaveSpine = IsSettingsSidebarExpanded &&
-                        EffectsTierResolver.Shared.Current != NullWave.Models.EffectsTier.Minimal;
-    }
 
     public Material.Icons.MaterialIconKind CurrentSettingsPageIcon => CurrentSettingsPage switch
     {
