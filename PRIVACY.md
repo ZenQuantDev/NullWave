@@ -16,7 +16,6 @@ When you use certain features, NullWave may contact these external services:
 
 ### Weather & Mood (Optional)
 - **api.openweathermap.org**: Weather data for mood-based playlists (requires your API key)
-- **api.open-meteo.com**: Alternative weather data source (no API key required)
 
 ### Radio & Streaming
 - **radio-browser.info**: Community radio station directory

@@ -16,7 +16,7 @@
 
     <UserControl.Styles>
         <Style Selector="Border.plugin-tag">
-            <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
             <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
             <Setter Property="Padding" Value="8,2"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
@@ -113,7 +113,7 @@
                                 <Border Grid.Column="0"
                                         Width="40" Height="40"
                                         CornerRadius="{StaticResource RadiusLg}"
-                                        Background="{StaticResource BrushSurface2}"
+                                        Background="{StaticResource BrushElevated}"
                                         VerticalAlignment="Top">
                                     <material:MaterialIcon Kind="{Binding PrimaryIcon}"
                                                            Width="20" Height="20"
@@ -205,7 +205,7 @@
                                 <Border Grid.Column="0"
                                         Width="40" Height="40"
                                         CornerRadius="{StaticResource RadiusLg}"
-                                        Background="{StaticResource BrushSurface2}"
+                                        Background="{StaticResource BrushElevated}"
                                         VerticalAlignment="Top">
                                     <material:MaterialIcon Kind="{Binding PrimaryIcon}"
                                                            Width="20" Height="20"
@@ -345,7 +345,7 @@
                                                 <Border Padding="8,6"
                                                         Margin="0,2"
                                                         CornerRadius="{StaticResource RadiusSm}"
-                                                        Background="{StaticResource BrushSurface2}">
+                                                        Background="{StaticResource BrushElevated}">
                                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                                         <CheckBox Grid.Column="0"
                                                                   IsChecked="{Binding IsActive}"

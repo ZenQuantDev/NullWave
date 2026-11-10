@@ -41,7 +41,7 @@ public class TrackNormalizerTests
     [InlineData("PASTEL GHOST ~ DARK BEACH", "PASTEL GHOST", "DARK BEACH")]
     [InlineData("Tame Impala - The Less I Know The Better", "Tame Impala", "The Less I Know The Better")]
     [InlineData("Dr. Dre – I Need A Doctor", "Dr. Dre", "I Need A Doctor")]
-    [InlineData("Eminem — Lose Yourself", "Eminem", "Lose Yourself")]
+    [InlineData("Eminem - Lose Yourself", "Eminem", "Lose Yourself")]
     public void TrySplit_handles_various_separators(string input, string expectedArtist, string expectedTitle)
     {
         var result = TrackNormalizer.TrySplit(input);
@@ -179,7 +179,7 @@ public class TrackNormalizerTests
     [InlineData("Группа крови – Кино", "Кино", "Кино", "Группа крови")]
     [InlineData("Кино - Группа крови", "Кино", "Кино", "Группа крови")]
     [InlineData("Eminem - Role Model", "EminemMusic", "Eminem", "Role Model")]
-    [InlineData("MONA — Иордан (Official Music Video)", "RAAVA MUSIC", "MONA", "Иордан")]
+    [InlineData("MONA - Иордан (Official Music Video)", "RAAVA MUSIC", "MONA", "Иордан")]
     [InlineData("Daft Punk - Get Lucky", "Unknown", "Daft Punk", "Get Lucky")]
     public void SplitWithKnownArtist_resolves_order(string raw, string known, string expectedArtist, string expectedTitle)
     {

@@ -62,7 +62,7 @@ public static class ErrorReporter
         }
         catch
         {
-            // No dispatcher available (e.g., in unit tests) — log-only mode
+            // No dispatcher available (e.g., in unit tests) - log-only mode
         }
     }
 
@@ -93,7 +93,7 @@ public static class ErrorReporter
         }
         catch
         {
-            // No dispatcher available (e.g., in unit tests) — log-only mode
+            // No dispatcher available (e.g., in unit tests) - log-only mode
         }
     }
 

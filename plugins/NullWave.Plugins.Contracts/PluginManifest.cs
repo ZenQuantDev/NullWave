@@ -94,27 +94,27 @@ public sealed class StaticPluginCatalog : IPluginCatalog
     public IReadOnlyList<PluginManifest> StoreEntries { get; } = new[]
     {
         new PluginManifest(
-            "radio-browser", "Radio Browser", "NullWave", "—",
+            "radio-browser", "Radio Browser", "NullWave", "-",
             "Browse and import community radio stations from the Radio Browser directory",
             new[] { ProviderKind.Radio }, false, PluginAvailability.Planned),
 
         new PluginManifest(
-            "librivox", "LibriVox", "NullWave", "—",
+            "librivox", "LibriVox", "NullWave", "-",
             "Free public-domain audiobooks from the LibriVox archive",
             new[] { ProviderKind.Radio }, false, PluginAvailability.Planned),
 
         new PluginManifest(
-            "spotify", "Spotify", "NullWave", "—",
+            "spotify", "Spotify", "NullWave", "-",
             "Import playlists and fetch metadata from Spotify (Premium account required)",
             new[] { ProviderKind.Metadata, ProviderKind.PlaylistImport }, false, PluginAvailability.Planned),
 
         new PluginManifest(
-            "soundcloud", "SoundCloud", "NullWave", "—",
+            "soundcloud", "SoundCloud", "NullWave", "-",
             "Search and import tracks from SoundCloud",
             new[] { ProviderKind.Search, ProviderKind.Download }, false, PluginAvailability.Planned),
 
         new PluginManifest(
-            "bandcamp", "Bandcamp", "NullWave", "—",
+            "bandcamp", "Bandcamp", "NullWave", "-",
             "Browse artists and import albums from Bandcamp",
             new[] { ProviderKind.Search, ProviderKind.Download }, false, PluginAvailability.Planned),
     };

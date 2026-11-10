@@ -1,7 +1,7 @@
 # 🎵 NullWave
 
 <p align="center">
-  <img alt="NullWave — Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
+  <img alt="NullWave - Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
 </p>
 
 [![CI](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml/badge.svg)](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml)
@@ -80,16 +80,16 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 
 ## Tech Stack
 
-| Layer                | Technology                                      |
-| -------------------- | ----------------------------------------------- |
-| Language / Framework | C# 12, .NET 10 LTS, Avalonia UI 12 (MVVM)       |
-| Playback             | LibVLCSharp + system libVLC                     |
-| Download             | yt-dlp                                          |
-| Metadata             | TagLib# (ID3), YouTube Data API v3, Last.fm API |
-| Smart Sorting        | Ollama (Local AI), OpenWeather API              |
-| Logging              | Serilog (3 sinks: system, user-actions, errors) |
+| Layer                | Technology                                                                                                           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Language / Framework | C# 12, .NET 10 LTS, Avalonia UI 12 (MVVM)                                                                            |
+| Playback             | LibVLCSharp + system libVLC                                                                                          |
+| Download             | yt-dlp                                                                                                               |
+| Metadata             | TagLib# (ID3), YouTube Data API v3, Last.fm API                                                                      |
+| Smart Sorting        | Ollama (Local AI), OpenWeather API                                                                                   |
+| Logging              | Serilog (3 sinks: system, user-actions, errors)                                                                      |
 | Security             | DPAPI on Windows; Secret Service (`secret-tool`) on Linux; falls back to a weaker machine-derived key if unavailable |
-| Persistence          | SQLite-net-pcl                                  |
+| Persistence          | SQLite-net-pcl                                                                                                       |
 
 ---
 
@@ -110,7 +110,7 @@ export NULLWAVE_OPENWEATHER_KEY="your_key"
 - **.NET 10 Runtime** (LTS, supported until Nov 2028)
 - **libVLC** (Bundled in Windows installer; Linux requires `sudo dnf install vlc-libs` or `sudo apt install libvlc-dev`)
 - **yt-dlp** (`winget install yt-dlp.yt-dlp` or `pip install yt-dlp`)
-- **JavaScript Runtime** (Deno ≥2.3.0 **recommended**, or Node.js ≥22.0.0, or QuickJS on PATH — required for YouTube signature challenges)
+- **JavaScript Runtime** (Deno ≥2.3.0 **recommended**, or Node.js ≥22.0.0, or QuickJS on PATH - required for YouTube signature challenges)
 - **FFmpeg** (Optional, but highly recommended for audio transcoding and embedding metadata/album art)
 
 **Windows note:** Requires .NET 10 Runtime. LibVLC native libraries auto-installed via NuGet. yt-dlp installed via winget.

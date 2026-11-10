@@ -6,11 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.6.5-beta.2] - 10-Nov-2026
 
 ### Added
-- **Plugin Contracts SDK**: Extracted `NullWave.Plugins.Contracts` as a standalone NuGet-packageable project containing `IPlugin`, `IPluginHost`, `PluginManifest`, `ProviderKind`, and `PluginState` — the public API surface for future third-party plugin authors
+
+- **Plugin Contracts SDK**: Extracted `NullWave.Plugins.Contracts` as a standalone NuGet-packageable project containing `IPlugin`, `IPluginHost`, `PluginManifest`, `ProviderKind`, and `PluginState` - the public API surface for future third-party plugin authors
 - **Plugin Discovery Engine (not yet active)**: `PluginDiscovery` can load plugins from `plugins/<name>/plugin.json` in isolated `AssemblyLoadContext` instances, but is not called at startup in this release
 - **OpenWeather Reference Plugin (not loaded)**: `NullWave.Plugins.OpenWeather` demonstrates the full plugin lifecycle as a template for future plugins; the built-in OpenWeather provider remains unchanged
 - **Built-in Plugin Manifest Factory**: `BuiltInPluginManifest.FromBuiltIn()` generates manifests from existing `IProvider` implementations, bridging the legacy provider system with the future plugin architecture
-- **Plugin Host Implementation (not yet active)**: `PluginHost` provides plugins with scoped API key access, prefixed logging, and toast notifications; some members are stubs and nothing constructs it yet
 - **Provider Interface Contracts**: `IDownloadProvider`, `IMetadataProvider`, `IAIProvider`, `IWeatherProvider` now extend `IProvider : IPlugin` from the Contracts project, unifying the provider and plugin type hierarchies
 - **Unified FileNamer**: one naming rule for download completion, Sync, import and export;
   255-byte UTF-8 limit, FAT-safe characters, surrogate-safe truncation, keeps the [nw-id] suffix.
@@ -28,10 +28,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI matrix**: build and full test suite on Windows and Ubuntu with banned-API enforcement.
 
 ### Changed
+
 - **Plugin Lifecycle Signature**: `IPlugin.InitializeAsync` now accepts `IPluginHost` as the first parameter, though built-in plugins don't use it yet
 - **Plugin State Preservation**: `PluginManager` no longer overwrites `Unavailable` or `Disabled` states with `Error` when initialization returns false
 - **Type Migration**: `IPlugin`, `PluginState`, `ProviderKind`, and `PluginManifest` moved from `NullWave.Services.Plugins` to `NullWave.Plugins.Contracts` namespace
 - **EffectsTierResolver Singleton**: Converted to a process-wide singleton (`EffectsTierResolver.Shared`) to ensure consistent tier resolution across the main app, Settings window, and wallpaper service.
+- **Settings ViewModel**: Added `EffectsTierLabel`, `CanForceStandardTier`, and `ForceStandardEffectsTierCommand` for the new Effects Tier visibility card.
+- **Plugin Host Implementation (not yet active)**: `PluginHost` provides plugins with permission-checked API key access, prefixed logging, and toast notifications; some members are stubs and nothing constructs it yet
 - **Settings reorganization**: Plugins and Sources merged into Integrations; new Downloads tab;
   Advanced dissolved into Maintenance and Help.
 - **Honest updates**: exact package-manager exit codes, parallel dependency checks, pre-release
@@ -40,6 +43,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   EN/RU; the experimental banner describes only available features.
 
 ### Fixed
+
 - **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files
   are never deleted.
 - **Keystore (Linux)**: data-loss path closed; locked or missing secret store falls back to the
@@ -51,6 +55,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.6.5-beta.1] - 31-Oct-2026
 
 ### Added
+
 - **Keystore v2**: Migrated from machine-ID-derived keys to OS-native secret storage. Windows uses DPAPI, Linux uses Secret Service when available, with safe legacy fallback. Existing keys auto-migrate on first launch.
 - **Download Consent Gate**: Downloads now require explicit first-time consent. A dialog explains that NullWave uses yt-dlp and that you're responsible for respecting copyright.
 - **.NET 10 LTS**: Retargeted from .NET 8 to .NET 10 LTS (supported until Nov 2028).
@@ -60,6 +65,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **New Audio Sources**: Added native yt-dlp support for Bandcamp, Audiomack, Archive.org, and Mixcloud.
 
 ### Changed
+
 - **Radio Detection**: Early-return for known music sources prevents false positives (e.g., `radiohead.bandcamp.com` or `/track/streams-of-light`).
 - **yt-dlp Runtime**: Bun removed (deprecated). Detection order: Deno (≥2.3.0) → Node (≥22.0.0).
 - **429 Detection**: Tightened to match `HTTP Error 429` only, preventing false backoff.
@@ -67,6 +73,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Test Suite**: Expanded to 533 passing tests.
 
 ### Fixed
+
 - **List Parameter Stripping**: YouTube URLs with `list=` parameter are now safely stripped using a proper URI parser, allowing single-track downloads from playlist pages without breaking the URL.
 - **Semaphore Shrink-Debt**: Fixed an edge case where changing the concurrent download limit mid-download would permanently stall the queue.
 - **Keystore Data Safety**: "Delete All Keys" now securely removes backup and quarantined files. First-run directory creation is guaranteed.
@@ -86,6 +93,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.6.4] - 25-Oct-2026 🏗️ "Foundations"
 
 ### Highlights
+
 - **Multi-word AND Search**: Searching "pastel ghost" now requires both words instead of returning OR matches.
 - **Safe Manual Backups**: The "Backup Database" button now uses SQLite's `VACUUM INTO` for consistent, compacted copies.
 - **Non-Destructive Playlist Merging**: Renaming a playlist to an existing name is blocked; duplicate playlists are merged safely instead of being deleted on restart.
@@ -95,6 +103,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **YouTube JS Runtime Auto-Detection**: Automatically passes `--js-runtimes` to `yt-dlp` if Node/Bun is detected, fixing "n challenge" signature errors.
 
 ### Added
+
 - **Data-Driven Badge Catalog**: badge definitions live in embedded `badges.catalog.json` with rule-based evaluation; v2 canonical signing adds `KeyId` for future key rotation plus expired-badge handling.
 - **Test Coverage**: added `RadioBrowserParseTests` and `BadgeCatalogTests`; the suite now has 518 passing tests.
 - **Experimental Features System**: New toggle in Settings → Advanced that gates in-development features behind an "EXPERIMENTAL" badge.
@@ -108,6 +117,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Global Search Persistence & Clipboard Pre-fill**: Search follows you across pages; Add Track flyout auto-pastes HTTP URLs from clipboard.
 
 ### Changed
+
 - **Duplicate Import Protection**: YouTube URLs are canonicalized to `watch?v=<id>` (stripping tracking params) and checked against the identity index before add.
 - **Download UX**: duplicate clicks on an in-flight download are silent; a finished download only autoplays when it is still the current track.
 - **UTC Time Standardization**: Replaced all remaining `DateTime.Now` usages with `DateTime.UtcNow` across Diagnostics, ViewModels, and Services. Backup filenames and crash reports now use culture-invariant UTC stamps.
@@ -123,6 +133,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Cascading Track Deletion**: Deleting a track from the Library now automatically removes it from the playback Queue and all Playlists. The "Undo" button restores the track to its original playlists.
 
 ### Fixed
+
 - **Friendly Download Errors**: Raw `yt-dlp` exit codes are now mapped to actionable hints (e.g., "Install Node.js", "Use browser cookies") when signature or rate-limit errors occur.
 - **Tool Caching Fix**: Installing `ffmpeg` or `aria2c` while NullWave is running is now detected immediately without requiring an app restart.
 - **Windows Playback Fallback**: If `ffmpeg` is missing or audio format is set to "best", Windows downloads now force `.m4a` (MP4 container) to guarantee playback with the pruned VLC build, preventing silent WebM/Opus failures.
@@ -149,6 +160,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Last.fm Credential Reload**: `LastFmService` now reloads credentials in-place when connecting/disconnecting, preventing stale instances in dependent services.
 
 ### Removed
+
 - **Obsolete Helper Classes**: Marked `TitleSanitizer` and `TrackTitleParser` as `[Obsolete]` with migration guidance.
 - **Obsolete Test Files**: Deleted `TitleSanitizerTests.cs` and `TrackTitleParserTests.cs` (16 tests) as they tested the now-obsolete implementations. Functionality is covered by `TrackNormalizerTests.cs` (44 tests).
 

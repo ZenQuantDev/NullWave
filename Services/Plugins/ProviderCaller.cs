@@ -8,7 +8,7 @@ namespace NullWave.Services.Plugins;
 
 /// <summary>
 /// Wraps every call through a registered provider with timeout + try/catch + logging.
-/// This is the real fault isolation boundary — not assembly loading.
+/// This is the real fault isolation boundary - not assembly loading.
 /// </summary>
 public static class ProviderCaller
 {

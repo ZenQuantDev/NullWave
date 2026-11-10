@@ -1118,7 +1118,7 @@ public static partial class Locales
         ["Settings_Maintenance_Status_ClearingThumbnails"] = "Очистка миниатюр...",
         ["Settings_Maintenance_Status_ScanningPaths"] = "Проверка путей к файлам...",
         ["Settings_Maintenance_Status_ScanningDownloads"] = "Сканирование папки загрузок...",
-        ["Settings_Maintenance_Status_ResyncStarting"] = "Очистка кэшированных тегов — повторная синхронизация начинается...",
+        ["Settings_Maintenance_Status_ResyncStarting"] = "Очистка кэшированных тегов - повторная синхронизация начинается...",
         ["Settings_Maintenance_Status_OptimizingDatabase"] = "Оптимизация базы данных...",
         ["Settings_Maintenance_Status_CheckingLinks"] = "Сверка ссылок на файлы со встроенными метаданными...",
         ["Settings_Maintenance_Status_CleaningTitles"] = "Поиск имен исполнителей во встроенных названиях треков...",

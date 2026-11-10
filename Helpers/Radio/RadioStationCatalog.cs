@@ -23,7 +23,7 @@ public static class RadioStationCatalog
     {
         new("Lofi Girl", "Lofi / Chill", "https://play.streamafrica.net/lofiradio", "Hip hop beats to relax/study to."),
         new("SomaFM: Groove Salad", "Ambient / Downtempo", "https://ice.somafm.com/groovesalad", "A nicely chilled plate of ambient/downtempo beats and grooves."),
-        new("SomaFM: Drone Zone", "Ambient", "https://ice.somafm.com/dronezone", "Served best chilled — atmospheric textures with minimal beats."),
+        new("SomaFM: Drone Zone", "Ambient", "https://ice.somafm.com/dronezone", "Served best chilled - atmospheric textures with minimal beats."),
         new("SomaFM: Space Station", "Ambient / Space", "https://ice.somafm.com/spacestation", "Tune in, turn on, space out. Spaced-out ambient and mid-tempo electronica."),
         new("SomaFM: Deep Space One", "Ambient / Experimental", "https://ice.somafm.com/deepspaceone", "Deep ambient electronic, experimental, and space music."),
         new("SomaFM: Indie Pop Rocks!", "Indie Pop", "https://ice.somafm.com/indiepop", "New and classic favorite indie pop tracks."),

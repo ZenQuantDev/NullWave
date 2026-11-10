@@ -94,7 +94,7 @@ public partial class SettingsViewModel
         {
             UpdateStaged = await _updater.StageUpdateAsync(); 
             ToastService.Instance.Show(
-                UpdateStaged ? "Update downloaded — restart to install." : "No update available.", 
+                UpdateStaged ? "Update downloaded - restart to install." : "No update available.", 
                 UpdateStaged ? ToastType.Success : ToastType.Warning);
         }
         catch (Exception ex) 
