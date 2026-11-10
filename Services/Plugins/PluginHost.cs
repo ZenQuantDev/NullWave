@@ -25,11 +25,16 @@ public class PluginHost : IPluginHost
 
     public T? GetSetting<T>(string key)
     {
-        return default;
+        throw new NotImplementedException(
+            "Plugin settings storage is not yet implemented. " +
+            "This will be added when plugin settings UI is built.");
     }
 
     public void SetSetting<T>(string key, T value)
     {
+        throw new NotImplementedException(
+            "Plugin settings storage is not yet implemented. " +
+            "This will be added when plugin settings UI is built.");
     }
 
     public string? GetApiKey(string keyName)
@@ -41,6 +46,9 @@ public class PluginHost : IPluginHost
             return null;
         }
 
+        // TODO: Add scoped key access - only allow keys declared in manifest
+        // For now, any key is accessible if AccessApiKeys permission is granted
+        
         var key = _keyStore.GetKey(keyName);
         Serilog.Log.Information("[PluginHost] Plugin {PluginId} accessed API key {Key}", _manifest.Id, keyName);
         return key;
@@ -81,17 +89,25 @@ public class PluginHost : IPluginHost
 
     public Task<bool> ConfirmAsync(string title, string message)
     {
-        return Task.FromResult(true);
+        // Return false by default - plugins should not auto-approve destructive actions
+        // TODO: Implement proper confirmation dialog
+        Serilog.Log.Warning("[PluginHost] Plugin {PluginId} requested confirmation but no dialog is implemented yet",
+            _manifest.Id);
+        return Task.FromResult(false);
     }
 
     public IReadOnlyList<TrackSnapshot> GetLibraryTracks()
     {
-        return Array.Empty<TrackSnapshot>();
+        throw new NotImplementedException(
+            "Library access is not yet implemented for plugins. " +
+            "This will require permission checks and a read-only snapshot API.");
     }
 
     public Task<string> DownloadToTempAsync(string url, CancellationToken ct = default)
     {
-        throw new NotImplementedException("DownloadToTempAsync not yet implemented");
+        throw new NotImplementedException(
+            "DownloadToTempAsync is not yet implemented. " +
+            "This will require domain whitelist validation and secure temp file handling.");
     }
 
     public Task<ProcessResult> RunProcessAsync(string executable, string[] args, TimeSpan timeout, CancellationToken ct = default)
@@ -102,6 +118,8 @@ public class PluginHost : IPluginHost
             return Task.FromResult(new ProcessResult(-1, "", "Permission denied", false, false));
         }
 
-        throw new NotImplementedException("RunProcessAsync not yet implemented");
+        throw new NotImplementedException(
+            "RunProcessAsync is not yet implemented. " +
+            "This will require sandboxing and resource limits.");
     }
 }

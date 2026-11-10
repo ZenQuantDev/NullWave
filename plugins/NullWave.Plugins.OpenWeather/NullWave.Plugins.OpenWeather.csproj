@@ -4,10 +4,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>NullWave.Plugins.OpenWeather</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj" />
+    <ProjectReference Include="../NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
