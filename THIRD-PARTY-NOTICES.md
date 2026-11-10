@@ -5,7 +5,7 @@ NullWave uses the following third-party libraries and tools. We are grateful for
 ## Core Framework
 
 - **Avalonia UI** (MIT License) - https://github.com/AvaloniaUI/Avalonia
-- **.NET 8** (MIT License) - https://dotnet.microsoft.com/
+- **.NET 10** (MIT License) - https://dotnet.microsoft.com/
 
 ## Media & Playback
 
