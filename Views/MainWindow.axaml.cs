@@ -106,7 +106,12 @@ public partial class MainWindow : Window
         Opened -= OnMainWindowOpened;
         StartupTimeline.Mark("MainWindow opened");
         _hangDetector = new UiHangDetector();
-        Dispatcher.UIThread.Post(() => StartupTimeline.Mark("First frame"), DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(() =>
+        {
+            StartupTimeline.Mark("First frame");
+            if (DataContext is MainViewModel vm)
+                vm.OnFirstFrame();
+        }, DispatcherPriority.Background);
 
         try
         {

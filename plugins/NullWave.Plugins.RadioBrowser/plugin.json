@@ -1,0 +1,16 @@
+{
+  "id": "radiobrowser",
+  "name": "Radio Browser",
+  "version": "1.0.0",
+  "author": "NullWave Team",
+  "description": "Browse and stream internet radio stations",
+  "kinds": ["Radio"],
+  "entryPoint": "NullWave.Plugins.RadioBrowser.RadioBrowserPlugin, NullWave.Plugins.RadioBrowser",
+  "permissions": {
+    "network": true,
+    "accessApiKeys": false
+  },
+  "capabilities": {
+    "canProvideRadio": true
+  }
+}

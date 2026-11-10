@@ -5,11 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
 using NullWave.Services;
@@ -23,16 +23,15 @@ namespace NullWave.ViewModels;
 
 public partial class MainViewModel
 {
-    private void InitializeServices()
+    private void InitializeCriticalServices()
     {
         _identity = new IdentityService(_keyStore);
         _prefsService = PreferencesService.Shared;
         _effectsTier = EffectsTierResolver.Shared;
         _effectsTier.PropertyChanged += OnEffectsTierPropertyChanged;
-        
+
         WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
-
         ThemeService.Instance.PropertyChanged += OnThemeServicePropertyChanged;
 
         _secureDelete = new SecureDeleteService(_keyStore);
@@ -43,18 +42,18 @@ public partial class MainViewModel
 
         var dbService = new DatabaseService(_prefsService);
         _library = new LibraryService(dbService, _metadata, _prefsService);
-        _playlists = new PlaylistService(dbService, _library);
         _library.LibraryChanged += OnLibraryChanged;
+        _playlists = new PlaylistService(dbService, _library);
 
         var albumArtService = new AlbumArtService(_lastFm);
         _downloadService = new DownloadService(_library, _prefsService, albumArtService);
-        DownloadManager = new DownloadManagerViewModel();
-        DownloadManager.AttachService(_downloadService);
-        
+        _downloadService.UpdateConcurrencyLimit(_prefsService.Current.MaxConcurrentDownloads);
+
         _localAI = new LocalAIService();
         _enrichment = new LastFmEnrichmentService(_lastFm, _library, _localAI, _prefsService);
         _weatherService = new WeatherService(_keyStore);
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
+        _powerState = new PowerStateService();
 
         _plugins = new PluginManager();
         _plugins.Register(new YtDlpDownloadProvider(_downloadService, _prefsService));
@@ -62,7 +61,7 @@ public partial class MainViewModel
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
-        // Provider registry (M3 foundation) - ASSIGN TO FIELD, not local variable
+        _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginsDir);
         _providerRegistry = new ProviderRegistry(_prefsService);
 
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
@@ -73,6 +72,8 @@ public partial class MainViewModel
             ApplyBatteryEffectsTier(_powerState.Current);
             _effectsTier.NotifyPreferencesChanged();
         };
+
+        StartupTimeline.Mark("Critical services ready");
     }
 
     private readonly HashSet<string> _activePlaylistImports = new();
@@ -120,7 +121,10 @@ public partial class MainViewModel
     private void InitializeChildViewModels()
     {
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, new AlbumArtService(_lastFm));
-        
+
+        DownloadManager = new DownloadManagerViewModel();
+        DownloadManager.AttachService(_downloadService);
+
         Library = new LibraryViewModel(_library, _localAI, _prefsService, _identity);
         Library.IsAiPromptEnabled = true;
         Library.ExcludedMediaTypes.Add(MediaType.Radio);
@@ -204,7 +208,7 @@ public partial class MainViewModel
             Nav.Rebuild();
         }
 
-        // Register providers with the new registry - USE THE FIELD
+        // Register providers with the new registry
         foreach (var plugin in _plugins.Plugins.OfType<IProvider>())
             _providerRegistry.Register(plugin);
     }
@@ -602,7 +606,6 @@ public partial class MainViewModel
             }
         };
 
-        _powerState = new PowerStateService();
         _powerState.PowerStateChanged += OnPowerStateChanged;
         ApplyBatteryEffectsTier(_powerState.Current);
         Settings.PowerModelsChanged += (b, p, a) => _localAI.ConfigurePowerModels(b, p, a);
@@ -610,7 +613,6 @@ public partial class MainViewModel
         _powerState.StartPolling();
 
         Settings.MaxConcurrentDownloadsChanged += limit => _downloadService.UpdateConcurrencyLimit(limit);
-        _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
         _enrichment.BackfillCompleted += OnBackfillCompleted;
 

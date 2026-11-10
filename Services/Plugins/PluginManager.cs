@@ -77,7 +77,7 @@ public class PluginManager
     public async Task InitializeAllAsync(CancellationToken ct = default, TimeSpan? perPluginTimeout = null)
     {
         var timeout = perPluginTimeout ?? DefaultInitTimeout;
-        var enabled = _plugins.Where(p => p.IsEnabled).ToList();
+        var enabled = _plugins.Where(p => p.IsEnabled && p.State != PluginState.Available).ToList();
         await Task.WhenAll(enabled.Select(p => InitializeOneAsync(p, timeout, ct)));
     }
 

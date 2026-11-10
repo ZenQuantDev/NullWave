@@ -54,10 +54,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private LastFmAuthService? _pendingLastFmAuth;
     private readonly List<(LiveNotification Activity, int Total)> _playlistBatches = new();
     private bool _initialMoodPlaylistRun;
+    private bool _deferredInitializationStarted;
     private DispatcherTimer? _libRefreshTimer;
     private bool _isMaintenanceRunning;
     private ProviderRegistry _providerRegistry = null!;
     public ProviderRegistry ProviderRegistry => _providerRegistry;
+    private PluginDiscovery? _discoveredPlugins;
 
     // --- UI State Properties ---
     private bool _isMenuBarVisible;
@@ -221,7 +223,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // --- Constructor ---
     public MainViewModel()
     {
-        InitializeServices();
+        InitializeCriticalServices();
         StartupTimeline.Mark("Services built");
         InitializeChildViewModels();
         StartupTimeline.Mark("Child view models built");
@@ -231,14 +233,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         WireIntegrationEvents();
         WireAIAndPowerEvents();
         WirePlayerEvents();
-
         Nav.SetActivePage(CurrentPage);
         Library.RefreshArtistGroups();
         CurrentPage = "Library";
-
         StartupTimeline.Mark("ViewModel constructed");
-        _ = RunStartupDiagnosticsAsync();
-        Dispatcher.UIThread.Post(() => _ = _playbackService.WarmUpAsync(), DispatcherPriority.Background);
+    }
+
+    internal void OnFirstFrame()
+    {
+        if (_deferredInitializationStarted) return;
+        _deferredInitializationStarted = true;
+
+        _ = _playbackService.WarmUpAsync();
+        _ = Task.Run(RunStartupDiagnosticsAsync);
+        _ = InitializeDeferredServicesAsync();
     }
 
     /// <summary>
@@ -248,6 +256,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        _discoveredPlugins?.UnloadAll();
         _powerState?.Dispose();
         if (Player is IDisposable disposablePlayer)
             disposablePlayer.Dispose();
@@ -287,15 +296,51 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         catch (Exception ex) { Log.Warning(ex, "[MainViewModel] Failed to unload AI model on exit"); }
     }
 
+    private async Task InitializeDeferredServicesAsync()
+    {
+        var pluginLoadTask = Task.Run(() => _discoveredPlugins!.DiscoverAndLoadAsync(
+            manifest => new PluginHost(_prefsService, _keyStore, manifest)));
+
+        try
+        {
+            await HardwareDetector.GetCachedInfoAsync();
+            StartupTimeline.Mark("Hardware detection complete");
+        }
+        catch (Exception ex)
+        {
+            NullActionLogger.Error(nameof(MainViewModel), ex, "Hardware detection failed");
+        }
+
+        try
+        {
+            var loadedPlugins = await pluginLoadTask;
+
+            foreach (var (manifest, plugin) in loadedPlugins)
+            {
+                _plugins.Register(plugin);
+                if (plugin is IProvider provider)
+                    _providerRegistry.Register(provider);
+
+                Log.Information("[MainViewModel] Registered external plugin: {Name} v{Version}",
+                    manifest.Name, manifest.Version);
+            }
+
+            await _plugins.InitializeAllAsync();
+            StartupTimeline.Mark("Plugins initialized");
+            StartupTimeline.LogSummary();
+        }
+        catch (Exception ex)
+        {
+            NullActionLogger.Error(nameof(MainViewModel), ex, "Deferred plugin initialization failed");
+        }
+    }
+
     private async Task RunStartupDiagnosticsAsync()
     {
         try
         {
             var diag = new StartupDiagnosticsService(_keyStore, _library);
             await diag.RunAsync();
-            await _plugins.InitializeAllAsync();
-            StartupTimeline.Mark("Plugins initialized");
-            StartupTimeline.LogSummary();
         }
         catch (Exception ex) { NullActionLogger.Error(nameof(MainViewModel), ex, "Startup diagnostics failed"); }
     }

@@ -9,6 +9,7 @@
   <Folder Name="/plugins/">
     <Project Path="plugins/NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj" />
     <Project Path="plugins/NullWave.Plugins.OpenWeather/NullWave.Plugins.OpenWeather.csproj" />
+    <Project Path="plugins/NullWave.Plugins.RadioBrowser/NullWave.Plugins.RadioBrowser.csproj" />
   </Folder>
   <Project Path="NullWave.csproj" />
 </Solution>

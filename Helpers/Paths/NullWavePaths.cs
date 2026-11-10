@@ -61,6 +61,7 @@ public static class NullWavePaths
     public static string PrefsPath        => Path.Combine(DataDir, "prefs.json");
     public static string BadgesPath       => Path.Combine(DataDir, "badges.json");
     public static string ProfileAssetsDir => Path.Combine(DataDir, "profile-assets");
+    public static string PluginsDir => Path.Combine(DataDir, "plugins");
 
     public static void EnsureDirectories()
     {
@@ -69,5 +70,6 @@ public static class NullWavePaths
         Directory.CreateDirectory(DownloadsDir);
         Directory.CreateDirectory(ArtCacheDir);
         Directory.CreateDirectory(BackupsDir);
+        Directory.CreateDirectory(PluginsDir);
     }
 }
