@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using NullWave.Plugins.Contracts;
 using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
@@ -318,8 +319,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             foreach (var (manifest, plugin) in loadedPlugins)
             {
                 _plugins.Register(plugin);
-                if (plugin is IProvider provider)
-                    _providerRegistry.Register(provider);
+
+                // DIAGNOSTIC: Print exactly what interfaces the runtime sees across the ALC boundary
+                var ifaces = plugin.GetType().GetInterfaces().Select(i => i.FullName);
+                Log.Information("[MainViewModel] Plugin {Name} implements: {Interfaces}", 
+                    manifest.Name, string.Join(", ", ifaces));
+
+                // NEW: If the plugin implements IRadioProvider (from Contracts), wrap it in an adapter
+                if (plugin is IRadioProvider radioPlugin)
+                {
+                    var adapter = new ExternalRadioProviderAdapter(radioPlugin, manifest);
+                    _providerRegistry.Register(adapter);
+                    Log.Information("[MainViewModel] Registered external radio provider: {Id} (kind={Kind})",
+                        adapter.Descriptor.Id, adapter.Descriptor.Kind);
+                }
 
                 Log.Information("[MainViewModel] Registered external plugin: {Name} v{Version}",
                     manifest.Name, manifest.Version);

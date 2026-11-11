@@ -9,13 +9,14 @@ using NullWave.Plugins.Contracts;
 
 namespace NullWave.Plugins.RadioBrowser;
 
-public class RadioBrowserPlugin : IPlugin
+public class RadioBrowserPlugin : IPlugin, IRadioProvider
 {
     private IPluginHost? _host;
     private HttpClient? _http;
     private string _serverUrl = "https://de1.api.radio-browser.info/json";
 
-    public string Id => "com.nullwave.radiobrowser";
+    // IPlugin properties (Hardcode the ID to match plugin.json)
+    public string Id => "radiobrowser";
     public string Name => "Radio Browser";
     public string Description => "Browse and import community radio stations from the Radio Browser directory";
     public PluginState State { get; set; } = PluginState.Unavailable;
@@ -73,14 +74,13 @@ public class RadioBrowserPlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Search for radio stations by name.
-    /// </summary>
-    public async Task<List<RadioStation>> SearchStationsAsync(
+    // IRadioProvider implementation
+
+    public async Task<List<RadioStationInfo>> SearchStationsAsync(
         string query, int limit = 50, CancellationToken ct = default)
     {
         if (_http == null || State != PluginState.Available)
-            return new List<RadioStation>();
+            return new List<RadioStationInfo>();
 
         try
         {
@@ -88,11 +88,11 @@ public class RadioBrowserPlugin : IPlugin
             var json = await _http.GetStringAsync(url, ct);
             var stations = JsonSerializer.Deserialize<List<RadioStationDto>>(json, JsonOptions) ?? new();
             
-            var result = new List<RadioStation>();
+            var result = new List<RadioStationInfo>();
             foreach (var s in stations)
             {
                 if (string.IsNullOrWhiteSpace(s.UrlResolved)) continue;
-                result.Add(new RadioStation(
+                result.Add(new RadioStationInfo(
                     s.StationUuid ?? Guid.NewGuid().ToString(),
                     s.Name ?? "Unknown",
                     s.Tags ?? "",
@@ -111,17 +111,14 @@ public class RadioBrowserPlugin : IPlugin
         catch (Exception ex)
         {
             _host?.Log(LogLevel.Warning, $"Search failed: {ex.Message}");
-            return new List<RadioStation>();
+            return new List<RadioStationInfo>();
         }
     }
 
-    /// <summary>
-    /// Get popular stations.
-    /// </summary>
-    public async Task<List<RadioStation>> GetTopStationsAsync(int limit = 50, CancellationToken ct = default)
+    public async Task<List<RadioStationInfo>> GetTopStationsAsync(int limit = 50, CancellationToken ct = default)
     {
         if (_http == null || State != PluginState.Available)
-            return new List<RadioStation>();
+            return new List<RadioStationInfo>();
 
         try
         {
@@ -129,11 +126,11 @@ public class RadioBrowserPlugin : IPlugin
             var json = await _http.GetStringAsync(url, ct);
             var stations = JsonSerializer.Deserialize<List<RadioStationDto>>(json, JsonOptions) ?? new();
             
-            var result = new List<RadioStation>();
+            var result = new List<RadioStationInfo>();
             foreach (var s in stations)
             {
                 if (string.IsNullOrWhiteSpace(s.UrlResolved)) continue;
-                result.Add(new RadioStation(
+                result.Add(new RadioStationInfo(
                     s.StationUuid ?? Guid.NewGuid().ToString(),
                     s.Name ?? "Unknown",
                     s.Tags ?? "",
@@ -150,14 +147,11 @@ public class RadioBrowserPlugin : IPlugin
         catch (Exception ex)
         {
             _host?.Log(LogLevel.Warning, $"GetTopStations failed: {ex.Message}");
-            return new List<RadioStation>();
+            return new List<RadioStationInfo>();
         }
     }
 
-    /// <summary>
-    /// Get station by UUID and register a click (play event).
-    /// </summary>
-    public async Task<string?> ResolveStreamUrlAsync(string stationUuid, CancellationToken ct = default)
+    public async Task<string?> ResolveStreamUrlAsync(string stationId, CancellationToken ct = default)
     {
         if (_http == null || State != PluginState.Available)
             return null;
@@ -165,7 +159,7 @@ public class RadioBrowserPlugin : IPlugin
         try
         {
             // Register click (counts as a "play" on the Radio Browser network)
-            var clickUrl = $"{_serverUrl}/url/{stationUuid}";
+            var clickUrl = $"{_serverUrl}/url/{stationId}";
             await _http.GetAsync(clickUrl, ct);
             
             // Get the actual stream URL
@@ -175,7 +169,7 @@ public class RadioBrowserPlugin : IPlugin
         }
         catch (Exception ex)
         {
-            _host?.Log(LogLevel.Warning, $"ResolveStreamUrl failed for {stationUuid}: {ex.Message}");
+            _host?.Log(LogLevel.Warning, $"ResolveStreamUrl failed for {stationId}: {ex.Message}");
             return null;
         }
     }
@@ -184,8 +178,6 @@ public class RadioBrowserPlugin : IPlugin
     {
         try
         {
-            // Radio Browser uses DNS SRV records for server discovery.
-            // Fallback: try known servers in order.
             var servers = new[] {
                 "de1.api.radio-browser.info",
                 "de2.api.radio-browser.info",
@@ -258,17 +250,3 @@ internal class UrlResponseDto
     [JsonPropertyName("url")]
     public string? Url { get; set; }
 }
-
-// --- Public types exposed to consumers ---
-
-public record RadioStation(
-    string Id,
-    string Name,
-    string Genre,
-    string Country,
-    string Language,
-    string StreamUrl,
-    string LogoUrl,
-    int ClickCount,
-    int Votes
-);
