@@ -84,7 +84,7 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
 
         try
         {
-            var url = $"{_serverUrl}/stations/search?name={Uri.EscapeDataString(query)}&limit={limit}&order=clickcount&reverse=true";
+            var url = $"{_serverUrl}/stations/search?name={Uri.EscapeDataString(query)}&limit={limit}&order=clickcount&reverse=true&hidebroken=true";
             var json = await _http.GetStringAsync(url, ct);
             var stations = JsonSerializer.Deserialize<List<RadioStationDto>>(json, JsonOptions) ?? new();
             
@@ -122,7 +122,7 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
 
         try
         {
-            var url = $"{_serverUrl}/stations/topclick/{limit}";
+            var url = $"{_serverUrl}/stations/topclick/{limit}?hidebroken=true";
             var json = await _http.GetStringAsync(url, ct);
             var stations = JsonSerializer.Deserialize<List<RadioStationDto>>(json, JsonOptions) ?? new();
             
@@ -158,12 +158,7 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
 
         try
         {
-            // Register click (counts as a "play" on the Radio Browser network)
-            var clickUrl = $"{_serverUrl}/url/{stationId}";
-            await _http.GetAsync(clickUrl, ct);
-            
-            // Get the actual stream URL
-            var urlResponse = await _http.GetStringAsync(clickUrl, ct);
+            var urlResponse = await _http.GetStringAsync($"{_serverUrl}/url/{stationId}", ct);
             var dto = JsonSerializer.Deserialize<UrlResponseDto>(urlResponse, JsonOptions);
             return dto?.Url;
         }

@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
+using NullWave.Plugins.Contracts;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Integration;
@@ -400,18 +401,26 @@ public partial class MainViewModel
 
         Input.RadioCatalogRequested += async () =>
         {
-            var dialog = new Views.Dialogs.RadioCatalogDialog(station =>
+            // Get the active radio provider from the registry
+            var activeProvider = _providerRegistry.GetActive(ProviderKind.Radio);
+            var radioProvider = activeProvider as IRadioProvider;
+            
+            var dialog = new Views.Dialogs.RadioCatalogDialog(radioProvider, stationInfo =>
             {
                 var track = new Track
                 {
-                    Title = station.Name,
-                    Artist = station.Genre, 
-                    Url = station.StreamUrl,
+                    Title = stationInfo.Name,
+                    Artist = stationInfo.Genre ?? "Radio", 
+                    Url = stationInfo.StreamUrl,
                     Source = TrackSource.Unknown, 
-                    MediaType = MediaType.Radio
+                    MediaType = MediaType.Radio,
+                    Tags = stationInfo.Id.StartsWith("curated:", StringComparison.Ordinal)
+                        ? new List<string>()
+                        : new List<string> { $"radiobrowser:{stationInfo.Id}" }
+                    // AlbumArtUrl removed - Track model doesn't have this property
                 };
                 
-                // Check duplicate before adding (LibraryService.Add is void and silently ignores duplicates)
+                // Check duplicate before adding
                 if (_library.IsDuplicate(track)) return false;
                 
                 _library.Add(track);
@@ -419,7 +428,6 @@ public partial class MainViewModel
                 return true;
             });
             
-            // We no longer care about the dialog result, as stations are added immediately
             await DialogService.Instance.ShowDialogAsync<object?>(dialog);
         };
 

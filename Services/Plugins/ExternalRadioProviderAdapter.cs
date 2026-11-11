@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Plugins.Contracts;
@@ -7,7 +8,7 @@ namespace NullWave.Services.Plugins;
 /// <summary>
 /// Bridges an external plugin's IRadioProvider to the internal IProvider registry.
 /// </summary>
-internal sealed class ExternalRadioProviderAdapter : IProvider
+internal sealed class ExternalRadioProviderAdapter : IProvider, IRadioProvider
 {
     private readonly IRadioProvider _inner;
 
@@ -22,8 +23,8 @@ internal sealed class ExternalRadioProviderAdapter : IProvider
         );
     }
 
-    /// <summary>Exposes the inner plugin so the UI can call SearchStationsAsync.</summary>
-    public IRadioProvider Inner => _inner;
+    // --- IProvider implementation ---
+    public ProviderDescriptor Descriptor { get; }
 
     // --- IPlugin delegation ---
     public string Id => _inner.Id;
@@ -34,6 +35,13 @@ internal sealed class ExternalRadioProviderAdapter : IProvider
     public Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default) => _inner.InitializeAsync(host, ct);
     public Task ShutdownAsync(CancellationToken ct = default) => _inner.ShutdownAsync(ct);
 
-    // --- IProvider implementation ---
-    public ProviderDescriptor Descriptor { get; }
+    // --- IRadioProvider delegation ---
+    public Task<List<RadioStationInfo>> SearchStationsAsync(string query, int limit = 50, CancellationToken ct = default)
+        => _inner.SearchStationsAsync(query, limit, ct);
+
+    public Task<List<RadioStationInfo>> GetTopStationsAsync(int limit = 50, CancellationToken ct = default)
+        => _inner.GetTopStationsAsync(limit, ct);
+
+    public Task<string?> ResolveStreamUrlAsync(string stationId, CancellationToken ct = default)
+        => _inner.ResolveStreamUrlAsync(stationId, ct);
 }
