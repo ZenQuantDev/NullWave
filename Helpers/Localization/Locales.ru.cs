@@ -1197,5 +1197,24 @@ public static partial class Locales
         ["Settings_Plugins_ComingSoon"] = "Скоро",
         ["Settings_Plugins_NoResults"] = "Нет подходящих плагинов.",
         ["Settings_Plugins_StorePreview"] = "Предпросмотр магазина: установка плагинов появится в одном из следующих релизов. Здесь показаны запланированные плагины.",
+
+        // Радиопотоки (Обслуживание)
+        ["Settings_Maintenance_Radio_Section"] = "РАДИОПОТОКИ",
+        ["Settings_Maintenance_Radio_Auto_Title"] = "Автоматически восстанавливать потоки",
+        ["Settings_Maintenance_Radio_Auto_Desc"] = "Если радиопоток недоступен, NullWave найдёт его текущий адрес в каталоге Radio Browser и подключится заново.",
+        ["Settings_Maintenance_Radio_Repair_Title"] = "Проверить радиопотоки",
+        ["Settings_Maintenance_Radio_Repair_Desc"] = "Сверить добавленные станции с каталогом. Переехавшие потоки обновляются; исчезнувшие станции помечаются как недоступные, но не удаляются.",
+        ["Settings_Maintenance_Radio_Preview_Button"] = "Предпросмотр",
+        ["Settings_Maintenance_Radio_Repair_Button"] = "Исправить",
+
+        // Каталог радио
+        ["Radio_Catalog_Title"] = "Каталог радиостанций",
+        ["Radio_Catalog_Header"] = "Каталог интернет-радио",
+        ["Radio_Catalog_Subtitle"] = "Ищите радиостанции сообщества по всему миру. Источник: Radio Browser.",
+        ["Radio_Catalog_SearchPlaceholder"] = "Поиск по названию, жанру или стране...",
+        ["Radio_Catalog_Add"] = "Добавить",
+        ["Radio_Catalog_Added"] = "Добавлено",
+        ["Radio_Catalog_PlaysFormat"] = "{0} прослушиваний",
+        ["Radio_Catalog_Close"] = "Закрыть",
     };
 }

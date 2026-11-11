@@ -84,6 +84,11 @@
 - CI: Windows + Ubuntu matrix with banned-API build gate; both checks required to merge. ✅
 - C8 orphan sweep, S7 install consent, T1 regression coverage, K5 keystore honesty, and L1
   localization are implemented; manual verification remains pending.
+- Plugin system: Contracts SDK, isolated discovery with manifest/host-version gates, PluginHost,
+  dynamic Settings registration, persisted external toggles. ✅
+- Radio Browser plugin + catalog dialog (live search, curated fallback, duplicate detection). ✅
+- Self-healing radio streams: click-free UUID repair, auto-reconnect on failure, bulk
+  preview/repair, `radio:dead` tagging. 🟡 (manual UI checks pending)
 
 ---
 
@@ -98,6 +103,7 @@
   protection rule on main.
 - The RS0030 deliberate-break evidence is recorded from PR #12; both required jobs failed at
   build, merge was blocked, and the PR was closed unmerged.
+- Tests: 736 passing locally on Windows; Ubuntu re-run pending.
 
 ---
 
@@ -175,8 +181,20 @@ export originals.
 ### 3.9 Docs sync pack ✅
 
 - CHANGELOG beta.2, README file-safety and platform notes, ROADMAP release/phase state, and
-  this guide were synchronized. Published beta.1 remains untouched; beta.2 docs do not add
-  test counts.
+  this guide were synchronized. Published beta.1 remains untouched; release notes omit local
+  test counts, which are tracked in this guide.
+
+### 3.10 Plugin system close-out 🟡
+
+- Shipped: discovery + host + adapter + registry routing for Radio, catalog dialog,
+  self-healing streams, persisted toggles, EN/RU strings for the new UI.
+- Tests: enabled-state round-trip, manager manifest plumbing, adapter delegation,
+  heal classification.
+- Pending manual: toggle off/on survives restart; external row shows real version and
+  Radio tag; Store entry disappears once installed; Preview/Repair on the real library;
+  auto-reconnect on a genuinely dead stream.
+- Deferred by decision: plugin uninstall, discovery-failure rows in the Installed tab,
+  signed manifests + hash verification, sandboxed permission enforcement.
 
 ---
 

@@ -1214,5 +1214,24 @@ public static partial class Locales
         ["Settings_Plugins_ComingSoon"] = "Coming soon",
         ["Settings_Plugins_NoResults"] = "No plugins match your search.",
         ["Settings_Plugins_StorePreview"] = "Store preview: plugin installation arrives in a later release. These are the planned plugins.",
+
+        // Radio stream health (Maintenance)
+        ["Settings_Maintenance_Radio_Section"] = "RADIO STREAMS",
+        ["Settings_Maintenance_Radio_Auto_Title"] = "Auto-repair dead streams",
+        ["Settings_Maintenance_Radio_Auto_Desc"] = "When a radio stream fails, look up its current URL in the Radio Browser directory and reconnect automatically.",
+        ["Settings_Maintenance_Radio_Repair_Title"] = "Repair radio streams",
+        ["Settings_Maintenance_Radio_Repair_Desc"] = "Check imported stations against the directory. Moved streams are updated; stations that no longer exist are tagged dead, never deleted.",
+        ["Settings_Maintenance_Radio_Preview_Button"] = "Preview",
+        ["Settings_Maintenance_Radio_Repair_Button"] = "Repair",
+
+        // Radio catalog dialog
+        ["Radio_Catalog_Title"] = "Browse Radio Stations",
+        ["Radio_Catalog_Header"] = "Internet Radio Directory",
+        ["Radio_Catalog_Subtitle"] = "Search for community radio stations worldwide. Powered by Radio Browser.",
+        ["Radio_Catalog_SearchPlaceholder"] = "Search stations by name, genre, or country...",
+        ["Radio_Catalog_Add"] = "Add",
+        ["Radio_Catalog_Added"] = "Added",
+        ["Radio_Catalog_PlaysFormat"] = "{0} plays",
+        ["Radio_Catalog_Close"] = "Close",
     };
 }

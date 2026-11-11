@@ -1,17 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vmdlg="using:NullWave.ViewModels.Dialogs"
         xmlns:material="using:Material.Icons.Avalonia"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Dialogs.RadioCatalogDialog"
-        Title="Browse Radio Stations" Width="600" Height="700"
+        Title="{loc:Loc Radio_Catalog_Title}" Width="600" Height="700"
         WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBase}">
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-            <TextBlock Text="Internet Radio Directory" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
-            <TextBlock Text="Search for community radio stations worldwide. Powered by Radio Browser."
+            <TextBlock Text="{loc:Loc Radio_Catalog_Header}" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
+            <TextBlock Text="{loc:Loc Radio_Catalog_Subtitle}"
                        TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
         </StackPanel>
 
-        <TextBox Grid.Row="1" x:Name="SearchBox" PlaceholderText="Search stations by name, genre, or country..."
+        <TextBox Grid.Row="1" x:Name="SearchBox" PlaceholderText="{loc:Loc Radio_Catalog_SearchPlaceholder}"
                  TextChanged="OnSearchTextChanged" Margin="0,0,0,12">
             <TextBox.InnerLeftContent>
                 <material:MaterialIcon Kind="Magnify" Width="16" Height="16" Margin="10,0,0,0" Foreground="{StaticResource BrushTextMuted}"/>
@@ -28,7 +29,7 @@
                                 <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
                                     <TextBlock Text="{Binding Genre}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
                                     <TextBlock Text="{Binding Country}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
-                                    <TextBlock Text="{Binding ClickCount, StringFormat='{}{0} plays'}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{Binding PlaysLabel}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
 
                                 <Button Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Classes="primary"
@@ -48,6 +49,6 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Button Grid.Row="3" Classes="ghost" Content="Close" Click="OnCloseClicked" HorizontalAlignment="Right" Margin="0,16,0,0"/>
+        <Button Grid.Row="3" Classes="ghost" Content="{loc:Loc Radio_Catalog_Close}" Click="OnCloseClicked" HorizontalAlignment="Right" Margin="0,16,0,0"/>
     </Grid>
 </Window>

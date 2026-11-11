@@ -23,6 +23,7 @@ public partial class RadioCatalogDialog : Window
     public RadioCatalogDialog()
     {
         InitializeComponent();
+        Closed += (_, _) => DisposeStationRows();
     }
 
     public RadioCatalogDialog(
@@ -81,9 +82,24 @@ public partial class RadioCatalogDialog : Window
 
         if (ct.IsCancellationRequested) return;
 
-        StationList.ItemsSource = stations
+        SetStationRows(stations
             .Select(s => new RadioStationRowViewModel(s, _isAlreadyAdded?.Invoke(s) ?? false))
-            .ToList();
+            .ToList());
+    }
+
+    private void SetStationRows(List<RadioStationRowViewModel> rows)
+    {
+        DisposeStationRows();
+        StationList.ItemsSource = rows;
+    }
+
+    private void DisposeStationRows()
+    {
+        if (StationList.ItemsSource is IEnumerable<RadioStationRowViewModel> rows)
+        {
+            foreach (var row in rows)
+                row.Dispose();
+        }
     }
 
     private async void OnAddStationClicked(object? sender, RoutedEventArgs e)

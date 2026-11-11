@@ -8,8 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **Plugin Contracts SDK**: Extracted `NullWave.Plugins.Contracts` as a standalone NuGet-packageable project containing `IPlugin`, `IPluginHost`, `PluginManifest`, `ProviderKind`, and `PluginState` - the public API surface for future third-party plugin authors
-- **Plugin Discovery Engine (not yet active)**: `PluginDiscovery` can load plugins from `plugins/<name>/plugin.json` in isolated `AssemblyLoadContext` instances, but is not called at startup in this release
-- **OpenWeather Reference Plugin (not loaded)**: `NullWave.Plugins.OpenWeather` demonstrates the full plugin lifecycle as a template for future plugins; the built-in OpenWeather provider remains unchanged
+- **Plugin Discovery Engine**: loads plugins from `<data>/plugins/<name>/plugin.json` in isolated `AssemblyLoadContext` instances, with manifest validation, a path-traversal guard, an 8s per-plugin timeout, and a `minHostVersion` compatibility gate. Discovery runs after the first frame so it never blocks the window.
+- **Plugin Host**: gives plugins permission-checked API key access, prefixed logging and toast notifications. Library access, plugin settings storage, temp downloads and process execution are still explicit `NotImplementedException` stubs; `ConfirmAsync` returns false until a real dialog exists.
+- **Radio Browser plugin (first functional external plugin)**: live station search and top-station browsing over the Radio Browser directory, no API key required. Ships as a separate assembly referenced only against the Contracts SDK.
+- **Radio catalog dialog**: debounced live search, curated stations kept as a featured/offline fallback, and already-in-library stations shown as a disabled "Added" button.
+- **Self-healing radio streams**: imported stations carry a `radiobrowser:<uuid>` tag. On playback failure the current URL is re-resolved click-free and playback retries; a Maintenance action previews and repairs all stations in bulk. Stations missing from the directory are tagged `radio:dead`, never deleted. Auto-repair is a persisted preference.
+- **Dynamic plugin registration**: external plugins appear in Settings → Integrations as soon as they finish loading, with their real version, author and kind tags; their on/off choice persists across restarts.
 - **Built-in Plugin Manifest Factory**: `BuiltInPluginManifest.FromBuiltIn()` generates manifests from existing `IProvider` implementations, bridging the legacy provider system with the future plugin architecture
 - **Provider Interface Contracts**: `IDownloadProvider`, `IMetadataProvider`, `IAIProvider`, `IWeatherProvider` now extend `IProvider : IPlugin` from the Contracts project, unifying the provider and plugin type hierarchies
 - **Unified FileNamer**: one naming rule for download completion, Sync, import and export;
@@ -34,7 +38,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Type Migration**: `IPlugin`, `PluginState`, `ProviderKind`, and `PluginManifest` moved from `NullWave.Services.Plugins` to `NullWave.Plugins.Contracts` namespace
 - **EffectsTierResolver Singleton**: Converted to a process-wide singleton (`EffectsTierResolver.Shared`) to ensure consistent tier resolution across the main app, Settings window, and wallpaper service.
 - **Settings ViewModel**: Added `EffectsTierLabel`, `CanForceStandardTier`, and `ForceStandardEffectsTierCommand` for the new Effects Tier visibility card.
-- **Plugin Host Implementation (not yet active)**: `PluginHost` provides plugins with permission-checked API key access, prefixed logging, and toast notifications; some members are stubs and nothing constructs it yet
+- **Startup phasing**: critical services build synchronously; hardware detection, plugin discovery and playback warm-up run after the first-frame callback.
+- **Host version**: `PluginHost.HostVersion` reads the running assembly instead of a hardcoded string.
 - **Settings reorganization**: Plugins and Sources merged into Integrations; new Downloads tab;
   Advanced dissolved into Maintenance and Help.
 - **Honest updates**: exact package-manager exit codes, parallel dependency checks, pre-release
@@ -51,6 +56,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   are created 0600.
 - **Consent ghost rows**: consent is verified before the library row is inserted.
 - **Playback stalls**: native LibVLC Stop runs off the UI thread under a generation lock.
+- **Plugin toggle crash**: Settings reinitializes plugins with a valid `IPluginHost` instead of passing null.
+- **Contract type unification**: plugin builds no longer copy `NullWave.Plugins.Contracts.dll`, so plugin types bind to the host's copy across the load-context boundary.
+- **Radio Browser etiquette**: queries pass `hidebroken=true`, and stream resolution registers exactly one click instead of two.
 
 ## [0.6.5-beta.1] - 31-Oct-2026
 
