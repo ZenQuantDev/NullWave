@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Plugins.Contracts;
 using NullWave.Services.Plugins;
 using Xunit;
@@ -115,6 +116,33 @@ public class PluginDiscoveryTests : IDisposable
 
         var discovery = new PluginDiscovery(_tempDir);
         var result = await discovery.DiscoverAndLoadAsync(_ => throw new InvalidOperationException("Should not be called"));
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_RejectsPluginRequiringNewerHost()
+    {
+        var pluginDir = Path.Combine(_tempDir, "newer-host-plugin");
+        Directory.CreateDirectory(pluginDir);
+
+        var manifest = $$"""
+        {
+            "id": "test.plugin",
+            "name": "Test Plugin",
+            "version": "1.0.0",
+            "author": "Test Author",
+            "description": "Test description",
+            "kinds": ["Download"],
+            "entryPoint": "Test.Plugin, MissingAssembly",
+            "minHostVersion": "{{int.Parse(AppVersionInfo.Current.Split('.')[0]) + 1}}.0.0"
+        }
+        """;
+        await File.WriteAllTextAsync(Path.Combine(pluginDir, "plugin.json"), manifest);
+
+        var discovery = new PluginDiscovery(_tempDir);
+        var result = await discovery.DiscoverAndLoadAsync(
+            _ => throw new InvalidOperationException("Should not be called"));
 
         Assert.Empty(result);
     }
