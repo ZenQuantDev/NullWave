@@ -16,6 +16,7 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
+using NullWave.Services.Radio;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
 using Serilog;
@@ -64,6 +65,7 @@ public partial class MainViewModel
 
         _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginsDir);
         _providerRegistry = new ProviderRegistry(_prefsService);
+        _radioHealer = new RadioStreamHealer(_library, _providerRegistry, _prefsService);
 
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
@@ -401,33 +403,44 @@ public partial class MainViewModel
 
         Input.RadioCatalogRequested += async () =>
         {
-            // Get the active radio provider from the registry
             var activeProvider = _providerRegistry.GetActive(ProviderKind.Radio);
             var radioProvider = activeProvider as IRadioProvider;
-            
+
+            // Live check against the library: match by radiobrowser UUID tag OR by stream URL.
+            // URL matching also covers stations added before tags existed, and curated stations.
+            bool IsAlreadyAdded(RadioStationInfo info)
+            {
+                var tag = "radiobrowser:" + info.Id;
+                var url = info.StreamUrl?.Trim();
+                return _library.GetAll().Any(t =>
+                    t.MediaType == MediaType.Radio &&
+                    ((!info.Id.StartsWith("curated:", StringComparison.Ordinal) &&
+                      (t.Tags?.Contains(tag) ?? false)) ||
+                     (!string.IsNullOrWhiteSpace(url) &&
+                      string.Equals(t.Url?.Trim(), url, StringComparison.OrdinalIgnoreCase))));
+            }
+
             var dialog = new Views.Dialogs.RadioCatalogDialog(radioProvider, stationInfo =>
             {
                 var track = new Track
                 {
                     Title = stationInfo.Name,
-                    Artist = stationInfo.Genre ?? "Radio", 
+                    Artist = stationInfo.Genre ?? "Radio",
                     Url = stationInfo.StreamUrl,
-                    Source = TrackSource.Unknown, 
+                    Source = TrackSource.Unknown,
                     MediaType = MediaType.Radio,
                     Tags = stationInfo.Id.StartsWith("curated:", StringComparison.Ordinal)
                         ? new List<string>()
                         : new List<string> { $"radiobrowser:{stationInfo.Id}" }
-                    // AlbumArtUrl removed - Track model doesn't have this property
                 };
-                
-                // Check duplicate before adding
+
                 if (_library.IsDuplicate(track)) return false;
-                
+
                 _library.Add(track);
                 Dispatcher.UIThread.Post(() => { Library.Refresh(); RadioLibrary.Refresh(); });
                 return true;
-            });
-            
+            }, IsAlreadyAdded);
+
             await DialogService.Instance.ShowDialogAsync<object?>(dialog);
         };
 
@@ -484,6 +497,8 @@ public partial class MainViewModel
 
         Settings.GenerateMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
         Settings.GenerateTagMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true, forceTags: true);
+        Settings.PreviewRadioHealRequested += PreviewRadioHealAsync;
+        Settings.RepairRadioHealRequested += RepairRadioHealAsync;
 
         Settings.ExportUntaggedTracksRequested += async () =>
         {

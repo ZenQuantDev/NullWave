@@ -94,7 +94,7 @@ public sealed class StaticPluginCatalog : IPluginCatalog
     public IReadOnlyList<PluginManifest> StoreEntries { get; } = new[]
     {
         new PluginManifest(
-            "radio-browser", "Radio Browser", "NullWave", "-",
+            "radiobrowser", "Radio Browser", "NullWave", "-",
             "Browse and import community radio stations from the Radio Browser directory",
             new[] { ProviderKind.Radio }, false, PluginAvailability.Planned),
 

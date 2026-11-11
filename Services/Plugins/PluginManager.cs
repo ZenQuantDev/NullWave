@@ -17,9 +17,11 @@ public class PluginManager
     public static readonly TimeSpan DefaultInitTimeout = TimeSpan.FromSeconds(8);
 
     private readonly List<IPlugin> _plugins = new();
+    private readonly Dictionary<string, PluginManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
 
     public IReadOnlyList<IPlugin> Plugins => _plugins.AsReadOnly();
+    public event Action<IPlugin, PluginManifest?>? PluginRegistered;
 
     public PluginManager(ILogger? logger = null)
     {
@@ -27,7 +29,7 @@ public class PluginManager
     }
 
     /// <summary>Register a plugin. Duplicate names are ignored with a warning.</summary>
-    public void Register<T>(T plugin) where T : IPlugin
+    public void Register<T>(T plugin, PluginManifest? manifest = null) where T : IPlugin
     {
         if (_plugins.Any(p => p.Name == plugin.Name))
         {
@@ -36,9 +38,16 @@ public class PluginManager
         }
 
         _plugins.Add(plugin);
+        if (manifest != null) _manifests[plugin.Name] = manifest;
         _logger.Information("Registered plugin: {PluginName} ({PluginType})",
             plugin.Name, typeof(T).Name);
+
+        PluginRegistered?.Invoke(plugin, manifest);
     }
+
+    /// <summary>The discovery manifest for an external plugin, or null for built-ins.</summary>
+    public PluginManifest? GetManifest(IPlugin plugin) =>
+        _manifests.TryGetValue(plugin.Name, out var manifest) ? manifest : null;
 
     /// <summary>
     /// Get the first enabled, non-error plugin of type <typeparamref name="T"/>.

@@ -89,10 +89,10 @@ public sealed class StoreEntryViewModel
 
 public partial class IntegrationsHubViewModel : ObservableObject
 {
-    private readonly IReadOnlyList<PluginRowViewModel> _installed;
-    private readonly IReadOnlyList<StoreEntryViewModel> _store;
+    private IReadOnlyList<PluginRowViewModel> _installed;
+    private IReadOnlyList<StoreEntryViewModel> _store;
 
-    public IReadOnlyList<CategoryChipViewModel> Categories { get; }
+    public IReadOnlyList<CategoryChipViewModel> Categories { get; private set; }
     public ObservableCollection<PluginRowViewModel> VisibleInstalled { get; } = new();
     public ObservableCollection<StoreEntryViewModel> VisibleStore { get; } = new();
 
@@ -166,6 +166,34 @@ public partial class IntegrationsHubViewModel : ObservableObject
             VisibleStore.Add(s);
 
         OnPropertyChanged(nameof(HasNoResults));
+    }
+
+    public void Refresh(IEnumerable<PluginRowViewModel> installed, IPluginCatalog catalog)
+    {
+        _installed = installed.ToList();
+
+        var installedIds = _installed.Select(r => r.Manifest.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _store = catalog.StoreEntries
+            .Where(m => !installedIds.Contains(m.Id))
+            .Select(m => new StoreEntryViewModel(m))
+            .ToList();
+
+        var kinds = _installed.SelectMany(r => r.Manifest.Kinds)
+            .Concat(_store.SelectMany(s => s.Manifest.Kinds))
+            .Distinct()
+            .OrderBy(k => k)
+            .Select(k => k.ToString())
+            .ToList();
+
+        // Rebuild categories, preserving the user's current selection if possible
+        var selectedKey = Categories?.FirstOrDefault(c => c.IsSelected)?.Key ?? "All";
+        var categoryList = new List<CategoryChipViewModel> { new("All", selectedKey == "All") };
+        categoryList.AddRange(kinds.Select(k => new CategoryChipViewModel(k, k == selectedKey)));
+        
+        Categories = categoryList;
+        OnPropertyChanged(nameof(Categories));
+
+        Refilter();
     }
 
     public void RefreshAll()

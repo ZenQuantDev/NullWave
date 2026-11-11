@@ -20,6 +20,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
 {
     private readonly IPlugin _plugin;
     private readonly Action<bool> _persistToggle;
+    private readonly IPluginHost _host;
     private CancellationTokenSource? _initCts;
 
     public PluginManifest Manifest { get; }
@@ -91,13 +92,18 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         _ => (IBrush)Application.Current!.Resources["BrushAmber"]!
     };
 
-    public PluginRowViewModel(IPlugin plugin, Action<bool> persistToggle)
+    public PluginRowViewModel(
+        IPlugin plugin,
+        Action<bool> persistToggle,
+        PluginManifest? manifest = null,
+        IPluginHost? host = null)
     {
         _plugin = plugin;
         _persistToggle = persistToggle;
+        _host = host ?? throw new ArgumentNullException(nameof(host));
         _state = plugin.State;
         _isEnabled = plugin.IsEnabled;
-        Manifest = BuiltInPluginManifest.FromBuiltIn(plugin);
+        Manifest = manifest ?? BuiltInPluginManifest.FromBuiltIn(plugin);
         LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
     }
 
@@ -169,7 +175,7 @@ public partial class PluginRowViewModel : ObservableObject, IDisposable
         {
             var wasEnabled = _plugin.IsEnabled;
 
-            await _plugin.InitializeAsync(null!, ct);
+            await _plugin.InitializeAsync(_host, ct);
 
             if (ct.IsCancellationRequested) return;
 

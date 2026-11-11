@@ -16,6 +16,12 @@ public interface IRadioProvider : IPlugin
     /// <summary>Get popular/top radio stations.</summary>
     Task<List<RadioStationInfo>> GetTopStationsAsync(int limit = 50, CancellationToken ct = default);
 
+    /// <summary>
+    /// Click-free lookup of one station by directory UUID.
+    /// Used for stream repair; unlike ResolveStreamUrlAsync this does NOT register a play.
+    /// </summary>
+    Task<RadioStationInfo?> GetStationAsync(string stationId, CancellationToken ct = default);
+
     /// <summary>Resolve a station ID to an actual stream URL.</summary>
     Task<string?> ResolveStreamUrlAsync(string stationId, CancellationToken ct = default);
 }

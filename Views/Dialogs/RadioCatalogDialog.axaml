@@ -1,5 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:contracts="using:NullWave.Plugins.Contracts"
+        xmlns:vmdlg="using:NullWave.ViewModels.Dialogs"
         xmlns:material="using:Material.Icons.Avalonia"
         x:Class="NullWave.Views.Dialogs.RadioCatalogDialog"
         Title="Browse Radio Stations" Width="600" Height="700"
@@ -7,7 +7,7 @@
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
             <TextBlock Text="Internet Radio Directory" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
-            <TextBlock Text="Search for community radio stations worldwide. Powered by Radio Browser." 
+            <TextBlock Text="Search for community radio stations worldwide. Powered by Radio Browser."
                        TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
         </StackPanel>
 
@@ -21,22 +21,24 @@
         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <ItemsControl x:Name="StationList">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="contracts:RadioStationInfo">
+                    <DataTemplate x:DataType="vmdlg:RadioStationRowViewModel">
                         <Border Classes="settings-card" Margin="0,0,0,8" Padding="12">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                                 <TextBlock Grid.Column="0" Grid.Row="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis"/>
                                 <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
                                     <TextBlock Text="{Binding Genre}" Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
                                     <TextBlock Text="{Binding Country}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
                                     <TextBlock Text="{Binding ClickCount, StringFormat='{}{0} plays'}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
-                                
-                                <Button Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Classes="primary" 
-                                        Click="OnAddStationClicked" Tag="{Binding}" 
+
+                                <Button Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Classes="primary"
+                                        Click="OnAddStationClicked" Tag="{Binding}"
+                                        IsEnabled="{Binding CanAdd}"
                                         Padding="12,6" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <material:MaterialIcon Kind="Plus" Width="14" Height="14"/>
-                                        <TextBlock Text="Add"/>
+                                        <material:MaterialIcon Kind="Plus" Width="14" Height="14" IsVisible="{Binding !IsAdded}"/>
+                                        <material:MaterialIcon Kind="Check" Width="14" Height="14" IsVisible="{Binding IsAdded}"/>
+                                        <TextBlock Text="{Binding ActionLabel}"/>
                                     </StackPanel>
                                 </Button>
                             </Grid>

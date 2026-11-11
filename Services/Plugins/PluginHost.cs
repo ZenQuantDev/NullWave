@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Plugins.Contracts;
 using NullWave.Services.Security;
 
@@ -13,7 +14,7 @@ public class PluginHost : IPluginHost
     private readonly KeyStoreService _keyStore;
     private readonly PluginManifest _manifest;
 
-    public string HostVersion => "0.7.0";
+    public string HostVersion => AppVersionInfo.Current;
     public PluginManifest Manifest => _manifest;
 
     public PluginHost(PreferencesService prefs, KeyStoreService keyStore, PluginManifest manifest)
@@ -110,12 +111,13 @@ public class PluginHost : IPluginHost
             "This will require domain whitelist validation and secure temp file handling.");
     }
 
-    public Task<ProcessResult> RunProcessAsync(string executable, string[] args, TimeSpan timeout, CancellationToken ct = default)
+    public Task<NullWave.Plugins.Contracts.ProcessResult> RunProcessAsync(
+        string executable, string[] args, TimeSpan timeout, CancellationToken ct = default)
     {
         if (!_manifest.Permissions.ExecuteProcesses)
         {
             Serilog.Log.Warning("[PluginHost] Plugin {PluginId} tried to execute process without permission", _manifest.Id);
-            return Task.FromResult(new ProcessResult(-1, "", "Permission denied", false, false));
+            return Task.FromResult(new NullWave.Plugins.Contracts.ProcessResult(-1, "", "Permission denied", false, false));
         }
 
         throw new NotImplementedException(

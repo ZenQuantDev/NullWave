@@ -9,6 +9,7 @@ using NullWave.Helpers;
 using NullWave.Models;
 using NullWave.Plugins.Contracts;
 using NullWave.Services;
+using NullWave.ViewModels.Dialogs;
 
 namespace NullWave.Views.Dialogs;
 
@@ -16,6 +17,7 @@ public partial class RadioCatalogDialog : Window
 {
     private readonly IRadioProvider? _radioProvider;
     private readonly Func<RadioStationInfo, bool>? _tryAdd;
+    private readonly Func<RadioStationInfo, bool>? _isAlreadyAdded;
     private CancellationTokenSource? _searchCts;
 
     public RadioCatalogDialog()
@@ -23,99 +25,96 @@ public partial class RadioCatalogDialog : Window
         InitializeComponent();
     }
 
-    public RadioCatalogDialog(IRadioProvider? radioProvider, Func<RadioStationInfo, bool> tryAdd) : this()
+    public RadioCatalogDialog(
+        IRadioProvider? radioProvider,
+        Func<RadioStationInfo, bool> tryAdd,
+        Func<RadioStationInfo, bool> isAlreadyAdded) : this()
     {
         _radioProvider = radioProvider;
         _tryAdd = tryAdd;
-        
-        // Initial load: Top stations
+        _isAlreadyAdded = isAlreadyAdded;
+
         _ = LoadStationsAsync(null);
     }
 
     private async void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox tb)
-        {
-            _searchCts?.Cancel();
-            _searchCts = new CancellationTokenSource();
-            var token = _searchCts.Token;
-            
-            // Debounce 300ms
-            try { await Task.Delay(300, token); } catch (TaskCanceledException) { return; }
-            
-            await LoadStationsAsync(tb.Text, token);
-        }
+        if (sender is not TextBox tb) return;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try { await Task.Delay(300, token); } catch (TaskCanceledException) { return; }
+        await LoadStationsAsync(tb.Text, token);
     }
 
     private async Task LoadStationsAsync(string? query, CancellationToken ct = default)
     {
         var featured = string.IsNullOrWhiteSpace(query)
             ? RadioStationCatalog.GetCuratedStations()
-                .Select(station => new RadioStationInfo(
-                    "curated:" + station.Name,
-                    station.Name,
-                    station.Genre,
-                    null,
-                    null,
-                    station.StreamUrl,
-                    null))
+                .Select(s => new RadioStationInfo("curated:" + s.Name, s.Name, s.Genre, null, null, s.StreamUrl, null))
                 .ToList()
             : new List<RadioStationInfo>();
 
+        List<RadioStationInfo> stations;
         if (_radioProvider == null)
         {
-            StationList.ItemsSource = featured;
-            return;
+            stations = featured;
+        }
+        else
+        {
+            try
+            {
+                var live = string.IsNullOrWhiteSpace(query)
+                    ? await _radioProvider.GetTopStationsAsync(50, ct)
+                    : await _radioProvider.SearchStationsAsync(query, 50, ct);
+                stations = featured.Concat(live).ToList();
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex)
+            {
+                ToastService.Instance.Show($"Search failed: {ex.Message}", ToastType.Error);
+                stations = featured;
+            }
         }
 
-        try
-        {
-            var stations = string.IsNullOrWhiteSpace(query)
-                ? await _radioProvider.GetTopStationsAsync(50, ct)
-                : await _radioProvider.SearchStationsAsync(query, 50, ct);
-                
-            if (!ct.IsCancellationRequested)
-                StationList.ItemsSource = featured.Concat(stations).ToList();
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            ToastService.Instance.Show($"Search failed: {ex.Message}", ToastType.Error);
-            StationList.ItemsSource = featured;
-        }
+        if (ct.IsCancellationRequested) return;
+
+        StationList.ItemsSource = stations
+            .Select(s => new RadioStationRowViewModel(s, _isAlreadyAdded?.Invoke(s) ?? false))
+            .ToList();
     }
 
     private async void OnAddStationClicked(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is RadioStationInfo station && _tryAdd != null)
+        if (sender is not Button { Tag: RadioStationRowViewModel row } || _tryAdd == null) return;
+
+        row.IsBusy = true;
+        try
         {
-            if (sender is Button btn) btn.IsEnabled = false;
-            
-            var streamUrl = station.StreamUrl;
+            var streamUrl = row.StreamUrl;
             if (string.IsNullOrWhiteSpace(streamUrl) && _radioProvider != null)
-            {
-                streamUrl = await _radioProvider.ResolveStreamUrlAsync(station.Id);
-            }
+                streamUrl = await _radioProvider.ResolveStreamUrlAsync(row.Id);
 
             if (string.IsNullOrWhiteSpace(streamUrl))
             {
-                ToastService.Instance.Show($"Could not resolve stream for '{station.Name}'.", ToastType.Warning);
-                if (sender is Button b2) b2.IsEnabled = true;
+                ToastService.Instance.Show($"Could not resolve stream for '{row.Name}'.", ToastType.Warning);
                 return;
             }
 
-            // Pass the resolved URL back to the callback
-            bool added = _tryAdd(station with { StreamUrl = streamUrl });
-            
-            if (added)
-            {
-                ToastService.Instance.Show($"Added '{station.Name}' to Radio library.", ToastType.Success, scope: "radio-add");
-            }
-            else
-            {
-                ToastService.Instance.Show($"'{station.Name}' is already in your library.", ToastType.Info, scope: "radio-add");
-                if (sender is Button b3) b3.IsEnabled = true;
-            }
+            var added = _tryAdd(row.Station with { StreamUrl = streamUrl });
+
+            // Either we just added it, or it was already there. Both mean "in library".
+            row.IsAdded = true;
+            ToastService.Instance.Show(
+                added ? $"Added '{row.Name}' to Radio library." : $"'{row.Name}' is already in your library.",
+                added ? ToastType.Success : ToastType.Info,
+                scope: "radio-add");
+        }
+        finally
+        {
+            row.IsBusy = false;
         }
     }
 

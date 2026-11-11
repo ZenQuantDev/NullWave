@@ -82,6 +82,31 @@
                 </StackPanel>
             </Border>
 
+            <!-- RADIO STREAM HEALTH -->
+            <TextBlock Classes="section-label" Text="Radio Streams" Margin="{StaticResource Margin2xl}"/>
+            <Border Classes="settings-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Auto-repair dead streams" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="When a radio stream fails, look up its current URL in the Radio Browser directory and reconnect automatically." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoHealRadioStreams}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="1" Background="{StaticResource BrushBorder}" Margin="{StaticResource MarginSm}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="Repair radio streams" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Check imported stations against the directory. Moved streams are updated; stations that no longer exist are tagged dead, never deleted." Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" Content="Preview" Command="{Binding PreviewRadioHealCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                            <Button Classes="secondary" Content="Repair" Command="{Binding RepairRadioHealCommand}" IsEnabled="{Binding !IsRepairing}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- DATA CLEANUP -->
             <TextBlock Classes="section-label" Text="{loc:Loc Settings_Maintenance_Section_Cleanup}"/>
             <Border Classes="settings-card">

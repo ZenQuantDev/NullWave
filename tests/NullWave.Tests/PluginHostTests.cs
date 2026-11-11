@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Plugins.Contracts;
 using NullWave.Services;
 using NullWave.Services.Plugins;
@@ -39,7 +40,7 @@ public class PluginHostTests
 
         var host = new PluginHost(prefs, keyStore, manifest);
 
-        Assert.Equal("0.7.0", host.HostVersion);
+        Assert.Equal(AppVersionInfo.Current, host.HostVersion);
         Assert.Same(manifest, host.Manifest);
     }
 

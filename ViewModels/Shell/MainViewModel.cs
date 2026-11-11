@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -18,6 +19,7 @@ using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
+using NullWave.Services.Radio;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -59,6 +61,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private DispatcherTimer? _libRefreshTimer;
     private bool _isMaintenanceRunning;
     private ProviderRegistry _providerRegistry = null!;
+    private RadioStreamHealer _radioHealer = null!;
     public ProviderRegistry ProviderRegistry => _providerRegistry;
     private PluginDiscovery? _discoveredPlugins;
 
@@ -286,6 +289,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         };
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
+        _playbackService.PlaybackFailed += OnRadioPlaybackFailed;
     }
 
     public void DisposePowerState() => _powerState.Dispose();
@@ -300,7 +304,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private async Task InitializeDeferredServicesAsync()
     {
         var pluginLoadTask = Task.Run(() => _discoveredPlugins!.DiscoverAndLoadAsync(
-            manifest => new PluginHost(_prefsService, _keyStore, manifest)));
+            manifest => new PluginHost(_prefsService, _keyStore, manifest),
+            CancellationToken.None,
+            manifest => PluginEnabledState.Resolve(_prefsService.Current, manifest.Id)));
 
         try
         {
@@ -318,20 +324,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             foreach (var (manifest, plugin) in loadedPlugins)
             {
-                _plugins.Register(plugin);
+                _plugins.Register(plugin, manifest);
 
-                // DIAGNOSTIC: Print exactly what interfaces the runtime sees across the ALC boundary
-                var ifaces = plugin.GetType().GetInterfaces().Select(i => i.FullName);
-                Log.Information("[MainViewModel] Plugin {Name} implements: {Interfaces}", 
-                    manifest.Name, string.Join(", ", ifaces));
-
-                // NEW: If the plugin implements IRadioProvider (from Contracts), wrap it in an adapter
                 if (plugin is IRadioProvider radioPlugin)
                 {
                     var adapter = new ExternalRadioProviderAdapter(radioPlugin, manifest);
                     _providerRegistry.Register(adapter);
-                    Log.Information("[MainViewModel] Registered external radio provider: {Id} (kind={Kind})",
-                        adapter.Descriptor.Id, adapter.Descriptor.Kind);
+                    Log.Information("[MainViewModel] Registered external radio provider: {Id}", manifest.Id);
                 }
 
                 Log.Information("[MainViewModel] Registered external plugin: {Name} v{Version}",

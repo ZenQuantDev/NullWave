@@ -15,6 +15,6 @@
     "accessApiKeys": true,
     "allowedDomains": ["api.openweathermap.org"]
   },
-  "minHostVersion": "0.7.0",
+  "minHostVersion": "0.6.5",
   "license": "MIT"
 }

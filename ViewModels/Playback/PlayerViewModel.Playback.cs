@@ -15,6 +15,7 @@ namespace NullWave.ViewModels;
 public partial class PlayerViewModel
 {
     private bool _queueInterrupt;
+    private bool _forceTrackRetry;
     private System.Collections.Generic.List<Guid> _playlistDeck = new();
     private int _playlistDeckPos;
 
@@ -32,7 +33,7 @@ public partial class PlayerViewModel
     {
         if (track == null) return;
         // Debounce: prevent rapid re-clicks on the same track
-        if (_currentTrack?.Id == track.Id &&
+        if (!_forceTrackRetry && _currentTrack?.Id == track.Id &&
             (DateTime.UtcNow - _trackStartTime).TotalMilliseconds < 1500)
         {
             return;
@@ -78,7 +79,7 @@ public partial class PlayerViewModel
             t.Step("history");
 
             _hasTriggeredCrossfade = false;
-            if (_currentTrack != null && track.Id == _currentTrack.Id && _state == PlaybackState.Playing)
+            if (!_forceTrackRetry && _currentTrack != null && track.Id == _currentTrack.Id && _state == PlaybackState.Playing)
             {
                 ShowAlreadyPlayingToast = true;
                 _ = Task.Run(async () => { await Task.Delay(1500); Dispatcher.UIThread.Post(() => ShowAlreadyPlayingToast = false); });
@@ -88,6 +89,7 @@ public partial class PlayerViewModel
             var contextChanged = _currentTrack == null || _currentTrack.MediaType != track.MediaType || (track.MediaType == MediaType.Audiobook && (_currentTrack.Album != track.Album || _currentTrack.Artist != track.Artist));
             _playSessionId = Guid.NewGuid();
             CurrentTrack = track;
+            _playback.CurrentTrack = track;
             t.Step("setCurrentTrack");
             _navigator.CurrentTrack = track;
             if (contextChanged) _navigator.InvalidateDeck();
@@ -164,6 +166,20 @@ public partial class PlayerViewModel
         finally
         {
             t.Done();
+        }
+    }
+
+    public void RetryTrack(Track? track)
+    {
+        _trackStartTime = DateTime.MinValue;
+        _forceTrackRetry = true;
+        try
+        {
+            PlayTrack(track);
+        }
+        finally
+        {
+            _forceTrackRetry = false;
         }
     }
 

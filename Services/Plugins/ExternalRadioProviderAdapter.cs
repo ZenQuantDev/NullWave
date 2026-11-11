@@ -42,6 +42,9 @@ internal sealed class ExternalRadioProviderAdapter : IProvider, IRadioProvider
     public Task<List<RadioStationInfo>> GetTopStationsAsync(int limit = 50, CancellationToken ct = default)
         => _inner.GetTopStationsAsync(limit, ct);
 
+    public Task<RadioStationInfo?> GetStationAsync(string stationId, CancellationToken ct = default)
+        => _inner.GetStationAsync(stationId, ct);
+
     public Task<string?> ResolveStreamUrlAsync(string stationId, CancellationToken ct = default)
         => _inner.ResolveStreamUrlAsync(stationId, ct);
 }

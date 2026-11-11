@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,17 +26,22 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
 
     public async Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default)
     {
-        _host = host;
+        // PluginRowViewModel passes null when re-initializing from the UI toggle.
+        // Keep the original host reference from the first load.
+        if (host != null) _host = host;
 
         if (!IsEnabled)
         {
             State = PluginState.Disabled;
-            host.Log(LogLevel.Info, "Radio Browser plugin disabled by user preference");
+            _host?.Log(LogLevel.Info, "Radio Browser plugin disabled by user preference");
             return false;
         }
 
         try
         {
+            // Clean up previous client if we are re-initializing
+            _http?.Dispose();
+            
             _http = new HttpClient();
             _http.DefaultRequestHeaders.Add("User-Agent", "NullWave/0.7.0 (radio-browser plugin)");
             _http.Timeout = TimeSpan.FromSeconds(10);
@@ -48,18 +55,18 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
             using var response = await _http.GetAsync($"{_serverUrl}/stats", ct);
             if (!response.IsSuccessStatusCode)
             {
-                host.Log(LogLevel.Warning, $"Radio Browser server returned {(int)response.StatusCode}");
+                _host?.Log(LogLevel.Warning, $"Radio Browser server returned {(int)response.StatusCode}");
                 State = PluginState.Unavailable;
                 return false;
             }
 
             State = PluginState.Available;
-            host.Log(LogLevel.Info, $"Radio Browser plugin initialized (server: {_serverUrl})");
+            _host?.Log(LogLevel.Info, $"Radio Browser plugin initialized (server: {_serverUrl})");
             return true;
         }
         catch (Exception ex)
         {
-            host.Log(LogLevel.Error, $"Radio Browser initialization failed: {ex.Message}");
+            _host?.Log(LogLevel.Error, $"Radio Browser initialization failed: {ex.Message}");
             State = PluginState.Error;
             return false;
         }
@@ -148,6 +155,45 @@ public class RadioBrowserPlugin : IPlugin, IRadioProvider
         {
             _host?.Log(LogLevel.Warning, $"GetTopStations failed: {ex.Message}");
             return new List<RadioStationInfo>();
+        }
+    }
+
+    public async Task<RadioStationInfo?> GetStationAsync(string stationId, CancellationToken ct = default)
+    {
+        if (_http == null || State != PluginState.Available)
+            return null;
+
+        try
+        {
+            using var response = await _http.GetAsync(
+                $"{_serverUrl}/stations/byuuid/{Uri.EscapeDataString(stationId)}", ct);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return null;
+
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var station = JsonSerializer.Deserialize<List<RadioStationDto>>(json, JsonOptions)?.FirstOrDefault();
+            if (station == null) return null;
+
+            return new RadioStationInfo(
+                station.StationUuid ?? stationId,
+                station.Name ?? "Unknown",
+                station.Tags ?? "",
+                station.Country ?? "",
+                station.Language ?? "",
+                station.UrlResolved,
+                station.Favicon ?? "",
+                station.ClickCount,
+                station.Votes);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _host?.Log(LogLevel.Warning, $"GetStation failed for {stationId}: {ex.Message}");
+            throw;
         }
     }
 

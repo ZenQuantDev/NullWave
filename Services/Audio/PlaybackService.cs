@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using LibVLCSharp.Shared;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
+using NullWave.Models;
 using Serilog;
 
 namespace NullWave.Services;
@@ -31,6 +32,7 @@ public class PlaybackService : IDisposable
     private string? _deferredPlayPath;
     private readonly object _standbyLock = new();
     private Media? _currentMedia;
+    public Track? CurrentTrack { get; set; }
     private bool _disposed;                // guarded by _initLock
     private CancellationTokenSource? _fadeCts;
     private CancellationTokenSource? _crossfadeCts;
@@ -64,6 +66,7 @@ public class PlaybackService : IDisposable
     public event Action<TimeSpan>? DurationDiscovered;
     public event Action<string, string>? RadioMetadataChanged;
     public event Action<string>? StreamFailed;
+    public event Action<Track>? PlaybackFailed;
 
     public bool IsPlaying => _ready && _activePlayer.IsPlaying;
     public bool IsPaused => _ready && !_activePlayer.IsPlaying && _activePlayer.Media != null;
@@ -220,10 +223,12 @@ public class PlaybackService : IDisposable
             detail = _disposed ? "the audio service was shut down" : _engineError ?? "VLC could not be loaded";
         }
         var message = $"Audio engine unavailable: {detail}. Install VLC, then restart NullWave.";
+        var failedTrack = CurrentTrack;
         Log.Warning("[PlaybackService] Playback requested but the audio engine is unavailable: {Detail}", detail);
         _uiPost(() =>
         {
             StreamFailed?.Invoke(message);
+            if (failedTrack != null) PlaybackFailed?.Invoke(failedTrack);
             StateChanged?.Invoke(PlaybackState.Stopped);
         });
     }
@@ -307,12 +312,14 @@ public class PlaybackService : IDisposable
     private void OnEncounteredError(MediaPlayer player, EventArgs e)
     {
         if (!ReferenceEquals(player, _activePlayer)) return;
+        var failedTrack = CurrentTrack;
         SetBuffering(false);
         _icyTimer?.Dispose();
         _icyTimer = null;
         _uiPost(() =>
         {
             StreamFailed?.Invoke("Stream stopped or unreachable");
+            if (failedTrack != null) PlaybackFailed?.Invoke(failedTrack);
             StateChanged?.Invoke(PlaybackState.Stopped);
         });
     }

@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using NullWave.Helpers;
 using NullWave.Plugins.Contracts;
 using Serilog;
 
@@ -38,7 +39,8 @@ public class PluginDiscovery
 
     public async Task<List<(PluginManifest Manifest, IPlugin Plugin)>> DiscoverAndLoadAsync(
         Func<PluginManifest, IPluginHost> hostFactory,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Func<PluginManifest, bool>? enabledState = null)
     {
         var loaded = new List<(PluginManifest, IPlugin)>();
 
@@ -54,7 +56,7 @@ public class PluginDiscovery
 
             try
             {
-                var result = await LoadPluginFromDirectoryAsync(pluginDir, hostFactory, ct);
+                var result = await LoadPluginFromDirectoryAsync(pluginDir, hostFactory, ct, enabledState);
                 if (result != null)
                     loaded.Add(result.Value);
             }
@@ -70,7 +72,8 @@ public class PluginDiscovery
     private async Task<(PluginManifest Manifest, IPlugin Plugin)?> LoadPluginFromDirectoryAsync(
         string pluginDir,
         Func<PluginManifest, IPluginHost> hostFactory,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<PluginManifest, bool>? enabledState)
     {
         var manifestPath = Path.Combine(pluginDir, "plugin.json");
         if (!File.Exists(manifestPath))
@@ -104,6 +107,14 @@ public class PluginDiscovery
         {
             Log.Warning("[PluginDiscovery] Manifest validation failed for {PluginId}: {Error}",
                 manifest.Id, validationError);
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.MinHostVersion) &&
+            !AppVersionInfo.Satisfies(AppVersionInfo.Current, manifest.MinHostVersion))
+        {
+            Log.Warning("[PluginDiscovery] {PluginId} requires host {Min}, running {Current}; skipping",
+                manifest.Id, manifest.MinHostVersion, AppVersionInfo.Current);
             return null;
         }
 
@@ -154,6 +165,17 @@ public class PluginDiscovery
             Log.Warning("[PluginDiscovery] Failed to instantiate {Type} in {PluginId}",
                 pluginTypeName, manifest.Id);
             return null;
+        }
+
+        if (enabledState != null)
+            plugin.IsEnabled = enabledState(manifest);
+
+        if (!plugin.IsEnabled)
+        {
+            plugin.State = PluginState.Disabled;
+            Log.Information("[PluginDiscovery] Loaded disabled plugin: {Name} v{Version}",
+                manifest.Name, manifest.Version);
+            return (manifest, plugin);
         }
 
         // Initialize with timeout

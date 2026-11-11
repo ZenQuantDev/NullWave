@@ -91,16 +91,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         PluginRows = new ObservableCollection<PluginRowViewModel>();
         foreach (var plugin in _plugins.Plugins)
         {
-            PluginRows.Add(new PluginRowViewModel(plugin, enabled =>
-            {
-                switch (plugin.Name)
-                {
-                    case "yt-dlp Downloader": _prefsService.Update(p => p.EnableYtDlp = enabled); break;
-                    case "Last.fm": _prefsService.Update(p => p.EnableLastFm = enabled); break;
-                    case "OpenWeather": _prefsService.Update(p => p.EnableOpenWeather = enabled); break;
-                    case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); break;
-                }
-            }));
+            var manifest = _plugins.GetManifest(plugin);
+            PluginRows.Add(new PluginRowViewModel(
+                plugin,
+                enabled => PersistPluginEnabled(plugin, manifest, enabled),
+                manifest,
+                new PluginHost(_prefsService, _keyStore, manifest ?? BuiltInPluginManifest.FromBuiltIn(plugin))));
         }
         foreach (var row in PluginRows)
         {
@@ -111,6 +107,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             };
         }
         Hub = new IntegrationsHubViewModel(PluginRows, new StaticPluginCatalog());
+        _plugins.PluginRegistered += OnPluginRegistered;
         LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
     }
     #endregion
@@ -128,6 +125,44 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         sb.AppendLine($"Logs Directory: {NullWavePaths.LogsDir}");
         sb.AppendLine($"Timestamp: {DateTime.UtcNow:dd-MM-yyyy HH:mm:ss} UTC");
         return sb.ToString();
+    }
+
+    private void OnPluginRegistered(IPlugin plugin, PluginManifest? manifest)
+    {
+        // Plugins load on a background thread; marshal to UI.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (PluginRows.Any(r => r.Name == plugin.Name)) return;
+
+            var row = new PluginRowViewModel(
+                plugin,
+                enabled => PersistPluginEnabled(plugin, manifest, enabled),
+                manifest,
+                new PluginHost(_prefsService, _keyStore, manifest ?? BuiltInPluginManifest.FromBuiltIn(plugin)));
+
+            row.PropertyChanged += (_, e) =>
+            {
+                OnPropertyChanged(nameof(IntegrationsNeedsAttention));
+                OnPropertyChanged(nameof(ApiKeysNeedsAttention));
+            };
+
+            PluginRows.Add(row);
+            Hub.Refresh(PluginRows, new StaticPluginCatalog());
+        });
+    }
+
+    private void PersistPluginEnabled(IPlugin plugin, PluginManifest? manifest, bool enabled)
+    {
+        switch (plugin.Name)
+        {
+            case "yt-dlp Downloader": _prefsService.Update(p => p.EnableYtDlp = enabled); return;
+            case "Last.fm": _prefsService.Update(p => p.EnableLastFm = enabled); return;
+            case "OpenWeather": _prefsService.Update(p => p.EnableOpenWeather = enabled); return;
+            case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); return;
+        }
+
+        var id = manifest?.Id ?? plugin.Id;
+        _prefsService.Update(p => PluginEnabledState.Persist(p, id, enabled));
     }
 
     private static string L(string key) => LocalizationService.Instance[key];
@@ -327,6 +362,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region IDisposable
     public void Dispose()
     {
+        _plugins.PluginRegistered -= OnPluginRegistered;
         EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierResolverPropertyChanged;
         StopHealthCheck();
         LogViewer?.Dispose();
