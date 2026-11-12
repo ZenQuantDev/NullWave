@@ -192,11 +192,11 @@ Publish-Build "./publish/full" "true"
 Write-Host "`n[2/4] Packing channel 'full'..." -ForegroundColor Yellow
 Pack-Channel "./publish/full" "full" "" @()
 
-# PASS 2: framework-dependent (installer fetches .NET 8 if missing)
+# PASS 2: framework-dependent (installer fetches the .NET 10 Desktop Runtime if missing)
 Write-Host "`n[3/4] Publishing framework-dependent build..." -ForegroundColor Yellow
 Publish-Build "./publish/fx" "false"
 Write-Host "`n[4/4] Packing channel 'fx'..." -ForegroundColor Yellow
-Pack-Channel "./publish/fx" "fx" "-Framework" @("--framework", "net8.0-x64-desktop")
+Pack-Channel "./publish/fx" "fx" "-Framework" @("--framework", "net10.0-x64-desktop")
 
 Write-Host "`n[OK] Build complete. Upload ALL contents of '.\publish-artifacts' to GitHub Releases." -ForegroundColor Green
 Get-ChildItem $publishDir | Select-Object Name, @{N="Size(MB)";E={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
