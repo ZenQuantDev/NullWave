@@ -52,8 +52,8 @@ public static partial class TrackNormalizer
 
     // --- Constants ---
     
-    private static readonly string[] Dividers = { " - ", " – ", " - ", " ~ ", " | ", " // ", " ∞ " };
-    private static readonly string[] ClassicSeparators = { " - ", " – ", " - " };
+    private static readonly string[] Dividers = { " - ", " – ", " — ", " ~ ", " | ", " // ", " ∞ " };
+    private static readonly string[] ClassicSeparators = { " - ", " – ", " — " };
     
     private static readonly HashSet<string> PlaceholderTitles = new(StringComparer.OrdinalIgnoreCase)
     {
