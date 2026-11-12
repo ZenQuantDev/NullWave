@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -16,9 +17,13 @@ public class PluginManager
     public static readonly TimeSpan DefaultInitTimeout = TimeSpan.FromSeconds(8);
 
     private readonly List<IPlugin> _plugins = new();
+    private readonly Dictionary<string, PluginManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
+    private readonly object _shutdownLock = new();
+    private Task? _shutdownTask;
 
     public IReadOnlyList<IPlugin> Plugins => _plugins.AsReadOnly();
+    public event Action<IPlugin, PluginManifest?>? PluginRegistered;
 
     public PluginManager(ILogger? logger = null)
     {
@@ -26,7 +31,7 @@ public class PluginManager
     }
 
     /// <summary>Register a plugin. Duplicate names are ignored with a warning.</summary>
-    public void Register<T>(T plugin) where T : IPlugin
+    public void Register<T>(T plugin, PluginManifest? manifest = null) where T : IPlugin
     {
         if (_plugins.Any(p => p.Name == plugin.Name))
         {
@@ -35,9 +40,16 @@ public class PluginManager
         }
 
         _plugins.Add(plugin);
+        if (manifest != null) _manifests[plugin.Name] = manifest;
         _logger.Information("Registered plugin: {PluginName} ({PluginType})",
             plugin.Name, typeof(T).Name);
+
+        PluginRegistered?.Invoke(plugin, manifest);
     }
+
+    /// <summary>The discovery manifest for an external plugin, or null for built-ins.</summary>
+    public PluginManifest? GetManifest(IPlugin plugin) =>
+        _manifests.TryGetValue(plugin.Name, out var manifest) ? manifest : null;
 
     /// <summary>
     /// Get the first enabled, non-error plugin of type <typeparamref name="T"/>.
@@ -76,7 +88,7 @@ public class PluginManager
     public async Task InitializeAllAsync(CancellationToken ct = default, TimeSpan? perPluginTimeout = null)
     {
         var timeout = perPluginTimeout ?? DefaultInitTimeout;
-        var enabled = _plugins.Where(p => p.IsEnabled).ToList();
+        var enabled = _plugins.Where(p => p.IsEnabled && p.State != PluginState.Available).ToList();
         await Task.WhenAll(enabled.Select(p => InitializeOneAsync(p, timeout, ct)));
     }
 
@@ -90,7 +102,7 @@ public class PluginManager
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
 
-            var init = Task.Run(() => plugin.InitializeAsync(cts.Token));
+            var init = Task.Run(() => plugin.InitializeAsync(null!, cts.Token));
             var finished = await Task.WhenAny(init, Task.Delay(timeout, cts.Token));
 
             if (!ReferenceEquals(finished, init))
@@ -114,7 +126,11 @@ public class PluginManager
 
             var success = await init;
             cts.Cancel();   // releases the timeout timer
-            plugin.State = success ? PluginState.Available : PluginState.Error;
+            plugin.State = success
+                ? PluginState.Available
+                : plugin.State is PluginState.Disabled or PluginState.Unavailable
+                    ? plugin.State
+                    : PluginState.Error;
 
             if (!success)
                 _logger.Information("Plugin {Name} initialized without optional configuration - its features stay off until configured", plugin.Name);
@@ -137,8 +153,19 @@ public class PluginManager
         }
     }
 
-    /// <summary>Shut down every registered plugin. Errors are logged, not thrown.</summary>
-    public async Task ShutdownAllAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Shut down every registered plugin once. Both the exit command and the window-closing handler
+    /// call this; whichever arrives first starts it, the other awaits the same task.
+    /// </summary>
+    public Task ShutdownAllAsync(CancellationToken ct = default)
+    {
+        lock (_shutdownLock)
+        {
+            return _shutdownTask ??= ShutdownCoreAsync(ct);
+        }
+    }
+
+    private async Task ShutdownCoreAsync(CancellationToken ct)
     {
         foreach (var plugin in _plugins)
         {

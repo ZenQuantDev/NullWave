@@ -71,6 +71,7 @@ public class Preferences
     public string ThemeMode { get; set; } = "Light"; // "Dark", "Light", "TrueBlack", "System"
     public string LastSeenVersion { get; set; } = string.Empty;
     public bool AutoEffectsTier { get; set; } = true;
+    public bool AutoHealRadioStreams { get; set; } = true;
     public string EffectsTier { get; set; } = "Standard"; // Parsed as EffectsTier enum at runtime
     public string ComposeMode { get; set; } = "lowlatency";
     public string WallpaperStyle { get; set; } = "None";
@@ -82,4 +83,9 @@ public class Preferences
     public string WallpaperBuiltInId { get; set; } = string.Empty;
     public List<string> UnlockedExclusiveWallpapers { get; set; } = new();
     public bool EnableExperimentalFeatures { get; set; } = false;
+    public bool ForceAllFeatures { get; set; } = false;
+    public DownloaderConsent? DownloaderConsent { get; set; }
+    public bool? PackageManagerInstallConsent { get; set; }
+    public TagWriteMode TagWriteMode { get; set; } = TagWriteMode.DownloadsOnly;
+    public string ImportMode { get; set; } = "Ask";
 }

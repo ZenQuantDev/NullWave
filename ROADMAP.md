@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 24-Oct-2026
+> Last updated: 11-Nov-2026
 
 ---
 
@@ -26,8 +26,9 @@
 | **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
 | **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
 | **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
-| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.             |
-| **v0.6.5**  | Premium & Performance | "Effects: Reduced" tier, visual audit, performance budgets for low-end hardware.                                                                       |
+| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
+| **v0.6.5**  | Hardening & File Safety | beta.1 shipped 31-Oct; beta.2 close-out (tag-write policy, plugin packaging, docs/release truth, CI and smoke gates).                                |
+| **v0.6.5-beta.3** | Files Browser v1 | Planned read-only browser for external folders and removable media; beta.2 must close first. |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
@@ -40,7 +41,7 @@
 - ✅ Track model + `LibraryService` (SQLite-backed via `DatabaseService`)
 - ✅ TagLib# ID3 tag reading on import
 - ✅ LibVLC playback via `PlaybackService` (Fedora: symlinks in `/usr/lib`)
-- ✅ yt-dlp URL download to `~/.nullwave/downloads/` as MP3 (`DownloadService`)
+- ✅ yt-dlp URL download to `<data directory>/downloads/` as MP3 (`DownloadService`)
 - ✅ AES-256-GCM encrypted `KeyStore` for API credentials
 - ✅ Last.fm API integration (`LastFmService`)
 - ✅ YouTube Data API v3 integration (`YouTubeService`)
@@ -85,7 +86,7 @@
 **Branch:** `feature/4-advanced-logging`
 **Goal:** Every action logged, every startup state visible, every error attributed to its source.
 
-- ✅ `NullWavePaths.cs` - single source of truth for all `~/.nullwave/*` paths
+- ✅ `NullWavePaths.cs` - single source of truth for platform-specific data-directory paths
 - ✅ `NullActionLogger.cs` - static helper: `User()`, typed convenience methods, `Error()`, `StartupLine()`
 - ✅ `NullWaveLogConfig.cs` - three Serilog sinks: System, UserActions, Errors (channel-filtered)
 - ✅ `StartupDiagnosticsService.cs` - logs version, runtime, OS, library load time, API key status, connectivity, VLC + yt-dlp versions
@@ -93,7 +94,7 @@
 - ✅ `MainViewModel` - exit, settings, navigation all logged
 - ✅ `Program.cs` - `EnsureDirectories()` + log init as first operations; `CloseAndFlush()` on exit
 - ✅ Separate log files: `NullWave-*.log`, `UserActions-*.log`, `Errors-*.log`
-- 📋 `ImportViewModel` - add `NullActionLogger.ImportStarted/Completed/Failed` calls
+- ✅ `ImportViewModel` - `NullActionLogger.ImportStarted/Completed/Failed` calls are wired
 - ✅ `LibraryViewModel` - add `TrackAdded`, `TrackRemoved`, `FavoriteToggled`, `SearchPerformed`
 - ✅ `TrackDetailViewModel` - add `TrackEdited` on save
 - 📋 `PlaylistViewModel` - add `PlaylistCreated`, `PlaylistDeleted`, `PlaylistTrackAdded`
@@ -113,19 +114,19 @@
 - ✅ `App.axaml` - thin shell, merges all theme files
 - ✅ Alt-key menu bar toggle (Firefox-style, `MainWindow.axaml.cs`)
 - ✅ Discord-style local profile bar in `SidebarView` (avatar, username, bio, gear → Settings)
-- ✅ `UserProfileViewModel` - loads/saves `~/.nullwave/profile.json`, avatar picker
+- ✅ `UserProfileViewModel` - loads/saves the data-directory profile, avatar picker
 - ✅ Spotify-style `MiniPlayerView` - 3-column, art thumbnail, controls, volume slider
 - ✅ All hardcoded colors/sizes/radii replaced with theme tokens
 - ✅ Replace remaining emoji in nav buttons with proper SVG icon set (`Assets/Icons/Icons.axaml`)
 - 📋 `OpacityTransition` on menu bar show/hide (150ms fade)
 - ✅ Profile edit UI (inline in sidebar or dedicated Settings tab)
 - ✅ `AppearanceTab` - accent color, row style, font scale, sidebar width, compact mode
-- ✅ `PreferencesService` - auto-saves all General + Appearance settings to `~/.nullwave/prefs.json`
+- ✅ `PreferencesService` - auto-saves General + Appearance settings to the data-directory preferences file
 - ✅ Wire appearance settings to actual UI (live accent color, row height, font scale, sidebar width, density)
 - ✅ Logo placeholder in `SidebarView` - 32×32 accent square beside wordmark
 - 📋 Replace placeholder with real SVG logo (`Assets/Icons/logo.svg`)
-- 📋 `TrackListView` - apply theme token, larger row height, better typography
-- 📋 `TrackDetailView` - apply theme token
+- ✅ `TrackListView` uses theme brush and dimension tokens; no hardcoded hex colors remain
+- ✅ `TrackDetailView` uses theme brush and dimension tokens; no hardcoded hex colors remain
 
 ---
 
@@ -167,13 +168,14 @@
 - ✅ `MetadataService` → `YouTubeMetadataFetcher`, `LastFmMetadataFetcher`, `LocalMetadataFetcher`
 - 💡 `TrackSource` enum → `Models/TrackSource.cs`
 - 💡 `Converters/` folder for all `IValueConverter` implementations
-- 🔄 File size limit: no file > 400 lines
+- 💡 Prefer splitting files when responsibilities become hard to maintain; line-count targets
+  are advisory, not a merge gate.
 - ✅ Playlist CRUD - create, rename, delete; drag tracks into playlists
 - ✅ Queue system - play next, play later
 - ✅ Last.fm scrobble (track > 50% played)
 - ✅ Theme switcher - light / dark / accent color picker
 - ✅ Global keyboard shortcuts - play/pause, next/prev, search focus
-- 🔄 Export playlist (M3U format)
+- ✅ Export playlist (M3U/M3U8 format)
 - ✅ SQLite database persistence - `DatabaseService` + `TrackRecord`, fully wired into `LibraryService`
 
 ---
@@ -253,10 +255,11 @@
 - ✅ Mutually exclusive panels: Queue and Track Detail panels cannot be open simultaneously
 - ✅ `QueueEntry` model distinguishes manual vs auto-filled entries
 - ✅ Remove the separate `StatsPage`/`PlaceholderPageViewModel` wiring from `MainViewModel`
-- 📋 Audit Profile's existing stats section for gaps once Duration exists
+- ✅ Profile stats use track durations for total listening time, longest/shortest track, and
+  average track length (`UserProfileViewModel.Stats`)
 - ✅ Brought multi-select (`SelectionMode="Multiple"`), floating bulk action bar (Queue, Remove), and queue integration to the track list inside a selected playlist
 - ✅ Reused `SortFieldDisplayConverter`/`BoolToSortIconConverter` for sortable headers.
-- 📋 Add `Duration` (TimeSpan or int seconds) to `Track`/`TrackRecord`
+- ✅ `Duration` exists on `Track` and `TrackRecord`
 - ✅ Adopt flower codenames for major releases alongside semver
 
 ---
@@ -293,7 +296,8 @@
 
 - ✅ 13.1 Core Plugin System (`IPlugin`, `PluginManager`, `PluginState`)
 - ✅ 13.2 Extract Existing Services (`YtDlpDownloadProvider`, `LastFmMetadataProvider`, `OllamaAIProvider`, `OpenWeatherProvider`)
-- 📋 13.3 Process Isolation (Deprioritized)
+- 💡 13.3 Process isolation is not shipped; plugins use an isolated AssemblyLoadContext,
+  not an OS process sandbox. Process sandboxing remains deferred.
 - ✅ 13.4 UI & Management (Plugins tab in Settings with live toggles and toast feedback)
 
 ---
@@ -474,10 +478,10 @@
 - ✅ Badge catalog JSON with v2 signing, KeyId rotation support and expired-badge handling.
 - ✅ v9/v10 migrations (UTC LastPlayed) run synchronously in one transaction.
 - ✅ yt-dlp JS runtime auto-detection; silent duplicate clicks; playback-hijack guard; duplicate import guard with YouTube URL canonicalization; "- Topic" stripping on single imports.
+
 ---
 
-
-## Phase 25 - v0.6.4 "Notifications" 📋
+## Phase 25 - Notifications (slipped from v0.6.4, unscheduled, post-0.6.6) 📋
 
 **Branch:** `feature/20-notifications`
 **Goal:** Configurable, localized notifications with in-app and native OS support.
@@ -489,7 +493,7 @@
 
 ---
 
-## Phase 26 - v0.6.4 "Factory Reset" 📋
+## Phase 26 - Factory Reset (slipped from v0.6.4, unscheduled, post-0.6.6) 📋
 
 **Branch:** `feature/20-factory-reset`
 **Goal:** Safe wipe with three tiers (Settings, Library, Factory).
@@ -499,12 +503,16 @@
 
 ---
 
-## Phase 27 - v0.6.5 "Premium Look & Performance" 📋
+## Phase 27 - v0.6.5 "Hardening & File Safety" 🔄
 
-**Goal:** High-end aesthetics that respect the performance floor (i3 380M, 8GB RAM).
+**Goal:** Ship N1-N6 file safety, playback hardening, settings reorganization, and the Windows/Ubuntu CI matrix in v0.6.5; these items belong to v0.6.5, not v0.6.6.
 
 - ✅ **Wallpaper v1 pulled forward into v0.6.3**: Whole-window wallpaper, class-gated chrome, readability floors, presets.
-- 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings).
+- ✅ **File safety N1–N6**: unified FileNamer, TagWriteMode, import modes, Recycle Bin removal, safe export pipeline; regression coverage included
+- 🔄 **Playback hardening**: native Stop off UI thread, consent-before-add, UI watchdog; manual smoke checks remain
+- ✅ **Settings reorganization**: Plugins+Sources merged into Integrations, Downloads tab, Maintenance absorbs diagnostics
+- 🔄 **CI matrix**: Windows + Ubuntu with banned-API gate; re-run on beta.2 close-out commits pending
+- 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings)
 - 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, and virtualization audit remain open.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
 
@@ -515,7 +523,7 @@
 **Goal:** Survive the first impression on Reddit.
 
 - 📋 **Documentation**: `/docs` folder (install, sources, Mood Mix, troubleshooting, architecture, privacy).
-- 📋 **Repo Hygiene**: Clean `.gitignore`, issue templates asking for diagnostics, `THIRD-PARTY-NOTICES`.
+- 🔄 **Repo Hygiene**: `THIRD-PARTY-NOTICES.md` exists; verify `.gitignore` and add issue templates asking for diagnostics.
 - 📋 **Release Packaging**: Windows Setup/Portable (Velopack), Linux AppImage/Flatpak.
 - 📋 **Feature Freeze**: 1-2 weeks before launch, bug fixes only, clean-machine install verification.
 - 📋 Portable-build audio verification: local mp3/flac/m4a, https radio, first-try YouTube import on a clean data dir.
@@ -529,10 +537,11 @@
 
 - 💡 **Synced Lyrics**: LRCLIB integration with playback-position line highlighting.
 - 💡 **Advanced Audio**: 10-band EQ (LibVLC) and ReplayGain/volume normalization.
-- 💡 **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
-- 💡 **More Sources**: Bandcamp import, M3U/M3U8 import and export.
+- ✅ **M3U Import/Export**: M3U/M3U8 import and export (shipped in beta.1).
+- ✅ **Smart Playlists**: SQL-driven dynamic playlists (forgotten, most played, recently added).
+- ✅ **More Sources**: Bandcamp, Audiomack, Archive.org, and Mixcloud shipped in beta.1.
 - 💡 **Export & Sharing**: Batch export/archiving, P2P/Torrent-like sharing, embedded tag sync.
-- 💡 YouTube Data API fallback to yt-dlp embedded metadata when the API returns BadRequest (kills "Unknown Title" imports).
+- ✅ YouTube Data API BadRequest fallback to yt-dlp embedded metadata shipped in beta.1.
 - 💡 Locked badges with progress bars and unlock toasts (persisted seen-set).
 - 💡 yt-dlp child-process kill watchdog on cancel (no leaked processes).
 - 💡 BadgeIssuer private key from env var or file instead of CLI argument.
@@ -550,16 +559,43 @@
 
 ---
 
+## Phase 31 - v0.6.5-beta.3 "Files Browser v1" 📋
+
+**Goal:** Browse external folders and removable media without changing the file-safety
+invariant.
+
+- 📋 Browse drives, Music and pinned folders using the existing track-list UI.
+- 📋 Play, queue and add files to the library as references; no in-place edits.
+- 📋 Handle unavailable drives and removable-media disconnects without losing library data.
+- 📋 Verify drive-letter changes and read-only media behavior.
+
+## Phase 32 - Files Browser v2 "Consent-first editing" 💡
+
+**Goal:** Add carefully gated in-place metadata editing only after the v1 browser is stable.
+
+- 💡 Retained write-ahead backup, atomic replace with FAT/exFAT fallback and free-space check.
+- 💡 Identify removable media by volume serial and relative path; never write to a different
+  device merely because it reuses a drive letter.
+- 💡 Detect read-only media and warn about cloud placeholder files.
+- 💡 Route writes through `TagWritePolicy`, record `TagWrite` journal entries, and support
+  reverting the last tag edit.
+
+---
+
 ## Architecture Guidelines
 
-### File size limits
+### File size targets (advisory)
 
-| File type        | Soft limit | Hard limit |
-| ---------------- | ---------- | ---------- |
-| ViewModel        | 300 lines  | 400 lines  |
-| Service          | 300 lines  | 500 lines  |
-| View (.axaml)    | 200 lines  | 300 lines  |
-| View code-behind | 50 lines   | 100 lines  |
+| File type        | Target    |
+| ---------------- | --------- |
+| ViewModel        | 300 lines |
+| Service          | 300 lines |
+| View (.axaml)    | 200 lines |
+| View code-behind | 50 lines  |
+
+These are maintainability signals, not hard limits or merge gates. Split files when a clear
+responsibility boundary improves comprehension; do not refactor solely to satisfy a line
+count.
 
 ### Naming conventions
 
@@ -585,11 +621,11 @@ main                ← always stable, builds clean
 
 | Package                   | Version       | Notes                                   |
 | ------------------------- | ------------- | --------------------------------------- |
-| .NET                      | 8.0           | LTS                                     |
-| Avalonia                  | 12.0.4        |                                         |
-| LibVLCSharp               | 3.9.7.1       | Fedora: symlinks to /usr/lib required   |
+| .NET                      | 10.0          | LTS (supported until Nov 2028)          |
+| Avalonia                  | 12.1.4        |                                         |
+| LibVLCSharp               | 3.10.2        | Fedora: symlinks to /usr/lib required   |
 | TagLib#                   | 2.3.0         |                                         |
 | Serilog                   | latest stable | + Serilog.Filters.Expressions           |
-| sqlite-net-pcl            | 1.9.172       | Packages installed, implementation next |
+| sqlite-net-pcl            | 1.9.172       | In use for all persistence              |
 | SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux        |
-| CommunityToolkit.Mvvm     | latest stable | RelayCommand, ObservableProperty        |
+| CommunityToolkit.Mvvm     | 8.4.2         | RelayCommand, ObservableProperty        |

@@ -6,7 +6,7 @@ using Material.Icons;
 
 namespace NullWave.Models;
 
-public enum NavItemType { Core, PinnedPlaylist, SavedSearch }
+public enum NavItemType { Core, PinnedPlaylist, SavedSearch, SmartPlaylist }
 
 public partial class NavItem : ObservableObject
 {
@@ -26,7 +26,8 @@ public partial class NavItem : ObservableObject
     [ObservableProperty] private Playlist? _playlist;
 
     public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
-    public bool CanUnpin => Type != NavItemType.Core;
+    // Smart playlists can't be unpinned (they're always visible)
+    public bool CanUnpin => Type != NavItemType.Core && Type != NavItemType.SmartPlaylist;
 
     public ICommand? Command { get; set; }
 

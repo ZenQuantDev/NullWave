@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NullWave.Models;
 using NullWave.Services.SmartSorting;
 using Serilog;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
@@ -19,10 +20,17 @@ public class OllamaAIProvider : IAIProvider
     private readonly LocalAIService _inner;
     private readonly PreferencesService _prefs;
 
+    public string Id => Descriptor.Id;
     public string Name => "Ollama Local AI";
     public string Description => "On-device AI for smart shuffle and mood playlist ranking";
     public PluginState State { get; set; } = PluginState.Unavailable;
     public bool IsEnabled { get; set; } = true;
+
+    public ProviderDescriptor Descriptor { get; } = new(
+        Id: "ollama",
+        Kind: ProviderKind.Mood,
+        DisplayName: "Ollama Local AI"
+    );
 
     public LocalAIService Inner => _inner;
 
@@ -37,7 +45,7 @@ public class OllamaAIProvider : IAIProvider
 
     public event Action<string>? FallbackNotice;
 
-    public async Task<bool> InitializeAsync(CancellationToken ct = default)
+    public async Task<bool> InitializeAsync(IPluginHost host, CancellationToken ct = default)
     {
         if (!IsEnabled)
         {

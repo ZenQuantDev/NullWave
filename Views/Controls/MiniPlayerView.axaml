@@ -5,6 +5,7 @@
         xmlns:attached="using:NullWave.Helpers.Attached"
         xmlns:material="using:Material.Icons.Avalonia"
         xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:services="using:NullWave.Services"
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Controls.MiniPlayerView"
         x:DataType="vm:MainViewModel"
@@ -138,17 +139,18 @@
                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
 
                 <controls:WaveSeekBar Grid.Column="1" x:Name="SeekSlider"
-                                      Height="28" Minimum="0" Maximum="1"
-                                      Value="{Binding Player.Position, Mode=OneWay}"
-                                      IsPlaying="{Binding Player.IsPlaying}"
-                                      Animate="{Binding CanAnimateSeekWave, FallbackValue=True}"
-                                      WaveBrush="{DynamicResource BrushAccent}"
-                                      GrooveBrush="{DynamicResource BrushBorder}"
-                                      ThumbBrush="{DynamicResource BrushAccent}"
-                                      VerticalAlignment="Center"
-                                      PointerPressed="OnSeekPressed"
-                                      PointerReleased="OnSeekReleased"
-                                      PointerCaptureLost="OnSeekCaptureLost"/>
+                                    Height="28" Minimum="0" Maximum="1"
+                                    Value="{Binding Player.Position, Mode=OneWay}"
+                                    IsPlaying="{Binding Player.IsPlaying}"
+                                    Animate="{Binding CanAnimateSeekWave, FallbackValue=True}"
+                                    FrameIntervalMs="{Binding WaveFrameIntervalMs, FallbackValue=33}"
+                                    WaveBrush="{DynamicResource BrushAccent}"
+                                    GrooveBrush="{DynamicResource BrushBorder}"
+                                    ThumbBrush="{DynamicResource BrushAccent}"
+                                    VerticalAlignment="Center"
+                                    PointerPressed="OnSeekPressed"
+                                    PointerReleased="OnSeekReleased"
+                                    PointerCaptureLost="OnSeekCaptureLost"/>
 
                 <TextBlock Grid.Column="2" MinWidth="42" Text="{Binding Player.DurationDisplay}"
                            Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
@@ -223,7 +225,17 @@
                 <material:MaterialIcon Kind="{Binding Player.VolumeIconKind}" Width="20" Height="20"/>
             </Button>
             
-            <Slider Value="{Binding Player.Volume, Mode=TwoWay}" Minimum="0" Maximum="1" Width="90" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Volume}"/>
+            <controls:WaveSeekBar Value="{Binding Player.Volume, Mode=TwoWay}"
+                                Minimum="0" Maximum="1"
+                                IsPlaying="{Binding Player.IsPlaying}"
+                                Animate="{Binding CanAnimateSeekWave, FallbackValue=True}"
+                                FrameIntervalMs="{Binding WaveFrameIntervalMs, FallbackValue=33}"
+                                WaveBrush="{DynamicResource BrushAccent}"
+                                GrooveBrush="{DynamicResource BrushBorder}"
+                                ThumbBrush="{DynamicResource BrushAccent}"
+                                Width="120" Height="32"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="{loc:Loc MiniPlayer_Tooltip_Volume}"/>
         </StackPanel>
     </Grid>
 </Border>

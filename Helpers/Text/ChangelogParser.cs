@@ -73,7 +73,7 @@ public static class ChangelogParser
 
     /// <summary>
     /// Extracted for testability (InternalsVisibleTo is already in the csproj).
-    /// Indented sub-bullets are intentionally dropped — the popup is a summary.
+    /// Indented sub-bullets are intentionally dropped - the popup is a summary.
     /// </summary>
     internal static List<ChangelogSection> ParseSections(string raw)
     {

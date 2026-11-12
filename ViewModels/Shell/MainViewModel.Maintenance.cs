@@ -19,10 +19,17 @@ public partial class MainViewModel
     {
         Settings.SweepOrphanedFilesRequested += dryRun => RunMaintenanceTask("SweepOrphanedFiles", dryRun, async () =>
         {
-            var dir = _prefsService.Current.DownloadDirectory;
-            if (string.IsNullOrWhiteSpace(dir)) dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave", "downloads");
-            var (scanned, orphaned, deleted, failed) = await Task.Run(() => _library.SweepOrphanedFiles(dir, dryRun));
-            return () => Settings.ReportSweepComplete(scanned, orphaned, deleted, failed, dryRun);
+            var configuredDirectory = _prefsService.Current.DownloadDirectory;
+            var result = dryRun
+                ? await OrphanSweepCoordinator.PreviewAsync(_library, configuredDirectory, NullWavePaths.DownloadsDir)
+                : await OrphanSweepCoordinator.SweepAsync(
+                    _library,
+                    configuredDirectory,
+                    NullWavePaths.DownloadsDir,
+                    ConfirmOrphanSweepAsync);
+            return () => Settings.ReportSweepComplete(
+                result.Scanned, result.Orphaned, result.Moved, result.Failed, dryRun,
+                result.GuardRefused, result.UsedFallback, result.Cancelled);
         });
 
         Settings.VacuumDatabaseRequested += () => RunMaintenanceTask("VacuumDatabase", false, async () =>
@@ -92,8 +99,13 @@ public partial class MainViewModel
 
         Settings.RepairPathsRequested += () => RunMaintenanceTask("RepairPaths", false, async () =>
         {
+            // 1. Auto-relink them using the [nw-id-videoId] suffix FIRST!
+            var relinked = await Task.Run(() => _library.RelinkMissingFiles());
+            
+            // 2. Clear remaining dead paths
             var (total, missing, removed) = await Task.Run(() => _library.RepairPaths(removeDeadEntries: true));
-            return () => { Library.Refresh(); Settings.ReportRepairPathsComplete(total, missing, removed); };
+
+            return () => { Library.Refresh(); Settings.ReportRepairPathsComplete(total, missing, removed, relinked); };
         });
 
         Settings.ReimportAssetsRequested += () => RunMaintenanceTask("ReimportAssets", false, async () =>
@@ -136,20 +148,20 @@ public partial class MainViewModel
                 {
                     var files = await desktop.MainWindow.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
                     {
-                        Title = "Select Database Backup (.db)",
+                        Title = LocalizationService.Instance["Settings_Maintenance_Restore_Picker_Title"],
                         AllowMultiple = false,
-                        FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("SQLite Backup") { Patterns = new[] { "*.db" } } }
+                        FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType(LocalizationService.Instance["Settings_Maintenance_Restore_FileType"]) { Patterns = new[] { "*.db" } } }
                     });
                     if (files.Count > 0) selectedFile = files[0].Path.LocalPath;
                 }
             });
 
-            if (string.IsNullOrEmpty(selectedFile)) return () => ToastService.Instance.Show("Restore cancelled.", ToastType.Info);
+            if (string.IsNullOrEmpty(selectedFile)) return () => ToastService.Instance.Show(LocalizationService.Instance["Settings_Maintenance_Status_RestoreCancelled"], ToastType.Info);
 
             string targetPath = NullWavePaths.DatabasePath;
             string tempPath = targetPath + ".restoring";
             File.Copy(selectedFile, tempPath, overwrite: true);
-            return () => ToastService.Instance.Show("Backup staged! Please restart NullWave to apply.", ToastType.Success, 10000, scope: "maintenance");
+            return () => ToastService.Instance.Show(LocalizationService.Instance["Settings_Maintenance_Status_RestoreStaged"], ToastType.Success, 10000, scope: "maintenance");
         });
 
         Settings.BackupDatabaseRequested += path => RunMaintenanceTask("BackupDatabase", false, async () =>
@@ -167,10 +179,17 @@ public partial class MainViewModel
         _ = Task.Run(async () =>
         {
             LiveNotification? activity = null;
-            string prefix = dryRun ? "Previewing" : "Running";
+            string taskLabel = LocalizationService.Instance[$"Settings_Maintenance_Task_{taskName}"];
+            string activityLabel = string.Format(
+                LocalizationService.Instance[dryRun ? "Settings_Maintenance_Task_Previewing" : "Settings_Maintenance_Task_Running"],
+                taskLabel);
             
             await Dispatcher.UIThread.InvokeAsync(() =>
-                activity = ToastService.Instance.StartLiveActivity($"{prefix} {taskName}", "Processing...", isIndeterminate: true, scope: "maintenance"));
+                activity = ToastService.Instance.StartLiveActivity(
+                    activityLabel,
+                    LocalizationService.Instance["Settings_Maintenance_Task_Processing"],
+                    isIndeterminate: true,
+                    scope: "maintenance"));
 
             try
             {
@@ -186,10 +205,25 @@ public partial class MainViewModel
                 NullActionLogger.Error(nameof(MainViewModel), ex, $"{taskName} failed");
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    ToastService.Instance.CompleteLiveActivity(activity, $"{taskName} failed.", finalType: ToastType.Error);
+                    ToastService.Instance.CompleteLiveActivity(
+                        activity,
+                        string.Format(LocalizationService.Instance["Settings_Maintenance_Task_Failed"], taskLabel),
+                        finalType: ToastType.Error);
                     _isMaintenanceRunning = false;
                 });
             }
         });
+    }
+
+    private async Task<bool> ConfirmOrphanSweepAsync(int scanned, int orphaned)
+    {
+        var strings = LocalizationService.Instance;
+        var message = string.Format(strings["Settings_Maintenance_Sweep_Confirm"], orphaned, scanned);
+        var dialog = new Views.ConfirmDialog(
+            strings["Settings_Maintenance_Sweep_Confirm_Title"],
+            message);
+        var dialogTask = await Dispatcher.UIThread.InvokeAsync(
+            () => DialogService.Instance.ShowDialogAsync<bool>(dialog));
+        return dialogTask == true;
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -38,7 +39,7 @@ public class SoundCloudMetadataFetcher
             var thumbUrl = lines.Length > 2 ? lines[2] : null;
 
             var duration = TimeSpan.Zero;
-            if (lines.Length > 3 && double.TryParse(lines[3], out var secs))
+            if (lines.Length > 3 && double.TryParse(lines[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var secs))
                 duration = TimeSpan.FromSeconds(secs);
 
             string? thumbPath = null;

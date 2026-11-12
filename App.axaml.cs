@@ -41,6 +41,12 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Register ComboBox scroll guard (closes dropdowns when user scrolls outside them)
+        NullWave.Helpers.Attached.ComboBoxScrollGuard.Register();
+        
+        // Attach hardware detection to effects tier resolver so it re-evaluates when detection completes
+        _ = EffectsTierResolver.Shared.AttachDetection(NullWave.Services.SmartSorting.HardwareDetector.GetCachedInfoAsync());
+        var prefs = PreferencesService.Shared;
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // FIX (What's New every launch): read + persist LastSeenVersion BEFORE
@@ -49,7 +55,6 @@ public partial class App : Application
             // raced with the MainViewModel instance, which then wrote its stale
             // in-memory LastSeenVersion back to disk, re-triggering the dialog
             // on every single launch.
-            var prefs = PreferencesService.Shared;
             var currentVersion = GetAppVersion();
             bool showWhatsNew = prefs.Current.LastSeenVersion != currentVersion;
 

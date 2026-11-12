@@ -12,11 +12,13 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Models;
+using NullWave.Plugins.Contracts;
 using NullWave.Services;
 using NullWave.Services.Plugins;
 using NullWave.Services.Security;
@@ -42,10 +44,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly LocalAIService _localAI;
     private readonly PluginManager _plugins;
     private System.Threading.Timer? _aiHealthTimer;
+    public bool IntegrationsNeedsAttention => PluginRows.Any(r => r.NeedsAttention);
+    public bool ApiKeysNeedsAttention => PluginRows.Any(r => r.NeedsAttention && r.SetupPage == "ApiKeys");
     #endregion
 
     #region Constructor
-    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins)
+    public SettingsViewModel(KeyStoreService keyStore, SecureDeleteService secureDelete, PreferencesService prefsService, LocalAIService localAI, PluginManager plugins, ProviderRegistry providerRegistry)
     {
         IsDevMode = CheckDevAccess();
         _keyStore = keyStore;
@@ -55,9 +59,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _plugins = plugins;
         _updater = new UpdateService();
         _deps = new DependencyUpdateService();
+        EffectsTierResolver.Shared.PropertyChanged += OnEffectsTierResolverPropertyChanged;
+        
+        // Initialize Sources tab
+        Sources = new SourcesTabViewModel(providerRegistry, _prefsService);
         
         _isSettingsSidebarCollapsed = prefsService.Current.SettingsSidebarCollapsed;
         _selectedLanguage = prefsService.Current.Language;
+        
         
         // API Keys Init
         _youtubeApiKey = _keyStore.GetKey("YouTube") ?? string.Empty;
@@ -82,17 +91,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         PluginRows = new ObservableCollection<PluginRowViewModel>();
         foreach (var plugin in _plugins.Plugins)
         {
-            PluginRows.Add(new PluginRowViewModel(plugin, enabled =>
-            {
-                switch (plugin.Name)
-                {
-                    case "yt-dlp Downloader": _prefsService.Update(p => p.EnableYtDlp = enabled); break;
-                    case "Last.fm": _prefsService.Update(p => p.EnableLastFm = enabled); break;
-                    case "OpenWeather": _prefsService.Update(p => p.EnableOpenWeather = enabled); break;
-                    case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); break;
-                }
-            }));
+            var manifest = _plugins.GetManifest(plugin);
+            PluginRows.Add(new PluginRowViewModel(
+                plugin,
+                enabled => PersistPluginEnabled(plugin, manifest, enabled),
+                manifest,
+                new PluginHost(_prefsService, _keyStore, manifest ?? BuiltInPluginManifest.FromBuiltIn(plugin))));
         }
+        foreach (var row in PluginRows)
+        {
+            row.PropertyChanged += (_, e) =>
+            {
+                OnPropertyChanged(nameof(IntegrationsNeedsAttention));
+                OnPropertyChanged(nameof(ApiKeysNeedsAttention));
+            };
+        }
+        Hub = new IntegrationsHubViewModel(PluginRows, new StaticPluginCatalog());
+        _plugins.PluginRegistered += OnPluginRegistered;
         LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
     }
     #endregion
@@ -112,6 +127,44 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         return sb.ToString();
     }
 
+    private void OnPluginRegistered(IPlugin plugin, PluginManifest? manifest)
+    {
+        // Plugins load on a background thread; marshal to UI.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (PluginRows.Any(r => r.Name == plugin.Name)) return;
+
+            var row = new PluginRowViewModel(
+                plugin,
+                enabled => PersistPluginEnabled(plugin, manifest, enabled),
+                manifest,
+                new PluginHost(_prefsService, _keyStore, manifest ?? BuiltInPluginManifest.FromBuiltIn(plugin)));
+
+            row.PropertyChanged += (_, e) =>
+            {
+                OnPropertyChanged(nameof(IntegrationsNeedsAttention));
+                OnPropertyChanged(nameof(ApiKeysNeedsAttention));
+            };
+
+            PluginRows.Add(row);
+            Hub.Refresh(PluginRows, new StaticPluginCatalog());
+        });
+    }
+
+    private void PersistPluginEnabled(IPlugin plugin, PluginManifest? manifest, bool enabled)
+    {
+        switch (plugin.Name)
+        {
+            case "yt-dlp Downloader": _prefsService.Update(p => p.EnableYtDlp = enabled); return;
+            case "Last.fm": _prefsService.Update(p => p.EnableLastFm = enabled); return;
+            case "OpenWeather": _prefsService.Update(p => p.EnableOpenWeather = enabled); return;
+            case "Ollama Local AI": _prefsService.Update(p => p.EnableOllama = enabled); return;
+        }
+
+        var id = manifest?.Id ?? plugin.Id;
+        _prefsService.Update(p => PluginEnabledState.Persist(p, id, enabled));
+    }
+
     private static string L(string key) => LocalizationService.Instance[key];
 
     private static void OpenFolder(string path)
@@ -123,6 +176,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region UI State & Navigation
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public ObservableCollection<PluginRowViewModel> PluginRows { get; private set; } = new();
+    public SourcesTabViewModel Sources { get; }
+    public IntegrationsHubViewModel Hub { get; }
 
     private bool _isSettingsSidebarCollapsed;
     public bool IsSettingsSidebarCollapsed
@@ -137,18 +192,36 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SettingsSidebarWidth));
             OnPropertyChanged(nameof(SettingsSidebarCollapseIconKind));
             _prefsService.Update(p => p.SettingsSidebarCollapsed = value);
-
+            
         }
     }
     public bool IsSettingsSidebarExpanded => !IsSettingsSidebarCollapsed;
-    public double SettingsSidebarWidth => IsSettingsSidebarCollapsed ? 69 : 220;
+    public double SettingsSidebarWidth => IsSettingsSidebarCollapsed ? 64 : 220;
     public Material.Icons.MaterialIconKind SettingsSidebarCollapseIconKind =>
         IsSettingsSidebarCollapsed ? Material.Icons.MaterialIconKind.ChevronRight : Material.Icons.MaterialIconKind.ChevronLeft;
+
+    public Material.Icons.MaterialIconKind CurrentSettingsPageIcon => CurrentSettingsPage switch
+    {
+        "General" => Material.Icons.MaterialIconKind.TuneVariant,
+        "Appearance" => Material.Icons.MaterialIconKind.Palette,
+        "Audio" => Material.Icons.MaterialIconKind.MusicNote,
+        "Downloads" => Material.Icons.MaterialIconKind.Download,
+        "Integrations" => Material.Icons.MaterialIconKind.Puzzle,
+        "ApiKeys" => Material.Icons.MaterialIconKind.Key,
+        "SmartFeatures" => Material.Icons.MaterialIconKind.AutoFixHigh,
+        "Maintenance" => Material.Icons.MaterialIconKind.Tools,
+        "Updates" => Material.Icons.MaterialIconKind.Update,
+        "About" => Material.Icons.MaterialIconKind.InformationOutline,
+        "Help" => Material.Icons.MaterialIconKind.HelpCircle,
+        "DevTools" => Material.Icons.MaterialIconKind.CodeTags,
+        _ => Material.Icons.MaterialIconKind.Cog
+    };
 
     [ObservableProperty] private int _currentSectionIndex = 0;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentSettingsPageTitle))]
     [NotifyPropertyChangedFor(nameof(CurrentSettingsPageDescription))]
+    [NotifyPropertyChangedFor(nameof(CurrentSettingsPageIcon))]
     private string _currentSettingsPage = "General";
 
     public string CurrentSettingsPageTitle => LocalizationService.Instance[$"Settings_PageTitle_{CurrentSettingsPage}"];
@@ -165,6 +238,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         LocalizationService.Instance.SetLanguage(value);
         OnPropertyChanged(nameof(GalleryItems));
+        OnPropertyChanged(nameof(TagWriteModeOptions));
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
     }
 
@@ -231,7 +305,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task BrowseDownloadDirAsync()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
-        var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Select Download Directory" });
+        var folders = await desktop.MainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = LocalizationService.Instance["Settings_Downloads_Picker_Title"]
+        });
         if (folders.Count > 0) DownloadDirectory = folders[0].Path.LocalPath;
     }
     
@@ -264,9 +341,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop || desktop.MainWindow == null) return;
         var file = await desktop.MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Backup Library Database",
+            Title = LocalizationService.Instance["Settings_Maintenance_Backup_Picker_Title"],
             SuggestedFileName = $"nullwave_backup_{DateTime.UtcNow:yyyyMMdd_HHmm}.db",
-            FileTypeChoices = new[] { new FilePickerFileType("SQLite Database") { Patterns = new[] { "*.db" } } }
+            FileTypeChoices = new[] { new FilePickerFileType(LocalizationService.Instance["Settings_Maintenance_Backup_FileType"]) { Patterns = new[] { "*.db" } } }
         });
         if (file != null)
         {
@@ -285,8 +362,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region IDisposable
     public void Dispose()
     {
+        _plugins.PluginRegistered -= OnPluginRegistered;
+        EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierResolverPropertyChanged;
         StopHealthCheck();
         LogViewer?.Dispose();
+        Sources?.Dispose();
+        foreach (var pluginRow in PluginRows)
+            pluginRow.Dispose();
         GC.SuppressFinalize(this);
     }
     #endregion

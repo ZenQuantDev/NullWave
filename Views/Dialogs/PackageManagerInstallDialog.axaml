@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:NullWave.Helpers.Localization"
+        x:Class="NullWave.Views.Dialogs.PackageManagerInstallDialog"
+        Title="{loc:Loc Settings_Updates_InstallConsent_Title}"
+        Width="520" Height="290"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="{StaticResource BrushBase}">
+  <DockPanel Margin="20">
+    <StackPanel DockPanel.Dock="Bottom" Spacing="12" Margin="0,16,0,0">
+      <CheckBox Name="RememberChoiceCheckBox"
+                Content="{loc:Loc Settings_Updates_InstallConsent_Remember}"
+                Foreground="{StaticResource BrushTextSecondary}"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="{loc:Loc Dialog_No}" Click="OnDecline" Classes="secondary" Padding="16,8"/>
+        <Button Content="{loc:Loc Settings_Updates_InstallConsent_Run}" Click="OnApprove" Classes="primary" Padding="16,8"/>
+      </StackPanel>
+    </StackPanel>
+    <StackPanel Spacing="10">
+      <TextBlock Text="{loc:Loc Settings_Updates_InstallConsent_Description}"
+                 Foreground="{StaticResource BrushTextPrimary}" TextWrapping="Wrap"/>
+      <Border Background="{StaticResource BrushSurface}" CornerRadius="6" Padding="10">
+        <TextBlock Name="CommandText" Foreground="{StaticResource BrushTextSecondary}"
+                   FontFamily="Consolas" TextWrapping="Wrap"/>
+      </Border>
+    </StackPanel>
+  </DockPanel>
+</Window>

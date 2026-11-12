@@ -1,14 +1,30 @@
-﻿# Security Policy
+## Plugins
 
-## Supported Versions
-Only the latest \0.6.x\ release is supported with security updates.
+The app loads bundled Radio Browser and OpenWeather plugins from the application directory
+and checks the user's `<data directory>/plugins/` folder first. A user-installed plugin with
+the same manifest ID takes precedence over the bundled copy.
 
-## Reporting a Vulnerability
-NullWave is a local-first desktop application, but we take security seriously.
-If you discover a security vulnerability (e.g., command injection in download pipeline, path traversal in library import, or leaked API keys), please report it responsibly.
+Plugins are loaded in separate collectible `AssemblyLoadContext` instances, but this is
+**not a security sandbox**. Plugin code runs in-process and can use the same OS identity and
+process privileges as NullWave. Manifests are not signed or hash-verified, and capabilities
+are not approved through an install-time permission prompt. The host checks declared
+permissions for host-mediated API-key access, but those checks cannot constrain arbitrary
+code running in-process. Initialization timeouts request cancellation but cannot forcibly
+stop a plugin that ignores its cancellation token.
 
-**Do not open a public issue for security vulnerabilities.**
+Only install plugins from sources you trust. Do not treat `AssemblyLoadContext` isolation or
+manifest permission declarations as protection against a malicious plugin.
 
-Instead, please email: **aleksandrgardaphadze@gmail.com or use the [GitHub Security Advisories](https://github.com/ZenQuantDev/NullWave/security/advisories/new) feature.
+### Reporting Security Issues
 
-We will acknowledge receipt within 48 hours and provide a detailed response within 5 business days.
+If you discover a security vulnerability in NullWave:
+
+1. **Do not** open a public GitHub issue
+2. Use [GitHub's private vulnerability reporting](https://github.com/ZenQuantDev/NullWave/security/advisories/new), if it is enabled for this repository
+3. Include: affected version, description of the vulnerability, steps to reproduce
+4. Reports will be reviewed on a best-effort basis; no response-time guarantee is made
+5. You will be credited in our security advisories (unless you request anonymity)
+
+The private reporting form is controlled in the repository's GitHub security settings. If it
+is unavailable, open an issue asking for a private reporting channel without posting
+vulnerability details or exploit steps publicly.

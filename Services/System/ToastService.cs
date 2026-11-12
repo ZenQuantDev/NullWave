@@ -280,7 +280,11 @@ public class ToastService : INotifyPropertyChanged
     private void DisplayToast(LiveNotification n)
     {
         ActiveToasts.Add(n);
-        ScheduleDismiss(n, n.DurationMs);
+        // FIX: Do not auto-dismiss live activities while they are still in progress
+        if (!(n.IsLiveActivity && !n.IsCompleted))
+        {
+            ScheduleDismiss(n, n.DurationMs);
+        }
     }
 
     /// <summary>Fills freed slots from the overflow queue. Must run on the UI thread.</summary>

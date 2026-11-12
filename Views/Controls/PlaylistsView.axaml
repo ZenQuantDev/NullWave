@@ -3,21 +3,26 @@
            xmlns:vm="using:NullWave.ViewModels"
            xmlns:models="using:NullWave.Models"
            xmlns:converters="using:NullWave.Helpers.Converters"
+           xmlns:services="using:NullWave.Services"
            xmlns:material="using:Material.Icons.Avalonia"
            xmlns:attached="using:NullWave.Helpers.Attached"
+           xmlns:helpers="using:NullWave.Helpers"
            xmlns:loc="using:NullWave.Helpers.Localization"
            x:Class="NullWave.Views.Controls.PlaylistsView"
            x:DataType="vm:MainViewModel">
     <DockPanel.Resources>
-        <converters:SourceToBackgroundConverter x:Key="SourceToBg"/>
         <converters:TrackIdEqualsConverter x:Key="TrackIdEquals"/>
         <converters:SortFieldDisplayConverter x:Key="SortFieldDisplay"/>
         <converters:BoolToSortIconConverter x:Key="BoolToSortIcon"/>
-        <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
+        <converters:BoolToBrushConverter x:Key="StarBrush" TrueBrush="{StaticResource BrushStarOn}" FalseBrush="{StaticResource BrushStarOff}"/>
         <converters:PlaylistTrackDateAddedConverter x:Key="PlaylistTrackDateAdded"/>
+        <converters:RadioNowPlayingConverter x:Key="RadioNowPlaying"/>
+        <helpers:MediaTypeToGeometryConverter x:Key="MediaTypeToGeom"/>
+        <helpers:BoolToStarGeometryConverter x:Key="BoolToStarGeom"/>
     </DockPanel.Resources>
 
-    <DockPanel IsVisible="{Binding Playlist.SelectedPlaylist, Converter={x:Static ObjectConverters.IsNotNull}}">
+    <DockPanel IsVisible="{Binding Playlist.HasActivePlaylist}">
+
         <!-- Hero: art + meta + actions -->
         <Border DockPanel.Dock="Top" Padding="24,20" ClipToBounds="True">
             <Border.Background>
@@ -36,11 +41,15 @@
                                attached:AsyncImage.DecodeWidth="256"
                                Stretch="UniformToFill"
                                IsVisible="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        <material:MaterialIcon Kind="Sparkles" Width="64" Height="64"
+                                               Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
                         <material:MaterialIcon Kind="PlaylistMusic" Width="48" Height="48"
                                                Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                IsVisible="{Binding Playlist.SelectedPlaylist.ArtPath, Converter={x:Static ObjectConverters.IsNull}}"/>
                         <StackPanel Orientation="Horizontal" Spacing="4"
-                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="6">
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="6"
+                                    IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <Button Classes="icon-btn" Background="#88000000" ToolTip.Tip="{loc:Loc Playlist_Tooltip_ChangeCover}"
                                     Command="{Binding ChangePlaylistCoverCommand}"
                                     CommandParameter="{Binding Playlist.SelectedPlaylist}">
@@ -57,11 +66,19 @@
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8">
                     <TextBlock Text="{loc:Loc Playlist_Label_Playlist}" Foreground="{StaticResource BrushTextMuted}"
-                               FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"/>
+                               FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"
+                               IsVisible="{Binding !Playlist.IsSmartPlaylistActive}"/>
+                    <TextBlock Text="SMART PLAYLIST" Foreground="{StaticResource BrushTextMuted}"
+                               FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"
+                               IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
                     <TextBlock Text="{Binding Playlist.SelectedPlaylist.Name}" Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"/>
+                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding !Playlist.IsSmartPlaylistActive}"/>
+                    <TextBlock Text="{Binding Playlist.SmartPlaylistTitle}" Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{Binding Playlist.SelectedPlaylist.Tracks.Count, Mode=OneWay}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+                        <TextBlock Text="{Binding Playlist.FilteredTracks.Count, Mode=OneWay}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
                         <TextBlock Text="{loc:Loc Playlist_Label_Tracks}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
@@ -71,11 +88,19 @@
                                 <TextBlock Text="{loc:Loc Playlist_Button_Play}"/>
                             </StackPanel>
                         </Button>
-                        <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Rename}" Command="{Binding Playlist.StartRenameCommand}">
+                        <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Rename}" Command="{Binding Playlist.StartRenameCommand}"
+                                IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <material:MaterialIcon Kind="Pencil" Width="18" Height="18"/>
                         </Button>
-                        <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Delete}" Command="{Binding Playlist.RemovePlaylistCommand}">
+                        <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Delete}" Command="{Binding Playlist.RemovePlaylistCommand}"
+                                IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <material:MaterialIcon Kind="TrashCan" Width="18" Height="18"/>
+                        </Button>
+                        <Button Classes="secondary" Click="OnImportM3uClick" ToolTip.Tip="Import M3U playlist">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
+                                <TextBlock Text="Import M3U"/>
+                            </StackPanel>
                         </Button>
                         <ComboBox ItemsSource="{Binding Playlist.SortOptions}" SelectedItem="{Binding Playlist.CurrentSort}"
                                   MinWidth="130" VerticalAlignment="Center" Margin="12,0,0,0">
@@ -101,35 +126,62 @@
             </Grid>
         </Border>
 
-        <!-- Header -->
-        <!-- Margin matched to ListBox Margin="8,0,8,8" -->
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="24,Auto,*,160,100,90,130,36,36" Margin="8,12,8,4">
-            <!-- Dummy spacer to perfectly match the row's 40px album art + 8px margin -->
-            <Border Grid.Column="1" Width="40" Margin="0,0,8,0" />
-            <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                    Command="{Binding Playlist.SortByTitleCommand}" HorizontalContentAlignment="Left" Margin="10,0,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_TitleArtist}" Margin="0"/>
-                    <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedByTitle}"/>
-                </StackPanel>
-            </Button>
-            <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                    Command="{Binding Playlist.SortBySourceCommand}" HorizontalContentAlignment="Left">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_Source}" Margin="0"/>
-                    <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedBySource}"/>
-                </StackPanel>
-            </Button>
-            <TextBlock Grid.Column="4" Classes="section-label" Text="{loc:Loc Playlist_Header_Plays}" Margin="0" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Column="5" Classes="section-label" Text="{loc:Loc Playlist_Header_Offline}" Margin="0" HorizontalAlignment="Center"/>
-            <Button Grid.Column="6" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                    Command="{Binding Playlist.SortByDateCommand}" HorizontalContentAlignment="Left">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_Added}" Margin="0"/>
-                    <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedByDate}"/>
-                </StackPanel>
-            </Button>
-        </Grid>
+        <!-- COLUMN HEADERS (mirrors TrackListView) -->
+        <Border DockPanel.Dock="Top" Classes="wallpaper-row-header">
+            <Grid Margin="8,8,8,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="2.6*"  MinWidth="260"/>
+                    <ColumnDefinition Width="0.9*"  MinWidth="120"/>
+                    <ColumnDefinition Width="0.5*"  MinWidth="64"/>
+                    <ColumnDefinition Width="0.5*"  MinWidth="70"/>
+                    <ColumnDefinition Width="0.5*"  MinWidth="80"/>
+                    <ColumnDefinition Width="0.8*"  MinWidth="110"/>
+                    <ColumnDefinition Width="0.35*" MinWidth="36"/>
+                    <ColumnDefinition Width="0.35*" MinWidth="36"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="1" Width="{DynamicResource RowArtSize}" Margin="0,0,12,0"/>
+
+                <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        Command="{Binding Playlist.SortByTitleCommand}" HorizontalContentAlignment="Left" Margin="10,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_TitleArtist}" Margin="0"/>
+                        <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedByTitle}"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        Command="{Binding Playlist.SortBySourceCommand}" HorizontalContentAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_Source}" Margin="0"/>
+                        <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedBySource}"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        Command="{Binding Playlist.SortByPlayCountCommand}" HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_Plays}" Margin="0"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="5" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        Command="{Binding Playlist.SortByLengthCommand}" HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Library_Header_Length}" Margin="0"/>
+                        <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedByLength}"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Grid.Column="6" Classes="section-label" Text="{loc:Loc Library_Header_Status}" Margin="0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Button Grid.Column="7" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        Command="{Binding Playlist.SortByDateCommand}" HorizontalContentAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Classes="section-label" Text="{loc:Loc Playlist_Header_Added}" Margin="0"/>
+                        <material:MaterialIcon Kind="{Binding Playlist.SortAscending, Converter={StaticResource BoolToSortIcon}}" Width="12" Height="12" IsVisible="{Binding Playlist.IsSortedByDate}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
 
         <!-- Track list -->
         <Grid>
@@ -139,16 +191,51 @@
                      SelectedItems="{Binding Playlist.SelectedTracks}"
                      SelectionChanged="OnTrackSelected"
                      DoubleTapped="OnTrackDoubleTapped"
+                     ContextRequested="OnListContextRequested"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                <ListBox.Styles>
+                    <Style Selector="Grid.track-row:pointerover">
+                        <Setter Property="Background" Value="{StaticResource BrushRowHover}"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected Grid.track-row">
+                        <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+                    </Style>
+                </ListBox.Styles>
+
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="models:Track">
-                        <Grid ColumnDefinitions="24,Auto,*,160,100,90,130,36,36"
+                        <Grid Classes="track-row"
                               Margin="{DynamicResource RowMargin}"
                               MinHeight="{DynamicResource TrackRowHeight}"
-                              DragDrop.AllowDrop="True" 
-                              DragDrop.DragOver="OnRowDragOver" 
+                              DragDrop.AllowDrop="True"
+                              DragDrop.DragOver="OnRowDragOver"
                               DragDrop.Drop="OnRowDrop">
-                            
+                            <Grid.Transitions>
+                                <Transitions>
+                                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                                </Transitions>
+                            </Grid.Transitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="2.6*"  MinWidth="260"/>
+                                <ColumnDefinition Width="0.9*"  MinWidth="120"/>
+                                <ColumnDefinition Width="0.5*"  MinWidth="64"/>
+                                <ColumnDefinition Width="0.5*"  MinWidth="70"/>
+                                <ColumnDefinition Width="0.5*"  MinWidth="80"/>
+                                <ColumnDefinition Width="0.8*"  MinWidth="110"/>
+                                <ColumnDefinition Width="0.35*" MinWidth="36"/>
+                                <ColumnDefinition Width="0.35*" MinWidth="36"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Drag handle (custom sort + regular playlists only) -->
                             <material:MaterialIcon Grid.Column="0" Kind="DragVertical" Width="16" Height="16"
                                                    Foreground="{StaticResource BrushTextMuted}"
                                                    VerticalAlignment="Center" Cursor="SizeAll"
@@ -156,49 +243,99 @@
                                                    PointerPressed="OnDragHandlePressed"
                                                    HorizontalAlignment="Center"/>
 
+                            <!-- Accent bar + art (Library parity) -->
                             <Border Grid.Column="1" Width="3" HorizontalAlignment="Left" Margin="-8,0,0,0"
                                     Background="{DynamicResource BrushAccent}" CornerRadius="0,2,2,0">
                                 <Border.IsVisible>
                                     <MultiBinding Converter="{StaticResource TrackIdEquals}">
                                         <Binding Path="Id"/>
-                                        <Binding Path="$parent[ListBox].DataContext.Player.CurrentTrack.Id"/>
+                                        <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id"/>
                                     </MultiBinding>
                                 </Border.IsVisible>
                             </Border>
-                            <Border Grid.Column="1" Width="40" Height="40" CornerRadius="{StaticResource RadiusArt}"
-                                    Background="{StaticResource BrushSurface2}" ClipToBounds="True" VerticalAlignment="Center"
-                                    Margin="0,0,8,0">
+                            <Border Grid.Column="1" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
+                                    CornerRadius="{StaticResource RadiusArt}" Background="{StaticResource BrushSurface2}"
+                                    ClipToBounds="True" VerticalAlignment="Center" Margin="0,0,12,0">
                                 <Panel>
                                     <Image attached:AsyncImage.SourcePath="{Binding AlbumArtPath}"
-                                           attached:AsyncImage.DecodeWidth="96"
-                                           Stretch="UniformToFill"
-                                           IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                    <material:MaterialIcon Kind="MusicNote" IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
-                                                           Foreground="{StaticResource BrushTextMuted}" Width="16" Height="16"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                           attached:AsyncImage.DecodeWidth="96" Stretch="UniformToFill"
+                                           IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                           RenderOptions.BitmapInterpolationMode="MediumQuality"/>
+                                    <Path Data="{Binding MediaType, Converter={StaticResource MediaTypeToGeom}}"
+                                          Stretch="None" Width="18" Height="18" Fill="{StaticResource BrushTextMuted}"
+                                          IsVisible="{Binding AlbumArtPath, Converter={x:Static ObjectConverters.IsNull}}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Panel>
                             </Border>
+
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" Margin="10,0,8,0">
                                 <TextBlock Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}"
-                                           FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                                           FontSize="{DynamicResource RowTitleSize}" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Text="{Binding Artist}" Foreground="{StaticResource BrushTextSecondary}"
-                                           FontSize="{DynamicResource FontSizeSm}" TextTrimming="CharacterEllipsis"/>
+                                           FontSize="{DynamicResource RowSubSize}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Player.NowPlayingDisplay}"
+                                           Foreground="{StaticResource BrushAccent}" FontSize="{DynamicResource RowSubSize}" TextTrimming="CharacterEllipsis">
+                                    <TextBlock.IsVisible>
+                                        <MultiBinding Converter="{StaticResource RadioNowPlaying}">
+                                            <Binding Path="Id"/>
+                                            <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).Player.CurrentTrack.Id"/>
+                                            <Binding Path="IsRadio"/>
+                                        </MultiBinding>
+                                    </TextBlock.IsVisible>
+                                </TextBlock>
                             </StackPanel>
-                            <Border Grid.Column="3" VerticalAlignment="Center" CornerRadius="{StaticResource RadiusFull}"
-                                    Padding="10,4" HorizontalAlignment="Left">
-                                <Border.Background><SolidColorBrush Color="{Binding Source, Converter={StaticResource SourceToBg}}"/></Border.Background>
-                                <TextBlock Text="{Binding Source}" Foreground="White" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
-                            </Border>
+
+                            <!-- Tinted source badge (Library parity) -->
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4" IsVisible="{Binding !IsRadio}">
+                                    <Border.Background>
+                                        <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Bg">
+                                            <Binding Path="Source"/>
+                                            <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                        </MultiBinding>
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding Source}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold">
+                                        <TextBlock.Foreground>
+                                            <MultiBinding Converter="{x:Static converters:SourceBadgeBrushConverter.Instance}" ConverterParameter="Fg">
+                                                <Binding Path="Source"/>
+                                                <Binding Source="{x:Static services:ThemeService.Instance}" Path="IsLightTheme"/>
+                                            </MultiBinding>
+                                        </TextBlock.Foreground>
+                                    </TextBlock>
+                                </Border>
+                                <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4" Background="{StaticResource BrushRedDim}" IsVisible="{Binding IsRadio}">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="LIVE" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
                             <TextBlock Grid.Column="4" Text="{Binding PlayCount}" Foreground="{StaticResource BrushTextMuted}"
                                        FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <material:MaterialIcon Kind="CheckCircle" Width="16" Height="16" Foreground="{StaticResource BrushGreen}"
-                                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                <material:MaterialIcon Kind="CloudOff" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"
-                                                       IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+                            <StackPanel Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayDuration}" Foreground="{StaticResource BrushTextMuted}"
+                                           FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center" IsVisible="{Binding !IsRadio}"/>
+                                <TextBlock Text="∞" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"
+                                           HorizontalAlignment="Center" IsVisible="{Binding IsRadio}"/>
                             </StackPanel>
-                            
-                            <TextBlock Grid.Column="6" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center">
+
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Path Data="{x:Static helpers:RowIcons.AccessPoint16}" Stretch="None" Width="16" Height="16"
+                                      Fill="{StaticResource BrushBlue}" IsVisible="{Binding IsRadio}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsRadio}">
+                                    <Path Data="{x:Static helpers:RowIcons.CheckCircle16}" Stretch="None" Width="16" Height="16"
+                                          Fill="{StaticResource BrushGreen}" IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                    <Path Data="{x:Static helpers:RowIcons.CloudOff16}" Stretch="None" Width="16" Height="16"
+                                          Fill="{StaticResource BrushTextMuted}" IsVisible="{Binding FilePath, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Added date: per-playlist date for real playlists, track date for smart -->
+                            <TextBlock Grid.Column="7" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding $parent[ListBox].DataContext.Playlist.SelectedPlaylist, Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <TextBlock.Text>
                                     <MultiBinding Converter="{StaticResource PlaylistTrackDateAdded}" StringFormat="{}{0:dd MMM yyyy}">
                                         <Binding/>
@@ -206,43 +343,50 @@
                                     </MultiBinding>
                                 </TextBlock.Text>
                             </TextBlock>
+                            <TextBlock Grid.Column="7" Text="{Binding DateAdded, StringFormat='{}{0:dd MMM yyyy}'}"
+                                       Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding $parent[ListBox].DataContext.Playlist.IsSmartPlaylistActive}"/>
 
-                            <Button Grid.Column="7" Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Favorite}"
+                            <Button Grid.Column="8" Classes="icon-btn" ToolTip.Tip="{loc:Loc Library_Tooltip_Favorite}"
                                     Command="{Binding $parent[ListBox].DataContext.Library.ToggleFavoriteCommand}"
                                     CommandParameter="{Binding}" VerticalAlignment="Center">
-                                <material:MaterialIcon Kind="{Binding IsFavorite, Converter={StaticResource BoolToIconKind}, ConverterParameter='Star, StarOutline'}"
-                                                       Width="18" Height="18" Foreground="{StaticResource BrushAmber}"
-                                                       Opacity="{Binding IsFavorite, Converter={StaticResource BoolToOpacity}}"/>
+                                <Path Data="{Binding IsFavorite, Converter={StaticResource BoolToStarGeom}}"
+                                      Stretch="None" Width="18" Height="18"
+                                      Fill="{Binding IsFavorite, Converter={StaticResource StarBrush}}"/>
                             </Button>
-                            <Button Grid.Column="8" Classes="icon-btn" ToolTip.Tip="{loc:Loc Playlist_Tooltip_Remove}"
-                                    Command="{Binding $parent[ListBox].DataContext.Playlist.RemoveFromPlaylistCommand}"
-                                    CommandParameter="{Binding}" VerticalAlignment="Center">
-                                <material:MaterialIcon Kind="Close" Width="16" Height="16"/>
+
+                            <Button Grid.Column="9" Classes="icon-btn" VerticalAlignment="Center"
+                                    Click="OnRowMenuClick" ToolTip.Tip="{loc:Loc Library_Tooltip_MoreOptions}">
+                                <Path Data="{x:Static helpers:RowIcons.DotsVertical18}" Stretch="None" Width="18" Height="18"
+                                      Fill="{StaticResource BrushTextSecondary}"/>
                             </Button>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <!-- Floating Bulk Action Bar -->
-            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,24"
-                    Background="{StaticResource BrushElevated}" CornerRadius="{StaticResource RadiusFull}"
-                    Padding="16,8" BoxShadow="0 8 24 0 #80000000"
+            <!-- Floating bulk bar (Library styling) -->
+            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12"
+                    Background="{StaticResource BrushElevated}" BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="1" CornerRadius="{StaticResource RadiusFull}" Padding="10,6"
                     IsVisible="{Binding Playlist.HasMultiSelection}">
-                <StackPanel Orientation="Horizontal" Spacing="16">
-                    <TextBlock Text="{Binding Playlist.SelectionCountLabel}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Playlist.SelectionCountLabel}" VerticalAlignment="Center"
+                               Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Margin="4,0,6,0"/>
                     <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Bulk_Tooltip_Queue}" Command="{Binding Playlist.BulkQueueCommand}">
-                        <material:MaterialIcon Kind="PlaylistPlus" Width="20" Height="20"/>
+                        <material:MaterialIcon Kind="PlaylistPlus" Width="16" Height="16"/>
                     </Button>
-                    <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Bulk_Tooltip_Remove}" Command="{Binding Playlist.BulkRemoveCommand}">
-                        <material:MaterialIcon Kind="PlaylistRemove" Width="20" Height="20"/>
+                    <Button Classes="icon-btn" ToolTip.Tip="{loc:Loc Bulk_Tooltip_Remove}" Command="{Binding Playlist.BulkRemoveCommand}"
+                            IsVisible="{Binding Playlist.SelectedPlaylist, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <material:MaterialIcon Kind="PlaylistRemove" Width="16" Height="16"/>
                     </Button>
                 </StackPanel>
             </Border>
-            
-            <!-- Empty State -->
+
+            <!-- Empty state -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
-                        IsVisible="{Binding !Playlist.SelectedPlaylist.Tracks.Count}">
+                        IsVisible="{Binding !Playlist.FilteredTracks.Count}">
                 <material:MaterialIcon Kind="MusicNote" Width="48" Height="48" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center"/>
                 <TextBlock Text="{loc:Loc Playlist_Empty_Title}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}" HorizontalAlignment="Center"/>
                 <TextBlock Text="{loc:Loc Playlist_Empty_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center"/>

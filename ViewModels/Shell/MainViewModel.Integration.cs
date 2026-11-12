@@ -5,16 +5,18 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using NullWave.Helpers;
+using NullWave.Helpers.Diagnostics;
 using NullWave.Helpers.Logging;
+using NullWave.Plugins.Contracts;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
+using NullWave.Services.Radio;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
 using Serilog;
@@ -23,16 +25,15 @@ namespace NullWave.ViewModels;
 
 public partial class MainViewModel
 {
-    private void InitializeServices()
+    private void InitializeCriticalServices()
     {
         _identity = new IdentityService(_keyStore);
         _prefsService = PreferencesService.Shared;
-        _effectsTier = new EffectsTierResolver(_prefsService);
+        _effectsTier = EffectsTierResolver.Shared;
         _effectsTier.PropertyChanged += OnEffectsTierPropertyChanged;
-        
+
         WallpaperService.Instance.MinimalTier = CurrentEffectsTier == EffectsTier.Minimal;
         _isSidebarCollapsed = _prefsService.Current.SidebarCollapsed;
-
         ThemeService.Instance.PropertyChanged += OnThemeServicePropertyChanged;
 
         _secureDelete = new SecureDeleteService(_keyStore);
@@ -43,18 +44,18 @@ public partial class MainViewModel
 
         var dbService = new DatabaseService(_prefsService);
         _library = new LibraryService(dbService, _metadata, _prefsService);
-        _playlists = new PlaylistService(dbService, _library);
         _library.LibraryChanged += OnLibraryChanged;
+        _playlists = new PlaylistService(dbService, _library);
 
         var albumArtService = new AlbumArtService(_lastFm);
         _downloadService = new DownloadService(_library, _prefsService, albumArtService);
-        DownloadManager = new DownloadManagerViewModel();
-        DownloadManager.AttachService(_downloadService);
-        
+        _downloadService.UpdateConcurrencyLimit(_prefsService.Current.MaxConcurrentDownloads);
+
         _localAI = new LocalAIService();
         _enrichment = new LastFmEnrichmentService(_lastFm, _library, _localAI, _prefsService);
         _weatherService = new WeatherService(_keyStore);
         _moodPlaylist = new MoodPlaylistService(_weatherService, _localAI, _library);
+        _powerState = new PowerStateService();
 
         _plugins = new PluginManager();
         _plugins.Register(new YtDlpDownloadProvider(_downloadService, _prefsService));
@@ -62,7 +63,11 @@ public partial class MainViewModel
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
-        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins);
+        _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginRoots);
+        _providerRegistry = new ProviderRegistry(_prefsService);
+        _radioHealer = new RadioStreamHealer(_library, _providerRegistry, _prefsService);
+
+        Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
         Settings.DevEffectsTierOverrideChanged += tier => _effectsTier.SetDevOverride(tier);
         Settings.EffectsTierPreferencesChanged += () =>
@@ -70,7 +75,11 @@ public partial class MainViewModel
             ApplyBatteryEffectsTier(_powerState.Current);
             _effectsTier.NotifyPreferencesChanged();
         };
+
+        StartupTimeline.Mark("Critical services ready");
     }
+
+    private readonly HashSet<string> _activePlaylistImports = new();
 
     // --- Extracted Singleton Event Handlers ---
     private void OnLibraryChanged(object? sender, EventArgs e)
@@ -115,7 +124,10 @@ public partial class MainViewModel
     private void InitializeChildViewModels()
     {
         Input = new TrackInputViewModel(_library, _metadata, _urlParser, _downloadService, _spotifyBridge, Settings, new AlbumArtService(_lastFm));
-        
+
+        DownloadManager = new DownloadManagerViewModel();
+        DownloadManager.AttachService(_downloadService);
+
         Library = new LibraryViewModel(_library, _localAI, _prefsService, _identity);
         Library.IsAiPromptEnabled = true;
         Library.ExcludedMediaTypes.Add(MediaType.Radio);
@@ -133,7 +145,10 @@ public partial class MainViewModel
         _aiPlaylistsFolder = _playlists.GetAllFolders().FirstOrDefault(f => f.Name == "AI Playlists") ?? _playlists.CreateFolder("AI Playlists");
         Library.AiPlaylistRequested += OnAiPlaylistRequested;
 
-        Playlist = new PlaylistViewModel(_playlists);
+        // FIX: Moved SmartPlaylistService creation up here so it can be passed to PlaylistViewModel
+        var smartPlaylistService = new SmartPlaylistService(_library, TimeProvider.System);
+
+        Playlist = new PlaylistViewModel(_playlists, smartPlaylistService);
         Playlist.RequestCreatePlaylistName = async () =>
         {
             var dialog = new Views.CreatePlaylistDialog();
@@ -147,7 +162,7 @@ public partial class MainViewModel
         };
         Export = new ExportViewModel(_library, _export);
         Detail = new TrackDetailViewModel(_library, _plugins, _identity, _prefsService);
-        Import = new ImportViewModel(_library, _metadata);
+        Import = new ImportViewModel(_library, _metadata, _prefsService);
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
@@ -156,7 +171,7 @@ public partial class MainViewModel
         Queue = new QueueViewModel(_library);
 
         Nav = new NavigationViewModel(
-            _prefsService, _playlists,
+            _prefsService, _playlists, smartPlaylistService,
             () => NavigateLibraryCommand, 
             () => NavigatePlaylistsCommand, 
             () => NavigateRadioCommand, 
@@ -167,6 +182,12 @@ public partial class MainViewModel
                 Playlist.SelectById(playlistId);
                 Nav.SetPlaylistActive(playlistId);
                 LogNav($"PinnedPlaylist:{playlistId}");
+            },
+            navigateToSmartPlaylist: smartId =>
+            {
+                CurrentPage = "Playlists";
+                Playlist.SelectSmartPlaylist(smartId);
+                LogNav($"SmartPlaylist:{smartId}");
             });
 
         var oldAiPlaylists = _playlists.GetAll().Where(p => p.Name.StartsWith("AI: ", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -189,6 +210,10 @@ public partial class MainViewModel
             Playlist.Refresh();
             Nav.Rebuild();
         }
+
+        // Register providers with the new registry
+        foreach (var plugin in _plugins.Plugins.OfType<IProvider>())
+            _providerRegistry.Register(plugin);
     }
 
     private void WireCoreEvents()
@@ -280,18 +305,60 @@ public partial class MainViewModel
 
     private void WireIntegrationEvents()
     {
-        Input.PlaylistImportRequested += (playlistUrl) =>
+        Input.PlaylistImportRequested += async (playlistUrl) =>
         {
-            if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+            // Normalize URL for comparison (strip tracking params)
+            var normalizedUrl = NormalizePlaylistUrl(playlistUrl);
+            
+            // Guard: prevent double imports
+            lock (_activePlaylistImports)
             {
-                ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
-                return;
+                if (_activePlaylistImports.Contains(normalizedUrl))
+                {
+                    Log.Information("[MainViewModel] Playlist import already in progress: {Url}", normalizedUrl);
+                    ToastService.Instance.Show("This playlist is already being imported.", ToastType.Info, scope: "import");
+                    return;
+                }
+                _activePlaylistImports.Add(normalizedUrl);
             }
-            _ = _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+
+            // NEW: Detect YouTube auto-generated mixes (RD...) and cap them
+            if (playlistUrl.Contains("list=RD", StringComparison.OrdinalIgnoreCase))
             {
-                if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
-                Dispatcher.UIThread.Post(() => Library.Refresh());
-            });
+                var confirmDialog = new Views.ConfirmDialog(
+                    "Large Auto-Generated Mix",
+                    "This is a YouTube auto-generated mix that may contain 1000+ tracks. Importing it will take a long time and may hit rate limits.\n\nContinue anyway?");
+                
+                var confirmed = await DialogService.Instance.ShowDialogAsync<bool>(confirmDialog);
+                if (!confirmed)
+                {
+                    lock (_activePlaylistImports) { _activePlaylistImports.Remove(normalizedUrl); }
+                    return;
+                }
+            }
+
+            try
+            {
+                if (_plugins.Get<YtDlpDownloadProvider>() is not { } ytDlpProvider || !ytDlpProvider.SupportsUrl(playlistUrl))
+                {
+                    ToastService.Instance.Show("Downloads are disabled. Enable yt-dlp in Settings.", ToastType.Warning);
+                    return;
+                }
+
+                await _downloadService.DownloadPlaylistAsync(playlistUrl, onTrackReady: (downloadedTrack) =>
+                {
+                    if (_plugins.Get<LastFmMetadataProvider>() is { }) _enrichment.EnrichAsync(downloadedTrack);
+                    Dispatcher.UIThread.Post(() => Library.Refresh());
+                });
+            }
+            finally
+            {
+                // Always remove from active set
+                lock (_activePlaylistImports)
+                {
+                    _activePlaylistImports.Remove(normalizedUrl);
+                }
+            }
         };
 
         Input.RadioSiteRequested += async (stationName, channels) =>
@@ -336,26 +403,44 @@ public partial class MainViewModel
 
         Input.RadioCatalogRequested += async () =>
         {
-            var dialog = new Views.Dialogs.RadioCatalogDialog(station =>
+            var activeProvider = _providerRegistry.GetActive(ProviderKind.Radio);
+            var radioProvider = activeProvider as IRadioProvider;
+
+            // Live check against the library: match by radiobrowser UUID tag OR by stream URL.
+            // URL matching also covers stations added before tags existed, and curated stations.
+            bool IsAlreadyAdded(RadioStationInfo info)
+            {
+                var tag = "radiobrowser:" + info.Id;
+                var url = info.StreamUrl?.Trim();
+                return _library.GetAll().Any(t =>
+                    t.MediaType == MediaType.Radio &&
+                    ((!info.Id.StartsWith("curated:", StringComparison.Ordinal) &&
+                      (t.Tags?.Contains(tag) ?? false)) ||
+                     (!string.IsNullOrWhiteSpace(url) &&
+                      string.Equals(t.Url?.Trim(), url, StringComparison.OrdinalIgnoreCase))));
+            }
+
+            var dialog = new Views.Dialogs.RadioCatalogDialog(radioProvider, stationInfo =>
             {
                 var track = new Track
                 {
-                    Title = station.Name,
-                    Artist = station.Genre, 
-                    Url = station.StreamUrl,
-                    Source = TrackSource.Unknown, 
-                    MediaType = MediaType.Radio
+                    Title = stationInfo.Name,
+                    Artist = stationInfo.Genre ?? "Radio",
+                    Url = stationInfo.StreamUrl,
+                    Source = TrackSource.Unknown,
+                    MediaType = MediaType.Radio,
+                    Tags = stationInfo.Id.StartsWith("curated:", StringComparison.Ordinal)
+                        ? new List<string>()
+                        : new List<string> { $"radiobrowser:{stationInfo.Id}" }
                 };
-                
-                // Check duplicate before adding (LibraryService.Add is void and silently ignores duplicates)
+
                 if (_library.IsDuplicate(track)) return false;
-                
+
                 _library.Add(track);
                 Dispatcher.UIThread.Post(() => { Library.Refresh(); RadioLibrary.Refresh(); });
                 return true;
-            });
-            
-            // We no longer care about the dialog result, as stations are added immediately
+            }, IsAlreadyAdded);
+
             await DialogService.Instance.ShowDialogAsync<object?>(dialog);
         };
 
@@ -372,6 +457,7 @@ public partial class MainViewModel
         _downloadService.PlaylistBatchStarted += OnPlaylistBatchStarted;
         _downloadService.PlaylistBatchProgress += OnPlaylistBatchProgress;
         _downloadService.PlaylistBatchCompleted += OnPlaylistBatchCompleted;
+        _downloadService.PlaylistTrackStarted += OnPlaylistTrackStarted;
 
         Settings.LastFmConnectRequested += async () =>
         {
@@ -411,6 +497,8 @@ public partial class MainViewModel
 
         Settings.GenerateMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true);
         Settings.GenerateTagMoodPlaylistRequested += () => _ = RunMoodPlaylistAsync(forceRefresh: true, forceTags: true);
+        Settings.PreviewRadioHealRequested += PreviewRadioHealAsync;
+        Settings.RepairRadioHealRequested += RepairRadioHealAsync;
 
         Settings.ExportUntaggedTracksRequested += async () =>
         {
@@ -445,6 +533,28 @@ public partial class MainViewModel
             Settings.ReportImportComplete(applied, results.Count);
             return null;
         };
+    }
+
+    private static string NormalizePlaylistUrl(string url)
+    {
+        // Strip common tracking parameters for comparison
+        var uri = new Uri(url);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        // Remove tracking params
+        query.Remove("si");
+        query.Remove("pp");
+        query.Remove("utm_source");
+        query.Remove("utm_medium");
+        query.Remove("utm_campaign");
+        
+        // Rebuild URL
+        var builder = new UriBuilder(uri)
+        {
+            Query = query.ToString()
+        };
+        
+        return builder.Uri.ToString();
     }
 
     // --- Extracted Download Event Handlers ---
@@ -519,7 +629,6 @@ public partial class MainViewModel
             }
         };
 
-        _powerState = new PowerStateService();
         _powerState.PowerStateChanged += OnPowerStateChanged;
         ApplyBatteryEffectsTier(_powerState.Current);
         Settings.PowerModelsChanged += (b, p, a) => _localAI.ConfigurePowerModels(b, p, a);
@@ -527,7 +636,6 @@ public partial class MainViewModel
         _powerState.StartPolling();
 
         Settings.MaxConcurrentDownloadsChanged += limit => _downloadService.UpdateConcurrencyLimit(limit);
-        _downloadService.UpdateConcurrencyLimit(Settings.MaxConcurrentDownloads);
 
         _enrichment.BackfillCompleted += OnBackfillCompleted;
 
@@ -557,7 +665,7 @@ public partial class MainViewModel
         if (_prefsService.Current.AutoGenerateMoodPlaylist) _ = RunMoodPlaylistAsync(forceRefresh: false);
     }
 
-    private void ApplyBatteryEffectsTier(PowerState state)
+        private void ApplyBatteryEffectsTier(PowerState state)
     {
         if (state == PowerState.Battery && _prefsService.Current.AutoEffectsTier)
             _effectsTier.SetBatteryOverride(EffectsTier.Minimal);
@@ -569,8 +677,8 @@ public partial class MainViewModel
     {
         try
         {
-            var ytDlpPath = PlatformHelper.ResolveExecutable("yt-dlp");
-            var result = await ProcessRunner.RunAsync(ytDlpPath, new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
+            // FIX: Pass raw name, let ProcessRunner handle the .exe resolution
+            var result = await ProcessRunner.RunAsync("yt-dlp", new[] { "--rm-cache-dir" }, TimeSpan.FromSeconds(30));
             
             if (result.ExitCode == 0)
             {
@@ -667,5 +775,20 @@ public partial class MainViewModel
             foreach (var c in s) { h ^= c; h *= 16777619; }
             return (int)(h & 0x7FFFFFFF);
         }
+    }
+
+    private void OnPlaylistTrackStarted(string title, int current, int total)
+    {
+        LiveNotification? activity;
+        lock (_playlistBatches)
+        {
+            var match = _playlistBatches.FirstOrDefault(b => b.Total == total && b.Total > 0);
+            activity = match != default ? match.Activity : _playlistBatches.LastOrDefault().Activity;
+        }
+        if (activity == null) return;
+
+        // Truncate long titles to prevent UI overflow
+        var displayTitle = title.Length > 50 ? title[..47] + "..." : title;
+        ToastService.Instance.UpdateLiveActivity(activity, $"Downloading {current}/{total}: {displayTitle}");
     }
 }

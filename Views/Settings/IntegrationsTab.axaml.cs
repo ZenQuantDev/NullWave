@@ -4,9 +4,9 @@ using NullWave.ViewModels.Settings;
 
 namespace NullWave.Views.Settings;
 
-public partial class PluginsTab : UserControl
+public partial class IntegrationsTab : UserControl
 {
-    public PluginsTab()
+    public IntegrationsTab()
     {
         InitializeComponent();
     }

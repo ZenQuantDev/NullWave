@@ -122,6 +122,9 @@ public partial class DatabaseService
     private static string BuildFtsQuery(string query)
     {
         if (string.IsNullOrWhiteSpace(query)) return string.Empty;
+        
+        // FIX: Normalize to FormC so decomposed accents (e + ´) become single characters before we filter
+        query = query.Normalize(System.Text.NormalizationForm.FormC);
 
         var words = new string(query.Select(character => char.IsLetterOrDigit(character) ? character : ' ').ToArray())
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);

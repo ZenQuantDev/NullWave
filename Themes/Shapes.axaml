@@ -18,6 +18,18 @@
   <x:Double x:Key="Space5"> 20</x:Double>
   <x:Double x:Key="Space6"> 24</x:Double>
 
+  <!-- Margins -->
+  <Thickness x:Key="MarginNone">0</Thickness>
+  <Thickness x:Key="MarginXs">0,2</Thickness>
+  <Thickness x:Key="MarginSm">0,4</Thickness>
+  <Thickness x:Key="MarginMd">0,8</Thickness>
+  <Thickness x:Key="MarginLg">0,12</Thickness>
+  <Thickness x:Key="MarginXl">0,16</Thickness>
+  <Thickness x:Key="Margin2xl">0,24</Thickness>
+  <Thickness x:Key="MarginSectionLabel">0,0,0,12</Thickness>
+  <Thickness x:Key="MarginCard">0,0,0,16</Thickness>
+  <Thickness x:Key="MarginCardInternal">0,0,16,0</Thickness>
+
   <!-- Layout dimensions (single source of truth) -->
   <x:Double x:Key="SidebarWidth">210</x:Double>
   <x:Double x:Key="MiniPlayerHeight">90</x:Double>

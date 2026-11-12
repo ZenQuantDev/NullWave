@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -35,6 +36,11 @@ public class TrackInputViewModel : ViewModelBase
     private string _inputTitle = string.Empty;
     private string _inputArtist = string.Empty;
     private TrackSource _selectedSource = TrackSource.Unknown;
+    private CancellationTokenSource? _fetchDebounce;
+    private string? _autoTitle;
+    private string? _autoArtist;
+    private readonly Dictionary<string, Guid> _pendingIds = new(); // FIX: Track IDs for in-flight fetches
+    
     public event Action? RadioCatalogRequested;
     private bool _isFetching;
     private bool _isUrlInputVisible;
@@ -80,18 +86,33 @@ public class TrackInputViewModel : ViewModelBase
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsInputUrlValid));
             
-            if (ShareLink.TryParseTrack(value, out _, out _))
+            var normalized = SourceDetector.NormalizeUrl(value);
+
+            if (normalized != _lastFetchedUrl)
+            {
+                if (InputTitle == _autoTitle)   InputTitle = string.Empty;
+                if (InputArtist == _autoArtist) InputArtist = string.Empty;
+                _autoTitle = _autoArtist = null;
+                _lastFetchedThumbnail = null;
+            }
+
+            if (ShareLink.TryParseTrack(normalized, out _, out _))
             {
                 SelectedSource = TrackSource.Unknown;
                 return;
             }
 
-            SelectedSource = SourceDetector.Detect(value);
-            if (_urlParser.IsValidUrl(value) && value != _lastFetchedUrl
-                && DetectMediaType(value) != MediaType.Radio)
+            SelectedSource = SourceDetector.Detect(normalized);
+            if (_urlParser.IsValidUrl(normalized) && SourceDetector.IsPlayableUrl(normalized) && normalized != _lastFetchedUrl
+                && DetectMediaType(normalized) != MediaType.Radio)
             {
-                _lastFetchedUrl = value;
-                _ = FetchMetadataAsync(value);
+                _lastFetchedUrl = normalized;
+                _fetchDebounce?.Cancel();
+                var cts = _fetchDebounce = new CancellationTokenSource();
+                _ = Task.Delay(400, cts.Token).ContinueWith(t => 
+                { 
+                    if (!t.IsCanceled) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = FetchMetadataAsync(normalized)); 
+                }, TaskScheduler.Default);
             }
         }
     }
@@ -100,7 +121,7 @@ public class TrackInputViewModel : ViewModelBase
     {
         get
         {
-            var url = InputUrl.Trim();
+            var url = SourceDetector.NormalizeUrl(InputUrl);
             if (string.IsNullOrWhiteSpace(url)) return false;
             
             if (ShareLink.IsProfileLink(url) || 
@@ -161,7 +182,7 @@ public class TrackInputViewModel : ViewModelBase
             _library.Update(track);
         };
 
-        AddTrackCommand = new RelayCommand(AddTrack);
+        AddTrackCommand = new SafeRelayCommand(AddTrackSafeAsync, errorScope: "add-track");
         AddLocalFileCommand = new RelayCommand(async () => await AddLocalFileAsync());
         ShowUrlInputCommand = new RelayCommand(() => IsUrlInputVisible = !IsUrlInputVisible);
         BrowseRadioCatalogCommand = new RelayCommand(() => RadioCatalogRequested?.Invoke());
@@ -173,16 +194,55 @@ public class TrackInputViewModel : ViewModelBase
         return qIndex > 0 ? url[..qIndex] : url;
     }
 
-    private bool IsYouTubePlaylist(string url)
+    private static bool IsYouTubePlaylist(string url) =>
+        SourceDetector.Detect(url) == TrackSource.YouTube &&
+        url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase);
+
+    public void AddTrack() => _ = AddTrackSafeAsync();
+
+    private async Task AddTrackSafeAsync()
     {
-        return url.Contains("list=", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase);
+        try { await AddTrackAsync(); }
+        catch (Exception ex)
+        {
+            NullActionLogger.Error(nameof(TrackInputViewModel), ex, "AddTrack failed");
+            ToastService.Instance.Show("Couldn't add that track. See the log for details.", ToastType.Warning);
+        }
     }
 
-    public void AddTrack()
+    private async Task AddTrackAsync()
     {
         var providedTitle = InputTitle.Trim();
-        var url = InputUrl.Trim();
+        var rawUrl = InputUrl.Trim();
+
+        // --- MIX / PLAYLIST FRONT DOOR ---
+        // Inspect the URL *before* NormalizeUrl strips the list= parameter
+        var withList = SourceDetector.NormalizeUrl(rawUrl, keepListParam: true);
+        if (SourceDetector.Detect(withList) == TrackSource.YouTube && 
+            withList.Contains("list=", StringComparison.OrdinalIgnoreCase) &&
+            !withList.Contains("/playlist?", StringComparison.OrdinalIgnoreCase))
+        {
+            var isMix = withList.Contains("list=RD", StringComparison.OrdinalIgnoreCase) || 
+                        withList.Contains("start_radio=1", StringComparison.OrdinalIgnoreCase);
+            
+            var msg = isMix
+                ? "This is a YouTube Mix (endless radio).\n\nImport the first 50 tracks as a playlist, or just add this single song?"
+                : "This song is inside a YouTube Playlist.\n\nImport the whole playlist, or just add this single song?";
+
+            var importList = await DialogService.Instance.ShowDialogAsync<bool>(
+                new Views.ConfirmDialog(isMix ? "YouTube Mix" : "YouTube Playlist", msg));
+
+            if (importList)
+            {
+                PlaylistImportRequested?.Invoke(withList);
+                ClearInputs();
+                IsUrlInputVisible = false;
+                return;
+            }
+        }
+
+        // Standard normalization (strips list= if they chose single song)
+        var url = SourceDetector.NormalizeUrl(rawUrl); 
         if (string.IsNullOrWhiteSpace(url))
         {
             IsUrlInputVisible = true;
@@ -215,7 +275,7 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
-        if (IsYouTubePlaylist(url))
+        if (IsYouTubePlaylist(url) || (SelectedSource == TrackSource.Bandcamp && url.Contains("/album/", StringComparison.OrdinalIgnoreCase)))
         {
             PlaylistImportRequested?.Invoke(url);
             ClearInputs();
@@ -289,6 +349,10 @@ public class TrackInputViewModel : ViewModelBase
             TrackSource.SoundCloud => "SoundCloud track",
             TrackSource.YouTube    => "YouTube track",
             TrackSource.Spotify    => "Spotify track",
+            TrackSource.Bandcamp   => "Bandcamp track",
+            TrackSource.Audiomack  => "Audiomack track",
+            TrackSource.ArchiveOrg => "Archive.org track",
+            TrackSource.Mixcloud   => "Mixcloud set",
             _                      => DetectMediaType(url) == MediaType.Radio
                 ? FriendlyRadioName(url)
                 : StripQueryStringForDisplay(url)
@@ -314,6 +378,10 @@ public class TrackInputViewModel : ViewModelBase
             if (match.Success) newTrack.Url = $"https://www.youtube.com/watch?v={match.Groups[1].Value}";
         }
 
+        // Strip tracking params from display URLs for new sources to help duplicate detection
+        if (source is TrackSource.Bandcamp or TrackSource.Audiomack or TrackSource.ArchiveOrg or TrackSource.Mixcloud)
+            newTrack.Url = StripQueryStringForDisplay(newTrack.Url);
+
         if (_library.IsDuplicate(newTrack))
         {
             ToastService.Instance.Show("Track is already in your library.", ToastType.Info, durationMs: 3000);
@@ -322,19 +390,25 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
+        // FIX: Check consent BEFORE adding to the library to prevent ghost rows on decline
+        if (SourceDetector.IsYtDlpSource(source))
+        {
+            if (!await _download.EnsureConsentAsync()) return;
+        }
+
         _library.Add(newTrack);
         NullActionLogger.TrackAdded(newTrack.Id.ToString(), newTrack.Url, nameof(TrackInputViewModel));
 
         if (usedFallbackTitle)
         {
-            _ = FetchMetadataAsync(url);
+            _ = FetchMetadataAsync(url, newTrack.Id);
         }
 
         ClearInputs();
         IsUrlInputVisible = false;
         TrackAdded?.Invoke();
 
-        if (source == TrackSource.YouTube || source == TrackSource.SoundCloud)
+        if (SourceDetector.IsYtDlpSource(source))
         {
             _ = Task.Run(async () =>
                 await _download.DownloadAsync(
@@ -344,13 +418,34 @@ public class TrackInputViewModel : ViewModelBase
         }
     }
 
-    private static MediaType DetectMediaType(string url)
+    internal static MediaType DetectMediaType(string url)
     {
+        if (SourceDetector.IsYtDlpSource(SourceDetector.Detect(url)))
+        {
+            var lower = url.ToLowerInvariant();
+            if (lower.Contains("audiobook") || lower.Contains("librivox") || lower.Contains("spoken word") ||
+                lower.Contains("full book") || lower.Contains("archive.org/details/audiobook"))
+                return MediaType.Audiobook;
+            return MediaType.Music;
+        }
+
         var value = url.ToLowerInvariant();
         if (value.EndsWith(".m3u8") || value.EndsWith(".m3u") || value.EndsWith(".pls") ||
-            value.Contains("icecast") || value.Contains("/stream") || value.Contains("radio") ||
+            value.Contains("icecast") || value.Contains("/stream") ||
             RadioStationCatalog.TryGetChannels(url, out _, out _))
+        {
             return MediaType.Radio;
+        }
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            var host = uri.Host.ToLowerInvariant();
+            if (host.Contains("radio") && 
+                !host.Contains("radiohead") &&  
+                (host.StartsWith("radio") || host.EndsWith("radio") || host.Contains(".radio.")))
+            {
+                return MediaType.Radio;
+            }
+        }
         if (value.Contains("audiobook") || value.Contains("librivox") || value.Contains("spoken word") ||
             value.Contains("full book") || value.Contains("archive.org/details/audiobook"))
             return MediaType.Audiobook;
@@ -364,10 +459,13 @@ public class TrackInputViewModel : ViewModelBase
             : url;
     }
 
-    private async Task FetchMetadataAsync(string url)
+    private async Task FetchMetadataAsync(string url, Guid? trackId = null)
     {
         if (!_fetchesInFlight.Add(url))
         {
+            // FIX: If a fetch is already running, map the new trackId to the URL 
+            // so the running fetch can update the correct database row when it finishes.
+            if (trackId is { } pid) _pendingIds[url] = pid;
             Log.Debug("[{Source}] Skipping duplicate in-flight metadata fetch for {Url}",
                 nameof(TrackInputViewModel), url);
             return;
@@ -377,27 +475,39 @@ public class TrackInputViewModel : ViewModelBase
         try
         {
             var (title, artist, thumbnail, duration) = await _metadata.FetchFromUrlAsync(url);
-            if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle)) InputTitle = title;
-            if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) InputArtist = artist;
-            _lastFetchedThumbnail = thumbnail;
+            
+            // FIX: Recover the trackId if it was registered while we were waiting
+            if (trackId == null && _pendingIds.Remove(url, out var pending)) trackId = pending;
+            
+            // FIX: Only touch the form if the user is still on this URL
+            if (SourceDetector.NormalizeUrl(InputUrl) == url)
+            {
+                if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(InputTitle))
+                { 
+                    InputTitle = title; 
+                    _autoTitle = title; 
+                }
+                if (!string.IsNullOrWhiteSpace(artist) && string.IsNullOrWhiteSpace(InputArtist)) 
+                { 
+                    InputArtist = artist; 
+                    _autoArtist = artist; 
+                }
+                _lastFetchedThumbnail = thumbnail;
+            }
+            
             Log.Information("[{Source}] Metadata fetched: {Title} by {Artist}",
                 nameof(TrackInputViewModel), title, artist);
 
-            var existing = _library.GetAll()
-                .FirstOrDefault(t => t.Url == url);
+            // FIX: Look up by track ID first to survive URL canonicalization
+            var existing = trackId is { } id
+                ? _library.GetAll().FirstOrDefault(t => t.Id == id)
+                : _library.GetAll().FirstOrDefault(t => t.Url == url);
 
             if (existing != null)
             {
                 if (!string.IsNullOrWhiteSpace(title))
                 {
-                    var parsed = NullWave.Helpers.TrackNormalizer.TrySplit(title);
-                    var cleanTitle  = title;
-                    var cleanArtist = artist;
-                    if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Value.Title))
-                    {
-                        cleanTitle = parsed.Value.Title;
-                        if (!string.IsNullOrWhiteSpace(parsed.Value.Artist)) cleanArtist = parsed.Value.Artist;
-                    }
+                    var (cleanArtist, cleanTitle) = NullWave.Helpers.TrackNormalizer.ResolveArtistTitle(title, artist);
                     if (NullWave.Helpers.TrackNormalizer.IsPlaceholderTitle(existing.Title))  existing.Title  = cleanTitle;
                     if (NullWave.Helpers.TrackNormalizer.IsPlaceholderArtist(existing.Artist) &&
                         !string.IsNullOrWhiteSpace(cleanArtist))              existing.Artist = cleanArtist;
@@ -423,6 +533,7 @@ public class TrackInputViewModel : ViewModelBase
         finally
         {
             _fetchesInFlight.Remove(url);
+            _pendingIds.Remove(url);
             IsFetching = false;
         }
     }
@@ -524,6 +635,13 @@ public class TrackInputViewModel : ViewModelBase
             return;
         }
 
+        // FIX: Check consent BEFORE adding to the library
+        if (!await _download.EnsureConsentAsync())
+        {
+            StatusMessage = "Downloads disabled";
+            return;
+        }
+
         var track = new Track
         {
             Title = result.SpotifyTitle,
@@ -531,6 +649,7 @@ public class TrackInputViewModel : ViewModelBase
             Url = result.YouTubeUrl,
             Source = TrackSource.Spotify
         };
+
         _library.Add(track);
         NullActionLogger.TrackAdded(track.Id.ToString(), result.YouTubeUrl, nameof(TrackInputViewModel));
         TrackAdded?.Invoke();
@@ -550,5 +669,7 @@ public class TrackInputViewModel : ViewModelBase
         InputArtist = string.Empty;
         SelectedSource = TrackSource.Unknown;
         _lastFetchedThumbnail = null;
+        _lastFetchedUrl = string.Empty;
+        _autoTitle = _autoArtist = null;
     }
 }

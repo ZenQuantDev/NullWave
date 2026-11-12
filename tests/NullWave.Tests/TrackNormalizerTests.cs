@@ -172,4 +172,38 @@ public class TrackNormalizerTests
     {
         Assert.Equal(expected, TrackNormalizer.IsPlaceholderArtist(input));
     }
+
+    [Theory]
+    [InlineData("Numb (Official Music Video) [4K UPGRADE] – Linkin Park", "Linkin Park", "Linkin Park", "Numb")]
+    [InlineData("Linkin Park - Numb", "Linkin Park", "Linkin Park", "Numb")]
+    [InlineData("Группа крови – Кино", "Кино", "Кино", "Группа крови")]
+    [InlineData("Кино - Группа крови", "Кино", "Кино", "Группа крови")]
+    [InlineData("Eminem - Role Model", "EminemMusic", "Eminem", "Role Model")]
+    [InlineData("MONA — Иордан (Official Music Video)", "RAAVA MUSIC", "MONA", "Иордан")]
+    [InlineData("Daft Punk - Get Lucky", "Unknown", "Daft Punk", "Get Lucky")]
+    public void SplitWithKnownArtist_resolves_order(string raw, string known, string expectedArtist, string expectedTitle)
+    {
+        var result = TrackNormalizer.SplitWithKnownArtist(raw, known);
+        Assert.NotNull(result);
+        Assert.Equal(expectedArtist, result.Value.Artist);
+        Assert.Equal(expectedTitle, result.Value.Title);
+    }
+
+    [Theory]
+    [InlineData("Ё", "е")] // Cyrillic yo folds to ye
+    [InlineData("ё", "е")]
+    [InlineData("Eminem", "eminem")]
+    [InlineData("Мот", "мот")]
+    public void SearchKey_folds_cyrillic_and_latin(string input, string expected)
+    {
+        Assert.Equal(expected, TrackNormalizer.SearchKey(input));
+    }
+
+    [Fact]
+    public void ResolveArtistTitle_prefixed_audio_variant_matches_clean_twin()
+    {
+        var a = TrackNormalizer.ResolveArtistTitle("Tame Impala - The Less I Know The Better (Audio)", "Tame Impala");
+        var b = TrackNormalizer.ResolveArtistTitle("The Less I Know The Better", "Tame Impala");
+        Assert.Equal(TrackNormalizer.IdentityKey(b.Title, b.Artist), TrackNormalizer.IdentityKey(a.Title, a.Artist));
+    }
 }

@@ -1,0 +1,379 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:pvm="using:NullWave.ViewModels.Settings"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:attached="using:NullWave.Helpers.Attached"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             xmlns:sys="using:System"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             x:Class="NullWave.Views.Settings.IntegrationsTab"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Resources>
+        <converters:BoolToDoubleConverter x:Key="BoolToDouble"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.plugin-tag">
+            <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="Margin" Value="0,0,6,4"/>
+        </Style>
+        <Style Selector="Border.plugin-tag TextBlock">
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeXs}"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer Padding="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="12" MaxWidth="900">
+
+            <!-- Header: Tabs + Search -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <Button Classes="chip"
+                            Content="{loc:Loc Settings_Plugins_Installed}"
+                            Command="{Binding Hub.SetTabCommand}"
+                            CommandParameter="Installed">
+                        <attached:PseudoClass.Active>
+                            <Binding Path="Hub.IsInstalledTab"/>
+                        </attached:PseudoClass.Active>
+                    </Button>
+                    <Button Classes="chip"
+                            Content="{loc:Loc Settings_Plugins_Store}"
+                            Command="{Binding Hub.SetTabCommand}"
+                            CommandParameter="Store">
+                        <attached:PseudoClass.Active>
+                            <Binding Path="Hub.IsStoreTab"/>
+                        </attached:PseudoClass.Active>
+                    </Button>
+                </StackPanel>
+                <TextBox Grid.Column="1"
+                         Text="{Binding Hub.Search, Mode=TwoWay}"
+                         PlaceholderText="{loc:Loc Settings_Plugins_Search}"
+                         VerticalAlignment="Center">
+                    <TextBox.InnerLeftContent>
+                        <material:MaterialIcon Kind="Magnify"
+                                               Width="16" Height="16"
+                                               Margin="10,0,0,0"
+                                               Foreground="{StaticResource BrushTextMuted}"/>
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+            </Grid>
+
+            <!-- Category chips -->
+            <ItemsControl ItemsSource="{Binding Hub.Categories}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pvm:CategoryChipViewModel">
+                        <Button Classes="chip"
+                                Margin="0,0,6,6"
+                                Content="{Binding Label}"
+                                attached:PseudoClass.Active="{Binding IsSelected}"
+                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).Hub.SetCategoryCommand}"
+                                CommandParameter="{Binding Key}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Store preview banner -->
+            <Border Classes="settings-banner"
+                    Margin="0"
+                    IsVisible="{Binding Hub.IsStoreTab}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <material:MaterialIcon Kind="InformationOutline"
+                                           Width="16" Height="16"
+                                           Foreground="{StaticResource BrushAccent}"
+                                           VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Loc Settings_Plugins_StorePreview}"
+                               Foreground="{StaticResource BrushTextSecondary}"
+                               FontSize="{DynamicResource FontSizeXs}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- INSTALLED plugins -->
+            <Border Opacity="{Binding Hub.IsInstalledTab, Converter={StaticResource BoolToDouble}, ConverterParameter='0,1'}">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+                    </Transitions>
+                </Border.Transitions>
+                <ItemsControl ItemsSource="{Binding Hub.VisibleInstalled}"
+                              IsVisible="{Binding Hub.IsInstalledTab}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pvm:PluginRowViewModel">
+                        <Border Classes="settings-card" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                <!-- Icon -->
+                                <Border Grid.Column="0"
+                                        Width="40" Height="40"
+                                        CornerRadius="{StaticResource RadiusLg}"
+                                        Background="{StaticResource BrushElevated}"
+                                        VerticalAlignment="Top">
+                                    <material:MaterialIcon Kind="{Binding PrimaryIcon}"
+                                                           Width="20" Height="20"
+                                                           Foreground="{StaticResource BrushAccent}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Content -->
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{DynamicResource FontSizeBodyLarge}"
+                                                   Foreground="{StaticResource BrushTextPrimary}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Author, StringFormat='by {0}'}"
+                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                   FontSize="{DynamicResource FontSizeSm}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Classes="plugin-tag" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding VersionLabel}"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding Description}"
+                                               TextWrapping="Wrap"
+                                               FontSize="{DynamicResource FontSizeSm}"
+                                               Foreground="{StaticResource BrushTextMuted}"/>
+
+                                    <ItemsControl ItemsSource="{Binding KindTags}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:String">
+                                                <Border Classes="plugin-tag">
+                                                    <TextBlock Text="{Binding}"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                        <Ellipse Width="8" Height="8"
+                                                 Fill="{Binding StatusDotBrush}"
+                                                 VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="{DynamicResource FontSizeXs}"
+                                                   Foreground="{StaticResource BrushTextSecondary}"/>
+                                        <Button Classes="ghost"
+                                                Content="{loc:Loc Settings_Plugins_SetUp}"
+                                                Padding="8,2"
+                                                FontSize="{DynamicResource FontSizeXs}"
+                                                IsVisible="{Binding SetupPage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).NavigateSettingsCommand}"
+                                                CommandParameter="{Binding SetupPage}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Toggle -->
+                                <ToggleSwitch Grid.Column="2"
+                                              VerticalAlignment="Top"
+                                              IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                              IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                                              Click="OnPluginToggleClick"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- STORE plugins -->
+            <Border Opacity="{Binding Hub.IsStoreTab, Converter={StaticResource BoolToDouble}, ConverterParameter='0,1'}">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+                    </Transitions>
+                </Border.Transitions>
+                <ItemsControl ItemsSource="{Binding Hub.VisibleStore}"
+                              IsVisible="{Binding Hub.IsStoreTab}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pvm:StoreEntryViewModel">
+                        <Border Classes="settings-card" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                <!-- Icon -->
+                                <Border Grid.Column="0"
+                                        Width="40" Height="40"
+                                        CornerRadius="{StaticResource RadiusLg}"
+                                        Background="{StaticResource BrushElevated}"
+                                        VerticalAlignment="Top">
+                                    <material:MaterialIcon Kind="{Binding PrimaryIcon}"
+                                                           Width="20" Height="20"
+                                                           Foreground="{StaticResource BrushTextSecondary}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Content -->
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{DynamicResource FontSizeBodyLarge}"
+                                                   Foreground="{StaticResource BrushTextPrimary}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Author, StringFormat='by {0}'}"
+                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                   FontSize="{DynamicResource FontSizeSm}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Classes="plugin-tag" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding VersionLabel}"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding Description}"
+                                               TextWrapping="Wrap"
+                                               FontSize="{DynamicResource FontSizeSm}"
+                                               Foreground="{StaticResource BrushTextMuted}"/>
+
+                                    <ItemsControl ItemsSource="{Binding KindTags}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:String">
+                                                <Border Classes="plugin-tag">
+                                                    <TextBlock Text="{Binding}"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Action button -->
+                                <Button Grid.Column="2"
+                                        Classes="secondary"
+                                        VerticalAlignment="Top"
+                                        Content="{Binding ActionLabel}"
+                                        IsEnabled="{Binding CanInstall}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- Empty state -->
+            <TextBlock Text="{loc:Loc Settings_Plugins_NoResults}"
+                       HorizontalAlignment="Center"
+                       Margin="0,24"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       FontSize="{DynamicResource FontSizeSm}"
+                       IsVisible="{Binding Hub.HasNoResults}"/>
+
+            <!-- PROVIDER ROUTING (only for kinds with >1 provider) -->
+            <StackPanel Spacing="8" IsVisible="{Binding Sources.HasRoutableGroups}" Margin="0,16,0,0">
+                <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,8"/>
+                <TextBlock Text="{loc:Loc Settings_Integrations_ProviderRouting}"
+                           FontSize="{DynamicResource FontSizeLg}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           Margin="0,8,0,4"/>
+                <TextBlock Text="{loc:Loc Settings_Integrations_ProviderRouting_Desc}"
+                           Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{DynamicResource FontSizeSm}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,16"/>
+
+                <ItemsControl ItemsSource="{Binding Sources.RoutableGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="pvm:SourceKindGroupViewModel">
+                            <Border Classes="settings-card" Margin="0,0,0,12">
+                                <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontSize="{DynamicResource FontSizeBodyLarge}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource BrushTextPrimary}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Background="{StaticResource BrushAccentDim}"
+                                                CornerRadius="{StaticResource RadiusFull}"
+                                                Padding="6,2"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding !IsSingleActive}">
+                                            <TextBlock Text="{loc:Loc Settings_Integrations_Multi}"
+                                                       FontSize="{DynamicResource FontSizeXs}"
+                                                       Foreground="{StaticResource BrushAccent}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="{StaticResource BrushTextMuted}"
+                                               FontSize="{DynamicResource FontSizeXs}"
+                                               TextWrapping="Wrap"/>
+
+                                    <ComboBox ItemsSource="{Binding Providers}"
+                                              SelectedItem="{Binding SelectedProvider}"
+                                              IsVisible="{Binding IsSingleActive}"
+                                              HorizontalAlignment="Stretch"
+                                              MinHeight="36">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="pvm:SourceRowViewModel">
+                                                <Grid ColumnDefinitions="*,Auto" Margin="4,2">
+                                                    <StackPanel Grid.Column="0" Spacing="1">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="Medium"
+                                                                   FontSize="{DynamicResource FontSizeSm}"/>
+                                                        <TextBlock Text="{Binding StatusLabel}"
+                                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                                   FontSize="{DynamicResource FontSizeXs}"/>
+                                                    </StackPanel>
+                                                    <material:MaterialIcon Grid.Column="1"
+                                                                           Kind="CheckCircle"
+                                                                           Width="16" Height="16"
+                                                                           Foreground="{StaticResource BrushGreen}"
+                                                                           IsVisible="{Binding IsActive}"
+                                                                           VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <ItemsControl ItemsSource="{Binding Providers}"
+                                                  IsVisible="{Binding !IsSingleActive}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="pvm:SourceRowViewModel">
+                                                <Border Padding="8,6"
+                                                        Margin="0,2"
+                                                        CornerRadius="{StaticResource RadiusSm}"
+                                                        Background="{StaticResource BrushElevated}">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <CheckBox Grid.Column="0"
+                                                                  IsChecked="{Binding IsActive}"
+                                                                  VerticalAlignment="Center"
+                                                                  Margin="0,0,8,0"/>
+                                                        <StackPanel Grid.Column="1"
+                                                                    Spacing="1"
+                                                                    VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="{DynamicResource FontSizeSm}"
+                                                                       FontWeight="Medium"/>
+                                                            <TextBlock Text="{Binding StatusLabel}"
+                                                                       Foreground="{StaticResource BrushTextMuted}"
+                                                                       FontSize="{DynamicResource FontSizeXs}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <Border Classes="BottomSpacer"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

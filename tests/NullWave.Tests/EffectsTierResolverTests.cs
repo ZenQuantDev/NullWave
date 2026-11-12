@@ -143,4 +143,25 @@ public class EffectsTierResolverTests
 
         Assert.Equal(1, posted);
     }
+    [Fact]
+    public void Auto_tier_is_Standard_with_a_modern_igpu()
+    {
+        using var prefs = NewPrefs();
+        var info = new HardwareInfo { HasModernGpu = true };
+        var resolver = new EffectsTierResolver(prefs, () => info, post: a => a());
+
+        Assert.Equal(EffectsTier.Standard, resolver.Current);
+    }
+
+    [Theory]
+    [InlineData("Intel(R) UHD Graphics 620", true)]
+    [InlineData("Intel(R) Iris(R) Xe Graphics", true)]
+    [InlineData("AMD Radeon(TM) Graphics", true)]
+    [InlineData("Intel(R) HD Graphics 620", true)]
+    [InlineData("Intel(R) HD Graphics", false)]
+    [InlineData("Microsoft Basic Render Driver", false)]
+    public void IsModernGpuName_identifies_correct_gpus(string name, bool expected)
+    {
+        Assert.Equal(expected, HardwareDetector.IsModernGpuName(name));
+    }
 }

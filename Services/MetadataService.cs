@@ -19,6 +19,13 @@ public class MetadataService
     private readonly LocalMetadataFetcher _local;
     private readonly LastFmService _lastFm;
     private readonly UrlParserService _urlParser = new();
+    private readonly YtDlpMetadataFetcher _ytDlpFallback = new("YouTube");
+    
+    // NEW: Generic fetchers for yt-dlp-supported sources
+    private readonly YtDlpMetadataFetcher _bandcamp;
+    private readonly YtDlpMetadataFetcher _audiomack;
+    private readonly YtDlpMetadataFetcher _archiveOrg;
+    private readonly YtDlpMetadataFetcher _mixcloud;
 
     public MetadataService(ConfigService config, LastFmService lastFm)
     {
@@ -26,6 +33,12 @@ public class MetadataService
         _soundCloud = new SoundCloudMetadataFetcher();
         _local      = new LocalMetadataFetcher();
         _lastFm     = lastFm;
+        
+        // NEW: Initialize generic fetchers
+        _bandcamp   = new YtDlpMetadataFetcher("Bandcamp");
+        _audiomack  = new YtDlpMetadataFetcher("Audiomack");
+        _archiveOrg = new YtDlpMetadataFetcher("Archive.org");
+        _mixcloud   = new YtDlpMetadataFetcher("Mixcloud");
     }
 
     public async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchFromUrlAsync(string url)
@@ -33,12 +46,40 @@ public class MetadataService
         var source = SourceDetector.Detect(url);
         return source switch
         {
-            TrackSource.YouTube    => await _youTube.FetchAsync(url),
+            TrackSource.YouTube    => await FetchYouTubeWithFallbackAsync(url),
             TrackSource.SoundCloud => await _soundCloud.FetchAsync(url),
             TrackSource.Spotify    => await FetchSpotifyMetadataAsync(url),
             TrackSource.LastFm     => await FetchLastFmUrlAsync(url),
+            // NEW: Route to generic yt-dlp fetcher
+            TrackSource.Bandcamp   => await _bandcamp.FetchAsync(url),
+            TrackSource.Audiomack  => await _audiomack.FetchAsync(url),
+            TrackSource.ArchiveOrg => await _archiveOrg.FetchAsync(url),
+            TrackSource.Mixcloud   => await _mixcloud.FetchAsync(url),
             _                      => ("Unknown Title", "Unknown Artist", null, TimeSpan.Zero)
         };
+    }
+
+    private async Task<(string Title, string Artist, string? ThumbnailPath, TimeSpan Duration)> FetchYouTubeWithFallbackAsync(string url)
+    {
+        try 
+        {
+            var result = await _youTube.FetchAsync(url);
+            // If the API returns placeholders or fails, use our yt-dlp fallback
+            if (result.Title == "Unknown Title" || string.IsNullOrWhiteSpace(result.Title))
+            {
+                Log.Information("[MetadataService] YouTube API returned no data, falling back to yt-dlp for {Url}", url);
+                var fb = await _ytDlpFallback.FetchAsync(url);
+                // Keep the API's thumbnail if yt-dlp didn't find one
+                return (fb.Title, fb.Artist, fb.ThumbnailPath ?? result.ThumbnailPath, fb.Duration);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // FIX: Removed reference to out-of-scope 'result' variable
+            Log.Warning(ex, "[MetadataService] YouTube API threw, falling back to yt-dlp for {Url}", url);
+            return await _ytDlpFallback.FetchAsync(url);
+        }
     }
 
     public (string? Album, int TrackNumber) FetchAlbumAndTrackNumber(string filePath)
@@ -48,7 +89,61 @@ public class MetadataService
         => _local.DetectMediaType(filePath);
 
     public (string Title, string Artist, TimeSpan Duration) FetchFromLocalFile(string filePath)
-        => _local.Fetch(filePath);
+    {
+        TagLib.File? file = null;
+        
+        // Retry loop to handle file locks from yt-dlp or LibVLC
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                file = TagLib.File.Create(filePath);
+                break; // Success, exit loop
+            }
+            catch (IOException) when (attempt < 2)
+            {
+                // File is locked by another process, wait a bit and try again
+                System.Threading.Thread.Sleep(200 * (attempt + 1)); 
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "TagLib failed for {Path}, falling back to filename", filePath);
+                return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+            }
+        }
+
+        if (file == null)
+        {
+            Log.Debug("TagLib file locked or unreadable after retries, falling back to filename: {Path}", filePath);
+            return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+        }
+
+        try
+        {
+            using (file) // Ensure proper disposal
+            {
+                var title = file.Tag.Title;
+                var artist = file.Tag.FirstPerformer
+                             ?? (file.Tag.Performers.Length > 0
+                                 ? string.Join(", ", file.Tag.Performers)
+                                 : null);
+                var duration = file.Properties.Duration;
+
+                if (string.IsNullOrWhiteSpace(title))
+                    title = Path.GetFileNameWithoutExtension(filePath);
+                if (string.IsNullOrWhiteSpace(artist))
+                    artist = "Unknown";
+
+                Log.Information("Local file tags read: {Title} by {Artist}", title, artist);
+                return (title, artist, duration);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "TagLib read failed for {Path}, falling back to filename", filePath);
+            return (Path.GetFileNameWithoutExtension(filePath), "Unknown", TimeSpan.Zero);
+        }
+    }
 
     private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
 
@@ -90,7 +185,6 @@ public class MetadataService
         return (title, artist, null, TimeSpan.Zero);
     }
 
-    // FIX: Made async and wrapped in Task.Run to prevent blocking the UI thread during startup
     public async Task<string?> ExtractAlbumArtAsync(string filePath)
     {
         try

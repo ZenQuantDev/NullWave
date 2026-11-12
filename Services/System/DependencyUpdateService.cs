@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -19,24 +21,34 @@ public class DependencyInfo
     public bool IsInstalled { get; init; }
 }
 
+public sealed record PackageInstallExecution(bool Approved, ProcessResult? ProcessResult);
+
 public class DependencyUpdateService
 {
-    // Asking a tool for its version should take a moment. Installing or updating one can take minutes.
     private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromMinutes(2);
 
-    private readonly HttpClient _http;
+    // 0x8A15002B (APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE) as a signed int.
+    // This is what winget returns when it manages a package but there is no newer version.
+    private const int WingetNoUpdateExitCode = unchecked((int)0x8A15002B);
 
-    public DependencyUpdateService()
+    private readonly HttpClient _http;
+    private readonly Func<string, IList<string>, TimeSpan, Task<ProcessResult>> _packageProcessRunner;
+
+    public const string InstallCancelledStatus = "Install cancelled by user";
+
+    public DependencyUpdateService(
+        Func<string, IList<string>, TimeSpan, Task<ProcessResult>>? packageProcessRunner = null)
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         _http.DefaultRequestHeaders.Add("User-Agent", "NullWave-DepChecker");
+        _packageProcessRunner = packageProcessRunner
+            ?? ((executable, arguments, timeout) => ProcessRunner.RunAsync(executable, arguments, timeout: timeout));
     }
 
     // ===== YT-DLP =====
     public async Task<DependencyInfo> GetYtDlpInfoAsync()
     {
-        // Shared with the startup diagnostics and the yt-dlp plugin: one lookup per run.
         var installed = await ToolVersionProbe.GetVersionAsync("yt-dlp");
         if (string.IsNullOrWhiteSpace(installed))
             return new DependencyInfo { Name = "yt-dlp", IsInstalled = false };
@@ -68,7 +80,6 @@ public class DependencyUpdateService
         }
         finally
         {
-            // Whatever happened, the installed version may have changed: forget the cached answer.
             ToolVersionProbe.Invalidate("yt-dlp");
         }
     }
@@ -76,34 +87,20 @@ public class DependencyUpdateService
     private static async Task<string> UpdateYtDlpCoreAsync()
     {
         // 1. ALWAYS try yt-dlp's native self-updater first.
-        // This works for standalone .exe, pip, and most package managers.
         var selfUpdate = await RunCommandAsync("yt-dlp", "-U");
         if (selfUpdate != null)
         {
+            if (selfUpdate.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Information("[DependencyUpdate] yt-dlp is already up to date");
+                return "Already up to date";
+            }
             Log.Information("[DependencyUpdate] yt-dlp updated successfully via native self-updater (-U)");
             return "Update completed via yt-dlp";
         }
 
-        // 2. Fallback for Windows: try winget (only works if originally installed via winget)
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            Log.Information("[DependencyUpdate] Native update failed, attempting winget fallback...");
-            var wingetUpdate = await RunCommandAsync("winget", "upgrade", "yt-dlp.yt-dlp", "--accept-source-agreements", "--accept-package-agreements");
-            if (wingetUpdate != null)
-            {
-                Log.Information("[DependencyUpdate] yt-dlp updated successfully via winget");
-                return "Update completed via winget";
-            }
-        }
-
-        // 3. Fallback for Linux: try pip
-        var pipUpdate = await RunCommandAsync("pip", "install", "--upgrade", "yt-dlp");
-        if (pipUpdate != null)
-        {
-            Log.Information("[DependencyUpdate] yt-dlp updated successfully via pip");
-            return "Update completed via pip";
-        }
-
+        // 2. Fallbacks disabled: silent winget/pip updates bypass the S7 consent gate.
+        // Users must update yt-dlp manually or via their OS package manager.
         return "Update failed: Ensure yt-dlp is installed correctly.";
     }
 
@@ -112,8 +109,6 @@ public class DependencyUpdateService
     {
         if (OperatingSystem.IsWindows())
         {
-            // NEVER run "vlc --version" on Windows: VLC opens its own console window, shows
-            // "Press RETURN to continue..." and waits. Read the version from vlc.exe instead.
             var found = FindWindowsVlcVersion();
             if (found != null)
             {
@@ -127,7 +122,6 @@ public class DependencyUpdateService
                 };
             }
 
-            // Bundled LibVLC ships no vlc.exe; VlcLocator already validated its DLLs, plugins and CPU arch.
             var resolution = VlcLocator.Current;
             if (resolution.Chosen != null)
             {
@@ -144,7 +138,6 @@ public class DependencyUpdateService
             return new DependencyInfo { Name = "VLC", IsInstalled = false };
         }
 
-        // Linux / macOS: the command line is safe and is how VLC is normally found.
         var installed = await ToolVersionProbe.GetVersionAsync("vlc");
         if (!string.IsNullOrWhiteSpace(installed))
         {
@@ -188,20 +181,53 @@ public class DependencyUpdateService
         return null;
     }
 
-    public async Task<string> InstallVlcAsync()
+    public async Task<string> InstallVlcAsync(Func<string, Task<bool>> requestConsent)
     {
         if (!OperatingSystem.IsWindows())
             return "Install via your package manager (dnf/apt)";
 
-        Log.Information("[DependencyUpdate] Attempting VLC install via winget...");
-        var ok = await RunCommandAsync("winget", "install", "--id", "VideoLAN.VLC", "-e", "--accept-source-agreements", "--accept-package-agreements");
-        if (ok != null)
+        var result = await RunPackageInstallAsync(
+            "winget",
+            new List<string>
+            {
+                "install", "--id", "VideoLAN.VLC", "-e",
+                "--accept-source-agreements", "--accept-package-agreements"
+            },
+            requestConsent);
+        if (!result.Approved)
+            return InstallCancelledStatus;
+
+        var process = result.ProcessResult
+            ?? throw new InvalidOperationException("An approved package install must have a process result.");
+        if (process.ExitCode == 0 && !process.TimedOut && !process.Canceled)
         {
             Log.Information("[DependencyUpdate] VLC installed via winget");
-            VlcLocator.Invalidate();   // next ResolveVlcDirectory() sees the fresh install
+            VlcLocator.Invalidate();
             return "VLC installed via winget";
         }
+
+        Log.Warning(
+            "[DependencyUpdate] winget install failed with exit code {ExitCode}; timed out: {TimedOut}; canceled: {Canceled}",
+            process.ExitCode, process.TimedOut, process.Canceled);
         return "winget install failed - install VLC manually";
+    }
+
+    public async Task<PackageInstallExecution> RunPackageInstallAsync(
+        string executable,
+        IList<string> arguments,
+        Func<string, Task<bool>> requestConsent)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executable);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(requestConsent);
+
+        var command = FormatCommand(executable, arguments);
+        if (!await requestConsent(command))
+            return new PackageInstallExecution(false, null);
+
+        Log.Information("[DependencyUpdate] Running approved package install: {Command}", command);
+        var result = await _packageProcessRunner(executable, arguments, ActionTimeout);
+        return new PackageInstallExecution(true, result);
     }
 
     // ===== FFMPEG & .NET =====
@@ -224,8 +250,6 @@ public class DependencyUpdateService
 
     public Task<DependencyInfo> GetDotNetInfoAsync()
     {
-        // NullWave ships with its own .NET runtime, so there is nothing to install. Report the one
-        // that is running instead of looking for a "dotnet" command that most users do not have.
         return Task.FromResult(new DependencyInfo
         {
             Name = ".NET",
@@ -238,20 +262,29 @@ public class DependencyUpdateService
 
     // ===== HELPERS =====
 
-    /// <summary>For "what version is this?" questions: short timeout.</summary>
     private static Task<string?> RunQueryAsync(string cmd, params string[] args)
         => RunWithTimeoutAsync(QueryTimeout, cmd, args);
 
-    /// <summary>For installs and updates: long timeout.</summary>
     private static Task<string?> RunCommandAsync(string cmd, params string[] args)
         => RunWithTimeoutAsync(ActionTimeout, cmd, args);
+
+    private static string FormatCommand(string executable, IList<string> arguments)
+    {
+        static string FormatArgument(string argument)
+        {
+            if (argument.Length > 0 && argument.IndexOfAny(new[] { ' ', '\t', '"' }) < 0)
+                return argument;
+            return "\"" + argument.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+        }
+
+        return string.Join(" ", new[] { executable }.Concat(arguments).Select(FormatArgument));
+    }
 
     private static async Task<string?> RunWithTimeoutAsync(TimeSpan timeout, string cmd, string[] args)
     {
         try
         {
-            // FIX (P9): Route through ProcessRunner to prevent stderr deadlocks
-            // and enforce a timeout for hung tools and package managers.
             var result = await ProcessRunner.RunAsync(cmd, args, timeout: timeout);
 
             if (result.TimedOut)
@@ -270,6 +303,12 @@ public class DependencyUpdateService
                 if (combined.Contains("up to date", StringComparison.OrdinalIgnoreCase))
                     return combined;
             }
+            
+            // winget exits with UPDATE_NOT_APPLICABLE when nothing newer exists: that's success.
+            // Any other non-zero code (like "no installed package found") is a real failure.
+            if (cmd == "winget" && args.Length > 0 && args[0] == "upgrade" 
+                && result.ExitCode == WingetNoUpdateExitCode)
+                return result.StandardOutput;
 
             if (!string.IsNullOrWhiteSpace(result.StandardError))
                 Log.Warning("[DependencyUpdate] {Cmd} exited {Code}: {Err}", cmd, result.ExitCode, result.StandardError.Trim());

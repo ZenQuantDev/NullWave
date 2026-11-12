@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NullWave.Models;
 using NullWave.Services;
@@ -28,6 +29,9 @@ public partial class TrackListView : DockPanel
         // Wire up container realization counter for DevTools
         TrackList.ContainerPrepared -= OnContainerPrepared;
         TrackList.ContainerPrepared += OnContainerPrepared;
+
+        TrackList.Opacity = 0;
+        Dispatcher.UIThread.Post(() => TrackList.Opacity = 1, DispatcherPriority.Loaded);
     }
 
     private void OnContainerPrepared(object? sender, ContainerPreparedEventArgs e)

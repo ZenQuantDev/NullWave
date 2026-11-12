@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -85,6 +86,29 @@ public class HardwareDetector
         return 4; 
     }
 
+    internal static bool IsModernGpuName(string n) =>
+    !n.Contains("Basic Render", StringComparison.OrdinalIgnoreCase) &&
+    !n.Contains("Basic Display", StringComparison.OrdinalIgnoreCase) &&
+    (new[] { "Iris", "UHD", " Xe", "Arc", "Radeon", "Vega", "GeForce", "RTX", "GTX", "Quadro", "Adreno" }
+         .Any(k => n.Contains(k, StringComparison.OrdinalIgnoreCase))
+     || System.Text.RegularExpressions.Regex.IsMatch(n, @"HD Graphics\s+[56]\d\d"));
+
+    private static void DetectLinuxGpuVendors(HardwareInfo info)
+    {
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories("/sys/class/drm", "card?"))
+            {
+                var f = Path.Combine(dir, "device", "vendor");
+                if (!File.Exists(f)) continue;
+                var v = File.ReadAllText(f).Trim().ToLowerInvariant();
+                if (v is "0x10de" or "0x1002" or "0x8086") 
+                    info.HasModernGpu = true;
+            }
+        }
+        catch { }
+    }
+
     private async Task GetGpuInfoAsync(HardwareInfo info, CancellationToken ct)
     {
         // 1. Try NVIDIA
@@ -102,7 +126,7 @@ public class HardwareDetector
                 {
                     info.GpuType = parts[0].Trim();
                     info.HasNvidia = true;
-                    if (long.TryParse(parts[1].Trim(), out long mb))
+                    if (long.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long mb))
                         info.GpuVramGB = (long)Math.Round((double)mb / 1024.0);
                     return;
                 }
@@ -151,8 +175,15 @@ public class HardwareDetector
                         {
                             var name = parts[0];
                             if (string.IsNullOrWhiteSpace(name)) continue;
+
+                            if (info.GpuName == "Unknown")
+                                info.GpuName = name;
+
+                            // Check if this is a modern GPU (Intel UHD/Iris, AMD Vega, etc.)
+                            if (IsModernGpuName(name))
+                                info.HasModernGpu = true;
                             
-                            // FIX: Require discrete GPU signal to avoid integrated APUs
+                            // FIX: Require discrete GPU signal to avoid integrated APUs for AI
                             bool isDiscreteAmd = name.Contains("Radeon RX", StringComparison.OrdinalIgnoreCase) || 
                                                  name.Contains("Radeon Pro", StringComparison.OrdinalIgnoreCase);
                             bool isDiscreteIntel = name.Contains("Arc", StringComparison.OrdinalIgnoreCase);
@@ -167,7 +198,7 @@ public class HardwareDetector
                                 if (isDiscreteAmd) info.HasAmd = true;
                                 if (isDiscreteNvidia) info.HasNvidia = true;
                                     
-                                if (long.TryParse(parts[1], out long vramBytes) && vramBytes >= 1073741824)
+                                if (long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long vramBytes) && vramBytes >= 1073741824)
                                 {
                                     info.GpuVramGB = Math.Max(4, (long)Math.Round((double)vramBytes / 1024.0 / 1024.0 / 1024.0));
                                 }
@@ -182,6 +213,12 @@ public class HardwareDetector
                 }
             }
             catch (Exception ex) { Log.Warning(ex, "[HardwareDetector] Windows GPU detection failed"); }
+        }
+
+        // 4. Linux: detect modern GPU vendors from /sys/class/drm
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            DetectLinuxGpuVendors(info);
         }
     }
 

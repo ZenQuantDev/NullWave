@@ -11,7 +11,7 @@
         <StackPanel Spacing="0">
 
             <!-- UI & WINDOW SANDBOX -->
-            <TextBlock Classes="section-label" Text="UI &amp; WINDOW SANDBOX" Margin="0,0,0,12"/>
+            <TextBlock Classes="section-label" Text="UI &amp; WINDOW SANDBOX" Margin="{StaticResource MarginSectionLabel}"/>
             <Border Classes="settings-card">
                 <StackPanel Spacing="12">
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
@@ -112,7 +112,7 @@
                         <Button Classes="secondary" Content="Run System Probe" Command="{Binding DevRunProbeCommand}" Margin="0,0,8,8"/>
                     </WrapPanel>
                     <Border Background="{StaticResource BrushSurface}" CornerRadius="{StaticResource RadiusMd}" Padding="10,8">
-                        <TextBlock Text="{Binding DevProbeResult}" FontFamily="Consolas, monospace" FontSize="11"
+                        <TextBlock Text="{Binding DevProbeResult}" FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeXs}"
                                    Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"/>
                     </Border>
                 </StackPanel>

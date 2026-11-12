@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using NullWave.Plugins.Contracts;
 using Avalonia.Threading;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
@@ -17,6 +19,7 @@ using NullWave.Services.Integration;
 using NullWave.Services.Plugins;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
+using NullWave.Services.Radio;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -25,7 +28,7 @@ namespace NullWave.ViewModels;
 public partial class MainViewModel : ViewModelBase, IDisposable
 {
     // --- Fields & Services ---
-    private readonly KeyStoreService _keyStore = new();
+    private readonly KeyStoreService _keyStore = new(Path.Combine(NullWavePaths.DataDir, "keys.enc"));
     private SecureDeleteService _secureDelete = null!;
     private ConfigService _config = null!;
     private LibraryService _library = null!;
@@ -54,8 +57,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private LastFmAuthService? _pendingLastFmAuth;
     private readonly List<(LiveNotification Activity, int Total)> _playlistBatches = new();
     private bool _initialMoodPlaylistRun;
+    private bool _deferredInitializationStarted;
     private DispatcherTimer? _libRefreshTimer;
     private bool _isMaintenanceRunning;
+    private ProviderRegistry _providerRegistry = null!;
+    private RadioStreamHealer _radioHealer = null!;
+    public ProviderRegistry ProviderRegistry => _providerRegistry;
+    private PluginDiscovery? _discoveredPlugins;
 
     // --- UI State Properties ---
     private bool _isMenuBarVisible;
@@ -169,7 +177,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         CurrentPage == "Playlists" ? Playlist.ToggleSortDirectionCommand : ActiveLibraryVM.ToggleSortDirectionCommand;
 
     public EffectsTier CurrentEffectsTier => _effectsTier.Current;
-    public bool CanAnimateSeekWave => CurrentEffectsTier != EffectsTier.Minimal;
+    public bool CanAnimateSeekWave => true; // Always animate, but at different frame rates
+    public int WaveFrameIntervalMs => CurrentEffectsTier == EffectsTier.Minimal ? 66 : 33; // 15fps on Minimal, 30fps on Standard
 
     // --- Child ViewModels ---
     public TrackInputViewModel Input { get; private set; } = null!;
@@ -186,6 +195,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public UserProfileViewModel Profile { get; private set; } = null!;
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
+    public LibraryService LibraryService => _library;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
     public const double RightPanelWidth = 320;
@@ -217,7 +227,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // --- Constructor ---
     public MainViewModel()
     {
-        InitializeServices();
+        InitializeCriticalServices();
         StartupTimeline.Mark("Services built");
         InitializeChildViewModels();
         StartupTimeline.Mark("Child view models built");
@@ -227,14 +237,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         WireIntegrationEvents();
         WireAIAndPowerEvents();
         WirePlayerEvents();
-
         Nav.SetActivePage(CurrentPage);
         Library.RefreshArtistGroups();
         CurrentPage = "Library";
-
         StartupTimeline.Mark("ViewModel constructed");
-        _ = RunStartupDiagnosticsAsync();
-        Dispatcher.UIThread.Post(() => _ = _playbackService.WarmUpAsync(), DispatcherPriority.Background);
+    }
+
+    internal void OnFirstFrame()
+    {
+        if (_deferredInitializationStarted) return;
+        _deferredInitializationStarted = true;
+
+        _ = _playbackService.WarmUpAsync();
+        _ = Task.Run(RunStartupDiagnosticsAsync);
+        _ = InitializeDeferredServicesAsync();
     }
 
     /// <summary>
@@ -244,6 +260,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        _discoveredPlugins?.UnloadAll();
         _powerState?.Dispose();
         if (Player is IDisposable disposablePlayer)
             disposablePlayer.Dispose();
@@ -272,6 +289,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         };
 
         Player.UpdateSkipPenaltyCap(Settings.SkipPenaltyCap);
+        _playbackService.PlaybackFailed += OnRadioPlaybackFailed;
     }
 
     public void DisposePowerState() => _powerState.Dispose();
@@ -283,15 +301,60 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         catch (Exception ex) { Log.Warning(ex, "[MainViewModel] Failed to unload AI model on exit"); }
     }
 
+    public Task ShutdownPluginsAsync() => _plugins.ShutdownAllAsync();
+
+    private async Task InitializeDeferredServicesAsync()
+    {
+        var pluginLoadTask = Task.Run(() => _discoveredPlugins!.DiscoverAndLoadAsync(
+            manifest => new PluginHost(_prefsService, _keyStore, manifest),
+            CancellationToken.None,
+            manifest => PluginEnabledState.Resolve(_prefsService.Current, manifest.Id)));
+
+        try
+        {
+            await HardwareDetector.GetCachedInfoAsync();
+            StartupTimeline.Mark("Hardware detection complete");
+        }
+        catch (Exception ex)
+        {
+            NullActionLogger.Error(nameof(MainViewModel), ex, "Hardware detection failed");
+        }
+
+        try
+        {
+            var loadedPlugins = await pluginLoadTask;
+
+            foreach (var (manifest, plugin) in loadedPlugins)
+            {
+                _plugins.Register(plugin, manifest);
+
+                if (plugin is IRadioProvider radioPlugin)
+                {
+                    var adapter = new ExternalRadioProviderAdapter(radioPlugin, manifest);
+                    _providerRegistry.Register(adapter);
+                    Log.Information("[MainViewModel] Registered external radio provider: {Id}", manifest.Id);
+                }
+
+                Log.Information("[MainViewModel] Registered external plugin: {Name} v{Version}",
+                    manifest.Name, manifest.Version);
+            }
+
+            await _plugins.InitializeAllAsync();
+            StartupTimeline.Mark("Plugins initialized");
+            StartupTimeline.LogSummary();
+        }
+        catch (Exception ex)
+        {
+            NullActionLogger.Error(nameof(MainViewModel), ex, "Deferred plugin initialization failed");
+        }
+    }
+
     private async Task RunStartupDiagnosticsAsync()
     {
         try
         {
             var diag = new StartupDiagnosticsService(_keyStore, _library);
             await diag.RunAsync();
-            await _plugins.InitializeAllAsync();
-            StartupTimeline.Mark("Plugins initialized");
-            StartupTimeline.LogSummary();
         }
         catch (Exception ex) { NullActionLogger.Error(nameof(MainViewModel), ex, "Startup diagnostics failed"); }
     }

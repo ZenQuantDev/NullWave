@@ -32,6 +32,20 @@ OF THIS SOFTWARE.
 
 ## Third-Party Services
 
-NullWave interacts with third-party APIs (YouTube Data API, Spotify Web API, SoundCloud
-API). Use of these services is governed by their respective terms of service. The
+NullWave interacts with third-party APIs (YouTube Data API) and public web pages (Spotify, SoundCloud).
+Use of these services is governed by their respective terms of service. The
 author(s) of NullWave have no affiliation with these services.
+
+## Third-Party Plugins (Planned Feature)
+
+NullWave includes infrastructure for third-party plugins, but **plugin loading is not currently enabled**. When this feature becomes active:
+
+1. **Plugins are not developed or maintained by ZenQuant** unless explicitly marked as "Official" or "Verified"
+2. **You will install plugins at your own risk** - ZenQuant is not liable for damages, data loss, or security breaches caused by third-party plugins
+3. **Plugins will request specific permissions** (API keys, file system access, network requests) that you must approve
+4. **You are responsible for ensuring plugin licenses are compatible** with your intended use (commercial, educational, personal)
+5. **Malicious plugins will be removed** from the official registry when reported
+
+Until plugin support is active, the "Store" tab in Settings is a preview only and no external code is loaded.
+
+ZenQuant reserves the right to disable or remove any plugin that violates our terms of service, contains malware, or infringes on intellectual property rights.

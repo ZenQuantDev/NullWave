@@ -11,7 +11,7 @@ public class IntEqualsConverter : IValueConverter
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is int v && parameter is string s && int.TryParse(s, NumberStyles.Integer, culture, out var target))
+        if (value is int v && parameter is string s && int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var target))
             return v == target;
         return false;
     }

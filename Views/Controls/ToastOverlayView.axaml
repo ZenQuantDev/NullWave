@@ -95,11 +95,11 @@
                                         <Panel>
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding !IsExpanded}">
                                                 <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{loc:Loc Toast_ShowDetails}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Toast_ShowDetails}" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsExpanded}">
                                                 <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{loc:Loc Toast_HideDetails}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{loc:Loc Toast_HideDetails}" FontSize="{DynamicResource FontSizeXs}" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Panel>
                                     </Button>
@@ -107,7 +107,7 @@
                                             Background="{StaticResource BrushBase}" CornerRadius="6"
                                             BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                                         <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding DetailedMessage}" FontSize="11"
+                                            <TextBlock Text="{Binding DetailedMessage}" FontSize="{DynamicResource FontSizeXs}"
                                                        Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
                                         </ScrollViewer>
                                     </Border>

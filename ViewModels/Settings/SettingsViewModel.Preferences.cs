@@ -12,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Helpers;
@@ -26,6 +27,8 @@ using Serilog;
 using Serilog.Events;
 
 namespace NullWave.ViewModels;
+
+public sealed record TagWriteModeOption(TagWriteMode Value, string DisplayName);
 
 public partial class SettingsViewModel
 {
@@ -111,6 +114,58 @@ public partial class SettingsViewModel
 
             EffectsTierPreferencesChanged?.Invoke();
         }
+    }
+
+    public EffectsTier CurrentEffectsTier => EffectsTierResolver.Shared.Current;
+
+    public string EffectsTierLabel
+    {
+        get
+        {
+            var gpuName = HardwareDetector.CachedOrNull()?.GpuName ?? "Unknown";
+            return CurrentEffectsTier == NullWave.Models.EffectsTier.Minimal
+                ? $"Minimal (on battery or low-end hardware: {gpuName})"
+                : $"Standard ({gpuName})";
+        }
+    }
+
+    public bool CanForceStandardTier => CurrentEffectsTier == NullWave.Models.EffectsTier.Minimal;
+
+    [RelayCommand]
+    private void ForceStandardEffectsTier()
+    {
+        _prefsService.Update(p =>
+        {
+            p.AutoEffectsTier = false;
+            p.EffectsTier = "Standard";
+        });
+
+        OnPropertyChanged(nameof(AutoEffectsTier));
+        OnPropertyChanged(nameof(EffectsTier));
+        EffectsTierResolver.Shared.NotifyPreferencesChanged();
+        OnPropertyChanged(nameof(CurrentEffectsTier));
+        OnPropertyChanged(nameof(EffectsTierLabel));
+        OnPropertyChanged(nameof(CanForceStandardTier));
+        ToastService.Instance.Show("Effects tier set to Standard", ToastType.Success);
+    }
+
+    private void OnEffectsTierResolverPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(EffectsTierResolver.Current))
+            return;
+
+        void Notify()
+        {
+            OnPropertyChanged(nameof(CurrentEffectsTier));
+            OnPropertyChanged(nameof(EffectsTierLabel));
+            OnPropertyChanged(nameof(CanForceStandardTier));
+            
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            Notify();
+        else
+            Dispatcher.UIThread.Post(Notify);
     }
 
     public string ActivePresetId
@@ -336,11 +391,24 @@ public partial class SettingsViewModel
             _prefsService.Update(p => p.EnableExperimentalFeatures = value); 
             OnPropertyChanged(); 
             OnPropertyChanged(nameof(IsExperimentalModeActive)); 
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
         } 
+    }
+
+    public bool ForceAllFeatures
+    {
+        get => _prefsService.Current.ForceAllFeatures;
+        set
+        {
+            _prefsService.Update(p => p.ForceAllFeatures = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowAdvancedFeatures));
+        }
     }
 
     /// <summary>Returns true if Experimental Features OR Dev Mode is active.</summary>
     public bool IsExperimentalModeActive => EnableExperimentalFeatures || IsDevMode;
+    public bool ShowAdvancedFeatures => ForceAllFeatures || IsExperimentalModeActive;
 
 
     // Localized Formatters
@@ -349,5 +417,23 @@ public partial class SettingsViewModel
     public string CrossfadeDurationDisplay => $"{CrossfadeDurationSeconds} s";
     public string ScrobbleThresholdDisplay => string.Format(L("Settings_Dynamic_Scrobble_Threshold"), ScrobbleThreshold);
     public bool AIFeaturesControlsEnabled => AIFeaturesEnabled;
+
+    public IReadOnlyList<TagWriteModeOption> TagWriteModeOptions => new[]
+    {
+        new TagWriteModeOption(TagWriteMode.Never, L("Settings_Downloads_TagWriteMode_Never")),
+        new TagWriteModeOption(TagWriteMode.DownloadsOnly, L("Settings_Downloads_TagWriteMode_DownloadsOnly")),
+        new TagWriteModeOption(TagWriteMode.Always, L("Settings_Downloads_TagWriteMode_Always"))
+    };
+    
+    public TagWriteMode TagWriteMode
+    {
+        get => _prefsService.Current.TagWriteMode;
+        set
+        {
+            _prefsService.Update(p => p.TagWriteMode = value);
+            OnPropertyChanged();
+            Log.Information("[Settings] TagWriteMode changed to {Mode}", value);
+        }
+    }
     
 }

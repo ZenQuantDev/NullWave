@@ -143,12 +143,16 @@ public partial class LocalAIService
         response.EnsureSuccessStatusCode();
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new System.IO.StreamReader(stream);
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        while (!ct.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(ct);
+            if (line == null) break;
             if (string.IsNullOrWhiteSpace(line)) continue;
+            
             using var doc = JsonDocument.Parse(line);
-            if (doc.RootElement.TryGetProperty("total", out var t) && doc.RootElement.TryGetProperty("completed", out var c) && t.GetInt64() > 0)
+            if (doc.RootElement.TryGetProperty("total", out var t) && 
+                doc.RootElement.TryGetProperty("completed", out var c) && 
+                t.GetInt64() > 0)
                 progress?.Report((double)c.GetInt64() / t.GetInt64());
         }
         progress?.Report(1.0);

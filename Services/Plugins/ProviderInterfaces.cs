@@ -3,36 +3,27 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Models;
+using NullWave.Plugins.Contracts;
 
 namespace NullWave.Services.Plugins;
 
-public interface IPlugin
-{
-    string Name { get; }
-    string Description { get; }
-    PluginState State { get; set; }
-    bool IsEnabled { get; set; }
-    Task<bool> InitializeAsync(CancellationToken ct = default);
-    Task ShutdownAsync(CancellationToken ct = default);
-}
-
-public interface IDownloadProvider : IPlugin
+public interface IDownloadProvider : IProvider
 {
     bool SupportsUrl(string url);
     Task<DownloadResult> DownloadAsync(string url, DownloadOptions options, CancellationToken ct = default);
 }
 
-public interface IMetadataProvider : IPlugin
+public interface IMetadataProvider : IProvider
 {
     Task<TrackMetadata?> FetchMetadataAsync(string identifier, TrackSource source, CancellationToken ct = default);
 }
 
-public interface IAIProvider : IPlugin
+public interface IAIProvider : IProvider
 {
     Task<IEnumerable<Track>> RankTracksAsync(IEnumerable<Track> tracks, string context, CancellationToken ct = default);
 }
 
-public interface IWeatherProvider : IPlugin
+public interface IWeatherProvider : IProvider
 {
     Task<WeatherData?> GetCurrentWeatherAsync(double lat, double lon, CancellationToken ct = default);
 }
@@ -70,4 +61,21 @@ public class WeatherData
     public string Condition { get; set; } = string.Empty;
     public double TemperatureC { get; set; }
     public List<string> MoodTags { get; set; } = new();
+}
+
+/// <summary>
+/// Extension to build a PluginManifest from a built-in IPlugin/IProvider.
+/// Lives here (not in Contracts) because it references IProvider which is app-internal.
+/// </summary>
+public static class PluginManifestExtensions
+{
+    public static PluginManifest FromBuiltIn(IPlugin p) => new(
+        p is IProvider ip ? ip.Descriptor.Id : p.Name,
+        p.Name,
+        "NullWave",
+        "built-in",
+        p.Description,
+        p is IProvider q ? new[] { q.Descriptor.Kind } : Array.Empty<ProviderKind>(),
+        true,
+        PluginAvailability.Installed);
 }

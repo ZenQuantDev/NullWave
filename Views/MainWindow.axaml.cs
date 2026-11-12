@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
@@ -22,6 +24,7 @@ public partial class MainWindow : Window
     // never per mouse-move, so the logger adds no GC pressure of its own.
     private string _lastHoverDescription = "none";
     private object? _lastHoverKey;
+    private UiHangDetector? _hangDetector;
 
     public MainWindow()
     {
@@ -33,6 +36,7 @@ public partial class MainWindow : Window
         DataContext = vm;
         vm.Settings.HoverTaggingChanged += OnHoverTaggingChanged;
         vm.Settings.TogglePerfOverlayRequested += OnTogglePerfOverlayRequested;
+        vm.PropertyChanged += OnVmPropertyChanged;
 
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;
@@ -46,17 +50,75 @@ public partial class MainWindow : Window
         });
     }
 
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+        {
+            UpdatePageContent();
+        }
+    }
+
+    private readonly Dictionary<string, Control> _mainPages = new();
+
+    private void UpdatePageContent()
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        var pageKey = vm.CurrentPage;
+        
+        if (!_mainPages.TryGetValue(pageKey, out var page))
+        {
+            page = pageKey switch
+            {
+                "Library" => new Controls.TrackListView(),
+                "Radio" => new Controls.TrackListView(),
+                "Audiobooks" => new Controls.TrackListView(),
+                "Playlists" => new Controls.PlaylistsView(),
+                _ => null
+            };
+
+            if (page != null)
+            {
+                _mainPages[pageKey] = page;
+            }
+        }
+
+        if (page != null)
+        {
+            // Set DataContext based on page type
+            page.DataContext = pageKey switch
+            {
+                "Library" => vm.Library,
+                "Radio" => vm.RadioLibrary,
+                "Audiobooks" => vm.AudiobookLibrary,
+                "Playlists" => vm.Playlist,
+                _ => null
+            };
+
+            PageHost.Content = page;
+        }
+    }
+
     // async void is only acceptable for event handlers, and an exception escaping one ends the
     // process, so the whole body is guarded.
     private async void OnMainWindowOpened(object? sender, EventArgs e)
     {
         Opened -= OnMainWindowOpened;
         StartupTimeline.Mark("MainWindow opened");
-        Dispatcher.UIThread.Post(() => StartupTimeline.Mark("First frame"), DispatcherPriority.Background);
+        _hangDetector = new UiHangDetector();
+        Dispatcher.UIThread.Post(() =>
+        {
+            StartupTimeline.Mark("First frame");
+            if (DataContext is MainViewModel vm)
+                vm.OnFirstFrame();
+        }, DispatcherPriority.Background);
 
         try
         {
             if (DataContext is not MainViewModel vm) return;
+
+            // Initialize page content
+            UpdatePageContent();
 
             // FIX (kept): force the visual tree to re-evaluate CurrentPage bindings.
             var currentPage = vm.CurrentPage;
@@ -71,7 +133,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[MainWindow] Opened handler failed");
+            Log.Error(ex, "[MainWindow] Opened-handler failed");
         }
     }
 
@@ -114,8 +176,13 @@ public partial class MainWindow : Window
 
     private void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
     {
+        _hangDetector?.Dispose();
         try
         {
+            // Flush the file-operation journal so the last import/export isn't lost.
+            try { Services.FileOperationJournal.Instance.Flush(); }
+            catch (Exception ex) { Log.Warning(ex, "[MainWindow] Failed to flush file-op journal on exit"); }
+
             if (DataContext is MainViewModel vm)
             {
                 vm.Settings.StopHealthCheck();
@@ -129,6 +196,14 @@ public partial class MainWindow : Window
                         Log.Debug("[MainWindow] AI model unload sequence completed during shutdown.");
                 }
                 catch (Exception ex) { Log.Warning(ex, "[MainWindow] Failed to unload AI model on exit"); }
+
+                try
+                {
+                    var shutdown = vm.ShutdownPluginsAsync();
+                    if (!shutdown.Wait(TimeSpan.FromMilliseconds(700)))
+                        Log.Warning("[MainWindow] Plugin shutdown still in flight at exit.");
+                }
+                catch (Exception ex) { Log.Warning(ex, "[MainWindow] Plugin shutdown failed"); }
             }
         }
         catch (Exception ex) { Log.Warning(ex, "[MainWindow] Could not unload Ollama model on exit"); }

@@ -17,6 +17,7 @@ namespace NullWave.ViewModels;
 public class PlaylistViewModel : ViewModelBase
 {
     private readonly PlaylistService _playlists;
+    private readonly SmartPlaylistService _smartPlaylists;
     private Playlist? _selectedPlaylist;
     private string _renameText = string.Empty;
     private bool _isRenaming;
@@ -24,6 +25,52 @@ public class PlaylistViewModel : ViewModelBase
 
     public Func<Task<string?>>? RequestCreatePlaylistName;
     public Func<Task<string?>>? RequestCreateFolderName;
+
+    private bool _isSmartPlaylistActive;
+    public bool IsSmartPlaylistActive
+    {
+        get => _isSmartPlaylistActive;
+        set { _isSmartPlaylistActive = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasActivePlaylist)); }
+    }
+
+    private string? _currentSmartPlaylistId;
+    public string? CurrentSmartPlaylistId
+    {
+        get => _currentSmartPlaylistId;
+        set { _currentSmartPlaylistId = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmartPlaylistTitle)); }
+    }
+
+    public string SmartPlaylistTitle => CurrentSmartPlaylistId switch
+    {
+        "smart.recently-added"      => "Recently Added",
+        "smart.most-played"         => "Most Played",
+        "smart.forgotten-favorites" => "Forgotten Favorites",
+        _ => "Smart Playlist"
+    };
+
+    public async Task ImportM3uPlaylistAsync(M3uImportPreview preview, string playlistName)
+    {
+        var playlist = _playlists.Create(playlistName);
+        
+        foreach (var match in preview.Matches)
+        {
+            if (match.MatchedTrack != null)
+            {
+                _playlists.AddTrack(playlist.Id, match.MatchedTrack);
+            }
+        }
+        
+        Playlists.Add(playlist);
+        SelectedPlaylist = playlist;
+        PlaylistsChanged?.Invoke();
+        
+        ToastService.Instance.Show(
+            $"Imported {preview.MatchedCount} tracks to '{playlistName}'",
+            ToastType.Success,
+            scope: "import");
+    }
+
+    public bool HasActivePlaylist => SelectedPlaylist != null || IsSmartPlaylistActive;
 
     public string SearchQuery
     {
@@ -46,7 +93,6 @@ public class PlaylistViewModel : ViewModelBase
         set { _sortAscending = value; OnPropertyChanged(); RefreshFilteredTracks(); }
     }
 
-    /// <summary>Playlist sorts. "Custom" first because it is the default and enables drag reorder.</summary>
     public Array SortOptions => SortFieldCatalog.Playlist;
 
     public bool IsSortedByTitle => CurrentSort == SortField.Title;
@@ -55,9 +101,9 @@ public class PlaylistViewModel : ViewModelBase
     public bool IsSortedByDate => CurrentSort == SortField.DateAdded;
     public bool IsSortedByPlayCount => CurrentSort == SortField.PlayCount;
     public bool IsSortedByLastPlayed => CurrentSort == SortField.LastPlayed;
-
+    public bool IsSortedByLength => CurrentSort == SortField.Length;
     public bool IsSortedByCustom => CurrentSort == SortField.Custom;
-    public bool IsDragReorderEnabled => CurrentSort == SortField.Custom && string.IsNullOrEmpty(SearchQuery);
+    public bool IsDragReorderEnabled => CurrentSort == SortField.Custom && string.IsNullOrEmpty(SearchQuery) && !IsSmartPlaylistActive;
 
     public BulkObservableCollection<Track> FilteredTracks { get; } = new();
     public string ResultCountLabel
@@ -76,15 +122,10 @@ public class PlaylistViewModel : ViewModelBase
         get => _selectedTracks;
         set
         {
-            if (_selectedTracks != null)
-                _selectedTracks.CollectionChanged -= SelectedTracks_CollectionChanged;
-
+            if (_selectedTracks != null) _selectedTracks.CollectionChanged -= SelectedTracks_CollectionChanged;
             _selectedTracks = value;
             OnPropertyChanged();
-
-            if (_selectedTracks != null)
-                _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
-
+            if (_selectedTracks != null) _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
             OnPropertyChanged(nameof(HasMultiSelection));
             OnPropertyChanged(nameof(SelectionCountLabel));
         }
@@ -96,7 +137,6 @@ public class PlaylistViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectionCountLabel));
     }
 
-    // FIX: parity with library - bulk bar only from 2 selections up (CTRL/SHIFT)
     public bool HasMultiSelection => SelectedTracks?.Count > 1;
     public string SelectionCountLabel => $"{SelectedTracks?.Count ?? 0} selected";
 
@@ -116,6 +156,8 @@ public class PlaylistViewModel : ViewModelBase
     public ICommand SortByArtistCommand { get; }
     public ICommand SortBySourceCommand { get; }
     public ICommand SortByDateCommand { get; }
+    public ICommand SortByLengthCommand { get; }
+    public ICommand SortByPlayCountCommand { get; }
     public ICommand ToggleSortDirectionCommand { get; }
     public ICommand PlayAllCommand { get; }
     public ICommand BulkQueueCommand { get; }
@@ -161,14 +203,15 @@ public class PlaylistViewModel : ViewModelBase
             p.IsPinned = _nav.IsPlaylistPinned(p.Id);
     }
 
-    public PlaylistViewModel(PlaylistService playlists)
+    public PlaylistViewModel(PlaylistService playlists, SmartPlaylistService smartPlaylists)
     {
         _playlists = playlists;
+        _smartPlaylists = smartPlaylists;
         _selectedTracks.CollectionChanged += SelectedTracks_CollectionChanged;
 
         CreatePlaylistCommand = new SafeRelayCommand(async () => await CreatePlaylistAsync(), errorScope: "playlist");
-        CreateFolderCommand = new SafeRelayCommand(async () => await CreateFolderAsync(),errorScope: "folder");
-        RemovePlaylistCommand = new SafeRelayCommand(async () => await RemovePlaylistAsync_Safe(),errorScope: "playlist");
+        CreateFolderCommand = new SafeRelayCommand(async () => await CreateFolderAsync(), errorScope: "folder");
+        RemovePlaylistCommand = new SafeRelayCommand(async () => await RemovePlaylistAsync_Safe(), errorScope: "playlist");
 
         AddToPlaylistCommand = new RelayCommand<Track>(AddToPlaylist);
         RemoveFromPlaylistCommand = new RelayCommand<Track>(RemoveFromPlaylist);
@@ -185,18 +228,18 @@ public class PlaylistViewModel : ViewModelBase
         SortByArtistCommand = new RelayCommand(() => SetSort(SortField.Artist));
         SortBySourceCommand = new RelayCommand(() => SetSort(SortField.Source));
         SortByDateCommand = new RelayCommand(() => SetSort(SortField.DateAdded));
+        SortByLengthCommand = new RelayCommand(() => SetSort(SortField.Length));
+        SortByPlayCountCommand = new RelayCommand(() => SetSort(SortField.PlayCount));
         ToggleSortDirectionCommand = new RelayCommand(() => SortAscending = !SortAscending);
         PlayAllCommand = new RelayCommand(() => { if (SelectedPlaylist != null) PlayAllRequested?.Invoke(SelectedPlaylist); });
 
         BulkQueueCommand = new RelayCommand(() => BulkQueueRequested?.Invoke(SelectedTracks.ToList()));
-        BulkRemoveCommand = new SafeRelayCommand(async () => 
+        BulkRemoveCommand = new SafeRelayCommand(async () =>
         {
             if (SelectedPlaylist == null || SelectedTracks.Count == 0) return;
             var tracksToRemove = SelectedTracks.ToList();
             foreach (var track in tracksToRemove)
-            {
                 _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
-            }
             RefreshFilteredTracks();
             SelectedTracks.Clear();
             await Task.CompletedTask;
@@ -208,10 +251,7 @@ public class PlaylistViewModel : ViewModelBase
     private async Task RemovePlaylistAsync_Safe()
     {
         if (SelectedPlaylist == null) return;
-        try
-        {
-            await RemovePlaylistAsync(SelectedPlaylist);
-        }
+        try { await RemovePlaylistAsync(SelectedPlaylist); }
         catch (Exception ex)
         {
             Log.Error(ex, "[Playlist] Failed to remove playlist");
@@ -225,9 +265,7 @@ public class PlaylistViewModel : ViewModelBase
         Playlists.Clear();
         foreach (var playlist in _playlists.GetAll())
             Playlists.Add(playlist);
-        SelectedPlaylist = selectedId.HasValue
-            ? Playlists.FirstOrDefault(p => p.Id == selectedId.Value)
-            : null;
+        SelectedPlaylist = selectedId.HasValue ? Playlists.FirstOrDefault(p => p.Id == selectedId.Value) : null;
         RefreshPinnedState();
     }
 
@@ -236,10 +274,7 @@ public class PlaylistViewModel : ViewModelBase
         if (RequestCreatePlaylistName == null) return;
         var name = await RequestCreatePlaylistName();
         if (string.IsNullOrWhiteSpace(name)) return;
-
-        if (_playlists.NameExists(name))
-            name = $"{name} ({Guid.NewGuid().ToString()[..4]})";
-
+        if (_playlists.NameExists(name)) name = $"{name} ({Guid.NewGuid().ToString()[..4]})";
         var playlist = _playlists.Create(name);
         Playlists.Add(playlist);
         SelectedPlaylist = playlist;
@@ -261,12 +296,7 @@ public class PlaylistViewModel : ViewModelBase
             type: ToastType.Warning,
             durationMs: 8000,
             actionText: "Undo",
-            actionCallback: () =>
-            {
-                _playlists.Restore(snapshot);
-                Refresh();
-                PlaylistsChanged?.Invoke();
-            },
+            actionCallback: () => { _playlists.Restore(snapshot); Refresh(); PlaylistsChanged?.Invoke(); },
             scope: "playlist-delete");
         await Task.CompletedTask;
     }
@@ -277,18 +307,12 @@ public class PlaylistViewModel : ViewModelBase
         var playlist = SelectedPlaylist;
         var added = _playlists.AddTrack(playlist.Id, track);
         if (added)
-        {
-            ToastService.Instance.Show(
-                $"Added '{track.Title}' to '{playlist.Name}'.", ToastType.Success,
-                durationMs: 5000,
+            ToastService.Instance.Show($"Added '{track.Title}' to '{playlist.Name}'.", ToastType.Success, durationMs: 5000,
                 actionText: "Undo",
                 actionCallback: () => { _playlists.RemoveTrack(playlist.Id, track.Id); RefreshFilteredTracks(); },
                 scope: "playlist-add");
-        }
         else
-        {
             ToastService.Instance.Show($"'{track.Title}' is already in '{playlist.Name}'.", ToastType.Info, scope: "playlist-add");
-        }
         RefreshFilteredTracks();
     }
 
@@ -297,7 +321,6 @@ public class PlaylistViewModel : ViewModelBase
         if (RequestCreateFolderName == null) return;
         var name = await RequestCreateFolderName();
         if (string.IsNullOrWhiteSpace(name)) return;
-
         var folder = _playlists.CreateFolder(name);
         Log.Information("[PlaylistFolder] Created: {Name}", name);
         PlaylistsChanged?.Invoke();
@@ -314,20 +337,9 @@ public class PlaylistViewModel : ViewModelBase
     {
         if (SelectedPlaylist == null) return;
         var trimmed = RenameText.Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            ToastService.Instance.Show("Playlist name can't be empty.", ToastType.Warning);
-            return;
-        }
-
-        // FIX: Block rename if another playlist already uses this name
+        if (string.IsNullOrWhiteSpace(trimmed)) { ToastService.Instance.Show("Playlist name can't be empty.", ToastType.Warning); return; }
         var existing = Playlists.FirstOrDefault(p => p.Id != SelectedPlaylist.Id && p.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            ToastService.Instance.Show($"A playlist named '{trimmed}' already exists.", ToastType.Warning);
-            return; // Keep the rename box open so the user can fix it
-        }
-
+        if (existing != null) { ToastService.Instance.Show($"A playlist named '{trimmed}' already exists.", ToastType.Warning); return; }
         var oldName = SelectedPlaylist.Name;
         _playlists.Rename(SelectedPlaylist.Id, trimmed);
         Refresh();
@@ -341,12 +353,30 @@ public class PlaylistViewModel : ViewModelBase
     {
         if (track == null || SelectedPlaylist == null) return;
         var removed = _playlists.RemoveTrack(SelectedPlaylist.Id, track.Id);
-        if (removed)
-            ToastService.Instance.Show($"Removed '{track.Title}' from '{SelectedPlaylist.Name}'.", ToastType.Info);
+        if (removed) ToastService.Instance.Show($"Removed '{track.Title}' from '{SelectedPlaylist.Name}'.", ToastType.Info);
         RefreshFilteredTracks();
     }
 
-    public void SelectById(Guid playlistId) => SelectedPlaylist = Playlists.FirstOrDefault(p => p.Id == playlistId);
+    public void SelectById(Guid playlistId)
+    {
+        // Reserved GUIDs = virtual smart playlists clicked from the sidebar folder.
+        var defId = SmartPlaylistIds.ToDefId(playlistId);
+        if (defId != null) { SelectSmartPlaylist(defId); return; }
+
+        IsSmartPlaylistActive = false;
+        CurrentSmartPlaylistId = null;
+        SelectedPlaylist = Playlists.FirstOrDefault(p => p.Id == playlistId);
+        RefreshFilteredTracks();
+    }
+
+    public void SelectSmartPlaylist(string smartId)
+    {
+        SelectedPlaylist = null;
+        IsSmartPlaylistActive = true;
+        CurrentSmartPlaylistId = smartId;
+        RefreshFilteredTracks();
+    }
+
     public void SelectFirst() { if (SelectedPlaylist == null && Playlists.Count > 0) SelectById(Playlists[0].Id); }
     public void OpenTrackDetail(Track track) => TrackDetailRequested?.Invoke(track);
 
@@ -354,9 +384,7 @@ public class PlaylistViewModel : ViewModelBase
     {
         if (SelectedPlaylist == null) return;
         if (_playlists.MoveTrack(SelectedPlaylist.Id, fromIndex, toIndex))
-        {
             RefreshFilteredTracks();
-        }
     }
 
     private void SetSort(SortField field)
@@ -367,53 +395,49 @@ public class PlaylistViewModel : ViewModelBase
 
     private void RefreshSortIndicators()
     {
-        OnPropertyChanged(nameof(IsSortedByTitle));
-        OnPropertyChanged(nameof(IsSortedByArtist));
-        OnPropertyChanged(nameof(IsSortedBySource));
-        OnPropertyChanged(nameof(IsSortedByDate));
-        OnPropertyChanged(nameof(IsSortedByPlayCount));
-        OnPropertyChanged(nameof(IsSortedByLastPlayed));
-        OnPropertyChanged(nameof(IsSortedByCustom));
+        OnPropertyChanged(nameof(IsSortedByTitle)); OnPropertyChanged(nameof(IsSortedByArtist));
+        OnPropertyChanged(nameof(IsSortedBySource)); OnPropertyChanged(nameof(IsSortedByDate));
+        OnPropertyChanged(nameof(IsSortedByPlayCount)); OnPropertyChanged(nameof(IsSortedByLastPlayed));
+        OnPropertyChanged(nameof(IsSortedByLength)); OnPropertyChanged(nameof(IsSortedByCustom));
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 
     public void RefreshFilteredTracks()
     {
-        if (SelectedPlaylist == null)
+        if (SelectedPlaylist == null && !IsSmartPlaylistActive)
         {
             FilteredTracks.Clear();
             OnPropertyChanged(nameof(ResultCountLabel));
             return;
         }
 
-        IEnumerable<Track> tracks = SelectedPlaylist.Tracks;
+        IEnumerable<Track> tracks;
+        if (IsSmartPlaylistActive && CurrentSmartPlaylistId != null)
+        {
+            var def = _smartPlaylists.All.FirstOrDefault(d => d.Id == CurrentSmartPlaylistId);
+            tracks = def != null ? _smartPlaylists.Resolve(def) : Enumerable.Empty<Track>();
+        }
+        else
+        {
+            tracks = SelectedPlaylist!.Tracks;
+        }
+
         var query = (SearchQuery ?? string.Empty).Trim();
-        if (query.StartsWith("ai:", StringComparison.OrdinalIgnoreCase))
-            query = string.Empty;
+        if (query.StartsWith("ai:", StringComparison.OrdinalIgnoreCase)) query = string.Empty;
 
         if (!string.IsNullOrWhiteSpace(query))
         {
             var q = query.ToLowerInvariant();
-            tracks = tracks.Where(t =>
-                t.Title.ToLowerInvariant().Contains(q) ||
-                t.Artist.ToLowerInvariant().Contains(q));
+            tracks = tracks.Where(t => t.Title.ToLowerInvariant().Contains(q) || t.Artist.ToLowerInvariant().Contains(q));
         }
 
         var sorted = SortTracks(tracks, SelectedPlaylist, CurrentSort, SortAscending);
-
         FilteredTracks.ReplaceAll(sorted);
         OnPropertyChanged(nameof(ResultCountLabel));
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 
-    /// <summary>
-    /// Pure sort function: every option offered by <see cref="SortFieldCatalog.Playlist"/> is
-    /// handled explicitly so none can silently fall through to "date added".
-    /// Kept static and internal so each case is unit-testable without a database.
-    /// Phase 7.2 merges this with the Library sort into one shared factory.
-    /// </summary>
-    internal static IEnumerable<Track> SortTracks(
-        IEnumerable<Track> tracks, Playlist? playlist, SortField sort, bool ascending)
+    internal static IEnumerable<Track> SortTracks(IEnumerable<Track> tracks, Playlist? playlist, SortField sort, bool ascending)
         => (sort, ascending) switch
         {
             (SortField.Custom, _)         => tracks,
@@ -429,7 +453,6 @@ public class PlaylistViewModel : ViewModelBase
             (SortField.PlayCount, false)  => tracks.OrderByDescending(t => t.PlayCount).ThenByDescending(t => t.Title),
             (SortField.LastPlayed, true)  => tracks.OrderBy(t => t.LastPlayed).ThenBy(t => t.Title),
             (SortField.LastPlayed, false) => tracks.OrderByDescending(t => t.LastPlayed).ThenByDescending(t => t.Title),
-            // Safety net for future enum values - never a silent no-op.
             (SortField.Length, true)      => tracks.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenBy(t => t.Duration).ThenBy(t => t.Title),
             (SortField.Length, false)     => tracks.OrderBy(t => t.Duration == TimeSpan.Zero ? 1 : 0).ThenByDescending(t => t.Duration).ThenByDescending(t => t.Title),
             (_, true)                     => tracks.OrderBy(t => t.DateAdded).ThenBy(t => t.Title),

@@ -1,0 +1,21 @@
+{
+  "id": "com.nullwave.openweather",
+  "name": "OpenWeather",
+  "version": "1.0.0",
+  "author": "NullWave Team",
+  "description": "Provides weather data for mood-based playlist generation",
+  "kinds": ["Weather"],
+  "capabilities": {
+    "canProvideWeather": true
+  },
+  "entryPoint": "NullWave.Plugins.OpenWeather.OpenWeatherPlugin, NullWave.Plugins.OpenWeather",
+  "settings": [],
+  "permissions": {
+    "network": true,
+    "accessApiKeys": true,
+    "apiKeys": ["OpenWeather"],
+    "allowedDomains": ["api.openweathermap.org"]
+  },
+  "minHostVersion": "0.6.5",
+  "license": "MIT"
+}

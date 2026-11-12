@@ -20,6 +20,11 @@ public static class BadgeColors
         TrackSource.Spotify    => light ? (Parse("#1A1DB954"), Parse("#0E6B30")) : (Parse("#291DB954"), Parse("#7BE0A2")),
         TrackSource.LastFm     => light ? (Parse("#1AD51007"), Parse("#A00C05")) : (Parse("#29D51007"), Parse("#FF7A72")),
         TrackSource.Local      => light ? (Parse("#1A4E9BFF"), Parse("#1A5276")) : (Parse("#294E9BFF"), Parse("#8BB8FF")),
+        // NEW sources
+        TrackSource.Bandcamp   => light ? (Parse("#1A1DA0C3"), Parse("#0A5A7A")) : (Parse("#291DA0C3"), Parse("#62A4C7")),
+        TrackSource.Audiomack  => light ? (Parse("#1AFFA200"), Parse("#B37200")) : (Parse("#29FFA200"), Parse("#FFD080")),
+        TrackSource.ArchiveOrg => light ? (Parse("#1A333333"), Parse("#1A1A1A")) : (Parse("#29333333"), Parse("#AAAAAA")),
+        TrackSource.Mixcloud   => light ? (Parse("#1A5000FF"), Parse("#2A0080")) : (Parse("#295000FF"), Parse("#A080FF")),
         _                      => light ? (Parse("#1A6B7280"), Parse("#374151")) : (Parse("#296B7280"), Parse("#A8B4CC")),
     };
 

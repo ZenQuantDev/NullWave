@@ -42,7 +42,7 @@ public class LocalMetadataFetcher
         catch { return (null, 0); }
     }
 
-    public (string Title, string Artist, TimeSpan Duration) Fetch(string filePath)
+    public (string Title, string Artist, TimeSpan Duration) FetchFromLocalFile(string filePath)
     {
         try
         {

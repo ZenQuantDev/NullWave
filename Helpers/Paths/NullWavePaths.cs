@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -20,28 +21,52 @@ public static class NullWavePaths
         }
     }
 
-    public static string DataDir => HomeOverride ?? (IsWindows
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave"));
+    public static string DataDir
+    {
+        get
+        {
+            if (HomeOverride is { } home) return home;
+#if DEBUG
+            // SAFETY NET: In debug builds, default to a sandbox folder
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "NullWaveDev");
+#else
+            return IsWindows
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NullWave")
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+#endif
+        }
+    }
 
-    public static string LegacyDataDir => HomeOverride is { } home
-        ? Path.Combine(home, "legacy-none")
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+    public static string LegacyDataDir
+    {
+        get
+        {
+            if (HomeOverride is { } home) return Path.Combine(home, "legacy-none");
+#if DEBUG
+            return Path.Combine(DataDir, "legacy-none");   // sandbox never touches real legacy data
+#else
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nullwave");
+#endif
+        }
+    }
 
     public static string LogsDir      => Path.Combine(DataDir, "logs");
     public static string DownloadsDir => Path.Combine(DataDir, "downloads");
     public static string ArtCacheDir  => Path.Combine(DataDir, "art");
     public static string BackupsDir   => Path.Combine(DataDir, "backups");
-
     public static string DatabasePath => Path.Combine(DataDir, "library.db");
     public static string LegacyDatabasePath => Path.Combine(LegacyDataDir, "library.db");
-
     public static string KeyStorePath => Path.Combine(DataDir, "keys.enc");
     public static string ProfilePath  => Path.Combine(DataDir, "profile.json");
     public static string AvatarPath   => Path.Combine(DataDir, "avatar.png");
     public static string PrefsPath        => Path.Combine(DataDir, "prefs.json");
     public static string BadgesPath       => Path.Combine(DataDir, "badges.json");
     public static string ProfileAssetsDir => Path.Combine(DataDir, "profile-assets");
+    public static string PluginsDir => Path.Combine(DataDir, "plugins");
+    /// <summary>Plugins shipped with the app, next to the executable. Read-only in practice.</summary>
+    public static string BundledPluginsDir => Path.Combine(AppContext.BaseDirectory, "plugins");
+    /// <summary>User-installed plugins are probed first and override bundled plugins by manifest Id.</summary>
+    public static IReadOnlyList<string> PluginRoots => new[] { PluginsDir, BundledPluginsDir };
 
     public static void EnsureDirectories()
     {
@@ -50,5 +75,6 @@ public static class NullWavePaths
         Directory.CreateDirectory(DownloadsDir);
         Directory.CreateDirectory(ArtCacheDir);
         Directory.CreateDirectory(BackupsDir);
+        Directory.CreateDirectory(PluginsDir);
     }
 }

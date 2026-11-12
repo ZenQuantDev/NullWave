@@ -8,6 +8,8 @@ public class HardwareInfo
     public long RamGB { get; set; }
     public long GpuVramGB { get; set; }
     public string GpuType { get; set; } = "Unknown";
+    public string GpuName { get; set; } = "Unknown";
+    public bool HasModernGpu { get; set; }
     
     public bool HasNvidia { get; set; }
     public bool HasAmd { get; set; }

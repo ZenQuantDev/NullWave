@@ -5,7 +5,7 @@ NullWave uses the following third-party libraries and tools. We are grateful for
 ## Core Framework
 
 - **Avalonia UI** (MIT License) - https://github.com/AvaloniaUI/Avalonia
-- **.NET 8** (MIT License) - https://dotnet.microsoft.com/
+- **.NET 10** (MIT License) - https://dotnet.microsoft.com/
 
 ## Media & Playback
 
@@ -32,12 +32,11 @@ NullWave uses the following third-party libraries and tools. We are grateful for
 
 - **YouTube Data API** (Google)
 - **Last.fm API**
-- **Open-Meteo API**
 - **MusicBrainz / Cover Art Archive**
 
 ## Bundled artwork
 
-- **The Starry Night** (1889) — Vincent van Gogh. Public domain worldwide.
+- **The Starry Night** (1889) - Vincent van Gogh. Public domain worldwide.
   Source: Wikimedia Commons / Google Art Project faithful reproduction:
   https://commons.wikimedia.org/wiki/File:Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg
   Bundled as a downscaled 1600px JPEG (`Assets/Art/starry-night.jpg`); no modifications beyond rescaling.

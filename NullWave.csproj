@@ -2,14 +2,14 @@
   <PropertyGroup>
     <OutputType Condition="'$(Configuration)' == 'Debug'">Exe</OutputType>
     <OutputType Condition="'$(Configuration)' == 'Release'">WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- Strip all localized NuGet resources except English and Russian -->
     <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
 
-    <Version>0.6.4</Version>
+    <Version>0.6.5-beta.2</Version>
     <Company>ZenQuant</Company>
     <Product>NullWave</Product>
   </PropertyGroup>
@@ -19,6 +19,7 @@
     <AvaloniaResource Include="Assets/Art/starry-night.jpg" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="plugins/**/*.cs" />
     <Compile Remove="tests/**" />
     <Compile Remove="tools/**" />
     <InternalsVisibleTo Include="NullWave.Tests" />
@@ -39,6 +40,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="LibVLCSharp" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" />
     <PackageReference Include="Material.Icons.Avalonia" />
     <PackageReference Include="QRCoder" />
@@ -53,4 +55,48 @@
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="plugins/NullWave.Plugins.Contracts/NullWave.Plugins.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="plugins/NullWave.Plugins.RadioBrowser/NullWave.Plugins.RadioBrowser.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="plugins/NullWave.Plugins.OpenWeather/NullWave.Plugins.OpenWeather.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="CopyBundledPluginsToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <_RadioPayload Include="plugins/NullWave.Plugins.RadioBrowser/bin/$(Configuration)/$(TargetFramework)/**/*"
+                     Exclude="plugins/NullWave.Plugins.RadioBrowser/bin/$(Configuration)/$(TargetFramework)/NullWave.Plugins.Contracts.*" />
+      <_WeatherPayload Include="plugins/NullWave.Plugins.OpenWeather/bin/$(Configuration)/$(TargetFramework)/**/*"
+                       Exclude="plugins/NullWave.Plugins.OpenWeather/bin/$(Configuration)/$(TargetFramework)/NullWave.Plugins.Contracts.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RadioPayload)"
+          DestinationFiles="@(_RadioPayload->'$(OutDir)plugins/NullWave.Plugins.RadioBrowser/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_WeatherPayload)"
+          DestinationFiles="@(_WeatherPayload->'$(OutDir)plugins/NullWave.Plugins.OpenWeather/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBundledPluginsToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_RadioPublishPayload Include="plugins/NullWave.Plugins.RadioBrowser/bin/$(Configuration)/$(TargetFramework)/**/*"
+                            Exclude="plugins/NullWave.Plugins.RadioBrowser/bin/$(Configuration)/$(TargetFramework)/NullWave.Plugins.Contracts.*" />
+      <_WeatherPublishPayload Include="plugins/NullWave.Plugins.OpenWeather/bin/$(Configuration)/$(TargetFramework)/**/*"
+                              Exclude="plugins/NullWave.Plugins.OpenWeather/bin/$(Configuration)/$(TargetFramework)/NullWave.Plugins.Contracts.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RadioPublishPayload)"
+          DestinationFiles="@(_RadioPublishPayload->'$(PublishDir)plugins/NullWave.Plugins.RadioBrowser/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_WeatherPublishPayload)"
+          DestinationFiles="@(_WeatherPublishPayload->'$(PublishDir)plugins/NullWave.Plugins.OpenWeather/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
