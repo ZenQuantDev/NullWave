@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -62,6 +63,10 @@ public static class NullWavePaths
     public static string BadgesPath       => Path.Combine(DataDir, "badges.json");
     public static string ProfileAssetsDir => Path.Combine(DataDir, "profile-assets");
     public static string PluginsDir => Path.Combine(DataDir, "plugins");
+    /// <summary>Plugins shipped with the app, next to the executable. Read-only in practice.</summary>
+    public static string BundledPluginsDir => Path.Combine(AppContext.BaseDirectory, "plugins");
+    /// <summary>User-installed plugins are probed first and override bundled plugins by manifest Id.</summary>
+    public static IReadOnlyList<string> PluginRoots => new[] { PluginsDir, BundledPluginsDir };
 
     public static void EnsureDirectories()
     {

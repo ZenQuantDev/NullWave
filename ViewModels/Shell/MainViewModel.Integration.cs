@@ -63,7 +63,7 @@ public partial class MainViewModel
         _plugins.Register(new OpenWeatherProvider(_weatherService, _prefsService));
         _plugins.Register(new OllamaAIProvider(_localAI, _prefsService));
 
-        _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginsDir);
+        _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginRoots);
         _providerRegistry = new ProviderRegistry(_prefsService);
         _radioHealer = new RadioStreamHealer(_library, _providerRegistry, _prefsService);
 

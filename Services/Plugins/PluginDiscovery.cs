@@ -16,7 +16,7 @@ namespace NullWave.Services.Plugins;
 
 public class PluginDiscovery
 {
-    private readonly string _pluginsDirectory;
+    private readonly string[] _pluginRoots;
     private readonly Dictionary<string, AssemblyLoadContext> _contexts = new();
     private readonly TimeSpan _initTimeout;
 
@@ -31,10 +31,53 @@ public class PluginDiscovery
     };
 
     public PluginDiscovery(string pluginsDirectory, TimeSpan? initTimeout = null)
+        : this(new[] { pluginsDirectory }, initTimeout)
     {
-        _pluginsDirectory = pluginsDirectory;
+    }
+
+    /// <summary>Roots are probed in order; the first root declaring a manifest Id owns it.</summary>
+    public PluginDiscovery(IEnumerable<string> pluginRoots, TimeSpan? initTimeout = null)
+    {
+        _pluginRoots = pluginRoots.Where(root => !string.IsNullOrWhiteSpace(root)).ToArray();
         _initTimeout = initTimeout ?? TimeSpan.FromSeconds(8);
-        Directory.CreateDirectory(_pluginsDirectory);
+        foreach (var root in _pluginRoots)
+        {
+            try
+            {
+                Directory.CreateDirectory(root);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[PluginDiscovery] Could not create plugin root {Root}", root);
+            }
+        }
+    }
+
+    /// <summary>Ordered candidate directories. Missing or unreadable roots are skipped.</summary>
+    public static IEnumerable<string> EnumeratePluginDirectories(IEnumerable<string> roots)
+    {
+        foreach (var root in roots)
+        {
+            if (string.IsNullOrWhiteSpace(root)) continue;
+
+            string[] directories;
+            try
+            {
+                directories = Directory.GetDirectories(root);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                continue;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Debug(ex, "[PluginDiscovery] Cannot enumerate plugin root {Root}", root);
+                continue;
+            }
+
+            foreach (var directory in directories.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+                yield return directory;
+        }
     }
 
     public async Task<List<(PluginManifest Manifest, IPlugin Plugin)>> DiscoverAndLoadAsync(
@@ -43,20 +86,16 @@ public class PluginDiscovery
         Func<PluginManifest, bool>? enabledState = null)
     {
         var loaded = new List<(PluginManifest, IPlugin)>();
-
-        if (!Directory.Exists(_pluginsDirectory))
-            return loaded;
-
-        var pluginDirs = Directory.GetDirectories(_pluginsDirectory);
-
-        foreach (var pluginDir in pluginDirs)
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pluginDir in EnumeratePluginDirectories(_pluginRoots))
         {
             if (ct.IsCancellationRequested)
                 break;
 
             try
             {
-                var result = await LoadPluginFromDirectoryAsync(pluginDir, hostFactory, ct, enabledState);
+                var result = await LoadPluginFromDirectoryAsync(
+                    pluginDir, hostFactory, ct, enabledState, seenIds);
                 if (result != null)
                     loaded.Add(result.Value);
             }
@@ -73,7 +112,8 @@ public class PluginDiscovery
         string pluginDir,
         Func<PluginManifest, IPluginHost> hostFactory,
         CancellationToken ct,
-        Func<PluginManifest, bool>? enabledState)
+        Func<PluginManifest, bool>? enabledState,
+        HashSet<string> seenIds)
     {
         var manifestPath = Path.Combine(pluginDir, "plugin.json");
         if (!File.Exists(manifestPath))
@@ -107,6 +147,13 @@ public class PluginDiscovery
         {
             Log.Warning("[PluginDiscovery] Manifest validation failed for {PluginId}: {Error}",
                 manifest.Id, validationError);
+            return null;
+        }
+
+        if (!seenIds.Add(manifest.Id))
+        {
+            Log.Information("[PluginDiscovery] {PluginId} already claimed by an earlier root; skipping {Dir}",
+                manifest.Id, pluginDir);
             return null;
         }
 
