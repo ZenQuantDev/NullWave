@@ -301,6 +301,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         catch (Exception ex) { Log.Warning(ex, "[MainViewModel] Failed to unload AI model on exit"); }
     }
 
+    public Task ShutdownPluginsAsync() => _plugins.ShutdownAllAsync();
+
     private async Task InitializeDeferredServicesAsync()
     {
         var pluginLoadTask = Task.Run(() => _discoveredPlugins!.DiscoverAndLoadAsync(

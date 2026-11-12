@@ -14,13 +14,20 @@ public class PluginManagerInitializationTests
     private sealed class FakePlugin : IPlugin
     {
         private readonly Func<IPluginHost?, CancellationToken, Task<bool>> _init;
+        private readonly Func<CancellationToken, Task> _shutdown;
         public int InitCalls;
+        public int ShutdownCalls;
 
-        public FakePlugin(string name, Func<IPluginHost?, CancellationToken, Task<bool>> init, bool enabled = true)
+        public FakePlugin(
+            string name,
+            Func<IPluginHost?, CancellationToken, Task<bool>> init,
+            bool enabled = true,
+            Func<CancellationToken, Task>? shutdown = null)
         {
             Id = name;
             Name = name;
             _init = init;
+            _shutdown = shutdown ?? (_ => Task.CompletedTask);
             IsEnabled = enabled;
         }
 
@@ -36,7 +43,11 @@ public class PluginManagerInitializationTests
             return _init(host, ct);
         }
 
-        public Task ShutdownAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task ShutdownAsync(CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref ShutdownCalls);
+            return _shutdown(ct);
+        }
     }
 
     private static PluginManager NewManager(params FakePlugin[] plugins)
@@ -157,6 +168,26 @@ public class PluginManagerInitializationTests
         release.Set();
         await start;
         Assert.Equal(PluginState.Available, blocking.State);
+    }
+
+    [Fact]
+    public async Task Concurrent_shutdown_requests_share_one_task_and_call_plugins_once()
+    {
+        var shutdownGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var plugin = new FakePlugin(
+            "shutdown-once",
+            (_, _) => Task.FromResult(true),
+            shutdown: _ => shutdownGate.Task);
+        var manager = NewManager(plugin);
+
+        var firstShutdown = manager.ShutdownAllAsync();
+        var secondShutdown = manager.ShutdownAllAsync();
+
+        Assert.Same(firstShutdown, secondShutdown);
+        Assert.Equal(1, plugin.ShutdownCalls);
+
+        shutdownGate.SetResult();
+        await Task.WhenAll(firstShutdown, secondShutdown);
     }
 }
 

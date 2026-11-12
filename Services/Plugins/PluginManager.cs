@@ -19,6 +19,8 @@ public class PluginManager
     private readonly List<IPlugin> _plugins = new();
     private readonly Dictionary<string, PluginManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
+    private readonly object _shutdownLock = new();
+    private Task? _shutdownTask;
 
     public IReadOnlyList<IPlugin> Plugins => _plugins.AsReadOnly();
     public event Action<IPlugin, PluginManifest?>? PluginRegistered;
@@ -151,8 +153,19 @@ public class PluginManager
         }
     }
 
-    /// <summary>Shut down every registered plugin. Errors are logged, not thrown.</summary>
-    public async Task ShutdownAllAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Shut down every registered plugin once. Both the exit command and the window-closing handler
+    /// call this; whichever arrives first starts it, the other awaits the same task.
+    /// </summary>
+    public Task ShutdownAllAsync(CancellationToken ct = default)
+    {
+        lock (_shutdownLock)
+        {
+            return _shutdownTask ??= ShutdownCoreAsync(ct);
+        }
+    }
+
+    private async Task ShutdownCoreAsync(CancellationToken ct)
     {
         foreach (var plugin in _plugins)
         {

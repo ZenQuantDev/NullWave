@@ -196,6 +196,14 @@ public partial class MainWindow : Window
                         Log.Debug("[MainWindow] AI model unload sequence completed during shutdown.");
                 }
                 catch (Exception ex) { Log.Warning(ex, "[MainWindow] Failed to unload AI model on exit"); }
+
+                try
+                {
+                    var shutdown = vm.ShutdownPluginsAsync();
+                    if (!shutdown.Wait(TimeSpan.FromMilliseconds(700)))
+                        Log.Warning("[MainWindow] Plugin shutdown still in flight at exit.");
+                }
+                catch (Exception ex) { Log.Warning(ex, "[MainWindow] Plugin shutdown failed"); }
             }
         }
         catch (Exception ex) { Log.Warning(ex, "[MainWindow] Could not unload Ollama model on exit"); }
