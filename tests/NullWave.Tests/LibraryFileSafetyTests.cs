@@ -62,6 +62,22 @@ public sealed class LibraryFileSafetyTests : IDisposable
     }
 
     [Fact]
+    public void DownloadsOnly_refuses_external_file_when_user_dir_equals_default_dir()
+    {
+        var musicDirectory = Path.Combine(_root, "music");
+        Directory.CreateDirectory(musicDirectory);
+        var filePath = Path.Combine(musicDirectory, "personal-track.mp3");
+        File.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
+        _preferences.Update(p =>
+        {
+            p.DownloadDirectory = NullWavePaths.DownloadsDir;
+            p.TagWriteMode = TagWriteMode.DownloadsOnly;
+        });
+
+        Assert.False(_library.CanWriteTags(filePath));
+    }
+
+    [Fact]
     public void TryRelink_finds_FileNamer_name_with_new_nw_id_suffix()
     {
         var downloads = Path.Combine(_root, "downloads");

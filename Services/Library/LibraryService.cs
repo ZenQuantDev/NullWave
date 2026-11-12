@@ -92,55 +92,16 @@ public partial class LibraryService : IDisposable
     /// silently retag everything in it.
     /// </summary>
     private bool IsManagedDownload(string? filePath)
-    {
-        if (string.IsNullOrEmpty(filePath)) return false;
-        try
-        {
-            var fullPath = Path.GetFullPath(filePath);
-            var defaultDir = Path.GetFullPath(NullWavePaths.DownloadsDir);
-            var defaultCheck = defaultDir.EndsWith(Path.DirectorySeparatorChar.ToString())
-                ? defaultDir : defaultDir + Path.DirectorySeparatorChar;
-
-            if (fullPath.StartsWith(defaultCheck, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(fullPath, defaultDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (_prefs != null && !string.IsNullOrWhiteSpace(_prefs.Current.DownloadDirectory))
-            {
-                try
-                {
-                    var userDir = Path.GetFullPath(_prefs.Current.DownloadDirectory);
-                    if (string.Equals(userDir, defaultDir, StringComparison.OrdinalIgnoreCase)) return true;
-
-                    var userCheck = userDir.EndsWith(Path.DirectorySeparatorChar.ToString())
-                        ? userDir : userDir + Path.DirectorySeparatorChar;
-
-                    if (fullPath.StartsWith(userCheck, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(fullPath, userDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Only the FILE NAME matters: "[nw-" is what NullWave writes.
-                        return Path.GetFileName(fullPath).Contains("[nw-", StringComparison.OrdinalIgnoreCase);
-                    }
-                }
-                catch { }
-            }
-            return false;
-        }
-        catch { return false; }
-    }
+        => TagWritePolicy.IsManagedDownload(
+            filePath, NullWavePaths.DownloadsDir, _prefs?.Current.DownloadDirectory);
 
     /// <summary>Central rule for tag writes. All callers (Add, Sync, ForceClean) go through this.</summary>
     internal bool CanWriteTags(string? filePath)
-    {
-        var mode = _prefs?.Current.TagWriteMode ?? TagWriteMode.DownloadsOnly;
-        return mode switch
-        {
-            TagWriteMode.Never => false,
-            TagWriteMode.DownloadsOnly => IsManagedDownload(filePath),
-            TagWriteMode.Always => !string.IsNullOrEmpty(filePath) && File.Exists(filePath),
-            _ => false
-        };
-    }
+        => TagWritePolicy.CanWrite(
+            filePath,
+            _prefs?.Current.TagWriteMode ?? TagWriteMode.DownloadsOnly,
+            NullWavePaths.DownloadsDir,
+            _prefs?.Current.DownloadDirectory);
 
     private void EnsureIdentityIndex()
     {
