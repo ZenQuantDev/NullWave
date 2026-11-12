@@ -3,13 +3,13 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.5-beta.2] - 10-Nov-2026
+## [0.6.5-beta.2] - 12-Nov-2026
 
 ### Added
 
 - **Plugin Contracts SDK**: Extracted `NullWave.Plugins.Contracts` as a standalone NuGet-packageable project containing `IPlugin`, `IPluginHost`, `PluginManifest`, `ProviderKind`, and `PluginState` - the public API surface for future third-party plugin authors
 - **Plugin Discovery Engine**: loads plugins from `<data>/plugins/<name>/plugin.json` in isolated `AssemblyLoadContext` instances, with manifest validation, a path-traversal guard, an 8s per-plugin timeout, and a `minHostVersion` compatibility gate. Discovery runs after the first frame so it never blocks the window.
-- **Plugin Host**: gives plugins permission-checked API key access, prefixed logging and toast notifications. Library access, plugin settings storage, temp downloads and process execution are still explicit `NotImplementedException` stubs; `ConfirmAsync` returns false until a real dialog exists.
+- **Plugin Host**: gives plugins manifest-scoped API key access, prefixed logging and toast notifications. Library access, plugin settings storage, temp downloads and process execution are still explicit `NotImplementedException` stubs; `ConfirmAsync` returns false until a real dialog exists.
 - **Radio Browser plugin (first functional external plugin)**: live station search and top-station browsing over the Radio Browser directory, no API key required. Ships as a separate assembly referenced only against the Contracts SDK.
 - **Radio catalog dialog**: debounced live search, curated stations kept as a featured/offline fallback, and already-in-library stations shown as a disabled "Added" button.
 - **Self-healing radio streams**: imported stations carry a `radiobrowser:<uuid>` tag. On playback failure the current URL is re-resolved click-free and playback retries; a Maintenance action previews and repairs all stations in bulk. Stations missing from the directory are tagged `radio:dead`, never deleted. Auto-repair is a persisted preference.
@@ -49,6 +49,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Plugin loading**: a plugin folder could load a DLL from a sibling directory sharing its
+  name prefix, and failed loads left assembly contexts behind.
+- **Tag-write scope**: pointing the download folder at the default downloads directory no
+  longer marks every file on disk as managed under "Downloads only".
+- **Russian playlist count**: the RU table used a differently-cased key, so the count fell
+  back to English. Key parity is now enforced by a test.
+- **Bundled plugins in release builds**: plugin assemblies are now copied into build and
+  publish output; previously a published build loaded no plugins at all.
+- **Audit journal**: removed an unused method that could delete a journal entry without
+  reversing the file operation it described.
 - **Orphan sweep safety**: previews and confirms before moving orphaned files to `_orphans`; files
   are never deleted.
 - **Keystore (Linux)**: data-loss path closed; locked or missing secret store falls back to the

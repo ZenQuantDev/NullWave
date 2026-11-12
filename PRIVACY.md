@@ -1,7 +1,7 @@
 # Privacy Policy
 
 ## Local-First Architecture
-NullWave is a local-first application. Your music library, playlists, listening history, and preferences are stored exclusively on your device in `~/.nullwave/` (Linux/macOS) or `%APPDATA%\NullWave\` (Windows). We do not operate servers, collect analytics, or transmit your personal data.
+NullWave is a local-first application. Your music library, playlists, listening history, and preferences are stored on your device. Release builds use `~/.nullwave/` on Linux/macOS and `%APPDATA%\NullWave\` on Windows; debug builds use `~/NullWaveDev`. Set `NULLWAVE_HOME` to override the data directory. We do not operate servers, collect analytics, or transmit your personal data.
 
 ## Third-Party Network Contacts
 

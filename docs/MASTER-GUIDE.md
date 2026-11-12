@@ -82,10 +82,10 @@
   open read-only and are never quarantined, secure temp files, fallback notice and Secret
   Service cleanup. 🟡 (implemented, verification pending)
 - CI: Windows + Ubuntu matrix with banned-API build gate; both checks required to merge. ✅
-- Test suite: 752 passing locally on Windows; Ubuntu re-run pending on the close-out commits. 🟡
+- Test suite: 758 passing locally on Windows; Ubuntu re-run pending on the close-out commits. 🟡
 - Plugin system: Contracts SDK (including `IRadioProvider`), isolated discovery with manifest
   validation, path-traversal guard, 8-second initialization timeout and `minHostVersion` gate;
-  permission-checked PluginHost, adapter-to-ProviderRegistry routing, persisted enable state
+  manifest-scoped API-key access, adapter-to-ProviderRegistry routing, persisted enable state
   and dynamic Settings registration. ✅
 - Radio Browser plugin + catalog dialog: debounced search, curated offline fallback, duplicate
   detection, click-free UUID lookup. ✅
@@ -103,7 +103,7 @@
 - Release branch is ahead of origin; close-out commits not yet pushed.
 - CI: matrix configured and both jobs required by branch protection; not yet run on the
   beta.2 close-out changes. Ubuntu green is unproven for this cycle.
-- Tests: 752 passing locally on Windows. Ubuntu pending.
+- Tests: 758 passing locally on Windows. Ubuntu pending.
 - Merge gate proven earlier by a deliberate-break run (banned API fails both jobs).
 - Open hard gates before tagging: §3.12 plugin packaging, §3.8 R1 release truth,
   §3.2 reduced smoke matrix.

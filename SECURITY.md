@@ -1,40 +1,30 @@
-## Plugins (Current State)
+## Plugins
 
-Third-party plugin loading is **not enabled** in this release. The plugin contract (`NullWave.Plugins.Contracts`) and discovery infrastructure exist, but:
+The app loads bundled Radio Browser and OpenWeather plugins from the application directory
+and checks the user's `<data directory>/plugins/` folder first. A user-installed plugin with
+the same manifest ID takes precedence over the bundled copy.
 
-- `PluginDiscovery` is not called at startup
-- The Store tab in Settings is a non-functional preview
-- No external plugins are loaded or executed
+Plugins are loaded in separate collectible `AssemblyLoadContext` instances, but this is
+**not a security sandbox**. Plugin code runs in-process and can use the same OS identity and
+process privileges as NullWave. Manifests are not signed or hash-verified, and capabilities
+are not approved through an install-time permission prompt. The host checks declared
+permissions for host-mediated API-key access, but those checks cannot constrain arbitrary
+code running in-process. Initialization timeouts request cancellation but cannot forcibly
+stop a plugin that ignores its cancellation token.
 
-### Planned (Not Yet Implemented)
-
-When plugin support becomes active, it will include:
-
-- **Signed manifests**: Plugin authors sign their `plugin.json` with Ed25519 keys
-- **Hash verification**: NullWave verifies SHA-256 hashes before loading any DLL
-- **Permission prompts**: Users approve each plugin's requested capabilities on first install
-- **Curated registry**: Initially, only plugins from an official registry will be installable
-- **Isolated execution**: Plugins run in separate `AssemblyLoadContext` instances
-
-**Important**: Even with isolation, plugins will run in-process and have the same filesystem/network access as NullWave itself. Only install plugins you trust.
-
-### Current Plugin Infrastructure
-
-The following components exist but are inactive:
-
-- `NullWave.Plugins.Contracts`: Public SDK for plugin authors (IPlugin, IPluginHost, PluginManifest)
-- `PluginDiscovery`: Can load plugins from `plugins/` directory using `AssemblyLoadContext`
-- `PluginHost`: Implements IPluginHost with permission-checked API key access
-- `NullWave.Plugins.OpenWeather`: Reference plugin demonstrating the contract
-
-None of these are invoked during normal operation in this release.
+Only install plugins from sources you trust. Do not treat `AssemblyLoadContext` isolation or
+manifest permission declarations as protection against a malicious plugin.
 
 ### Reporting Security Issues
 
 If you discover a security vulnerability in NullWave:
 
 1. **Do not** open a public GitHub issue
-2. Use [GitHub's private vulnerability reporting](https://github.com/ZenQuantDev/NullWave/security/advisories/new)
+2. Use [GitHub's private vulnerability reporting](https://github.com/ZenQuantDev/NullWave/security/advisories/new), if it is enabled for this repository
 3. Include: affected version, description of the vulnerability, steps to reproduce
-4. We will acknowledge receipt within 48 hours and provide a detailed response within 5 business days
+4. Reports will be reviewed on a best-effort basis; no response-time guarantee is made
 5. You will be credited in our security advisories (unless you request anonymity)
+
+The private reporting form is controlled in the repository's GitHub security settings. If it
+is unavailable, open an issue asking for a private reporting channel without posting
+vulnerability details or exploit steps publicly.

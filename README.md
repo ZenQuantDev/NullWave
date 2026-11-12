@@ -40,7 +40,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - **Duplicate Import Guard**: YouTube tracking params (`&pp=`, `&si=`) are stripped on import; re-pasting an existing link shows an "already in your library" toast instead of downloading twice
 - Track detail panel with editable title, artist, notes, and tags
 - Playlist management and source filters (YouTube, Last.fm, SoundCloud, Local)
-- Plugin system with bundled OpenWeather and Radio Browser providers; user-installed plugins take precedence over bundled copies with the same ID
+- Plugin system with bundled OpenWeather and Radio Browser providers; user-installed plugins take precedence over bundled copies with the same ID. Plugins execute in-process, so only install plugins you trust.
 - Searchable Radio Browser directory, curated offline stations, and repairable radio stream references
 
 ### 🎧 Player
