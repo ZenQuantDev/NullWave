@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NullWave.Helpers;
@@ -40,16 +41,14 @@ public class PluginHost : IPluginHost
 
     public string? GetApiKey(string keyName)
     {
-        if (!_manifest.Permissions.AccessApiKeys)
+        if (!_manifest.Permissions.AccessApiKeys ||
+            _manifest.Permissions.ApiKeys?.Contains(keyName, StringComparer.OrdinalIgnoreCase) != true)
         {
-            Serilog.Log.Warning("[PluginHost] Plugin {PluginId} tried to access API key {Key} without permission",
+            Serilog.Log.Warning("[PluginHost] Plugin {PluginId} requested undeclared API key {Key}",
                 _manifest.Id, keyName);
             return null;
         }
 
-        // TODO: Add scoped key access - only allow keys declared in manifest
-        // For now, any key is accessible if AccessApiKeys permission is granted
-        
         var key = _keyStore.GetKey(keyName);
         Serilog.Log.Information("[PluginHost] Plugin {PluginId} accessed API key {Key}", _manifest.Id, keyName);
         return key;

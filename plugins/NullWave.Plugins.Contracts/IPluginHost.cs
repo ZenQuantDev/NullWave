@@ -23,7 +23,7 @@ public interface IPluginHost
     /// <summary>Write a plugin-specific setting value</summary>
     void SetSetting<T>(string key, T value);
 
-    /// <summary>Read an API key from the keystore (requires AccessApiKeys permission)</summary>
+    /// <summary>Read an API key. Requires AccessApiKeys and the name listed in the manifest's apiKeys.</summary>
     string? GetApiKey(string keyName);
 
     /// <summary>Log a message through NullWave's logging system</summary>

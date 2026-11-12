@@ -26,6 +26,7 @@ public class PluginHostTests
             Permissions = new PluginPermissions
             {
                 AccessApiKeys = accessApiKeys,
+                ApiKeys = accessApiKeys ? new[] { "TestKey" } : Array.Empty<string>(),
                 ExecuteProcesses = executeProcesses
             }
         };
@@ -72,6 +73,17 @@ public class PluginHostTests
         var result = host.GetApiKey("TestKey");
 
         Assert.Equal("test-value", result);
+    }
+
+    [Fact]
+    public void GetApiKey_refuses_undeclared_key_even_with_permission()
+    {
+        var prefs = new PreferencesService();
+        var keyStore = new KeyStoreService(Path.Combine(Path.GetTempPath(), $"nw-undeclared-{Guid.NewGuid():N}.enc"));
+        var host = new PluginHost(prefs, keyStore, CreateTestManifest(accessApiKeys: true));
+        keyStore.SaveKey("LastFm:SessionKey", "secret");
+
+        Assert.Null(host.GetApiKey("LastFm:SessionKey"));
     }
 
     [Fact]

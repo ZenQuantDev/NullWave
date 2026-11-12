@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -27,6 +28,7 @@ public class PluginDiscovery
     public static readonly JsonSerializerOptions ManifestJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
         Converters = { new JsonStringEnumConverter() }
     };
 
@@ -39,7 +41,7 @@ public class PluginDiscovery
     public PluginDiscovery(IEnumerable<string> pluginRoots, TimeSpan? initTimeout = null)
     {
         _pluginRoots = pluginRoots.Where(root => !string.IsNullOrWhiteSpace(root)).ToArray();
-        _initTimeout = initTimeout ?? TimeSpan.FromSeconds(8);
+        _initTimeout = initTimeout ?? PluginManager.DefaultInitTimeout;
         foreach (var root in _pluginRoots)
         {
             try
@@ -98,6 +100,10 @@ public class PluginDiscovery
                     pluginDir, hostFactory, ct, enabledState, seenIds);
                 if (result != null)
                     loaded.Add(result.Value);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -166,7 +172,9 @@ public class PluginDiscovery
         }
 
         // Locate DLL
-        var dllName = manifest.EntryPoint.Split(',')[1].Trim();
+        var entryParts = manifest.EntryPoint.Split(',');
+        var pluginTypeName = entryParts[0].Trim();
+        var dllName = entryParts[1].Trim();
         var dllPath = Path.Combine(pluginDir, $"{dllName}.dll");
         
         if (!File.Exists(dllPath))
@@ -175,10 +183,17 @@ public class PluginDiscovery
             return null;
         }
 
-        // Security check: ensure DLL path doesn't escape plugin directory
+        // Require a path-component boundary so sibling directories with a shared prefix do not pass.
         var fullDllPath = Path.GetFullPath(dllPath);
         var fullPluginDir = Path.GetFullPath(pluginDir);
-        if (!fullDllPath.StartsWith(fullPluginDir, StringComparison.OrdinalIgnoreCase))
+        var dirPrefix = fullPluginDir.EndsWith(
+            Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? fullPluginDir
+            : fullPluginDir + Path.DirectorySeparatorChar;
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!fullDllPath.StartsWith(dirPrefix, pathComparison))
         {
             Log.Warning("[PluginDiscovery] DLL path escapes plugin directory for {PluginId}", manifest.Id);
             return null;
@@ -188,79 +203,131 @@ public class PluginDiscovery
         var context = new PluginLoadContext(dllPath);
         _contexts[manifest.Id] = context;
 
-        var assembly = context.LoadFromAssemblyPath(fullDllPath);
-        var pluginTypeName = manifest.EntryPoint.Split(',')[0].Trim();
-        var pluginType = assembly.GetType(pluginTypeName);
-
-        if (pluginType == null)
+        IPlugin? plugin = null;
+        void AbandonContext()
         {
-            Log.Warning("[PluginDiscovery] Plugin type {Type} not found in {PluginId}",
-                pluginTypeName, manifest.Id);
-            return null;
+            if (_contexts.TryGetValue(manifest.Id, out var current) &&
+                ReferenceEquals(current, context))
+            {
+                _contexts.Remove(manifest.Id);
+            }
+
+            try
+            {
+                context.Unload();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[PluginDiscovery] Unload failed for {PluginId}", manifest.Id);
+            }
         }
 
-        if (!typeof(IPlugin).IsAssignableFrom(pluginType))
-        {
-            Log.Warning("[PluginDiscovery] Type {Type} does not implement IPlugin in {PluginId}",
-                pluginTypeName, manifest.Id);
-            return null;
-        }
-
-        var plugin = (IPlugin?)Activator.CreateInstance(pluginType);
-        if (plugin == null)
-        {
-            Log.Warning("[PluginDiscovery] Failed to instantiate {Type} in {PluginId}",
-                pluginTypeName, manifest.Id);
-            return null;
-        }
-
-        if (enabledState != null)
-            plugin.IsEnabled = enabledState(manifest);
-
-        if (!plugin.IsEnabled)
-        {
-            plugin.State = PluginState.Disabled;
-            Log.Information("[PluginDiscovery] Loaded disabled plugin: {Name} v{Version}",
-                manifest.Name, manifest.Version);
-            return (manifest, plugin);
-        }
-
-        // Initialize with timeout
-        var pluginHost = hostFactory(manifest);
-        
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(_initTimeout);
-
+        Task<bool>? initTask = null;
         try
         {
-            var initTask = plugin.InitializeAsync(pluginHost, timeoutCts.Token);
-            var completedTask = await Task.WhenAny(initTask, Task.Delay(_initTimeout, timeoutCts.Token));
-
-            if (completedTask != initTask)
+            var assembly = context.LoadFromAssemblyPath(fullDllPath);
+            var pluginType = assembly.GetType(pluginTypeName);
+            if (pluginType == null)
             {
-                Log.Warning("[PluginDiscovery] Plugin {Name} initialization timed out after {Seconds}s",
-                    manifest.Name, _initTimeout.TotalSeconds);
+                Log.Warning("[PluginDiscovery] Plugin type {Type} not found in {PluginId}",
+                    pluginTypeName, manifest.Id);
+                AbandonContext();
                 return null;
             }
 
-            var success = await initTask;
-            if (success)
+            if (!typeof(IPlugin).IsAssignableFrom(pluginType))
             {
-                Log.Information("[PluginDiscovery] Loaded plugin: {Name} v{Version}",
+                Log.Warning("[PluginDiscovery] Type {Type} does not implement IPlugin in {PluginId}",
+                    pluginTypeName, manifest.Id);
+                AbandonContext();
+                return null;
+            }
+
+            plugin = (IPlugin?)Activator.CreateInstance(pluginType);
+            if (plugin == null)
+            {
+                Log.Warning("[PluginDiscovery] Failed to instantiate {Type} in {PluginId}",
+                    pluginTypeName, manifest.Id);
+                AbandonContext();
+                return null;
+            }
+
+            if (enabledState != null)
+                plugin.IsEnabled = enabledState(manifest);
+
+            if (!plugin.IsEnabled)
+            {
+                plugin.State = PluginState.Disabled;
+                Log.Information("[PluginDiscovery] Loaded disabled plugin: {Name} v{Version}",
                     manifest.Name, manifest.Version);
                 return (manifest, plugin);
             }
-            else
+
+            var pluginHost = hostFactory(manifest);
+            initTask = plugin.InitializeAsync(pluginHost, timeoutCts.Token);
+
+            var success = await initTask.WaitAsync(_initTimeout, ct);
+            if (!success)
             {
                 Log.Information("[PluginDiscovery] Plugin {Name} initialized but returned inactive (state={State})",
                     manifest.Name, plugin.State);
+                AbandonContext();
                 return null;
             }
+
+            Log.Information("[PluginDiscovery] Loaded plugin: {Name} v{Version}",
+                manifest.Name, manifest.Version);
+            return (manifest, plugin);
         }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        catch (TimeoutException)
         {
-            Log.Warning("[PluginDiscovery] Plugin {Name} initialization timed out", manifest.Name);
+            timeoutCts.Cancel();
+            Log.Warning("[PluginDiscovery] Plugin {Name} initialization timed out after {Seconds}s",
+                manifest.Name, _initTimeout.TotalSeconds);
+            ObserveLateFailure(initTask);
+            AbandonContext();
             return null;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            timeoutCts.Cancel();
+            Log.Warning("[PluginDiscovery] Plugin {Name} initialization timed out", manifest.Name);
+            ObserveLateFailure(initTask);
+            AbandonContext();
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            ObserveLateFailure(initTask);
+            AbandonContext();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginDiscovery] Failed to load {PluginId} from {Dir}", manifest.Id, pluginDir);
+            ObserveLateFailure(initTask);
+            AbandonContext();
+            return null;
+        }
+    }
+
+    private static void ObserveLateFailure(Task? task)
+    {
+        if (task is { IsFaulted: true })
+        {
+            _ = task.Exception;
+            return;
+        }
+
+        if (task is { IsCompleted: false })
+        {
+            _ = task.ContinueWith(
+                completed => _ = completed.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
     }
 
@@ -278,21 +345,56 @@ public class PluginDiscovery
         if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
             return "EntryPoint is required";
         
-        if (!manifest.EntryPoint.Contains(','))
-            return "EntryPoint must be in format 'Namespace.Type, AssemblyName'";
+        var entryParts = manifest.EntryPoint.Split(',');
+        if (entryParts.Length != 2 ||
+            string.IsNullOrWhiteSpace(entryParts[0]) ||
+            string.IsNullOrWhiteSpace(entryParts[1]))
+        {
+            return "EntryPoint must be 'Namespace.Type, AssemblyName'";
+        }
         
         if (manifest.Kinds == null || manifest.Kinds.Length == 0)
             return "At least one Kind is required";
 
+        if (manifest.Permissions == null || manifest.Permissions.ApiKeys == null)
+            return "Permissions and apiKeys must not be null";
+
+        if (!string.IsNullOrWhiteSpace(manifest.MinHostVersion) &&
+            !IsVersionRequirement(manifest.MinHostVersion))
+        {
+            return "MinHostVersion must be a major.minor.patch version with an optional prerelease suffix";
+        }
+
         return null;
+    }
+
+    private static bool IsVersionRequirement(string value)
+    {
+        var versionParts = value.Split('-', 2);
+        if (versionParts.Length == 2 && string.IsNullOrWhiteSpace(versionParts[1]))
+            return false;
+
+        var coreVersion = versionParts[0];
+        var parts = coreVersion.Split('.');
+        return parts.Length == 3 &&
+               parts.All(part => int.TryParse(
+                   part, NumberStyles.None, CultureInfo.InvariantCulture, out _));
     }
 
     public void UnloadAll()
     {
-        foreach (var context in _contexts.Values)
+        foreach (var (pluginId, context) in _contexts.ToArray())
         {
-            context.Unload();
+            try
+            {
+                context.Unload();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[PluginDiscovery] Failed to unload context for {PluginId}", pluginId);
+            }
         }
+
         _contexts.Clear();
     }
 }

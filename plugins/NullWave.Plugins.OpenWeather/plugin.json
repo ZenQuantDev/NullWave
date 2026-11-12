@@ -13,6 +13,7 @@
   "permissions": {
     "network": true,
     "accessApiKeys": true,
+    "apiKeys": ["OpenWeather"],
     "allowedDomains": ["api.openweathermap.org"]
   },
   "minHostVersion": "0.6.5",
