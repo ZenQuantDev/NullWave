@@ -705,7 +705,7 @@ public static partial class Locales
         ["Player_Status_EndOfLibrary"] = "Конец библиотеки",
 
         // Playlist Result Count
-        ["Playlist_ResultCount_Format"] = "Треков: {0}",
+        ["Playlist_RESULTCount_Format"] = "Треков: {0}",
 
         // MainWindow
         ["MainWindow_Search_Placeholder"] = "Поиск (напр., 'artist:tame impala', 'is:favorite', или 'ai:chill hip-hop')...",

@@ -8,7 +8,6 @@ namespace NullWave.Plugins.OpenWeather;
 public class OpenWeatherPlugin : IPlugin
 {
     private IPluginHost? _host;
-    private bool _isConfigured;
 
     public string Id => "com.nullwave.openweather";
     public string Name => "OpenWeather";
@@ -37,7 +36,6 @@ public class OpenWeatherPlugin : IPlugin
                 return false;
             }
 
-            _isConfigured = true;
             State = PluginState.Available;
             host.Log(LogLevel.Info, "OpenWeather plugin initialized successfully");
             return true;
@@ -52,7 +50,6 @@ public class OpenWeatherPlugin : IPlugin
 
     public Task ShutdownAsync(CancellationToken ct = default)
     {
-        _isConfigured = false;
         State = PluginState.Unavailable;
         _host?.Log(LogLevel.Info, "OpenWeather plugin shut down");
         return Task.CompletedTask;

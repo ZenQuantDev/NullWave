@@ -104,16 +104,4 @@ public class FileOperationJournal
         }
     }
 
-    public FileOpRecord? PopLast()
-    {
-        lock (_lock)
-        {
-            if (_ops.Count == 0) return null;
-            var last = _ops[^1];
-            _ops.RemoveAt(_ops.Count - 1);
-            Save();
-            _dirty = false;
-            return last;
-        }
-    }
 }

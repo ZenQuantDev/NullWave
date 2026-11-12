@@ -12,7 +12,7 @@ public class SettingsLocalizationTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void Settings_tabs_and_new_dialogs_have_Russian_translations_for_every_used_key()
+    public void Settings_tabs_and_playlist_result_count_have_Russian_translations_for_every_used_key()
     {
         var viewPaths = new[]
         {
@@ -38,7 +38,11 @@ public class SettingsLocalizationTests
         };
         var dynamicallyUsedKeys = Locales.English.Keys.Where(key =>
             requiredPrefixes.Any(prefix => key.StartsWith(prefix, StringComparison.Ordinal)));
-        var requiredKeys = referencedKeys.Concat(dynamicallyUsedKeys).Distinct().ToArray();
+        var requiredKeys = referencedKeys
+            .Concat(dynamicallyUsedKeys)
+            .Append("Playlist_RESULTCount_Format")
+            .Distinct()
+            .ToArray();
 
         var missingEnglish = requiredKeys.Where(key => !Locales.English.ContainsKey(key)).ToArray();
         var missingRussian = requiredKeys.Where(key => !Locales.Russian.ContainsKey(key)).ToArray();
