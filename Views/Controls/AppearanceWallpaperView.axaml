@@ -111,13 +111,13 @@
           <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
             <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_Fit}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fill" Content="Cover">
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fill" Content="{loc:Loc Settings_Appearance_Wallpaper_Cover}">
                 <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Fill"/></attached:PseudoClass.Active>
               </Button>
-              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fit" Content="Fit">
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Fit" Content="{loc:Loc Settings_Appearance_Wallpaper_FitOption}">
                 <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Fit"/></attached:PseudoClass.Active>
               </Button>
-              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Stretch" Content="Stretch">
+              <Button Classes="chip" Command="{Binding SetWallpaperFitCommand}" CommandParameter="Stretch" Content="{loc:Loc Settings_Appearance_Wallpaper_Stretch}">
                 <attached:PseudoClass.Active><Binding Path="WallpaperFit" Converter="{StaticResource StrEq}" ConverterParameter="Stretch"/></attached:PseudoClass.Active>
               </Button>
             </StackPanel>
@@ -138,7 +138,7 @@
             </Border.IsVisible>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <material:MaterialIcon Kind="InformationOutline" Width="16" Height="16" Foreground="{StaticResource BrushBlue}" VerticalAlignment="Center"/>
-              <TextBlock Text="Wallpaper scenes use reduced effects on this hardware to save power."
+              <TextBlock Text="{loc:Loc Settings_Appearance_Wallpaper_MinimalEffects}"
                          Foreground="{StaticResource BrushTextSecondary}"
                          FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
             </StackPanel>

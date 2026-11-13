@@ -823,6 +823,20 @@
       </Setter.Value>
     </Setter>
   </Style>
+
+  <Style Selector="Window.effects-minimal Button">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.06" Easing="CubicEaseOut"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.effects-minimal TabControl">
+    <Setter Property="PageTransition" Value="{x:Null}"/>
+  </Style>
+  <Style Selector="Window.effects-minimal ToggleSwitch /template/ Border#SwitchKnob">
+    <Setter Property="Transitions" Value="{x:Null}"/>
+  </Style>
   <Style Selector="Button.ghost:pressed">
     <Setter Property="RenderTransform">
       <Setter.Value>

@@ -189,11 +189,11 @@
                                 
                         <Button Classes="ghost" 
                                 Command="{Binding Detail.CopyShareLinkCommand}" 
-                                ToolTip.Tip="Copy NullWave P2P Share Link"
+                                ToolTip.Tip="{loc:Loc TrackDetail_ShareLink_Tooltip}"
                                 Padding="12,5">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <material:MaterialIcon Kind="ShareVariant" Width="16" Height="16" VerticalAlignment="Center"/>
-                                <TextBlock Text="Share Link" VerticalAlignment="Center"/>
+                                <TextBlock Text="{loc:Loc TrackDetail_ShareLink}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>

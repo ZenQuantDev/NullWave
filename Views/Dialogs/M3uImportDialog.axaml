@@ -2,16 +2,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels.Dialogs"
         xmlns:models="using:NullWave.Services"
+        xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Dialogs.M3uImportDialog"
         x:DataType="vm:M3uImportDialogViewModel"
-        Title="Import M3U Playlist"
+        Title="{loc:Loc M3uImport_Title}"
         Width="700" Height="500"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-            <Button Content="Cancel" Command="{Binding CancelCommand}" Classes="secondary"/>
-            <Button Content="Import" Command="{Binding ImportCommand}" Classes="primary"
+            <Button Content="{loc:Loc M3uImport_Cancel}" Command="{Binding CancelCommand}" Classes="secondary"/>
+            <Button Content="{loc:Loc M3uImport_Import}" Command="{Binding ImportCommand}" Classes="primary"
                     IsEnabled="{Binding CanImport}"/>
         </StackPanel>
         
@@ -20,7 +21,7 @@
                        FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold" Margin="0,0,0,8"/>
             
             <TextBox Grid.Column="2" Grid.Row="0" Text="{Binding PlaylistName, Mode=TwoWay}"
-                     PlaceholderText="Playlist name" Margin="8,0,0,8"/>
+                     PlaceholderText="{loc:Loc M3uImport_NamePlaceholder}" Margin="8,0,0,8"/>
             
             <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" 
                     BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" 

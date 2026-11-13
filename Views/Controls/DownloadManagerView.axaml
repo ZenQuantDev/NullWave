@@ -3,6 +3,7 @@
              xmlns:vm="using:NullWave.ViewModels"
              xmlns:models="using:NullWave.Models"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:loc="using:NullWave.Helpers.Localization"
              x:Class="NullWave.Views.Controls.DownloadManagerView"
              x:DataType="vm:DownloadManagerViewModel">
     <UserControl.Styles>
@@ -41,7 +42,7 @@
         <StackPanel Spacing="8" Margin="4">
             <!-- FIX: explicit DynamicResource foregrounds; popup-hosted content
                  does not inherit the app palette reliably in Dark mode -->
-            <TextBlock Text="Download Queue" FontWeight="Bold" FontSize="{DynamicResource FontSizeLg}" Margin="4,0,0,8"
+            <TextBlock Text="{loc:Loc DownloadManager_Title}" FontWeight="Bold" FontSize="{DynamicResource FontSizeLg}" Margin="4,0,0,8"
                        Foreground="{DynamicResource BrushTextPrimary}"/>
             
             <ItemsControl ItemsSource="{Binding Jobs}">
@@ -76,7 +77,7 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
             
-            <TextBlock Text="No active downloads." Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !HasJobs}"/>
+            <TextBlock Text="{loc:Loc DownloadManager_Empty}" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,20" IsVisible="{Binding !HasJobs}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -117,7 +117,7 @@
         <controls:WallpaperLayer/>
         <Border Classes="wallpaper-scrim"/>
         <Grid ColumnDefinitions="Auto,*">
-            <Border Grid.Column="0"
+            <Border x:Name="SettingsNavRail" Grid.Column="0"
                     Classes="settings-navrail chrome"
                     Classes.collapsed="{Binding IsSettingsSidebarCollapsed}"
                     Width="{Binding SettingsSidebarWidth}"
@@ -183,7 +183,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
                         <Grid>
                             <StackPanel Margin="8,4,8,0" Spacing="3">
-                                <TextBlock Classes="settings-group-label" Text="BASICS"/>
+                                <TextBlock Classes="settings-group-label" Text="{loc:Loc Settings_Group_Basics}"/>
                                 <Grid ColumnDefinitions="3,*">
                                     <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="General" ToolTip.Tip="{loc:Loc Settings_Nav_General}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=General}">
                                         <Grid ColumnDefinitions="Auto,*">
@@ -226,7 +226,7 @@
                                 </Grid>
 
                                 <Border Classes="settings-group-sep"/>
-                                <TextBlock Classes="settings-group-label" Text="CONNECTIONS"/>
+                                <TextBlock Classes="settings-group-label" Text="{loc:Loc Settings_Group_Connections}"/>
                                 <Grid ColumnDefinitions="3,*">
                                     <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="Integrations" ToolTip.Tip="{loc:Loc Settings_Nav_Integrations}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Integrations}">
                                         <Grid ColumnDefinitions="Auto,*">
@@ -267,7 +267,7 @@
                                 </Grid>
 
                                 <Border Classes="settings-group-sep"/>
-                                <TextBlock Classes="settings-group-label" Text="SYSTEM"/>
+                                <TextBlock Classes="settings-group-label" Text="{loc:Loc Settings_Group_System}"/>
                                 <Grid ColumnDefinitions="3,*">
                                     <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="Maintenance" ToolTip.Tip="{loc:Loc Settings_Nav_Maintenance}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=Maintenance}">
                                         <Grid ColumnDefinitions="Auto,*">
@@ -290,7 +290,7 @@
                                 </Grid>
 
                                 <Border Classes="settings-group-sep"/>
-                                <TextBlock Classes="settings-group-label" Text="INFO"/>
+                                <TextBlock Classes="settings-group-label" Text="{loc:Loc Settings_Group_Info}"/>
                                 <Grid ColumnDefinitions="3,*">
                                     <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="About" ToolTip.Tip="{loc:Loc Settings_Nav_About}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=About}">
                                         <Grid ColumnDefinitions="Auto,*">
@@ -312,12 +312,12 @@
                                     </Button>
                                 </Grid>
                                 <Grid ColumnDefinitions="3,*" IsVisible="{Binding IsDevMode}">
-                                    <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="DevTools" ToolTip.Tip="Developer Tools" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=DevTools}">
+                                    <Button Grid.Column="1" Command="{Binding NavigateSettingsCommand}" CommandParameter="DevTools" ToolTip.Tip="{loc:Loc Settings_Nav_Developer}" Classes="nav" Classes.active="{Binding CurrentSettingsPage, Converter={StaticResource StrEq}, ConverterParameter=DevTools}">
                                         <Grid ColumnDefinitions="Auto,*">
                                             <Border Classes="art-tile">
                                                 <material:MaterialIcon Kind="CodeTags" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
-                                            <TextBlock Grid.Column="1" Classes="expand-only" Text="Developer" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
+                                            <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Settings_Nav_Developer}" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding IsSettingsSidebarExpanded}"/>
                                         </Grid>
                                     </Button>
                                 </Grid>

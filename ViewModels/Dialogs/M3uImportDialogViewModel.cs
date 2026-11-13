@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NullWave.Models;
 using NullWave.Services;
+using System.Globalization;
 
 namespace NullWave.ViewModels.Dialogs;
 
@@ -31,10 +32,12 @@ public partial class M3uImportDialogViewModel : ObservableObject
         
         Matches = _preview.Matches;
         PlaylistName = _preview.PlaylistName ?? System.IO.Path.GetFileNameWithoutExtension(m3uPath);
-        SummaryText = $"Found {_preview.TotalEntries} entries: {_preview.MatchedCount} matched, {_preview.MissingCount} missing";
+        SummaryText = string.Format(CultureInfo.CurrentCulture,
+            LocalizationService.Instance["M3uImport_Summary"],
+            _preview.TotalEntries, _preview.MatchedCount, _preview.MissingCount);
         StatusText = _preview.MissingCount > 0 
-            ? "Missing tracks will be skipped during import." 
-            : "All tracks found in library.";
+            ? LocalizationService.Instance["M3uImport_MissingStatus"]
+            : LocalizationService.Instance["M3uImport_AllFoundStatus"];
     }
 
     [RelayCommand]

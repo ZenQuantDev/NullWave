@@ -16,6 +16,25 @@ public class SettingsLocalizationTests
     {
         var viewPaths = new[]
         {
+            "Views/OnboardingWindow.axaml",
+            "Views/Dialogs/DownloaderConsentView.axaml",
+            "Views/Dialogs/M3uImportDialog.axaml",
+            "Views/Dialogs/RadioMoodDialog.axaml",
+            "Views/Controls/AppearanceWallpaperView.axaml",
+            "Views/Controls/DonutChartControl.axaml",
+            "Views/Controls/DownloadManagerView.axaml",
+            "Views/Controls/PlaylistsView.axaml",
+            "Views/Controls/SidebarView.axaml",
+            "Views/Controls/TrackDetailView.axaml",
+            "Views/Controls/TrackListView.axaml",
+            "Views/MainWindow.axaml",
+            "Views/ProfileWindow.axaml",
+            "Views/Settings/AboutTab.axaml",
+            "Views/Settings/AppearanceTab.axaml",
+            "Views/Settings/HelpTab.axaml",
+            "Views/Settings/SmartSortingTab.axaml",
+            "Views/SettingsWindow.axaml",
+            "Views/WhatsNewWindow.axaml",
             "Views/Settings/DownloadsTab.axaml",
             "Views/Settings/IntegrationsTab.axaml",
             "Views/Settings/MaintenanceTab.axaml",
@@ -35,6 +54,8 @@ public class SettingsLocalizationTests
             "Settings_General_Experimental_",
             "Settings_Updates_",
             "Settings_Updates_InstallConsent_",
+            "OnboardingV2_",
+            "M3uImport_",
             "Dialog_Confirm"
         };
         var dynamicallyUsedKeys = Locales.English.Keys.Where(key =>
@@ -42,6 +63,10 @@ public class SettingsLocalizationTests
         var requiredKeys = referencedKeys
             .Concat(dynamicallyUsedKeys)
             .Append("Playlist_RESULTCount_Format")
+            .Append("M3uImport_Summary")
+            .Append("M3uImport_MissingStatus")
+            .Append("M3uImport_AllFoundStatus")
+            .Append("WhatsNew_Title_Version")
             .Distinct()
             .ToArray();
 

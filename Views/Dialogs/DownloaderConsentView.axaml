@@ -4,48 +4,48 @@
         xmlns:loc="using:NullWave.Helpers.Localization"
         x:Class="NullWave.Views.Dialogs.DownloaderConsentView"
         x:DataType="vm:DownloaderConsentViewModel"
-        Title="Downloader Terms"
+        Title="{loc:Loc DownloaderConsent_Title}"
         Width="500" Height="400"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
     <DockPanel Margin="24">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
-            <Button Content="Decline" Command="{Binding DeclineCommand}" Classes="ghost"/>
-            <Button Content="Accept" Command="{Binding AcceptCommand}" Classes="primary"
+            <Button Content="{loc:Loc DownloaderConsent_Decline}" Command="{Binding DeclineCommand}" Classes="ghost"/>
+            <Button Content="{loc:Loc DownloaderConsent_Accept}" Command="{Binding AcceptCommand}" Classes="primary"
                     IsEnabled="{Binding CanAccept}"/>
         </StackPanel>
         
         <ScrollViewer>
             <StackPanel Spacing="16">
-                <TextBlock Text="Downloader Terms and Conditions" Classes="Heading"/>
+                <TextBlock Text="{loc:Loc DownloaderConsent_Heading}" Classes="Heading"/>
                 
                 <TextBlock TextWrapping="Wrap">
-                    <Run Text="NullWave uses yt-dlp to download audio from YouTube and other platforms. Before you can use the download feature, please review and accept the following terms."/>
+                    <Run Text="{loc:Loc DownloaderConsent_Intro}"/>
                 </TextBlock>
 
                 <Border Background="{StaticResource BrushAmberDim}" BorderBrush="{StaticResource BrushAmber}" BorderThickness="1" CornerRadius="4" Padding="12">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Your Responsibility" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock Text="{loc:Loc DownloaderConsent_Responsibility_Title}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}">
-                            <Run Text="You are solely responsible for ensuring that your use of the download feature complies with applicable laws and the terms of service of the platforms you download from. NullWave does not host, distribute, or endorse any copyrighted content."/>
+                            <Run Text="{loc:Loc DownloaderConsent_Responsibility_Desc}"/>
                         </TextBlock>
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="What This Feature Does" FontWeight="Bold" Margin="0,8,0,0"/>
+                <TextBlock Text="{loc:Loc DownloaderConsent_Feature_Title}" FontWeight="Bold" Margin="0,8,0,0"/>
                 <TextBlock TextWrapping="Wrap">
-                    <Run Text="The download feature allows you to save audio from publicly available URLs for personal offline listening. It uses yt-dlp, an open-source tool, to extract audio streams. No content is uploaded or shared."/>
+                    <Run Text="{loc:Loc DownloaderConsent_Feature_Desc}"/>
                 </TextBlock>
 
                 <CheckBox IsChecked="{Binding UserUnderstands}" Margin="0,12,0,0">
                     <TextBlock TextWrapping="Wrap">
-                        <Run Text="I understand that I am responsible for complying with copyright laws and platform terms of service."/>
+                        <Run Text="{loc:Loc DownloaderConsent_Understand}"/>
                     </TextBlock>
                 </CheckBox>
 
                 <CheckBox IsChecked="{Binding UserAcceptsResponsibility}">
                     <TextBlock TextWrapping="Wrap">
-                        <Run Text="I accept full responsibility for how I use this feature and agree not to use it for copyright infringement."/>
+                        <Run Text="{loc:Loc DownloaderConsent_AcceptResponsibility}"/>
                     </TextBlock>
                 </CheckBox>
             </StackPanel>

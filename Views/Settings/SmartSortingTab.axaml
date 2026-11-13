@@ -28,9 +28,9 @@
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <material:MaterialIcon Kind="Flask" Width="16" Height="16" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Experimental Features Hidden" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{loc:Loc Settings_SmartFeatures_ExperimentalHidden_Title}" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="AI-powered features like mood playlists, smart shuffle, and local inference are currently hidden. Enable Experimental Features in the General tab to access them."
+                    <TextBlock Text="{loc:Loc Settings_SmartFeatures_ExperimentalHidden_Desc}"
                                Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>

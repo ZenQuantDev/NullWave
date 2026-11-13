@@ -12,6 +12,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
+using NullWave.Models;
+using NullWave.Services;
 using NullWave.ViewModels;
 using Serilog;
 
@@ -25,10 +27,14 @@ public partial class MainWindow : Window
     private string _lastHoverDescription = "none";
     private object? _lastHoverKey;
     private UiHangDetector? _hangDetector;
+    private Transitions? _rightPanelTransitions;
 
     public MainWindow()
     {
         InitializeComponent();
+        _rightPanelTransitions = RightPanelBorder.Transitions;
+        EffectsTierResolver.Shared.PropertyChanged += OnEffectsTierChanged;
+        ApplyEffectsTier();
         WallpaperChromeSync.Attach(this);
         StartupTimeline.Mark("MainWindow components loaded");
 
@@ -40,6 +46,7 @@ public partial class MainWindow : Window
 
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;
+        Closed += (_, _) => EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierChanged;
 
         PerfOverlayController.SetTagProvider(() =>
         {
@@ -48,6 +55,29 @@ public partial class MainWindow : Window
             var sidebar = mvm?.IsSidebarExpanded == true ? "expanded" : "rail";
             return "page=" + page + "|hover=" + _lastHoverDescription + "|sidebar=" + sidebar;
         });
+    }
+
+    private void OnEffectsTierChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(EffectsTierResolver.Current)) return;
+        Dispatcher.UIThread.Post(ApplyEffectsTier, DispatcherPriority.Background);
+    }
+
+    private void ApplyEffectsTier()
+    {
+        var minimal = EffectsTierResolver.Shared.Current == EffectsTier.Minimal;
+        if (minimal)
+        {
+            if (!Classes.Contains("effects-minimal")) Classes.Add("effects-minimal");
+            PageHost.PageTransition = null;
+            RightPanelBorder.Transitions = null;
+        }
+        else
+        {
+            Classes.Remove("effects-minimal");
+            PageHost.PageTransition = new CrossFade(TimeSpan.FromMilliseconds(180));
+            RightPanelBorder.Transitions = _rightPanelTransitions;
+        }
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

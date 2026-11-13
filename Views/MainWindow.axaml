@@ -53,6 +53,9 @@
                 </Transitions>
             </Setter>
         </Style>
+        <Style Selector="Window.effects-minimal Border.chrome">
+            <Setter Property="Transitions" Value="{x:Null}"/>
+        </Style>
     </Window.Styles>
 
     <Panel>
@@ -148,7 +151,7 @@
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
                                             
                                             <!-- Radio Catalog Entry Point -->
-                                            <Button Classes="ghost" Content="Browse Radio Stations" Command="{Binding Input.BrowseRadioCatalogCommand}"
+                                            <Button Classes="ghost" Content="{loc:Loc MainWindow_BrowseRadioCatalog}" Command="{Binding Input.BrowseRadioCatalogCommand}"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
 
                                             <Border Height="1" Background="{DynamicResource BrushBorder}"/>
@@ -171,7 +174,7 @@
                 </Grid>
 
                 <!-- RIGHT: Detail / Queue Panel. -->
-                <Border Grid.Column="2"
+                <Border x:Name="RightPanelBorder" Grid.Column="2"
                         Width="{Binding ActiveRightPanelWidth}"
                         ClipToBounds="True"
                         Classes="chrome">

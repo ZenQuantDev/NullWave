@@ -223,6 +223,12 @@
                 </Transitions>
             </Setter>
         </Style>
+        <Style Selector=".effects-minimal Border.folder-children">
+            <Setter Property="Transitions" Value="{x:Null}"/>
+        </Style>
+        <Style Selector=".effects-minimal material|MaterialIcon#ChevronIcon">
+            <Setter Property="Transitions" Value="{x:Null}"/>
+        </Style>
 
         <Style Selector="Button.nav">
             <Setter Property="ToolTip.ShowDelay" Value="3600000"/>
@@ -522,12 +528,12 @@
 
                                     <StackPanel Grid.Column="1" Classes="expand-only" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
                                         <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsCustomizingSidebar}">
-                                            <Button Classes="sidebar-action" ToolTip.Tip="Move Up" Opacity="1"
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Action_MoveUp}" Opacity="1"
                                                     Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.MoveUpCommand}"
                                                     CommandParameter="{Binding}">
                                                 <material:MaterialIcon Kind="ArrowUp" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
                                             </Button>
-                                            <Button Classes="sidebar-action" ToolTip.Tip="Move Down" Opacity="1"
+                                            <Button Classes="sidebar-action" ToolTip.Tip="{loc:Loc Sidebar_Action_MoveDown}" Opacity="1"
                                                     Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.MoveDownCommand}"
                                                     CommandParameter="{Binding}">
                                                 <material:MaterialIcon Kind="ArrowDown" Width="16" Height="16" Foreground="{StaticResource BrushTextSecondary}"/>
@@ -581,7 +587,7 @@
                                                                    Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                                             <TextBlock Text="{Binding Playlists.Count}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
-                                                            <TextBlock Text="Playlists" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                                            <TextBlock Text="{loc:Loc Sidebar_Label_Playlists}" Foreground="{DynamicResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>

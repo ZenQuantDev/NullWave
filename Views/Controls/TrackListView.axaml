@@ -249,7 +249,7 @@
                                     IsVisible="{Binding IsRadio}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="LIVE" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc Common_LiveBadge}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -326,16 +326,16 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="{Binding SelectionCountLabel}" VerticalAlignment="Center"
                            Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" Margin="4,0,6,0"/>
-                <Button Classes="icon-btn" Command="{Binding BulkToggleFavoriteCommand}" ToolTip.Tip="Favorite selected">
+                <Button Classes="icon-btn" Command="{Binding BulkToggleFavoriteCommand}" ToolTip.Tip="{loc:Loc Library_Bulk_Favorite}">
                     <material:MaterialIcon Kind="Star" Width="16" Height="16"/>
                 </Button>
-                <Button Classes="icon-btn" Command="{Binding BulkAddToQueueCommand}" ToolTip.Tip="Add to queue">
+                <Button Classes="icon-btn" Command="{Binding BulkAddToQueueCommand}" ToolTip.Tip="{loc:Loc Library_Bulk_Queue}">
                     <material:MaterialIcon Kind="PlaylistPlus" Width="16" Height="16"/>
                 </Button>
-                <Button Classes="icon-btn" Command="{Binding BulkAddToPlaylistCommand}" ToolTip.Tip="Add to playlist">
+                <Button Classes="icon-btn" Command="{Binding BulkAddToPlaylistCommand}" ToolTip.Tip="{loc:Loc Library_Bulk_Playlist}">
                     <material:MaterialIcon Kind="PlaylistMusic" Width="16" Height="16"/>
                 </Button>
-                <Button Classes="icon-btn" Command="{Binding BulkRemoveCommand}" ToolTip.Tip="Remove selected">
+                <Button Classes="icon-btn" Command="{Binding BulkRemoveCommand}" ToolTip.Tip="{loc:Loc Library_Bulk_Remove}">
                     <material:MaterialIcon Kind="TrashCan" Width="16" Height="16"/>
                 </Button>
             </StackPanel>

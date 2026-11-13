@@ -79,16 +79,16 @@
                         <Border Classes="step-dot" Classes.active="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=5}"/>
                     </StackPanel>
                     <Panel>
-                        <TextBlock Text="Appearance" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=1}"/>
-                        <TextBlock Text="System Dependencies" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=2}"/>
-                        <TextBlock Text="Services &amp; API Keys" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=3}"/>
-                        <TextBlock Text="The Vault &amp; Downloads" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=4}"/>
-                        <TextBlock Text="Playback &amp; Finalization" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=5}"/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Step_Appearance}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=1}"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Step_Dependencies}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=2}"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Step_Services}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=3}"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Step_Vault}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=4}"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Step_Playback}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" HorizontalAlignment="Center" IsVisible="{Binding #Root.CurrentStep, Converter={x:Static converters:IntEqualsConverter.Instance}, ConverterParameter=5}"/>
                     </Panel>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Classes="ghost" x:Name="SkipButton" Click="OnSkip" VerticalAlignment="Center" Padding="12,6"
-                            ToolTip.Tip="Skip setup - you can change everything later in Settings">
+                            ToolTip.Tip="{loc:Loc OnboardingV2_Skip_Tooltip}">
                         <TextBlock Text="{loc:Loc Onboarding_Skip}"/>
                     </Button>
                 </StackPanel>
@@ -124,36 +124,36 @@
                 <!--  STEP 1: APPEARANCE  -->
                 <StackPanel Spacing="20">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Welcome to NullWave" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="Let's set up your workspace and visual preferences."/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Welcome_Title}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="{loc:Loc OnboardingV2_Welcome_Desc}"/>
                     </StackPanel>
 
                     <!-- Language -->
                     <Border Classes="integration-card">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                             <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="Language" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}"/>
-                                <TextBlock Text="Choose your preferred display language" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                <TextBlock Text="{loc:Loc OnboardingV2_Language_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}"/>
+                                <TextBlock Text="{loc:Loc OnboardingV2_Language_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                             </StackPanel>
                             <ComboBox Grid.Column="1" ItemsSource="{Binding SupportedLanguages}" SelectedValue="{Binding SelectedLanguage, Mode=TwoWay}" SelectedValueBinding="{Binding Key}" DisplayMemberBinding="{Binding Value}" MinWidth="160" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
                     <!-- Theme mode -->
-                    <TextBlock Text="THEME MODE" Classes="section-label" Margin="0,8,0,0"/>
+                    <TextBlock Text="{loc:Loc OnboardingV2_Theme_Section}" Classes="section-label" Margin="0,8,0,0"/>
                     <Border Classes="integration-card">
                         <StackPanel Spacing="12">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="TrueBlack" Content="True Black">
+                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="TrueBlack" Content="{loc:Loc OnboardingV2_Theme_TrueBlack}">
                                     <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="TrueBlack"/></attached:PseudoClass.Active>
                                 </Button>
-                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" Content="Dark">
+                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Dark" Content="{loc:Loc OnboardingV2_Theme_Dark}">
                                     <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Dark"/></attached:PseudoClass.Active>
                                 </Button>
-                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Light" Content="Light">
+                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="Light" Content="{loc:Loc OnboardingV2_Theme_Light}">
                                     <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="Light"/></attached:PseudoClass.Active>
                                 </Button>
-                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="System" Content="System">
+                                <Button Classes="chip" Command="{Binding SetThemeModeCommand}" CommandParameter="System" Content="{loc:Loc OnboardingV2_Theme_System}">
                                     <attached:PseudoClass.Active><Binding Path="ThemeMode" Converter="{StaticResource StrEq}" ConverterParameter="System"/></attached:PseudoClass.Active>
                                 </Button>
                             </StackPanel>
@@ -161,7 +161,7 @@
                     </Border>
 
                     <!-- Signature edition -->
-                    <TextBlock Text="SIGNATURE EDITION" Classes="section-label" Margin="0,8,0,0"/>
+                    <TextBlock Text="{loc:Loc OnboardingV2_Signature_Section}" Classes="section-label" Margin="0,8,0,0"/>
                     <Border Classes="integration-card">
                         <Button Classes="flat" Command="{Binding SetAccentCommand}" CommandParameter="Oxeye Daisy">
                             <attached:PseudoClass.Active>
@@ -173,7 +173,7 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
                                     <TextBlock Text="Oxeye Daisy" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Limited &amp; exclusive signature duotone - the NullWave default" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Signature_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <material:MaterialIcon Grid.Column="2" Kind="Check" Width="18" Height="18"
                                                        Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"
@@ -183,7 +183,7 @@
                     </Border>
 
                     <!-- Base accents -->
-                    <TextBlock Text="ACCENT COLORS" Classes="section-label" Margin="0,8,0,0"/>
+                    <TextBlock Text="{loc:Loc OnboardingV2_Accent_Section}" Classes="section-label" Margin="0,8,0,0"/>
                     <Border Classes="integration-card">
                         <ItemsControl ItemsSource="{Binding Source={x:Static services:ThemeService.BaseAccents}}">
                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -210,7 +210,7 @@
                     </Border>
 
                     <!-- Accent duos -->
-                    <TextBlock Text="ACCENT DUOS" Classes="section-label" Margin="0,8,0,0"/>
+                    <TextBlock Text="{loc:Loc OnboardingV2_Duos_Section}" Classes="section-label" Margin="0,8,0,0"/>
                     <Border Classes="integration-card">
                         <ItemsControl ItemsSource="{Binding Source={x:Static services:ThemeService.DuotoneAccents}}">
                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -240,18 +240,18 @@
                 <!--  STEP 2: SYSTEM DEPENDENCIES  -->
                 <StackPanel Spacing="20">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="The Engine Room" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="NullWave relies on a few open-source tools to download, play media, and run local AI."/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Engine_Title}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="{loc:Loc OnboardingV2_Engine_Desc}"/>
                     </StackPanel>
                     <Border Classes="integration-card">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="System Status" Classes="section-label" Margin="0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{loc:Loc OnboardingV2_SystemStatus}" Classes="section-label" Margin="0" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1" Classes="ghost" Padding="8,4" Command="{Binding CheckDependenciesCommand}"
-                                        ToolTip.Tip="Re-scan installed tools">
+                                        ToolTip.Tip="{loc:Loc OnboardingV2_Rescan_Tooltip}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <material:MaterialIcon Kind="Refresh" Width="14" Height="14"/>
-                                        <TextBlock Text="Re-scan" FontSize="{DynamicResource FontSizeXs}"/>
+                                        <TextBlock Text="{loc:Loc OnboardingV2_Rescan}" FontSize="{DynamicResource FontSizeXs}"/>
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -273,7 +273,7 @@
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="Vlc" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Text="VLC (LibVLC)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Vlc_Label}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
                                     <TextBlock Text="{Binding VlcStatus}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Classes="install-cmd" Text="{Binding #Root.VlcInstallCmd}" ToolTip.Tip="{Binding #Root.VlcInstallCmd}" MaxWidth="230"/>
@@ -299,8 +299,8 @@
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="CodeBraces" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Text="JS Runtime (Node/Deno/Bun)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Required to bypass YouTube signature challenges" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Runtime_Label}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Runtime_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Classes="install-cmd" Text="{Binding #Root.JsRuntimeInstallCmd}" ToolTip.Tip="{Binding #Root.JsRuntimeInstallCmd}" MaxWidth="230"/>
                                 <Button Grid.Column="3" Classes="icon-btn" Width="26" Height="26" Click="OnCopyInstallCmd" Tag="{Binding #Root.JsRuntimeInstallCmd}">
@@ -312,7 +312,7 @@
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="Brain" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Text="Ollama (Local AI)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Ollama_Label}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
                                     <TextBlock Text="{Binding AIStatusLabel}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Classes="install-cmd" Text="{Binding #Root.OllamaInstallCmd}" ToolTip.Tip="{Binding #Root.OllamaInstallCmd}" MaxWidth="230"/>
@@ -325,8 +325,8 @@
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="DownloadCircle" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Text="AI Model (recommended)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Powers AI playlists, smart tags &amp; mood mixes (~4-5 GB)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Model_Label}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Model_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Classes="install-cmd"
                                            Text="{Binding PerformanceModel, StringFormat='ollama pull {0}'}"
@@ -341,8 +341,8 @@
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                 <material:MaterialIcon Grid.Column="0" Kind="LightningBolt" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Text="aria2 (optional)" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Multi-connection download accelerator" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Aria_Label}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Aria_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Classes="install-cmd" Text="{Binding #Root.Aria2InstallCmd}" ToolTip.Tip="{Binding #Root.Aria2InstallCmd}" MaxWidth="230"/>
                                 <Button Grid.Column="3" Classes="icon-btn" Width="26" Height="26" Click="OnCopyInstallCmd" Tag="{Binding #Root.Aria2InstallCmd}">
@@ -355,17 +355,17 @@
                     <!-- Guides -->
                     <Border Classes="integration-card">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Guides &amp; Documentation" Classes="section-label" Margin="0"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Guides_Title}" Classes="section-label" Margin="0"/>
                             <Button Classes="ghost" HorizontalAlignment="Left" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#model-library">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <material:MaterialIcon Kind="BookOpenVariant" Width="16" Height="16" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Installing AI Models Guide" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Guide_Models}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                             <Button Classes="ghost" HorizontalAlignment="Left" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ZenQuantDev/NullWave/wiki">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <material:MaterialIcon Kind="HelpCircleOutline" Width="16" Height="16" VerticalAlignment="Center"/>
-                                    <TextBlock Text="NullWave Setup &amp; Troubleshooting Wiki" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Guide_Wiki}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -375,8 +375,8 @@
                 <!--  STEP 3: SERVICES & API KEYS  -->
                 <StackPanel Spacing="20">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Connect Your Services" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="Unlock metadata, scrobbling, and weather-aware playlists."/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Connect_Title}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="{loc:Loc OnboardingV2_Connect_Desc}"/>
                     </StackPanel>
                     <StackPanel Spacing="12">
                         <!-- YouTube -->
@@ -387,14 +387,14 @@
                                         <material:MaterialIcon Kind="Youtube" Width="24" Height="24" Foreground="{StaticResource BrushYouTubeIcon}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="YouTube Data API" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                        <TextBlock Text="Required for downloading and metadata" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        <TextBlock Text="{loc:Loc OnboardingV2_YouTube_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                        <TextBlock Text="{loc:Loc OnboardingV2_YouTube_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                     </StackPanel>
                                 </Grid>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Grid.Column="0" Text="{Binding YouTubeApiKey, Mode=TwoWay}" PlaceholderText="AIza..." PasswordChar="•" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="0" Text="{Binding YouTubeApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc OnboardingV2_YouTube_Placeholder}" PasswordChar="•" VerticalAlignment="Center"/>
                                     <Border Grid.Column="1" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
-                                            IsVisible="{Binding YouTubeApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="Key Saved">
+                                            IsVisible="{Binding YouTubeApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc OnboardingV2_KeySaved}">
                                         <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                                     </Border>
                                 </Grid>
@@ -409,13 +409,13 @@
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="Last.fm" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                        <TextBlock Text="Scrobble plays and fetch artist art" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        <TextBlock Text="{loc:Loc OnboardingV2_LastFm_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                     </StackPanel>
                                 </Grid>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Grid.Column="0" Text="{Binding LastFmApiKey, Mode=TwoWay}" PlaceholderText="API Key" PasswordChar="•" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="0" Text="{Binding LastFmApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc OnboardingV2_ApiKey_Placeholder}" PasswordChar="•" VerticalAlignment="Center"/>
                                     <Border Grid.Column="1" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
-                                            IsVisible="{Binding LastFmApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="Key Saved">
+                                            IsVisible="{Binding LastFmApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc OnboardingV2_KeySaved}">
                                         <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                                     </Border>
                                 </Grid>
@@ -430,13 +430,13 @@
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="OpenWeather" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                        <TextBlock Text="Weather-aware mood playlists" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                        <TextBlock Text="{loc:Loc OnboardingV2_Weather_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                     </StackPanel>
                                 </Grid>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Grid.Column="0" Text="{Binding OpenWeatherApiKey, Mode=TwoWay}" PlaceholderText="API Key" PasswordChar="•" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="0" Text="{Binding OpenWeatherApiKey, Mode=TwoWay}" PlaceholderText="{loc:Loc OnboardingV2_ApiKey_Placeholder}" PasswordChar="•" VerticalAlignment="Center"/>
                                     <Border Grid.Column="1" Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}" Padding="8,6"
-                                            IsVisible="{Binding OpenWeatherApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="Key Saved">
+                                            IsVisible="{Binding OpenWeatherApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{loc:Loc OnboardingV2_KeySaved}">
                                         <TextBlock Text="✓" Foreground="{StaticResource BrushGreen}" FontWeight="Bold"/>
                                     </Border>
                                 </Grid>
@@ -448,8 +448,8 @@
                 <!--  STEP 4: THE VAULT (DOWNLOADS & METADATA)  -->
                 <StackPanel Spacing="20">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Your Music Vault" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="Configure where NullWave saves your media and how it processes metadata."/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Vault_Title}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="{loc:Loc OnboardingV2_Vault_Desc}"/>
                     </StackPanel>
                     <Border Classes="integration-card" DragDrop.AllowDrop="True" x:Name="FolderDropZone">
                         <StackPanel Spacing="12">
@@ -458,13 +458,13 @@
                                     <material:MaterialIcon Kind="FolderMusic" Width="24" Height="24" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Download Directory" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Drag &amp; drop a folder here or browse" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Directory_Title}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Directory_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
                                 </StackPanel>
                             </StackPanel>
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <TextBox Grid.Column="0" Text="{Binding DownloadDirectory, Mode=TwoWay}" PlaceholderText="C:\Music\NullWave" VerticalAlignment="Center"/>
-                                <Button Grid.Column="1" Classes="secondary" Content="Browse" Command="{Binding BrowseDownloadDirCommand}"/>
+                                <TextBox Grid.Column="0" Text="{Binding DownloadDirectory, Mode=TwoWay}" PlaceholderText="{loc:Loc OnboardingV2_Directory_Placeholder}" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Classes="secondary" Content="{loc:Loc OnboardingV2_Browse}" Command="{Binding BrowseDownloadDirCommand}"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -473,22 +473,22 @@
                          label stack left, bare ToggleSwitch merged to the right edge -->
                     <Border Classes="integration-card">
                         <StackPanel Spacing="0">
-                            <TextBlock Text="Audio &amp; Metadata Preferences" Classes="section-label" Margin="0,0,0,12"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Metadata_Preferences}" Classes="section-label" Margin="0,0,0,12"/>
                             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16" Margin="0,0,0,12">
                                 <StackPanel Grid.Column="0" Spacing="4">
-                                    <TextBlock Text="Format" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Format}" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox SelectedItem="{Binding AudioFormat, Mode=TwoWay}" Width="140">
                                         <x:String>mp3</x:String> <x:String>flac</x:String> <x:String>opus</x:String> <x:String>m4a</x:String>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
-                                    <TextBlock Text="Quality" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Quality}" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox SelectedItem="{Binding AudioQuality, Mode=TwoWay}" Width="140">
                                         <x:String>best</x:String> <x:String>320</x:String> <x:String>256</x:String> <x:String>128</x:String>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4">
-                                    <TextBlock Text="Concurrent Downloads" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_ConcurrentDownloads}" FontSize="{DynamicResource FontSizeSm}" Foreground="{StaticResource BrushTextMuted}"/>
                                     <ComboBox ItemsSource="{Binding ConcurrentDownloadOptions}" SelectedItem="{Binding MaxConcurrentDownloads, Mode=TwoWay}" Width="140" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
@@ -496,24 +496,24 @@
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,0,0,4"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Auto-fetch metadata &amp; album art" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Enrich every download with Last.fm tags and artwork" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoFetch_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoFetch_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoFetchMetadata, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,10"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Auto-clean titles" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Strip YouTube artifacts like (Official Video) from titles" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoClean_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoClean_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCleanMetadata, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,10"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Prevent duplicate downloads" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Skip tracks that already exist in your library" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Duplicates_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Duplicates_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding PreventDuplicateDownloads, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
@@ -524,34 +524,34 @@
                 <!--  STEP 5: PLAYBACK & SAFETY  -->
                 <StackPanel Spacing="20">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Playback &amp; Safety" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="Fine-tune your listening experience and keep your library protected."/>
+                        <TextBlock Text="{loc:Loc OnboardingV2_Playback_Title}" FontSize="{DynamicResource FontSize2xl}" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeBody}" Text="{loc:Loc OnboardingV2_Playback_Desc}"/>
                     </StackPanel>
 
                     <!-- FIX: same right-merged toggle row pattern as AudioTab -->
                     <Border Classes="integration-card">
                         <StackPanel Spacing="0">
-                            <TextBlock Text="Playback Experience" Classes="section-label" Margin="0,0,0,12"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Playback_Experience}" Classes="section-label" Margin="0,0,0,12"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Crossfade" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Blend the last seconds of a track into the next one" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Crossfade_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Crossfade_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding CrossfadeEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,10"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Auto-play next" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Continue playback with the next track in queue" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoPlay_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_AutoPlay_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPlayNext, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,10"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Scrobble to Last.fm" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Submit played tracks to your Last.fm profile" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Scrobble_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Scrobble_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding ScrobbleToLastFm, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
@@ -560,23 +560,23 @@
 
                     <Border Classes="integration-card">
                         <StackPanel Spacing="0">
-                            <TextBlock Text="Safety &amp; Import" Classes="section-label" Margin="0,0,0,12"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Safety_Import}" Classes="section-label" Margin="0,0,0,12"/>
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Automatic rolling backups" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Keep snapshots of your library database (last 3)" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Backups_Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeBodyLarge}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{loc:Loc OnboardingV2_Backups_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableAutoBackups, Mode=TwoWay}" VerticalAlignment="Center"/>
                             </Grid>
                             <Border Height="1" Background="{StaticResource BrushBorder}" Margin="0,10"/>
-                            <Button Classes="secondary" Content="Import Existing Library" Command="{Binding ImportExistingLibraryCommand}" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                            <Button Classes="secondary" Content="{loc:Loc OnboardingV2_ImportLibrary}" Command="{Binding ImportExistingLibraryCommand}" HorizontalAlignment="Left" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusMd}" Padding="16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <material:MaterialIcon Kind="CheckCircleOutline" Width="24" Height="24" Foreground="{StaticResource BrushGreen}" VerticalAlignment="Center"/>
-                            <TextBlock Text="You're all set! Click 'Finish' to start exploring NullWave." Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Loc OnboardingV2_Ready}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

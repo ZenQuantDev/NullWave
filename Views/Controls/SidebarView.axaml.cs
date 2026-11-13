@@ -32,12 +32,14 @@ public partial class SidebarView : Border
     private readonly HashSet<SourceFilterViewModel> _observedSourceFilters = new();
     private MainViewModel? _mainViewModel;
     private Transitions? _beadTransitions;
+    private Transitions? _sidebarTransitions;
     private bool _beadPlaced;
 
     public SidebarView()
     {
         InitializeComponent();
         _beadTransitions = SidebarBead.Transitions;
+        _sidebarTransitions = Transitions;
         DataContextChanged += (_, _) => AttachToViewModel();
         AttachedToVisualTree += (_, _) => ScheduleBead();
         // handledEventsToo: inner Buttons swallow PointerPressed; we must still see it.
@@ -77,6 +79,7 @@ public partial class SidebarView : Border
             ObserveSourceFilters();
         }
 
+        ApplyEffectsTier();
         ScheduleBead();
     }
 
@@ -152,7 +155,26 @@ public partial class SidebarView : Border
 
     private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainViewModel.CurrentEffectsTier)) ApplyEffectsTier();
         if (e.PropertyName == nameof(MainViewModel.IsSidebarExpanded)) ScheduleBead();
+    }
+
+    private void ApplyEffectsTier()
+    {
+        var minimal = (_mainViewModel?.CurrentEffectsTier ?? EffectsTierResolver.Shared.Current) == EffectsTier.Minimal;
+        if (minimal)
+        {
+            if (!Classes.Contains("effects-minimal")) Classes.Add("effects-minimal");
+            Transitions = null;
+            SidebarBead.Transitions = null;
+            Canvas.SetTop(SidebarBead, -100);
+        }
+        else
+        {
+            Classes.Remove("effects-minimal");
+            Transitions = _sidebarTransitions;
+            SidebarBead.Transitions = _beadTransitions;
+        }
     }
 
     private void ScheduleBead()
@@ -163,6 +185,12 @@ public partial class SidebarView : Border
 
     private void UpdateBead()
     {
+        if ((_mainViewModel?.CurrentEffectsTier ?? EffectsTierResolver.Shared.Current) == EffectsTier.Minimal)
+        {
+            Canvas.SetTop(SidebarBead, -100);
+            return;
+        }
+
         var descendants = this.GetVisualDescendants().ToArray();
         Control? active = (Control?)descendants.OfType<Button>()
             .FirstOrDefault(button => button.Classes.Contains("sidebar_nav") && button.Classes.Contains("active"))

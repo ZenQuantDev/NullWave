@@ -132,39 +132,39 @@
       </Border>
 
       <!-- INSTALLATION GUIDES -->
-      <TextBlock Classes="section-label" Text="Installation &amp; Dependencies" Margin="0,16,0,12"/>
+      <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_Installation}" Margin="0,16,0,12"/>
       <Border Classes="settings-card">
         <StackPanel Spacing="12">
-          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" Text="NullWave relies on external tools for downloading, playback, and AI features. Use the guides below to install them if they are missing."/>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}" Text="{loc:Loc Settings_Help_Installation_Desc}"/>
           <StackPanel Spacing="8" HorizontalAlignment="Left">
             <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/yt-dlp/yt-dlp#installation">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="Download" Width="16" Height="16" VerticalAlignment="Center"/>
-                <TextBlock Text="yt-dlp Installation Guide" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Settings_Help_Installation_YtDlp}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.videolan.org/vlc/">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="Vlc" Width="16" Height="16" VerticalAlignment="Center"/>
-                <TextBlock Text="VLC / LibVLC Installation" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Settings_Help_Installation_Vlc}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://ffmpeg.org/download.html">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="Cog" Width="16" Height="16" VerticalAlignment="Center"/>
-                <TextBlock Text="ffmpeg Installation Guide" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Settings_Help_Installation_Ffmpeg}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#install">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="Brain" Width="16" Height="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Ollama (Local AI) Setup" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Settings_Help_Installation_Ollama}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button Classes="ghost" Command="{Binding OpenUrlCommand}" CommandParameter="https://github.com/ollama/ollama#model-library">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="BookOpenVariant" Width="16" Height="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Installing AI Models Guide" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Settings_Help_Installation_Models}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -187,19 +187,19 @@
 
       <!-- IN-APP LOG VIEWER -->
       <StackPanel>
-        <TextBlock Classes="section-label" Text="In-App Log Viewer" Margin="{StaticResource Margin2xl}"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Help_Section_LogViewer}" Margin="{StaticResource Margin2xl}"/>
         
         <Border Classes="settings-card">
           <StackPanel Spacing="10">
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}"
-                       Text="Live tail of this session (last 500 lines). Filter it, or copy a diagnostics package to paste into a bug report."/>
+                       Text="{loc:Loc Settings_Help_Log_Desc}"/>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-              <TextBox Grid.Column="0" PlaceholderText="Filter log lines…" Text="{Binding LogViewer.FilterText}"/>
+              <TextBox Grid.Column="0" PlaceholderText="{loc:Loc Settings_Help_Log_Filter}" Text="{Binding LogViewer.FilterText}"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <ToggleButton Classes="level-chip" Content="Debug" IsChecked="{Binding LogViewer.ShowDebug}"/>
-                <ToggleButton Classes="level-chip" Content="Info"  IsChecked="{Binding LogViewer.ShowInfo}"/>
-                <ToggleButton Classes="level-chip" Content="Warn"  IsChecked="{Binding LogViewer.ShowWarning}"/>
-                <ToggleButton Classes="level-chip" Content="Error" IsChecked="{Binding LogViewer.ShowError}"/>
+                <ToggleButton Classes="level-chip" Content="{loc:Loc Settings_Help_Log_Debug}" IsChecked="{Binding LogViewer.ShowDebug}"/>
+                <ToggleButton Classes="level-chip" Content="{loc:Loc Settings_Help_Log_Info}"  IsChecked="{Binding LogViewer.ShowInfo}"/>
+                <ToggleButton Classes="level-chip" Content="{loc:Loc Settings_Help_Log_Warn}"  IsChecked="{Binding LogViewer.ShowWarning}"/>
+                <ToggleButton Classes="level-chip" Content="{loc:Loc Settings_Help_Log_Error}" IsChecked="{Binding LogViewer.ShowError}"/>
               </StackPanel>
             </Grid>
             <TextBox IsReadOnly="True"
@@ -213,8 +213,8 @@
                      Foreground="{StaticResource BrushTextSecondary}"
                      BorderBrush="{StaticResource BrushBorder}"/>
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
-              <Button Classes="secondary" Content="Copy Diagnostics" Click="OnCopyDiagnosticsClick"/>
-              <Button Classes="ghost" Content="Copy Filtered Log" Click="OnCopyLogClick"/>
+              <Button Classes="secondary" Content="{loc:Loc Settings_Help_Log_CopyDiagnostics}" Click="OnCopyDiagnosticsClick"/>
+              <Button Classes="ghost" Content="{loc:Loc Settings_Help_Log_CopyFiltered}" Click="OnCopyLogClick"/>
             </StackPanel>
           </StackPanel>
         </Border>

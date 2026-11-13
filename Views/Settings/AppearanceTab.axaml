@@ -108,7 +108,7 @@
       <controls:AppearanceThemeModeView/>
 
       <StackPanel Spacing="0">
-        <TextBlock Classes="section-label" Text="Effects Tier" Margin="{StaticResource MarginSectionLabel}"/>
+        <TextBlock Classes="section-label" Text="{loc:Loc Settings_Appearance_EffectsTier_Title}" Margin="{StaticResource MarginSectionLabel}"/>
         <Border Classes="settings-card">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
@@ -116,13 +116,13 @@
                          Foreground="{StaticResource BrushTextPrimary}"
                          FontSize="{DynamicResource FontSizeBodyLarge}"
                          FontWeight="SemiBold"/>
-              <TextBlock Text="Controls animation quality and wallpaper effects"
+              <TextBlock Text="{loc:Loc Settings_Appearance_EffectsTier_Desc}"
                          Foreground="{StaticResource BrushTextMuted}"
                          FontSize="{DynamicResource FontSizeSm}"/>
             </StackPanel>
             <Button Grid.Column="1"
                     Classes="chip"
-                    Content="Use Standard anyway"
+                    Content="{loc:Loc Settings_Appearance_EffectsTier_ForceStandard}"
                     Command="{Binding ForceStandardEffectsTierCommand}"
                     IsVisible="{Binding CanForceStandardTier}"/>
           </Grid>

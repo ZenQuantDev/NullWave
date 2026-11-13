@@ -68,7 +68,7 @@
                     <TextBlock Text="{loc:Loc Playlist_Label_Playlist}" Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"
                                IsVisible="{Binding !Playlist.IsSmartPlaylistActive}"/>
-                    <TextBlock Text="SMART PLAYLIST" Foreground="{StaticResource BrushTextMuted}"
+                    <TextBlock Text="{loc:Loc Playlist_SmartBadge}" Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"
                                IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
                     <TextBlock Text="{Binding Playlist.SelectedPlaylist.Name}" Foreground="{StaticResource BrushTextPrimary}"
@@ -96,10 +96,10 @@
                                 IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <material:MaterialIcon Kind="TrashCan" Width="18" Height="18"/>
                         </Button>
-                        <Button Classes="secondary" Click="OnImportM3uClick" ToolTip.Tip="Import M3U playlist">
+                        <Button Classes="secondary" Click="OnImportM3uClick" ToolTip.Tip="{loc:Loc Playlist_ImportM3u_Tooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
-                                <TextBlock Text="Import M3U"/>
+                                <TextBlock Text="{loc:Loc Playlist_ImportM3u}"/>
                             </StackPanel>
                         </Button>
                         <ComboBox ItemsSource="{Binding Playlist.SortOptions}" SelectedItem="{Binding Playlist.CurrentSort}"
@@ -306,7 +306,7 @@
                                 <Border CornerRadius="{StaticResource RadiusFull}" Padding="10,4" Background="{StaticResource BrushRedDim}" IsVisible="{Binding IsRadio}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <Ellipse Width="6" Height="6" Fill="{StaticResource BrushRed}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="LIVE" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{loc:Loc Common_LiveBadge}" Foreground="{StaticResource BrushRed}" FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

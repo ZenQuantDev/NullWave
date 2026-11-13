@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using NullWave.Services;
 
 namespace NullWave.Views;
 
@@ -15,8 +16,9 @@ public partial class WhatsNewWindow : Window
         InitializeComponent();
         if (!string.IsNullOrEmpty(version))
         {
-            Title = $"What's New in v{version}";
-            TitleText.Text = $"What's New in v{version}";
+            var title = string.Format(LocalizationService.Instance["WhatsNew_Title_Version"], version);
+            Title = title;
+            TitleText.Text = title;
         }
     }
 

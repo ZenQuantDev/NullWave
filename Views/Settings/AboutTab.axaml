@@ -78,7 +78,7 @@
                   Command="{Binding OpenUrlCommand}" CommandParameter="https://dotnet.microsoft.com" ToolTip.Tip="dotnet.microsoft.com">
             <StackPanel Orientation="Horizontal" Spacing="7">
               <material:MaterialIcon Kind="LanguageCsharp" Width="15" Height="15" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
-              <TextBlock Text=".NET 8 + C#"/>
+              <TextBlock Text=".NET 10 + C#"/>
               <material:MaterialIcon Kind="OpenInNew" Width="11" Height="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -154,7 +154,7 @@
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <material:MaterialIcon Grid.Column="0" Kind="LanguageCsharp" Width="18" Height="18" Foreground="{StaticResource BrushAccentHover}" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1" Text="{loc:Loc Settings_About_Runtime}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="2" Text=".NET 8.0" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+            <TextBlock Grid.Column="2" Text=".NET 10.0" Foreground="{StaticResource BrushTextPrimary}" FontSize="{DynamicResource FontSizeSm}" FontWeight="SemiBold" HorizontalAlignment="Right"/>
           </Grid>
           <Border Height="1" Background="{StaticResource BrushBorder}"/>
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">

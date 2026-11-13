@@ -375,7 +375,7 @@
                                     <Border Height="1" Background="{StaticResource BrushBorder}"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
                                         <material:MaterialIcon Kind="Flask" Width="14" Height="14" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="EXPERIMENTAL" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{loc:Loc Profile_Experimental}" FontSize="{DynamicResource FontSizeXs}" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                                         <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="6"
@@ -384,7 +384,7 @@
                                                    Width="92" Height="92" Stretch="Uniform"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                                            <TextBlock Text="SCAN TO CONNECT IN NULLWAVE" Foreground="{StaticResource BrushTextMuted}"
+                                            <TextBlock Text="{loc:Loc Profile_Qr_Instructions}" Foreground="{StaticResource BrushTextMuted}"
                                                        FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding ShareCode}" Foreground="{StaticResource BrushAccent}"
                                                        FontFamily="Consolas, monospace" FontSize="{DynamicResource FontSizeSm}" FontWeight="Bold"/>
@@ -392,13 +392,13 @@
                                                        FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ShareString}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
                                                 <Button Classes="ghost" Padding="6,2" Command="{Binding CopyShareStringCommand}"
-                                                        ToolTip.Tip="Copy share string (Ctrl+E)">
+                                                        ToolTip.Tip="{loc:Loc Profile_CopyShare_Tooltip}">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <material:MaterialIcon Kind="ContentCopy" Width="12" Height="12"/>
-                                                        <TextBlock Text="Copy" FontSize="{DynamicResource FontSizeXs}"/>
+                                                        <TextBlock Text="{loc:Loc Profile_Copy}" FontSize="{DynamicResource FontSizeXs}"/>
                                                     </StackPanel>
                                                 </Button>
-                                                <TextBlock Text="Powered by NullWave" Foreground="{StaticResource BrushTextMuted}"
+                                                <TextBlock Text="{loc:Loc Profile_PoweredBy}" Foreground="{StaticResource BrushTextMuted}"
                                                            FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>

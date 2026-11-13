@@ -21,6 +21,7 @@ public partial class SettingsWindow : Window
     private readonly Dictionary<string, Control> _pages = new();
     private SettingsViewModel? _vm;
     private Transitions? _beadTransitions;
+    private Transitions? _navRailTransitions;
     private bool _beadPlaced;
 
     public SettingsWindow()
@@ -29,9 +30,17 @@ public partial class SettingsWindow : Window
         WallpaperChromeSync.Attach(this);
 
         _beadTransitions = SpineBead.Transitions;
+        _navRailTransitions = SettingsNavRail.Transitions;
+        EffectsTierResolver.Shared.PropertyChanged += OnEffectsTierChanged;
+        ApplyEffectsTier();
 
         Opened += (_, _) => ToastService.Instance.SetActiveHost(true);
-        Closed += (_, _) => { ToastService.Instance.SetActiveHost(false); Detach(); };
+        Closed += (_, _) =>
+        {
+            ToastService.Instance.SetActiveHost(false);
+            Detach();
+            EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierChanged;
+        };
 
         KeyDown += (_, e) =>
         {
@@ -62,6 +71,34 @@ public partial class SettingsWindow : Window
             ShowPage(_vm.CurrentSettingsPage);
         else if (e.PropertyName == nameof(SettingsViewModel.IsSettingsSidebarCollapsed))
             ScheduleBead();
+    }
+
+    private void OnEffectsTierChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(EffectsTierResolver.Current)) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            ApplyEffectsTier();
+            ScheduleBead();
+        }, DispatcherPriority.Background);
+    }
+
+    private void ApplyEffectsTier()
+    {
+        var minimal = EffectsTierResolver.Shared.Current == EffectsTier.Minimal;
+        if (minimal)
+        {
+            if (!Classes.Contains("effects-minimal")) Classes.Add("effects-minimal");
+            SettingsNavRail.Transitions = null;
+            SpineBead.Transitions = null;
+            Canvas.SetTop(SpineBead, -100);
+        }
+        else
+        {
+            Classes.Remove("effects-minimal");
+            SettingsNavRail.Transitions = _navRailTransitions;
+            SpineBead.Transitions = _beadTransitions;
+        }
     }
 
     private static Control Build(string k) => k switch
@@ -101,12 +138,23 @@ public partial class SettingsWindow : Window
 
     private void ScheduleBead()
     {
+        if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal)
+        {
+            Canvas.SetTop(SpineBead, -100);
+            return;
+        }
         Dispatcher.UIThread.Post(UpdateBead, DispatcherPriority.Loaded);
         DispatcherTimer.RunOnce(UpdateBead, System.TimeSpan.FromMilliseconds(230));
     }
 
     private void UpdateBead()
     {
+        if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal)
+        {
+            Canvas.SetTop(SpineBead, -100);
+            return;
+        }
+
         var active = this.GetVisualDescendants().OfType<Button>()
             .FirstOrDefault(b => b.Classes.Contains("nav") && b.Classes.Contains("active"));
         if (active == null) return;
