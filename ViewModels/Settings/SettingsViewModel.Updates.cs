@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -47,15 +48,55 @@ public partial class SettingsViewModel
 
     [ObservableProperty] private string _ffmpegStatus = string.Empty;
     [ObservableProperty] private string _dotNetStatus = string.Empty;
-    [ObservableProperty] private bool _isCheckingUpdate;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanCheckUpdate))] private bool _isCheckingUpdate;
     [ObservableProperty] private bool _isUpdatingYtDlp;
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _latestVersion = string.Empty;
     [ObservableProperty] private string _releaseUrl = string.Empty;
     [ObservableProperty] private string _updateStatus = "Not checked yet";
-    [ObservableProperty] private bool _isStagingUpdate;
-    [ObservableProperty] private bool _updateStaged;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanCheckUpdate))] private bool _isStagingUpdate;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanCheckUpdate))] private bool _updateStaged;
+    [ObservableProperty] private int _downloadProgress;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(LastCheckText))] [NotifyPropertyChangedFor(nameof(HasLastCheck))] private DateTime? _lastCheckUtc;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsDepsChecking))] private bool _isCheckingDeps;
+
+    public bool IsAppInstalled => _updater.IsInstalled;
+    public bool CanCheckUpdate => IsAppInstalled && !IsCheckingUpdate && !IsStagingUpdate && !UpdateStaged;
+    public bool HasLastCheck => LastCheckUtc.HasValue;
+    public string LastCheckText => LastCheckUtc is { } time
+        ? string.Format(CultureInfo.CurrentCulture, L("Settings_Updates_CheckedAt"), time.ToLocalTime().ToString("t"))
+        : string.Empty;
+
+    private DependencyRowViewModel _ytDlpRow = null!;
+    private DependencyRowViewModel _vlcRow = null!;
+    private DependencyRowViewModel _ffmpegRow = null!;
+    public IReadOnlyList<DependencyRowViewModel> Dependencies { get; private set; } = Array.Empty<DependencyRowViewModel>();
+
+    private void BuildDependencyRows()
+    {
+        _ytDlpRow = new("yt-dlp", L) { ActionCommand = UpdateYtDlpCommand };
+        _vlcRow = new("VLC", L) { ActionCommand = InstallVlcCommand };
+        _ffmpegRow = new("FFmpeg", L);
+        Dependencies = new[] { _ytDlpRow, _vlcRow, _ffmpegRow };
+    }
+
+    private void ApplyYtDlpRow(DependencyInfo info)
+    {
+        var state = DependencyStatus.ClassifyYtDlp(info);
+        var canTry = state is DependencyState.UpdateAvailable or DependencyState.Ready;
+        _ytDlpRow.Update(state, info.IsInstalled ? info.InstalledVersion : null, info.LatestVersion,
+            actionLabel: canTry ? L("Settings_Updates_Update") : null);
+    }
+
+    private void ApplyVlcRow(DependencyInfo info) =>
+        _vlcRow.Update(info.IsInstalled ? DependencyState.Ready : DependencyState.Missing,
+            info.IsInstalled ? info.InstalledVersion : null,
+            actionLabel: !info.IsInstalled && IsWindows ? L("Settings_Updates_Install") : null,
+            note: info.IsInstalled ? L("Settings_Updates_SystemPackage") : null);
+
+    private void ApplyFfmpegRow(DependencyInfo info) =>
+        _ffmpegRow.Update(info.IsInstalled ? DependencyState.Ready : DependencyState.Missing,
+            info.IsInstalled ? info.InstalledVersion : null);
 
     public bool IsDepsChecking => IsCheckingDeps || YtDlpStatus == "Checking..." || VlcStatus == "Checking...";
     public bool IsYtDlpReady => !string.IsNullOrEmpty(YtDlpStatus) && YtDlpStatus != "Not installed" && YtDlpStatus != "Checking...";
@@ -67,8 +108,10 @@ public partial class SettingsViewModel
 
     [RelayCommand] private async Task CheckForUpdateAsync()
     {
+        if (!CanCheckUpdate) return;
+
         IsCheckingUpdate = true;
-        UpdateStatus = "Checking...";
+        UpdateStatus = L("Settings_Updates_Status_Checking");
         try
         {
             var result = await _updater.CheckForUpdateAsync();
@@ -76,30 +119,44 @@ public partial class SettingsViewModel
             LatestVersion = result.LatestVersion;
             ReleaseUrl = result.ReleaseUrl;
             
-            // FIX: Use centralized status text logic
-            UpdateStatus = UpdateVersioning.StatusText(result);
+            UpdateStatus = UpdateVersioning.StatusText(result, L);
+            if (!result.Failed && !result.NotInstalled) LastCheckUtc = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Settings] Update check failed");
-            UpdateStatus = "Couldn't check for updates";
+            UpdateStatus = L("Settings_Updates_Status_CheckFailed");
         }
         finally { IsCheckingUpdate = false; }
     }
 
     [RelayCommand] private async Task DownloadUpdateAsync()
     {
+        if (IsStagingUpdate || UpdateStaged) return;
         IsStagingUpdate = true;
+        DownloadProgress = 0;
         try
         {
-            UpdateStaged = await _updater.StageUpdateAsync(); 
-            ToastService.Instance.Show(
-                UpdateStaged ? "Update downloaded - restart to install." : "No update available.", 
-                UpdateStaged ? ToastType.Success : ToastType.Warning);
-        }
-        catch (Exception ex) 
-        { 
-            ToastService.Instance.Show($"Update download failed: {ex.Message}", ToastType.Error); 
+            var result = await _updater.StageUpdateAsync(progress => Dispatcher.UIThread.Post(() => DownloadProgress = progress));
+            switch (result.Outcome)
+            {
+                case StageOutcome.Staged:
+                    UpdateStaged = true;
+                    UpdateStatus = string.Format(CultureInfo.CurrentCulture, L("Settings_Updates_Ready"), LatestVersion);
+                    ToastService.Instance.Show(L("Settings_Updates_Toast_Downloaded"), ToastType.Success);
+                    break;
+                case StageOutcome.NoUpdate:
+                    UpdateAvailable = false;
+                    UpdateStatus = UpdateVersioning.StatusText(new UpdateCheckResult { CurrentVersion = CurrentVersion }, L);
+                    ToastService.Instance.Show(L("Settings_Updates_Toast_NoUpdate"), ToastType.Warning);
+                    break;
+                case StageOutcome.NotInstalled:
+                    ToastService.Instance.Show(L("Settings_Updates_Toast_NotInstalled"), ToastType.Warning);
+                    break;
+                default:
+                    ToastService.Instance.Show(string.Format(CultureInfo.CurrentCulture, L("Settings_Updates_Toast_Failed"), result.Error), ToastType.Error);
+                    break;
+            }
         }
         finally 
         { 
@@ -119,6 +176,7 @@ public partial class SettingsViewModel
     {
         IsUpdatingYtDlp = true;
         YtDlpStatus = "Updating yt-dlp...";
+        _ytDlpRow.Update(DependencyState.Busy);
         try
         {
             var msg = await _deps.UpdateYtDlpAsync();
@@ -131,11 +189,15 @@ public partial class SettingsViewModel
                 : info.LatestVersion != "unknown" && info.InstalledVersion != info.LatestVersion 
                     ? $"{info.InstalledVersion} → {info.LatestVersion}"
                     : $"{info.InstalledVersion} (up to date)";
+            if (msg.StartsWith("Update failed", StringComparison.Ordinal) && info.IsInstalled)
+                _ytDlpRow.Update(DependencyState.Failed, info.InstalledVersion, info.LatestVersion, L("Settings_Updates_Update"));
+            else ApplyYtDlpRow(info);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Settings] yt-dlp update failed");
             YtDlpStatus = "Update failed";
+            _ytDlpRow.Update(DependencyState.Failed);
         }
         finally { IsUpdatingYtDlp = false; }
     }
@@ -143,17 +205,22 @@ public partial class SettingsViewModel
     [RelayCommand] private async Task InstallVlcAsync()
     {
         VlcStatus = "Installing...";
+        _vlcRow.Update(DependencyState.Busy);
         try
         {
             var status = await _deps.InstallVlcAsync(ConfirmPackageInstallAsync);
             VlcStatus = status == DependencyUpdateService.InstallCancelledStatus
                 ? LocalizationService.Instance["Settings_Updates_InstallDeclined"]
                 : status;
+            var vlcInfo = await _deps.GetVlcInfoAsync();
+            ApplyVlcRow(vlcInfo);
+            if (!vlcInfo.IsInstalled) _vlcRow.SetMessage(VlcStatus);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Settings] VLC install failed");
             VlcStatus = "Install failed";
+            _vlcRow.Update(DependencyState.Failed);
         }
     }
 
@@ -178,6 +245,7 @@ public partial class SettingsViewModel
         
         IsCheckingDeps = true;
         YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Checking...";
+        foreach (var row in Dependencies) row.Update(DependencyState.Checking);
         
         try
         {
@@ -198,11 +266,15 @@ public partial class SettingsViewModel
             VlcStatus = vlc.IsInstalled ? vlc.InstalledVersion : "Not installed";
             FfmpegStatus = ffmpeg.IsInstalled ? ffmpeg.InstalledVersion : "Not installed";
             DotNetStatus = dotNet.IsInstalled ? dotNet.InstalledVersion : "Not found";
+            ApplyYtDlpRow(ytDlp);
+            ApplyVlcRow(vlc);
+            ApplyFfmpegRow(ffmpeg);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Settings] Dependency check failed");
             YtDlpStatus = VlcStatus = FfmpegStatus = DotNetStatus = "Check failed";
+            foreach (var row in Dependencies) row.Update(DependencyState.Failed);
         }
         finally
         {

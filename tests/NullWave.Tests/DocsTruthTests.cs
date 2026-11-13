@@ -41,10 +41,10 @@ public class DocsTruthTests
     public void Changelog_top_version_matches_csproj()
     {
         var csprojVersion = Regex.Match(Csproj, @"<Version>([^<]+)</Version>").Groups[1].Value;
-        var changelogVersionMatch = Regex.Match(ChangelogMd, @"^## \[([^\]]+)\]", RegexOptions.Multiline);
-        Assert.True(changelogVersionMatch.Success, "Could not find a version header in CHANGELOG.md");
-        
-        var changelogVersion = changelogVersionMatch.Groups[1].Value;
+        var changelogVersion = Regex.Matches(ChangelogMd, @"^## \[([^\]]+)\]", RegexOptions.Multiline)
+            .Select(match => match.Groups[1].Value)
+            .FirstOrDefault(version => !string.Equals(version, "Unreleased", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(changelogVersion);
         Assert.Equal(csprojVersion, changelogVersion);
     }
 

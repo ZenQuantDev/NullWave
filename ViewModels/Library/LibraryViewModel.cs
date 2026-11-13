@@ -15,6 +15,7 @@ using NullWave.Services.SmartSorting;
 using NullWave.Helpers;
 using NullWave.Helpers.Logging;
 using NullWave.Services.Security;
+using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace NullWave.ViewModels;
 
@@ -77,19 +78,9 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFavoritesView))]
     [NotifyPropertyChangedFor(nameof(IsRecentView))]
-    [NotifyPropertyChangedFor(nameof(IsYouTubeFilter))]
-    [NotifyPropertyChangedFor(nameof(IsLastFmFilter))]
-    [NotifyPropertyChangedFor(nameof(IsSoundCloudFilter))]
-    [NotifyPropertyChangedFor(nameof(IsLocalFilter))]
-    [NotifyPropertyChangedFor(nameof(IsSpotifyFilter))]
     private LibraryView _currentView = LibraryView.All;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsYouTubeFilter))]
-    [NotifyPropertyChangedFor(nameof(IsLastFmFilter))]
-    [NotifyPropertyChangedFor(nameof(IsSoundCloudFilter))]
-    [NotifyPropertyChangedFor(nameof(IsLocalFilter))]
-    [NotifyPropertyChangedFor(nameof(IsSpotifyFilter))]
     private TrackSource? _activeSourceFilter = null;
 
     [ObservableProperty]
@@ -103,17 +94,13 @@ public partial class LibraryViewModel : ObservableObject
     public enum LibraryView { All, Favorites, Recent, Source }
 
     public BulkObservableCollection<Track> Tracks { get; } = new();
+    public ObservableCollection<SourceFilterViewModel> SourceFilters { get; } = new();
 
     /// <summary>Only the sorts that make sense outside a playlist (never "Custom").</summary>
     public Array SortOptions => SortFieldCatalog.Library;
     
     public bool IsFavoritesView => CurrentView == LibraryView.Favorites;
     public bool IsRecentView => CurrentView == LibraryView.Recent;
-    public bool IsYouTubeFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.YouTube;
-    public bool IsLastFmFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.LastFm;
-    public bool IsSoundCloudFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.SoundCloud;
-    public bool IsLocalFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Local;
-    public bool IsSpotifyFilter => CurrentView == LibraryView.Source && ActiveSourceFilter == TrackSource.Spotify;
 
     public bool HasSearchQuery => !string.IsNullOrEmpty(SearchQuery) || !string.IsNullOrEmpty(_selectedArtistFilter);
 
@@ -151,6 +138,56 @@ public partial class LibraryViewModel : ObservableObject
         _identity = identity; 
         TriggerRefresh(debounce: false);
         RefreshArtistGroups();
+        BuildSourceFilters();
+        UpdateSourceCounts();
+    }
+
+    private void BuildSourceFilters()
+    {
+        SourceFilters.Clear();
+
+        var alwaysShow = new[] { TrackSource.YouTube, TrackSource.SoundCloud, TrackSource.Local };
+
+        foreach (var source in alwaysShow)
+        {
+            var site = SupportedSites.FindBySource(source);
+            if (site == null) continue;
+
+            SourceFilters.Add(new SourceFilterViewModel(
+                site.DisplayName,
+                site.Source,
+                site.IconKind,
+                site.IconColorHex,
+                new RelayCommand(() => SetSourceFilter(source))
+            ));
+        }
+    }
+
+    public void UpdateSourceCounts()
+    {
+        var counts = _library.GetSourceCounts();
+
+        foreach (var filter in SourceFilters)
+        {
+            filter.TrackCount = counts.GetValueOrDefault(filter.Source, 0);
+        }
+
+        foreach (var (source, count) in counts)
+        {
+            if (count == 0) continue;
+            if (SourceFilters.Any(filter => filter.Source == source)) continue;
+
+            var site = SupportedSites.FindBySource(source);
+            if (site == null) continue;
+
+            SourceFilters.Add(new SourceFilterViewModel(
+                site.DisplayName,
+                site.Source,
+                site.IconKind,
+                site.IconColorHex,
+                new RelayCommand(() => SetSourceFilter(source))
+            ) { TrackCount = count });
+        }
     }
 
     public void UpdateSelection(IEnumerable<Track> selected)
@@ -209,6 +246,7 @@ public partial class LibraryViewModel : ObservableObject
 
                     Guid? previousSelectedId = SelectedTrack?.Id;
                     Tracks.ReplaceAll(list);
+                    UpdateSourceCounts();
                     OnPropertyChanged(nameof(ResultCountLabel));
 
                     if (previousSelectedId.HasValue)

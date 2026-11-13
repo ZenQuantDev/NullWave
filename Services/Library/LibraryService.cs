@@ -206,6 +206,22 @@ public partial class LibraryService : IDisposable
         }
     }
 
+    /// <summary>Count tracks per source for sidebar filtering.</summary>
+    public Dictionary<TrackSource, int> GetSourceCounts()
+    {
+        var counts = new Dictionary<TrackSource, int>();
+        lock (_tracksLock)
+        {
+            foreach (var track in _tracks)
+            {
+                if (!counts.ContainsKey(track.Source))
+                    counts[track.Source] = 0;
+                counts[track.Source]++;
+            }
+        }
+        return counts;
+    }
+
     /// <summary>
     /// Removes a track and optionally recycles its file. Unmanaged (user-imported) files are
     /// NEVER deleted, even if recycleFile is true - they are only removed from the DB.

@@ -31,13 +31,16 @@
   <Thickness x:Key="MarginCardInternal">0,0,16,0</Thickness>
 
   <!-- Layout dimensions (single source of truth) -->
-  <x:Double x:Key="SidebarWidth">210</x:Double>
+  <x:Double x:Key="SidebarWidth">240</x:Double>
   <x:Double x:Key="MiniPlayerHeight">90</x:Double>
   <x:Double x:Key="DetailPanelWidth">320</x:Double>
 
   <!-- Density tokens (rewritten at runtime by ThemeService) -->
   <x:Double x:Key="TrackRowHeight">44</x:Double>
   <x:Double x:Key="RowArtSize">40</x:Double>
+  <!-- Navigation-specific density tokens (sidebar tiles) -->
+  <x:Double x:Key="NavTileSize">36</x:Double>
+  <Thickness x:Key="SidebarNavPadding">12,4</Thickness>
   <x:Double x:Key="RowTitleSize">15</x:Double>
   <x:Double x:Key="RowSubSize">12</x:Double>
   <x:Double x:Key="MiniArtSize">52</x:Double>

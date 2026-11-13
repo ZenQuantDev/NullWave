@@ -127,12 +127,12 @@
 
 ### 3.2 Manual verification matrix (each row blocks the beta.2 tag)
 
-| #   | Check                    | How                                                         | Expected                                                                  | Status  |
-| --- | ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------- | ------- |
-| V2  | Windows migration        | Start on real data after upgrade                            | Key file shows v2 magic or log says already v2; one-time backup is cleaned | Pending |
-| V5  | Rapid playback           | Click through 5–6 tracks quickly                            | No multi-second freeze, slow-playback log lines or hang dumps              | Pending |
-| V6  | Consent decline          | Decline consent for a single URL and a playlist URL         | Library count unchanged; no file-less rows                                | Pending |
-| V8  | Updates tab on dev build | Check updates and dependencies                              | Dev-build message shown; dependency versions populate in parallel         | Pending |
+| #   | Check                    | How                                                 | Expected                                                                   | Status  |
+| --- | ------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------- | ------- |
+| V2  | Windows migration        | Start on real data after upgrade                    | Key file shows v2 magic or log says already v2; one-time backup is cleaned | Pending |
+| V5  | Rapid playback           | Click through 5–6 tracks quickly                    | No multi-second freeze, slow-playback log lines or hang dumps              | Pending |
+| V6  | Consent decline          | Decline consent for a single URL and a playlist URL | Library count unchanged; no file-less rows                                 | Pending |
+| V8  | Updates tab on dev build | Check updates and dependencies                      | Dev-build message shown; dependency versions populate in parallel          | Pending |
 
 Not run; do not report as verified: V1 Linux keyring path, V3 double import in Copy mode,
 V4 export safety, V7 sweep honesty, and V9 TagWriteMode persistence. V10's English/Russian
@@ -292,14 +292,10 @@ numeric journal values are not changed.
 - Fix clipped detail-panel buttons; add the playing-row marker in filtered views.
 - Menu bar show/hide fade; real SVG logo.
 - Audit that every menu item and button has a live command.
-- Updates tab v2 — design agreed, not started: app card as a state machine
-  (unknown → checking → up-to-date → available → downloading → staged → error, plus
-  terminal not-updatable for dev/system-managed builds); dependency table with
-  Installed / Available / Source columns so the update action matches install provenance;
-  last-checked stamp; release-notes expander; auto-check and pre-release toggles;
-  plugin-compatibility rows driven by discovery failures. Update Plan (dry-run,
-  consent-first, provenance-aware) and update journal deferred to v3. No plugin auto-update
-  toggle until a store exists.
+- Updates tab: app-update flow, dependency rows, localization implemented (unreleased);
+  staged detection on a real install unverified; Source column and plugin compatibility
+  rows deferred. Update Plan (dry-run, consent-first, provenance-aware) and update journal
+  deferred to v3. No plugin auto-update toggle until a store exists.
 
 ### 4.9 Freeze and clean-machine protocol 📋
 
@@ -388,7 +384,7 @@ Gate: `TagWritePolicy` is the shared decision point for both versions.
 - **Originals are immutable under export and organize**: those operations work on copies
   only. Tag writes are governed separately by `TagWriteMode`; `Always` is an explicit
   opt-in permitting tag writes to any existing file, including files outside the managed
-  library. In-place *structural* changes to external originals (rename, move, overwrite)
+  library. In-place _structural_ changes to external originals (rename, move, overwrite)
   remain forbidden until the Files-browser write path ships with consent, a retained
   backup, and a journal entry.
 - Consent gates every download and every package install; consent is single-flight and

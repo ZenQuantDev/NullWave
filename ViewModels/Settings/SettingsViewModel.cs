@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -38,7 +39,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly KeyStoreService _keyStore;
     private readonly SecureDeleteService _secureDelete;
     private readonly PreferencesService _prefsService;
-    private readonly UpdateService _updater;
+    private readonly IUpdateService _updater;
     private readonly DependencyUpdateService _deps;
     private readonly ExternalAITagService _externalAI = new();
     private readonly LocalAIService _localAI;
@@ -57,8 +58,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _prefsService = prefsService;
         _localAI = localAI;
         _plugins = plugins;
-        _updater = new UpdateService();
+        _updater = IsDevMode ? new FakeUpdateService() : new UpdateService();
+        if (!_updater.IsInstalled)
+            UpdateStatus = L("Settings_Updates_Status_Dev");
+        else if (_updater.HasStagedUpdate)
+        {
+            UpdateStaged = true;
+            UpdateAvailable = true;
+            LatestVersion = _updater.StagedVersion ?? string.Empty;
+            UpdateStatus = string.Format(CultureInfo.CurrentCulture, L("Settings_Updates_Ready"), LatestVersion);
+        }
+        else UpdateStatus = L("Settings_Updates_Status_NotChecked");
         _deps = new DependencyUpdateService();
+        BuildDependencyRows();
         EffectsTierResolver.Shared.PropertyChanged += OnEffectsTierResolverPropertyChanged;
         
         // Initialize Sources tab

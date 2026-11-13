@@ -33,6 +33,7 @@ public class SettingsLocalizationTests
             "Settings_Integrations_",
             "Settings_Maintenance_",
             "Settings_General_Experimental_",
+            "Settings_Updates_",
             "Settings_Updates_InstallConsent_",
             "Dialog_Confirm"
         };

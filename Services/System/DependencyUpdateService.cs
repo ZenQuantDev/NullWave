@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -238,10 +239,12 @@ public class DependencyUpdateService
             return new DependencyInfo { Name = "FFmpeg", IsInstalled = false };
 
         var firstLine = installed.Split('\n')[0].Trim();
+        var match = Regex.Match(firstLine, @"ffmpeg version (\S+)");
+        var version = match.Success ? match.Groups[1].Value : firstLine;
         return new DependencyInfo
         {
             Name = "FFmpeg",
-            InstalledVersion = firstLine,
+            InstalledVersion = version,
             LatestVersion = "Check ffmpeg.org",
             CanSelfUpdate = false,
             IsInstalled = true

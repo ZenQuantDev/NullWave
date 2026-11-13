@@ -3,6 +3,17 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Changed
+
+- **Updates tab:** Dependencies check when the tab opens and show installed → latest for yt-dlp; the Update button appears only when an update is available or the latest version is unknown. The `.NET` row was removed.
+- **Localization:** Updates status text is localized in English and Russian; the FFmpeg row shows only the version.
+
+### Fixed
+
+- **Updates tab:** A failed download no longer reports "No update available"; Check is disabled during a download, Download hides once staged, and download progress is shown.
+
 ## [0.6.5-beta.2] - 12-Nov-2026
 
 ### Added

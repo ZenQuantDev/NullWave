@@ -18,13 +18,29 @@ public class UpdateCheckResult
     public string ReleaseNotes    { get; init; } = string.Empty;
 }
 
-public class UpdateService
+public enum StageOutcome { Staged, NoUpdate, NotInstalled, Failed }
+public sealed record StageResult(StageOutcome Outcome, string? Error = null);
+
+public interface IUpdateService
+{
+    bool IsInstalled { get; }
+    bool HasStagedUpdate { get; }
+    string? StagedVersion { get; }
+    string CurrentVersion { get; }
+    Task<UpdateCheckResult> CheckForUpdateAsync();
+    Task<StageResult> StageUpdateAsync(Action<int>? progress = null);
+    void ApplyUpdatesAndRestart();
+}
+
+public class UpdateService : IUpdateService
 {
     private const string RepoUrl = "https://github.com/ZenQuantDev/NullWave";
     
     private readonly UpdateManager _updateManager;
     private UpdateInfo? _pendingUpdate;
     private readonly string _displayVersion;
+    public bool HasStagedUpdate => _updateManager.IsInstalled && _updateManager.UpdatePendingRestart != null;
+    public string? StagedVersion => _updateManager.UpdatePendingRestart?.Version?.ToString();
 
     public UpdateService()
     {
@@ -102,26 +118,23 @@ public class UpdateService
         }
     }
 
-    public async Task<bool> StageUpdateAsync(Action<int>? progress = null)
+    public async Task<StageResult> StageUpdateAsync(Action<int>? progress = null)
     {
-        if (!_updateManager.IsInstalled) return false;
-
+        if (!_updateManager.IsInstalled) return new(StageOutcome.NotInstalled);
         try
         {
-            if (_pendingUpdate == null)
-                _pendingUpdate = await _updateManager.CheckForUpdatesAsync();
-                
-            if (_pendingUpdate == null) return false;
+            _pendingUpdate ??= await _updateManager.CheckForUpdatesAsync();
+            if (_pendingUpdate == null) return new(StageOutcome.NoUpdate);
 
             Log.Information("[UpdateService] Downloading update v{Version}...", _pendingUpdate.TargetFullRelease.Version);
             await _updateManager.DownloadUpdatesAsync(_pendingUpdate, progress);
             Log.Information("[UpdateService] Update staged successfully.");
-            return true;
+            return new(StageOutcome.Staged);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[UpdateService] Failed to download/stage update");
-            return false;
+            return new(StageOutcome.Failed, ex.Message);
         }
     }
 
@@ -133,10 +146,8 @@ public class UpdateService
             return;
         }
 
-        // FIX: No sync-over-async. If we don't have a pending update, bail out.
-        // The UI should only show this button when UpdateStaged is true, which means
-        // StageUpdateAsync already succeeded and _pendingUpdate is set.
-        if (_pendingUpdate == null)
+        var asset = _pendingUpdate?.TargetFullRelease ?? _updateManager.UpdatePendingRestart;
+        if (asset == null)
         {
             Log.Warning("[UpdateService] ApplyUpdatesAndRestart called but no update is staged.");
             return;
@@ -144,8 +155,8 @@ public class UpdateService
         
         try
         {
-            Log.Information("[UpdateService] Applying update v{Version} and restarting...", _pendingUpdate.TargetFullRelease.Version);
-            _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
+            Log.Information("[UpdateService] Applying update v{Version} and restarting...", asset.Version);
+            _updateManager.ApplyUpdatesAndRestart(asset);
         }
         catch (Exception ex)
         {

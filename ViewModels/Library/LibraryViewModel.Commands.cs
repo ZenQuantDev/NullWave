@@ -22,11 +22,33 @@ public partial class LibraryViewModel
 
     private void SetSourceFilter(TrackSource source)
     {
-        if (ActiveSourceFilter == source) { CurrentView = LibraryView.All; ActiveSourceFilter = null; }
-        else { CurrentView = LibraryView.Source; ActiveSourceFilter = source; }
+        if (ActiveSourceFilter == source) 
+        { 
+            CurrentView = LibraryView.All; 
+            ActiveSourceFilter = null; 
+        }
+        else 
+        { 
+            CurrentView = LibraryView.Source; 
+            ActiveSourceFilter = source; 
+        }
+        
+        // Update IsActive on all source filters
+        foreach (var filter in SourceFilters)
+        {
+            filter.IsActive = filter.Source == ActiveSourceFilter;
+        }
     }
 
-    public void ShowAll() { CurrentView = LibraryView.All; ActiveSourceFilter = null; }
+    public void ShowAll() 
+    { 
+        CurrentView = LibraryView.All; 
+        ActiveSourceFilter = null;
+        foreach (var filter in SourceFilters)
+        {
+            filter.IsActive = false;
+        }
+    }
 
     [RelayCommand]
     private async Task RemoveTrackAsync(Track? t)
@@ -177,11 +199,7 @@ public partial class LibraryViewModel
     [RelayCommand] private void ClearSearch() { SearchQuery = string.Empty; _selectedArtistFilter = null; CurrentView = LibraryView.All; ActiveSourceFilter = null; }
     [RelayCommand] private void ShowFavorites() { CurrentView = LibraryView.Favorites; ActiveSourceFilter = null; }
     [RelayCommand] private void ShowRecent() { CurrentView = LibraryView.Recent; ActiveSourceFilter = null; }
-    [RelayCommand] private void FilterYouTube() => SetSourceFilter(TrackSource.YouTube);
-    [RelayCommand] private void FilterSpotify() => SetSourceFilter(TrackSource.Spotify);
-    [RelayCommand] private void FilterSoundCloud() => SetSourceFilter(TrackSource.SoundCloud);
-    [RelayCommand] private void FilterLocal() => SetSourceFilter(TrackSource.Local);
-    [RelayCommand] private void FilterLastFm() => SetSourceFilter(TrackSource.LastFm);
+    [RelayCommand] private void FilterBySource(TrackSource source) => SetSourceFilter(source);
     [RelayCommand] private void OpenDetail() { if (SelectedTrack != null) TrackDetailRequested?.Invoke(SelectedTrack); }
 
     [RelayCommand]

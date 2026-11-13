@@ -310,6 +310,17 @@ public partial class ThemeService : ObservableObject
         SetRes("SectionLabelMargin", compact ? new Thickness(0, 16, 0, 8) : new Thickness(0, 24, 0, 12));
         SetRes("SettingsHeaderHeight", compact ? 64.0 : 84.0);
 
+        (double navTile, Thickness sideNavPad) = compact
+            ? (28.0, new Thickness(10, 3))
+            : p.TrackRowStyle switch
+            {
+                "Compact" => (32.0, new Thickness(12, 4)),
+                "Cozy"    => (40.0, new Thickness(12, 6)),
+                _         => (36.0, new Thickness(12, 4)),
+            };
+        SetRes("NavTileSize", navTile);
+        SetRes("SidebarNavPadding", sideNavPad);
+
         TrackRowHeight = row;
         RowArtSize = art;
         Log.Debug("[ThemeService] Density applied: compact={Compact}, row={Row}", compact, row);

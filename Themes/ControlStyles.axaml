@@ -127,6 +127,7 @@
     <Setter Property="Focusable" Value="False"/>
     <Setter Property="FontSize"   Value="{DynamicResource FontSizeBody}"/>
     <Setter Property="Margin"     Value="0,1"/>
+    <Setter Property="Padding"    Value="{DynamicResource SidebarNavPadding}"/>
   </Style>
 
   <!--  ICON BUTTON  -->

@@ -112,11 +112,11 @@
 
         <DataTemplate x:Key="FolderChildRowTemplate" x:DataType="models:Playlist">
             <Grid>
-                <Border Classes="folder-connector expand-only" Width="1" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}" HorizontalAlignment="Left" Margin="10,0,0,0"
+                <Border Classes="folder-connector" Width="1" HorizontalAlignment="Left" Margin="10,0,0,0"
                         VerticalAlignment="Stretch" Background="{StaticResource BrushBorder}"/>
-                <Border Classes="folder-connector expand-only" Height="1" Width="11" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}" HorizontalAlignment="Left" Margin="10,0,0,0"
+                <Border Classes="folder-connector" Height="1" Width="11" HorizontalAlignment="Left" Margin="10,0,0,0"
                         VerticalAlignment="Center" Background="{StaticResource BrushBorder}"/>
-                <ContentControl Classes="folder-child-content" Margin="20,0,0,0"
+                <ContentControl Classes="folder-child-content"
                                 Content="{Binding}" ContentTemplate="{StaticResource PlaylistRowTemplate}"/>
             </Grid>
         </DataTemplate>
@@ -129,8 +129,8 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BoxShadow" Value="0 0 0 0 Transparent"/>
             <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}"/>
-            <Setter Property="Width" Value="{DynamicResource RowArtSize}"/>
-            <Setter Property="Height" Value="{DynamicResource RowArtSize}"/>
+            <Setter Property="Width" Value="{DynamicResource NavTileSize}"/>
+            <Setter Property="Height" Value="{DynamicResource NavTileSize}"/>
             <Setter Property="Margin" Value="0,0,10,0"/>
         </Style>
 
@@ -189,6 +189,39 @@
         </Style>
             <Style Selector="Border.nav-art material|MaterialIcon.nav-glyph">
             <Setter Property="Foreground" Value="{StaticResource BrushAccent}"/>
+        </Style>
+
+        <Style Selector="Border.folder-children">
+            <Setter Property="Margin" Value="18,0,0,4"/>
+            <Setter Property="MaxHeight" Value="1200"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="MaxHeight" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.folder-children:not(.expanded)">
+            <Setter Property="MaxHeight" Value="0"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.folder-children.expanded">
+            <Setter Property="MaxHeight" Value="1200"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="IsHitTestVisible" Value="True"/>
+        </Style>
+        <Style Selector="ContentControl.folder-child-content">
+            <Setter Property="Margin" Value="20,0,0,0"/>
+        </Style>
+        <Style Selector="material|MaterialIcon#ChevronIcon">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
         </Style>
 
         <Style Selector="Button.nav">
@@ -276,7 +309,10 @@
             <Setter Property="Margin" Value="0"/>
         </Style>
         <Style Selector=".collapsed ContentControl.folder-child-content">
-            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Margin" Value="20,0,0,0"/>
+        </Style>
+        <Style Selector=".collapsed Border.folder-children">
+            <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
     </Border.Styles>
 
@@ -393,6 +429,7 @@
             </StackPanel>
         </Border>
 
+        <Grid>
         <ScrollViewer Classes="side-scroll">
             <StackPanel Spacing="0">
                 <Grid Classes="expand-only" ColumnDefinitions="*,Auto,Auto" Margin="4,0,4,12" IsVisible="{Binding IsSidebarExpanded}">
@@ -448,13 +485,8 @@
                                     </ContextMenu>
                                 </Border.ContextMenu>
 
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <Panel Grid.Column="0" Classes="expand-only" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
-                                        <Border Classes="active-bar" Width="3" Margin="0,6" CornerRadius="0,2,2,0"
-                                            Background="{DynamicResource BrushAccent}" IsVisible="{Binding IsActive}"/>
-                                        </Panel>
-
-                                    <Button Grid.Column="1" Classes="nav sidebar-nav" Classes.active="{Binding IsActive}" Command="{Binding Command}"
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Button Grid.Column="0" Classes="nav sidebar_nav" Classes.active="{Binding IsActive}" Command="{Binding Command}"
                                             HorizontalAlignment="Stretch">
                                         <ToolTip.Tip>
                                             <Border Background="{DynamicResource BrushSurface2}" BorderBrush="{DynamicResource BrushBorder}"
@@ -488,7 +520,7 @@
                                         </Grid>
                                     </Button>
 
-                                    <StackPanel Grid.Column="2" Classes="expand-only" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
+                                    <StackPanel Grid.Column="1" Classes="expand-only" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
                                         <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsCustomizingSidebar}">
                                             <Button Classes="sidebar-action" ToolTip.Tip="Move Up" Opacity="1"
                                                     Command="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).Nav.MoveUpCommand}"
@@ -516,6 +548,7 @@
                                             </Button>
                                         </StackPanel>
                                     </StackPanel>
+
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -562,7 +595,7 @@
                                                 <Border Grid.Column="2" Classes="folder-count expand-only" Background="{StaticResource BrushSurface2}" CornerRadius="{StaticResource RadiusFull}" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center" IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
                                                     <TextBlock Text="{Binding Playlists.Count}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}" VerticalAlignment="Center"/>
                                                 </Border>
-                                                <material:MaterialIcon Grid.Column="3" Classes="expand-only" Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"
+                                                <material:MaterialIcon Grid.Column="3" x:Name="ChevronIcon" Classes="expand-only" Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource BrushTextMuted}"
                                                                        RenderTransform="{Binding IsExpanded, Converter={StaticResource BoolToRotate}}" VerticalAlignment="Center"
                                                                        IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}"/>
                                             </Grid>
@@ -581,8 +614,8 @@
                                     </Grid>
                                 </Border>
 
-                                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0"
-                                        Margin="18,0,0,4" Padding="0" IsVisible="{Binding IsExpanded}">
+                                <Border Classes="folder-children" Classes.expanded="{Binding IsExpanded}"
+                                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="0" Padding="0">
                                     <ItemsControl ItemsSource="{Binding Playlists}"
                                                   ItemTemplate="{StaticResource FolderChildRowTemplate}"/>
                                 </Border>
@@ -634,11 +667,6 @@
                 <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
-                    <Button.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
-                        </Transitions>
-                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="Star" Width="20" Height="20" Foreground="{StaticResource BrushAmber}"
@@ -649,11 +677,6 @@
                 </Button>
 
                 <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Recent}">
-                    <Button.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
-                        </Transitions>
-                    </Button.Transitions>
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
                             <material:MaterialIcon Kind="History" Width="20" Height="20" Foreground="{StaticResource BrushBlue}"
@@ -666,51 +689,46 @@
                 <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
                 <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
 
-                <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsYouTubeFilter}" Command="{Binding Library.FilterYouTubeCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_YouTube}">
-                    <Button.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
-                        </Transitions>
-                    </Button.Transitions>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                            <material:MaterialIcon Kind="Youtube" Width="20" Height="20" Foreground="#FF0000"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Source_YouTube}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                    </Grid>
-                </Button>
-
-                <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsSoundCloudFilter}" Command="{Binding Library.FilterSoundCloudCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_SoundCloud}">
-                    <Button.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
-                        </Transitions>
-                    </Button.Transitions>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                            <material:MaterialIcon Kind="Soundcloud" Width="20" Height="20" Foreground="#FF5500"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Source_SoundCloud}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                    </Grid>
-                </Button>
-
-                <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsLocalFilter}" Command="{Binding Library.FilterLocalCommand}" ToolTip.Tip="{loc:Loc Sidebar_Source_LocalFiles}">
-                    <Button.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/>
-                        </Transitions>
-                    </Button.Transitions>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                            <material:MaterialIcon Kind="Folder" Width="20" Height="20" Foreground="{StaticResource BrushGreen}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Source_LocalFiles}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                    </Grid>
-                </Button>
+                <ItemsControl ItemsSource="{Binding Library.SourceFilters}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SourceFilterViewModel">
+                            <Button Classes="nav sidebar_nav"
+                                    Classes.active="{Binding IsActive}"
+                                    Command="{Binding FilterCommand}"
+                                    ToolTip.Tip="{Binding DisplayName}">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
+                                        <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20"
+                                                               Foreground="{Binding IconColor}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Classes="expand-only" Orientation="Horizontal"
+                                                VerticalAlignment="Center" Spacing="4"
+                                                IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
+                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding TrackCount}"
+                                                   Foreground="{StaticResource BrushTextMuted}"
+                                                   FontSize="{DynamicResource FontSizeXs}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
+        <Canvas x:Name="SidebarBeadCanvas" IsHitTestVisible="False" ZIndex="10"
+                IsVisible="{Binding IsSidebarExpanded}">
+            <Border x:Name="SidebarBead" Width="3" Height="24" CornerRadius="0,2,2,0"
+                    Background="{DynamicResource BrushAccent}" Canvas.Left="8" Canvas.Top="-100">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Canvas.Top" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                    </Transitions>
+                </Border.Transitions>
+            </Border>
+        </Canvas>
+        </Grid>
     </DockPanel>
 </Border>

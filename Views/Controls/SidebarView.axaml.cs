@@ -1,9 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NullWave.Models;
 using NullWave.Services;
@@ -23,15 +28,167 @@ public partial class SidebarView : Border
     private Playlist? _pendingDragPlaylist;
     private NavItem? _pendingDragNavItem;
     private Point _dragStart;
+    private readonly HashSet<NavItem> _observedNavItems = new();
+    private readonly HashSet<SourceFilterViewModel> _observedSourceFilters = new();
+    private MainViewModel? _mainViewModel;
+    private Transitions? _beadTransitions;
+    private bool _beadPlaced;
 
     public SidebarView()
     {
         InitializeComponent();
+        _beadTransitions = SidebarBead.Transitions;
+        DataContextChanged += (_, _) => AttachToViewModel();
+        AttachedToVisualTree += (_, _) => ScheduleBead();
         // handledEventsToo: inner Buttons swallow PointerPressed; we must still see it.
         this.AddHandler(InputElement.PointerPressedEvent, OnRowDragPointerPressed,
             RoutingStrategies.Bubble, handledEventsToo: true);
         this.AddHandler(InputElement.PointerCaptureLostEvent, OnPointerCaptureLost,
             RoutingStrategies.Bubble, handledEventsToo: true);
+    }
+
+    private void AttachToViewModel()
+    {
+        if (_mainViewModel != null)
+        {
+            _mainViewModel.Nav.Items.CollectionChanged -= OnNavItemsChanged;
+            _mainViewModel.Playlist.PropertyChanged -= OnPlaylistPropertyChanged;
+            _mainViewModel.Library.PropertyChanged -= OnLibraryPropertyChanged;
+            _mainViewModel.Library.SourceFilters.CollectionChanged -= OnSourceFiltersChanged;
+            _mainViewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
+        }
+
+        foreach (var item in _observedNavItems)
+            item.PropertyChanged -= OnNavItemPropertyChanged;
+        _observedNavItems.Clear();
+        foreach (var filter in _observedSourceFilters)
+            filter.PropertyChanged -= OnSourceFilterPropertyChanged;
+        _observedSourceFilters.Clear();
+
+        _mainViewModel = DataContext as MainViewModel;
+        if (_mainViewModel != null)
+        {
+            _mainViewModel.Nav.Items.CollectionChanged += OnNavItemsChanged;
+            _mainViewModel.Playlist.PropertyChanged += OnPlaylistPropertyChanged;
+            _mainViewModel.Library.PropertyChanged += OnLibraryPropertyChanged;
+            _mainViewModel.Library.SourceFilters.CollectionChanged += OnSourceFiltersChanged;
+            _mainViewModel.PropertyChanged += OnMainViewModelPropertyChanged;
+            ObserveNavItems();
+            ObserveSourceFilters();
+        }
+
+        ScheduleBead();
+    }
+
+    private void OnNavItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        ObserveNavItems();
+        ScheduleBead();
+    }
+
+    private void ObserveNavItems()
+    {
+        if (_mainViewModel == null) return;
+        var currentItems = _mainViewModel.Nav.Items.ToHashSet();
+        foreach (var item in _observedNavItems.Where(item => !currentItems.Contains(item)).ToArray())
+        {
+            item.PropertyChanged -= OnNavItemPropertyChanged;
+            _observedNavItems.Remove(item);
+        }
+
+        foreach (var item in currentItems)
+        {
+            if (_observedNavItems.Add(item))
+                item.PropertyChanged += OnNavItemPropertyChanged;
+        }
+    }
+
+    private void OnNavItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(NavItem.IsActive)) ScheduleBead();
+    }
+
+    private void OnPlaylistPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlaylistViewModel.SelectedPlaylist)) ScheduleBead();
+    }
+
+    private void OnLibraryPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(LibraryViewModel.IsFavoritesView)
+            or nameof(LibraryViewModel.IsRecentView)
+            or nameof(LibraryViewModel.CurrentView)
+            or nameof(LibraryViewModel.ActiveSourceFilter))
+            ScheduleBead();
+    }
+
+    private void OnSourceFiltersChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        ObserveSourceFilters();
+        ScheduleBead();
+    }
+
+    private void ObserveSourceFilters()
+    {
+        if (_mainViewModel == null) return;
+        var currentFilters = _mainViewModel.Library.SourceFilters.ToHashSet();
+        foreach (var filter in _observedSourceFilters.Where(filter => !currentFilters.Contains(filter)).ToArray())
+        {
+            filter.PropertyChanged -= OnSourceFilterPropertyChanged;
+            _observedSourceFilters.Remove(filter);
+        }
+
+        foreach (var filter in currentFilters)
+        {
+            if (_observedSourceFilters.Add(filter))
+                filter.PropertyChanged += OnSourceFilterPropertyChanged;
+        }
+    }
+
+    private void OnSourceFilterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SourceFilterViewModel.IsActive)) ScheduleBead();
+    }
+
+    private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.IsSidebarExpanded)) ScheduleBead();
+    }
+
+    private void ScheduleBead()
+    {
+        Dispatcher.UIThread.Post(UpdateBead, DispatcherPriority.Loaded);
+        DispatcherTimer.RunOnce(UpdateBead, TimeSpan.FromMilliseconds(230));
+    }
+
+    private void UpdateBead()
+    {
+        var descendants = this.GetVisualDescendants().ToArray();
+        Control? active = (Control?)descendants.OfType<Button>()
+            .FirstOrDefault(button => button.Classes.Contains("sidebar_nav") && button.Classes.Contains("active"))
+            ?? descendants.OfType<Border>()
+                .FirstOrDefault(border => border.Classes.Contains("playlist-row") && border.Classes.Contains("active"));
+        if (SidebarBeadCanvas == null) return;
+        if (active == null)
+        {
+            Canvas.SetTop(SidebarBead, -100);
+            return;
+        }
+        if (active.TranslatePoint(new Point(0, active.Bounds.Height / 2), SidebarBeadCanvas) is not { } point)
+            return;
+        var y = point.Y - 12;
+
+        if (!_beadPlaced)
+        {
+            SidebarBead.Transitions = null;
+            Canvas.SetTop(SidebarBead, y);
+            _beadPlaced = true;
+            Dispatcher.UIThread.Post(() => SidebarBead.Transitions = _beadTransitions, DispatcherPriority.Background);
+        }
+        else
+        {
+            Canvas.SetTop(SidebarBead, y);
+        }
     }
 
     private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
