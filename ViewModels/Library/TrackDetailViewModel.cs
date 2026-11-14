@@ -154,6 +154,7 @@ public class TrackDetailViewModel : ViewModelBase
     public string DisplayLastSkipped => _currentTrack?.LastSkipped?.ToString("dd MMM yyyy HH:mm") ?? "Never";
     public bool IsFavorite => _currentTrack?.IsFavorite ?? false;
     public bool IsTrackSharingEnabled => _prefs.Current.EnableTrackSharing;
+    public bool HasUrl => !string.IsNullOrEmpty(_currentTrack?.Url);
 
     public ICommand SaveCommand { get; }
     public ICommand CloseCommand { get; }
@@ -227,6 +228,7 @@ public class TrackDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsFavorite));
         OnPropertyChanged(nameof(DisplayDuration));
         OnPropertyChanged(nameof(IsTrackSharingEnabled));
+        OnPropertyChanged(nameof(HasUrl));
     }
 
     private void Save()

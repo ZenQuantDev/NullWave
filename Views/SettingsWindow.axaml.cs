@@ -91,7 +91,7 @@ public partial class SettingsWindow : Window
             if (!Classes.Contains("effects-minimal")) Classes.Add("effects-minimal");
             SettingsNavRail.Transitions = null;
             SpineBead.Transitions = null;
-            Canvas.SetTop(SpineBead, -100);
+            SpineBead.Opacity = 0;
         }
         else
         {
@@ -140,7 +140,7 @@ public partial class SettingsWindow : Window
     {
         if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal)
         {
-            Canvas.SetTop(SpineBead, -100);
+            SpineBead.Opacity = 0;
             return;
         }
         Dispatcher.UIThread.Post(UpdateBead, DispatcherPriority.Loaded);
@@ -151,22 +151,28 @@ public partial class SettingsWindow : Window
     {
         if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal)
         {
-            Canvas.SetTop(SpineBead, -100);
+            SpineBead.Opacity = 0;
             return;
         }
 
         var active = this.GetVisualDescendants().OfType<Button>()
             .FirstOrDefault(b => b.Classes.Contains("nav") && b.Classes.Contains("active"));
-        if (active == null) return;
+        if (active == null)
+        {
+            SpineBead.Opacity = 0;
+            return;
+        }
         if (active.TranslatePoint(new Point(0, active.Bounds.Height / 2), SpineCanvas) is not { } p) return;
         var y = p.Y - 12;
 
-        if (!_beadPlaced)
+        if (!_beadPlaced || SpineBead.Opacity == 0)
         {
+            // Reappear at the target row without sliding across the rail
             SpineBead.Transitions = null;
             Canvas.SetTop(SpineBead, y);
+            SpineBead.Transitions = _beadTransitions;
+            SpineBead.Opacity = 1;
             _beadPlaced = true;
-            Dispatcher.UIThread.Post(() => SpineBead.Transitions = _beadTransitions, DispatcherPriority.Background);
         }
         else
         {

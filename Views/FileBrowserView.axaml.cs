@@ -1,0 +1,97 @@
+using System;
+using System.ComponentModel;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using NullWave.Models;
+using NullWave.Services;
+using NullWave.ViewModels;
+using Serilog;
+
+namespace NullWave.Views;
+
+public partial class FileBrowserView : UserControl
+{
+    public FileBrowserView() => InitializeComponent();
+
+    protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (DataContext is not FileBrowserViewModel vm) return;
+        vm.PropertyChanged += OnVmPropertyChanged;
+        try { await vm.EnsureInitializedAsync(); vm.StartDriveWatch(); }
+        catch (Exception ex) { Log.Error(ex, "[FileBrowser] Initialization failed"); }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (DataContext is FileBrowserViewModel vm)
+        {
+            vm.PropertyChanged -= OnVmPropertyChanged;
+            vm.StopDriveWatch();
+        }
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (DataContext is not FileBrowserViewModel vm) return;
+        if (e.PropertyName == nameof(FileBrowserViewModel.CurrentNodes))
+        {
+            if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal) return;
+            var t = ListingArea.Transitions;
+            ListingArea.Transitions = null;
+            ListingArea.Opacity = 0;
+            Dispatcher.UIThread.Post(() => { ListingArea.Transitions = t; ListingArea.Opacity = 1; }, DispatcherPriority.Render);
+        }
+        else if (e.PropertyName == nameof(FileBrowserViewModel.IsEditingPath) && vm.IsEditingPath)
+        {
+            Dispatcher.UIThread.Post(() => { PathBox.Focus(); PathBox.SelectAll(); }, DispatcherPriority.Input);
+        }
+    }
+
+    private void OnListDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Source is Visual v && v.FindAncestorOfType<Button>() != null) return;
+        if (DataContext is FileBrowserViewModel vm) vm.OpenFileCommand.Execute(vm.SelectedNode);
+    }
+
+    private void OnListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not FileBrowserViewModel vm) return;
+        switch (e.Key)
+        {
+            case Key.Enter: vm.OpenFileCommand.Execute(vm.SelectedNode); e.Handled = true; break;
+            case Key.Back: if (vm.CanGoUp) vm.GoUpCommand.Execute(null); e.Handled = true; break;
+            case Key.F5: vm.RefreshCommand.Execute(null); e.Handled = true; break;
+        }
+    }
+
+    private void OnPathEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not FileBrowserViewModel vm) return;
+        if (e.Key == Key.Enter) { vm.CommitEditPathCommand.Execute(null); e.Handled = true; }
+        else if (e.Key == Key.Escape) { vm.CancelEditPathCommand.Execute(null); e.Handled = true; }
+    }
+
+    private void OnPathEditorLostFocus(object? s, RoutedEventArgs e)
+    {
+        if (DataContext is FileBrowserViewModel vm) vm.CancelEditPathCommand.Execute(null);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled || e.Source is TextBox || DataContext is not FileBrowserViewModel vm) return;
+        bool alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        if (e.Key == Key.L && e.KeyModifiers.HasFlag(KeyModifiers.Control)) vm.StartEditPathCommand.Execute(null);
+        else if (alt && e.Key == Key.Left && vm.CanGoBack) vm.GoBackCommand.Execute(null);
+        else if (alt && e.Key == Key.Right && vm.CanGoForward) vm.GoForwardCommand.Execute(null);
+        else if (alt && e.Key == Key.Up && vm.CanGoUp) vm.GoUpCommand.Execute(null);
+        else return;
+        e.Handled = true;
+    }
+}

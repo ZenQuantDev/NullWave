@@ -180,7 +180,9 @@
                         </Grid>
                     </Border>
                     
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                    <!-- Hide Relink & Share for local/browser files that have no streaming URL -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left"
+                                IsVisible="{Binding Detail.HasUrl}">
                         <Button Classes="ghost"
                                 Content="{loc:Loc Detail_Button_Relink}"
                                 Command="{Binding Detail.RelinkFileCommand}"

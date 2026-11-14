@@ -13,6 +13,7 @@ using Avalonia.VisualTree;
 using NullWave.Helpers;
 using NullWave.Helpers.Diagnostics;
 using NullWave.Models;
+using NullWave.Views.Controls;
 using NullWave.Services;
 using NullWave.ViewModels;
 using Serilog;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private object? _lastHoverKey;
     private UiHangDetector? _hangDetector;
     private Transitions? _rightPanelTransitions;
+    private readonly Dictionary<string, Control> _mainPages = new();
 
     public MainWindow()
     {
@@ -88,14 +90,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private readonly Dictionary<string, Control> _mainPages = new();
-
     private void UpdatePageContent()
     {
         if (DataContext is not MainViewModel vm) return;
 
         var pageKey = vm.CurrentPage;
-        
+
         if (!_mainPages.TryGetValue(pageKey, out var page))
         {
             page = pageKey switch
@@ -104,6 +104,7 @@ public partial class MainWindow : Window
                 "Radio" => new Controls.TrackListView(),
                 "Audiobooks" => new Controls.TrackListView(),
                 "Playlists" => new Controls.PlaylistsView(),
+                "FileBrowser" => new FileBrowserView(),
                 _ => null
             };
 
@@ -115,14 +116,14 @@ public partial class MainWindow : Window
 
         if (page != null)
         {
-            // Set DataContext based on page type
             page.DataContext = pageKey switch
             {
                 "Library" => vm.Library,
                 "Radio" => vm.RadioLibrary,
                 "Audiobooks" => vm.AudiobookLibrary,
                 "Playlists" => vm.Playlist,
-                _ => null
+                "FileBrowser" => vm.FileBrowser,
+                _ => page.DataContext
             };
 
             PageHost.Content = page;

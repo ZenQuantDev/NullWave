@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:NullWave.ViewModels"
         xmlns:controls="using:NullWave.Views.Controls"
+        xmlns:views="using:NullWave.Views"
         xmlns:converters="using:NullWave.Helpers.Converters"
         xmlns:services="using:NullWave.Services"
         xmlns:models="using:NullWave.Models"
@@ -82,8 +83,8 @@
                 <!-- CENTER: Main Content -->
                 <Grid Grid.Column="1" RowDefinitions="Auto,*">
                     <!-- Top Toolbar -->
-                    <Border Grid.Row="0" Classes="chrome"
-                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8">
+                    <Border Grid.Row="0" Classes="chrome" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,8"
+                            IsVisible="{Binding !IsFileBrowserPage}">
                         <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto" VerticalAlignment="Center">
                             <TextBox x:Name="GlobalSearchBox" Grid.Column="0" Text="{Binding GlobalSearchQuery, Mode=TwoWay}"
                                      PlaceholderText="{loc:Loc MainWindow_Search_Placeholder}"

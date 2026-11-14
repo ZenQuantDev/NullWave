@@ -73,7 +73,7 @@ public partial class MainViewModel
         NavigateLibraryCommand = new RelayCommand(() => { Library.ShowAll(); CurrentPage = "Library"; LogNav("Library"); });
         NavigateRadioCommand = new RelayCommand(() => { CurrentPage = "Radio"; LogNav("Radio"); });
         NavigateAudiobooksCommand = new RelayCommand(() => { CurrentPage = "Audiobooks"; LogNav("Audiobooks"); });
-        
+        NavigateToFileBrowserCommand = new RelayCommand(() => { CurrentPage = "FileBrowser"; LogNav("FileBrowser"); });
         NavigatePlaylistsCommand = new RelayCommand(() =>
         {
             CurrentPage = "Playlists";

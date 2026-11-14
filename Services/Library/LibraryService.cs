@@ -128,7 +128,7 @@ public partial class LibraryService : IDisposable
         lock (_tracksLock) return _tracks.ToList().AsReadOnly();
     }
 
-    public void Add(Track track)
+    public bool Add(Track track)
     {
         if (!string.IsNullOrEmpty(track.FilePath))
         {
@@ -137,7 +137,7 @@ public partial class LibraryService : IDisposable
                 .Any(segment => string.Equals(segment, "..", StringComparison.Ordinal)))
             {
                 Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
-                return;
+                return false;
             }
 
             string fullPath;
@@ -145,13 +145,13 @@ public partial class LibraryService : IDisposable
             catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
             {
                 Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
-                return;
+                return false;
             }
 
             if (!File.Exists(fullPath))
             {
                 Log.Warning("[LibraryService] Blocked invalid or traversal file path: {Path}", importedPath);
-                return;
+                return false;
             }
             track.FilePath = fullPath;
         }
@@ -160,7 +160,7 @@ public partial class LibraryService : IDisposable
         {
             EnsureIdentityIndex();
             if (GetIdentityKeys(track).Any(k => _identityIndex.TryGetValue(k, out var existingId) && existingId != track.Id))
-                return;
+                return false;
 
             _tracks.Add(track);
             foreach (var k in GetIdentityKeys(track)) _identityIndex.TryAdd(k, track.Id);
@@ -171,7 +171,6 @@ public partial class LibraryService : IDisposable
         _db.Insert(track);
         OnLibraryChanged();
 
-        // N2: tag writes go through the central CanWriteTags rule.
         UpdateFileTags(track);
 
         if (!string.IsNullOrEmpty(track.FilePath) && string.IsNullOrEmpty(track.AlbumArtPath) && _metadata != null)
@@ -187,10 +186,7 @@ public partial class LibraryService : IDisposable
                         Update(track);
                     }
                 }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Background album art extraction failed for {Path}", track.FilePath);
-                }
+                catch (Exception ex) { Log.Warning(ex, "Background album art extraction failed for {Path}", track.FilePath); }
             });
         }
 
@@ -204,6 +200,7 @@ public partial class LibraryService : IDisposable
                 Update(track);
             }
         }
+        return true;
     }
 
     /// <summary>Count tracks per source for sidebar filtering.</summary>

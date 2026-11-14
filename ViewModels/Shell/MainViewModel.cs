@@ -20,6 +20,7 @@ using NullWave.Services.Plugins;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
 using NullWave.Services.Radio;
+using NullWave.Services.FileSystem;
 using NullWave.ViewModels.Base;
 using Serilog;
 
@@ -62,6 +63,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _isMaintenanceRunning;
     private ProviderRegistry _providerRegistry = null!;
     private RadioStreamHealer _radioHealer = null!;
+    private FileBrowserService _fileBrowserService = null!; 
     public ProviderRegistry ProviderRegistry => _providerRegistry;
     private PluginDiscovery? _discoveredPlugins;
 
@@ -121,16 +123,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (_currentPage == value) return;
             _currentPage = value;
-            _isChangingPage = true; // Ignore ComboBox resets during this transition
+            _isChangingPage = true;
             
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsOnLibraryPage));
             OnPropertyChanged(nameof(IsOnRadioPage));
+            OnPropertyChanged(nameof(IsFileBrowserPage));
             OnPropertyChanged(nameof(ActiveTrackCount));
             OnPropertyChanged(nameof(ToolbarSortOptions));
             OnPropertyChanged(nameof(ToolbarCurrentSort));
             OnPropertyChanged(nameof(ToolbarSortAscending));
             OnPropertyChanged(nameof(ToolbarToggleSortDirectionCommand));
+            
+            // Start/stop drive watcher based on current page
+            if (value == "FileBrowser") FileBrowser?.StartDriveWatch();
+            else FileBrowser?.StopDriveWatch();
             
             // 1.6: Re-apply the global query to the newly active page
             ActiveLibraryVM.SearchQuery = _globalSearchQuery;
@@ -145,6 +152,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
     public bool IsOnLibraryPage => CurrentPage == "Library";
     public bool IsOnRadioPage => CurrentPage == "Radio";
+    public bool IsFileBrowserPage => CurrentPage == "FileBrowser";
 
     private LibraryViewModel ActiveLibraryVM => CurrentPage switch
     {
@@ -195,6 +203,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public UserProfileViewModel Profile { get; private set; } = null!;
     public NavigationViewModel Nav { get; private set; } = null!;
     public QueueViewModel Queue { get; private set; } = null!;
+    public FileBrowserViewModel FileBrowser { get; private set; } = null!;
     public LibraryService LibraryService => _library;
 
     public ObservableCollection<LiveNotification> ActiveToasts => ToastService.Instance.ActiveToasts;
@@ -219,6 +228,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public ICommand NavigatePlaylistsCommand { get; private set; } = null!;
     public ICommand NavigateRadioCommand { get; private set; } = null!;
     public ICommand NavigateAudiobooksCommand { get; private set; } = null!;
+    public ICommand NavigateToFileBrowserCommand { get; private set; } = null!;
     public ICommand NavigateToPlaylistCommand { get; private set; } = null!;
     public ICommand ToggleQueueCommand { get; private set; } = null!;
     public ICommand AddTrackToPlaylistCommand { get; private set; } = null!;

@@ -167,13 +167,14 @@ public partial class SidebarView : Border
             if (!Classes.Contains("effects-minimal")) Classes.Add("effects-minimal");
             Transitions = null;
             SidebarBead.Transitions = null;
-            Canvas.SetTop(SidebarBead, -100);
+            SidebarBead.Opacity = 0;
         }
         else
         {
             Classes.Remove("effects-minimal");
             Transitions = _sidebarTransitions;
             SidebarBead.Transitions = _beadTransitions;
+            ScheduleBead();
         }
     }
 
@@ -185,9 +186,10 @@ public partial class SidebarView : Border
 
     private void UpdateBead()
     {
+        if (SidebarBeadCanvas == null) return;
         if ((_mainViewModel?.CurrentEffectsTier ?? EffectsTierResolver.Shared.Current) == EffectsTier.Minimal)
         {
-            Canvas.SetTop(SidebarBead, -100);
+            SidebarBead.Opacity = 0;
             return;
         }
 
@@ -196,22 +198,25 @@ public partial class SidebarView : Border
             .FirstOrDefault(button => button.Classes.Contains("sidebar_nav") && button.Classes.Contains("active"))
             ?? descendants.OfType<Border>()
                 .FirstOrDefault(border => border.Classes.Contains("playlist-row") && border.Classes.Contains("active"));
-        if (SidebarBeadCanvas == null) return;
+
         if (active == null)
         {
-            Canvas.SetTop(SidebarBead, -100);
+            SidebarBead.Opacity = 0;
             return;
         }
+
         if (active.TranslatePoint(new Point(0, active.Bounds.Height / 2), SidebarBeadCanvas) is not { } point)
             return;
         var y = point.Y - 12;
 
-        if (!_beadPlaced)
+        if (!_beadPlaced || SidebarBead.Opacity == 0)
         {
+            // Reappear at the target row without sliding across the rail
             SidebarBead.Transitions = null;
             Canvas.SetTop(SidebarBead, y);
+            SidebarBead.Transitions = _beadTransitions;
+            SidebarBead.Opacity = 1;
             _beadPlaced = true;
-            Dispatcher.UIThread.Post(() => SidebarBead.Transitions = _beadTransitions, DispatcherPriority.Background);
         }
         else
         {

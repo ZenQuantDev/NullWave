@@ -19,6 +19,7 @@ using NullWave.Services.Plugins;
 using NullWave.Services.Radio;
 using NullWave.Services.Security;
 using NullWave.Services.SmartSorting;
+using NullWave.Services.FileSystem;
 using Serilog;
 
 namespace NullWave.ViewModels;
@@ -66,6 +67,8 @@ public partial class MainViewModel
         _discoveredPlugins = new PluginDiscovery(NullWavePaths.PluginRoots);
         _providerRegistry = new ProviderRegistry(_prefsService);
         _radioHealer = new RadioStreamHealer(_library, _providerRegistry, _prefsService);
+
+        _fileBrowserService = new FileBrowserService();
 
         Settings = new SettingsViewModel(_keyStore, _secureDelete, _prefsService, _localAI, _plugins, _providerRegistry);
         Settings.ClearYtDlpCacheRequested += OnClearYtDlpCacheRequested;
@@ -166,6 +169,9 @@ public partial class MainViewModel
         Settings.ImportExistingLibraryRequested += () => Import.ImportFolderCommand.Execute(null);
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
+
+        FileBrowser = new FileBrowserViewModel(_fileBrowserService, _library, _prefsService);
+        FileBrowser.PlayTrackRequested += track => Player.PlayTrack(track);
 
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);
         Queue = new QueueViewModel(_library);

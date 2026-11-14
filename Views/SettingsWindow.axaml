@@ -324,10 +324,12 @@
                             </StackPanel>
                             <Canvas x:Name="SpineCanvas" IsHitTestVisible="False" ZIndex="10">
                                 <Border x:Name="SpineBead" Width="3" Height="24" CornerRadius="0,2,2,0"
-                                        Background="{DynamicResource BrushAccent}" Canvas.Left="8" Canvas.Top="-100">
+                                        Background="{DynamicResource BrushAccent}" Canvas.Left="4" Canvas.Top="0"
+                                        Opacity="0">
                                     <Border.Transitions>
                                         <Transitions>
                                             <DoubleTransition Property="Canvas.Top" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                                         </Transitions>
                                     </Border.Transitions>
                                 </Border>

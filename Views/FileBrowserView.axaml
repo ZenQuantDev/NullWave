@@ -1,0 +1,278 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NullWave.ViewModels"
+             xmlns:fs="using:NullWave.Models.FileSystem"
+             xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:converters="using:NullWave.Helpers.Converters"
+             xmlns:loc="using:NullWave.Helpers.Localization"
+             x:Class="NullWave.Views.FileBrowserView"
+             x:DataType="vm:FileBrowserViewModel">
+
+  <UserControl.Resources>
+    <converters:NodeTypeToIconConverter x:Key="NodeTypeToIcon"/>
+    <converters:FileSizeConverter x:Key="FileSize"/>
+    <converters:BoolToMaterialIconKindConverter x:Key="BoolToIconKind"/>
+    <converters:BoolToBrushConverter x:Key="ShowHiddenBrush"
+        TrueBrush="{StaticResource BrushAccent}" FalseBrush="{StaticResource BrushTextMuted}"/>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.fb-row-actions">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="Transitions">
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="ListBoxItem:pointerover Border.fb-row-actions">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected Border.fb-row-actions">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Window.effects-minimal Border.fb-row-actions">
+      <Setter Property="Transitions" Value="{x:Null}"/>
+    </Style>
+    <Style Selector="Window.effects-minimal Border.fb-placechip">
+      <Setter Property="Transitions" Value="{x:Null}"/>
+    </Style>
+    <Style Selector="Border.fb-placechip">
+      <Setter Property="Background" Value="{StaticResource BrushSurface2}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
+      <Setter Property="Padding" Value="10,5"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions><BrushTransition Property="Background" Duration="0:0:0.15"/></Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.fb-placechip:pointerover">
+      <Setter Property="Background" Value="{StaticResource BrushElevated}"/>
+    </Style>
+    <Style Selector="Border.fb-placechip.active">
+      <Setter Property="Background" Value="{StaticResource BrushAccentDim}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource BrushHover}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="chrome" BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="0,0,0,1" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
+        <Button Grid.Column="0" Classes="icon-btn" Command="{Binding GoBackCommand}"
+                IsEnabled="{Binding CanGoBack}" ToolTip.Tip="{loc:Loc Files_Back}">
+          <material:MaterialIcon Kind="ArrowLeft" Width="18" Height="18"/>
+        </Button>
+        <Button Grid.Column="1" Classes="icon-btn" Command="{Binding GoForwardCommand}"
+                IsEnabled="{Binding CanGoForward}" ToolTip.Tip="{loc:Loc Files_Forward}">
+          <material:MaterialIcon Kind="ArrowRight" Width="18" Height="18"/>
+        </Button>
+        <Button Grid.Column="2" Classes="icon-btn" Command="{Binding GoUpCommand}"
+                IsEnabled="{Binding CanGoUp}" ToolTip.Tip="{loc:Loc Files_Up}">
+          <material:MaterialIcon Kind="ArrowUp" Width="18" Height="18"/>
+        </Button>
+
+        <ItemsControl Grid.Column="3" ItemsSource="{Binding Segments}"
+                      IsVisible="{Binding !IsEditingPath}" Margin="12,0,0,0"
+                      VerticalAlignment="Center">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:BreadcrumbSegment">
+              <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="ghost" Padding="6,2" BorderThickness="0"
+                        Content="{Binding Name}"
+                        Command="{Binding $parent[UserControl].((vm:FileBrowserViewModel)DataContext).NavigateSegmentCommand}"
+                        CommandParameter="{Binding}"/>
+                <material:MaterialIcon Kind="ChevronRight" Width="14" Height="14"
+                                       Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"
+                                       IsVisible="{Binding !IsLast}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBox Grid.Column="3" x:Name="PathBox" Text="{Binding PathDraft, Mode=TwoWay}"
+                 IsVisible="{Binding IsEditingPath}" Margin="12,0,0,0"
+                 PlaceholderText="{loc:Loc Files_PathPlaceholder}"
+                 KeyDown="OnPathEditorKeyDown"
+                 LostFocus="OnPathEditorLostFocus"/>
+
+        <Button Grid.Column="4" Classes="ghost" Padding="10,5"
+                Command="{Binding TogglePinCurrentFolderCommand}"
+                IsVisible="{Binding !IsEditingPath}" ToolTip.Tip="{loc:Loc Files_PinCurrent_Tooltip}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <material:MaterialIcon Kind="{Binding IsCurrentPinned, Converter={StaticResource BoolToIconKind}, ConverterParameter='Pin, PinOutline'}"
+                                   Width="14" Height="14" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Loc Files_PinCurrent}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="5" Classes="chip"
+                Classes.active="{Binding ShowHidden}"
+                Command="{Binding ToggleShowHiddenCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <material:MaterialIcon Kind="Eye" Width="14" Height="14" VerticalAlignment="Center"
+                                   Foreground="{Binding ShowHidden, Converter={StaticResource ShowHiddenBrush}}"/>
+            <TextBlock Text="{loc:Loc Files_ShowHidden}" FontSize="{DynamicResource FontSizeSm}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="6" Classes="icon-btn" Command="{Binding RefreshCommand}"
+                ToolTip.Tip="{loc:Loc Files_Refresh}">
+          <material:MaterialIcon Kind="Refresh" Width="18" Height="18"/>
+        </Button>
+        <Button Grid.Column="7" Classes="icon-btn" Command="{Binding StartEditPathCommand}"
+                IsVisible="{Binding !IsEditingPath}" ToolTip.Tip="{loc:Loc Files_EditPath_Tooltip}">
+          <material:MaterialIcon Kind="Pencil" Width="16" Height="16"/>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Places chips -->
+    <Border Grid.Row="1" Padding="12,8,12,8">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Places}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="fs:FileSystemNode">
+              <Border Classes="fb-placechip" Classes.active="{Binding IsCurrentPlace}">
+                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                        Command="{Binding $parent[UserControl].((vm:FileBrowserViewModel)DataContext).NavigateToCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <material:MaterialIcon Kind="{Binding Type, Converter={StaticResource NodeTypeToIcon}}"
+                                           Width="14" Height="14" Foreground="{StaticResource BrushAccent}"/>
+                    <TextBlock Text="{Binding Name}" FontSize="{DynamicResource FontSizeSm}"/>
+                  </StackPanel>
+                </Button>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <!-- Column headers -->
+    <Border Grid.Row="2" Classes="wallpaper-row-header" Padding="8,6,8,2">
+      <Grid ColumnDefinitions="Auto,*,90,90,112">
+        <Border Grid.Column="0" Width="{DynamicResource RowArtSize}" Margin="0,0,12,0"/>
+        <TextBlock Grid.Column="1" Classes="section-label" Text="{loc:Loc Files_Header_Name}" Margin="0"/>
+        <TextBlock Grid.Column="2" Classes="section-label" Text="{loc:Loc Files_Header_Length}" Margin="0" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Column="3" Classes="section-label" Text="{loc:Loc Files_Header_Size}" Margin="0" HorizontalAlignment="Right"/>
+        <Border Grid.Column="4" Width="108"/>
+      </Grid>
+    </Border>
+
+    <!-- Listing -->
+    <Grid Grid.Row="3" x:Name="ListingArea">
+      <Grid.Transitions>
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12" Easing="CubicEaseOut"/></Transitions>
+      </Grid.Transitions>
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}"
+                   Height="2" VerticalAlignment="Top"/>
+
+      <ListBox x:Name="FileList" ItemsSource="{Binding CurrentNodes}"
+               SelectedItem="{Binding SelectedNode}" SelectionMode="Single"
+               DoubleTapped="OnListDoubleTapped" KeyDown="OnListKeyDown">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="fs:FileSystemNode">
+            <Grid ColumnDefinitions="Auto,*,90,90,112" Margin="8,6">
+              <Border Grid.Column="0" Width="{DynamicResource RowArtSize}" Height="{DynamicResource RowArtSize}"
+                      CornerRadius="{StaticResource RadiusArt}" Background="{StaticResource BrushSurface2}"
+                      ClipToBounds="True" VerticalAlignment="Center" Margin="0,0,12,0">
+                <material:MaterialIcon Kind="{Binding Type, Converter={StaticResource NodeTypeToIcon}}"
+                                       Width="20" Height="20"
+                                       Foreground="{StaticResource BrushAccent}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <Border Background="{StaticResource BrushGreenDim}" CornerRadius="{StaticResource RadiusSm}"
+                          Padding="6,1" IsVisible="{Binding IsInLibrary}">
+                    <TextBlock Text="{loc:Loc Files_InLibrary}" FontSize="{DynamicResource FontSizeXs}"
+                               Foreground="{StaticResource BrushGreen}"/>
+                  </Border>
+                </StackPanel>
+                <TextBlock Text="{Binding Artist}" Foreground="{StaticResource BrushTextMuted}"
+                           FontSize="{DynamicResource FontSizeXs}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding IsAudio}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Column="2" Text="{Binding Duration}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                         Foreground="{StaticResource BrushTextMuted}" Margin="16,0"
+                         IsVisible="{Binding IsAudio}"/>
+              <TextBlock Grid.Column="3" Text="{Binding Size, Converter={StaticResource FileSize}}"
+                         VerticalAlignment="Center" HorizontalAlignment="Right"
+                         Foreground="{StaticResource BrushTextMuted}" Margin="0,0,16,0"
+                         IsVisible="{Binding IsAudio}"/>
+
+              <Border Grid.Column="4" Classes="fb-row-actions" IsVisible="{Binding IsAudio}">
+                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                  <Button Classes="icon-btn sm" ToolTip.Tip="{loc:Loc Files_Play}"
+                          Command="{Binding $parent[ListBox].((vm:FileBrowserViewModel)DataContext).PlayFileCommand}"
+                          CommandParameter="{Binding}">
+                    <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
+                  </Button>
+                  <Button Classes="icon-btn sm" ToolTip.Tip="{loc:Loc Files_Queue}"
+                          Command="{Binding $parent[ListBox].((vm:FileBrowserViewModel)DataContext).AddToQueueCommand}"
+                          CommandParameter="{Binding}">
+                    <material:MaterialIcon Kind="PlaylistPlus" Width="16" Height="16"/>
+                  </Button>
+                  <Button Classes="icon-btn sm" ToolTip.Tip="{loc:Loc Files_AddLibrary}"
+                          Command="{Binding $parent[ListBox].((vm:FileBrowserViewModel)DataContext).AddToLibraryCommand}"
+                          CommandParameter="{Binding}">
+                    <material:MaterialIcon Kind="LibraryPlus" Width="16" Height="16"/>
+                  </Button>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <!-- States -->
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                  IsVisible="{Binding IsEmpty}">
+        <material:MaterialIcon Kind="FolderOpen" Width="48" Height="48"
+                               Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc Files_EmptyFolder}" Foreground="{StaticResource BrushTextMuted}"/>
+      </StackPanel>
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                  IsVisible="{Binding AccessDenied}">
+        <material:MaterialIcon Kind="LockOutline" Width="48" Height="48"
+                               Foreground="{StaticResource BrushAmber}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc Files_AccessDenied}" Foreground="{StaticResource BrushTextMuted}"/>
+      </StackPanel>
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                  IsVisible="{Binding LoadFailed}">
+        <material:MaterialIcon Kind="AlertCircleOutline" Width="48" Height="48"
+                               Foreground="{StaticResource BrushAmber}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc Files_LoadFailed}" Foreground="{StaticResource BrushTextMuted}"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- Info strip -->
+    <Border Grid.Row="4" Classes="chrome" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="16,10"
+            IsVisible="{Binding SelectedNode.IsAudio, FallbackValue=False}">
+      <StackPanel Spacing="2">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="{Binding SelectedNode.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding SelectedNode.Artist}" Foreground="{StaticResource BrushTextMuted}"/>
+        </StackPanel>
+        <TextBlock Text="{Binding SelectedNode.Album}" Foreground="{StaticResource BrushTextMuted}"/>
+        <TextBlock Text="{Binding SelectedNode.Details}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"/>
+        <TextBlock Text="{Binding SelectedNode.Path}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeXs}"
+                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedNode.Path}"/>
+      </StackPanel>
+    </Border>
+
+  </Grid>
+</UserControl>

@@ -88,4 +88,6 @@ public class Preferences
     public bool? PackageManagerInstallConsent { get; set; }
     public TagWriteMode TagWriteMode { get; set; } = TagWriteMode.DownloadsOnly;
     public string ImportMode { get; set; } = "Ask";
+    public List<string> PinnedFolders { get; set; } = new();
+    public string LastBrowsedPath { get; set; } = string.Empty;
 }
