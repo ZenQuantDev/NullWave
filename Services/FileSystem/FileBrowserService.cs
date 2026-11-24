@@ -279,6 +279,7 @@ var places = new[]
     private static readonly HashSet<string> LinuxRealFilesystems = new(StringComparer.Ordinal)
     {
         "ext2", "ext3", "ext4", "btrfs", "xfs", "f2fs", "jfs", "reiserfs", "erofs",
+        "overlay", "overlayfs",
         "vfat", "exfat", "ntfs", "ntfs3", "udf", "iso9666",
         "zfs", "nfs", "nfs4", "cifs", "smbfs", "fuseblk", "fuse.sshfs"
     };

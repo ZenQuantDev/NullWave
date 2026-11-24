@@ -28,7 +28,7 @@ public class SmartPlaylistService
 
     public static readonly SmartPlaylistDefinition RecentlyAdded = new(
         Id: "smart.recently-added",
-        NameKey: "SmartPlaylist_RecentlyAdded",
+        NameKey: "Playlist_Smart_RecentlyAdded",
         Filter: tracks => tracks.Where(t => t.MediaType != MediaType.Radio && t.MediaType != MediaType.Audiobook),
         PrimarySort: t => t.DateAdded,
         SecondarySort: t => t.Title,
@@ -38,7 +38,7 @@ public class SmartPlaylistService
 
     public static readonly SmartPlaylistDefinition MostPlayed = new(
         Id: "smart.most-played",
-        NameKey: "SmartPlaylist_MostPlayed",
+       NameKey: "Playlist_Smart_MostPlayed",
         Filter: tracks => tracks.Where(t => t.PlayCount >= 1 && t.MediaType != MediaType.Radio && t.MediaType != MediaType.Audiobook),
         PrimarySort: t => t.PlayCount,
         SecondarySort: t => t.LastPlayed,
@@ -48,7 +48,7 @@ public class SmartPlaylistService
 
     public SmartPlaylistDefinition ForgottenFavorites => new(
         Id: "smart.forgotten-favorites",
-        NameKey: "SmartPlaylist_ForgottenFavorites",
+        NameKey: "Playlist_Smart_ForgottenFavorites",
         Filter: tracks =>
         {
             var cutoff = _clock.GetUtcNow().AddDays(-90).UtcDateTime;
