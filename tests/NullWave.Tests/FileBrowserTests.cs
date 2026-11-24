@@ -63,9 +63,18 @@ public class StableIdTests
                         FileBrowserViewModel.StableIdForPath(@"C:\Music\a.mp3"));
 
     [Fact]
-    public void Separators_and_case_are_ignored()
-        => Assert.Equal(FileBrowserViewModel.StableIdForPath(@"C:\Music\a.mp3"),
-                        FileBrowserViewModel.StableIdForPath("c:/music/a.mp3/".TrimEnd('/')));
+    public void Separators_and_case_are_ignored_on_windows_only()
+    {
+        var windowsStyle = FileBrowserViewModel.StableIdForPath(@"C:\Music\a.mp3");
+        var lowercaseSlashes = FileBrowserViewModel.StableIdForPath("c:/music/a.mp3/".TrimEnd('/'));
+
+        // Windows file systems are case-insensitive and treat both separators as equivalent.
+        // Linux file systems are case-sensitive, so these are different paths.
+        if (OperatingSystem.IsWindows())
+            Assert.Equal(windowsStyle, lowercaseSlashes);
+        else
+            Assert.NotEqual(windowsStyle, lowercaseSlashes);
+    }
 
     [Fact]
     public void Different_paths_produce_different_ids()
