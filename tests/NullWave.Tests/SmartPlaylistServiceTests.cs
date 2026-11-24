@@ -14,9 +14,10 @@ public class SmartPlaylistServiceTests
     private static readonly DateTimeOffset Now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
     private static FakeTimeProvider Clock() => new(Now);
 
-    private static Track MakeTrack(string title, int playCount, DateTime? lastPlayed, 
-        MediaType mediaType = MediaType.Music) =>
-        new() { Title = title, PlayCount = playCount, LastPlayed = lastPlayed, MediaType = mediaType };
+    private static Track MakeTrack(string title, int playCount, DateTime? lastPlayed,
+        MediaType mediaType = MediaType.Music, DateTime? dateAdded = null) =>
+        new() { Title = title, PlayCount = playCount, LastPlayed = lastPlayed, MediaType = mediaType,
+                DateAdded = dateAdded ?? Now.UtcDateTime };
 
     private SmartPlaylistService CreateService(TimeProvider? clock = null)
     {
@@ -24,18 +25,21 @@ public class SmartPlaylistServiceTests
     }
 
     [Fact]
-    public void RecentlyAdded_excludes_radio_and_audiobooks()
+    public void RecentlyAdded_excludes_radio_audiobooks_AND_stale_tracks()
     {
+        // Fake "now" = 2026-10-26 -> the 30-day window cutoff is 2026-09-26.
+        var clock = Clock();
         var tracks = new List<Track>
         {
-            MakeTrack("Music", 0, null, MediaType.Music),
-            MakeTrack("Radio", 0, null, MediaType.Radio),
-            MakeTrack("Audiobook", 0, null, MediaType.Audiobook)
+            MakeTrack("Recent",    0, null, MediaType.Music,     dateAdded: Now.UtcDateTime.AddDays(-5)),  // inside 30d -> in
+            MakeTrack("Stale",     0, null, MediaType.Music,     dateAdded: Now.UtcDateTime.AddDays(-60)), // outside 30d -> out (proves the window)
+            MakeTrack("Radio",     0, null, MediaType.Radio),                                              // out by media type
+            MakeTrack("Audiobook", 0, null, MediaType.Audiobook)                                           // out by media type
         };
-        var service = CreateService();
-        var result = service.ResolveInternal(SmartPlaylistService.RecentlyAdded, tracks);
+        var service = CreateService(clock);
+        var result = service.ResolveInternal(service.RecentlyAdded, tracks); // instance member, not static
         Assert.Single(result);
-        Assert.Equal("Music", result[0].Title);
+        Assert.Equal("Recent", result[0].Title);
     }
 
     [Fact]

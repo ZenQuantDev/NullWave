@@ -30,7 +30,15 @@ public class PlaylistViewModel : ViewModelBase
     public bool IsSmartPlaylistActive
     {
         get => _isSmartPlaylistActive;
-        set { _isSmartPlaylistActive = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasActivePlaylist)); OnPropertyChanged(nameof(HeaderTitle)); OnPropertyChanged(nameof(HeaderCount)); }
+        set
+        {
+            if (value) IsRenaming = false; // a virtual playlist can never be renamed
+            _isSmartPlaylistActive = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasActivePlaylist));
+            OnPropertyChanged(nameof(HeaderTitle));
+            OnPropertyChanged(nameof(HeaderCount));
+        }
     }
 
     private string? _currentSmartPlaylistId;

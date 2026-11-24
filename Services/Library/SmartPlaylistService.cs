@@ -26,10 +26,20 @@ public class SmartPlaylistService
         _clock = clock;
     }
 
-    public static readonly SmartPlaylistDefinition RecentlyAdded = new(
+    // Instance property (not static) because the recency window must read _clock,
+    // exactly like ForgottenFavorites. 30 days is the conventional "recently added"
+    // horizon; tune via a preference later if you want it user-configurable.
+    public SmartPlaylistDefinition RecentlyAdded => new(
         Id: "smart.recently-added",
         NameKey: "Playlist_Smart_RecentlyAdded",
-        Filter: tracks => tracks.Where(t => t.MediaType != MediaType.Radio && t.MediaType != MediaType.Audiobook),
+        Filter: tracks =>
+        {
+            var cutoff = _clock.GetUtcNow().AddDays(-30).UtcDateTime;
+            return tracks.Where(t =>
+                t.MediaType != MediaType.Radio &&
+                t.MediaType != MediaType.Audiobook &&
+                t.DateAdded >= cutoff);
+        },
         PrimarySort: t => t.DateAdded,
         SecondarySort: t => t.Title,
         SecondaryDescending: false,

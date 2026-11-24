@@ -92,7 +92,8 @@
                                 IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <material:MaterialIcon Kind="TrashCan" Width="18" Height="18"/>
                         </Button>
-                        <Button Classes="secondary" Click="OnImportM3uClick" ToolTip.Tip="{loc:Loc Playlist_ImportM3u_Tooltip}">
+                        <Button Classes="secondary" Click="OnImportM3uClick" ToolTip.Tip="{loc:Loc Playlist_ImportM3u_Tooltip}"
+                                IsVisible="{Binding !Playlist.IsSmartPlaylistActive}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <material:MaterialIcon Kind="Import" Width="16" Height="16"/>
                                 <TextBlock Text="{loc:Loc Playlist_ImportM3u}"/>
@@ -113,7 +114,9 @@
         </Border>
 
         <!-- Rename overlay -->
-        <Border DockPanel.Dock="Top" Padding="24,8" IsVisible="{Binding Playlist.IsRenaming}"
+        <Border DockPanel.Dock="Top" Padding="24,8"
+                IsVisible="{Binding Playlist.IsRenaming}"
+                IsEnabled="{Binding !Playlist.IsSmartPlaylistActive}"
                 Background="{StaticResource BrushSurface}">
             <Grid ColumnDefinitions="*,8,Auto,8,Auto">
                 <TextBox Grid.Column="0" Text="{Binding Playlist.RenameText, Mode=TwoWay}" FontSize="{DynamicResource FontSizeLg}" FontWeight="Bold"/>
@@ -385,7 +388,10 @@
                         IsVisible="{Binding !Playlist.FilteredTracks.Count}">
                 <material:MaterialIcon Kind="MusicNote" Width="48" Height="48" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center"/>
                 <TextBlock Text="{loc:Loc Playlist_Empty_Title}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeBody}" HorizontalAlignment="Center"/>
-                <TextBlock Text="{loc:Loc Playlist_Empty_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Playlist_Empty_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center"
+                           IsVisible="{Binding !Playlist.IsSmartPlaylistActive}"/>
+                <TextBlock Text="{loc:Loc Playlist_Smart_Empty_Desc}" Foreground="{StaticResource BrushTextMuted}" FontSize="{DynamicResource FontSizeSm}" HorizontalAlignment="Center"
+                           IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
             </StackPanel>
         </Grid>
     </DockPanel>

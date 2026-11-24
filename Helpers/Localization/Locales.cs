@@ -1496,5 +1496,6 @@ public static partial class Locales
         ["Settings_Smart_Section_Title"] = "AI and Smart Features",
         ["Settings_CollapseSidebar"] = "Collapse sidebar",
         ["Settings_ExpandSidebar"] = "Expand sidebar",
+        ["Playlist_Smart_Empty_Desc"] = "Tracks appear here automatically as you listen and add music.",
     };
 }

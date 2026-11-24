@@ -1480,5 +1480,6 @@ public static partial class Locales
         ["Settings_Smart_Section_Title"] = "ИИ и умные функции",
         ["Settings_CollapseSidebar"] = "Свернуть боковую панель",
         ["Settings_ExpandSidebar"] = "Развернуть боковую панель",
+        ["Playlist_Smart_Empty_Desc"] = "Треки появятся здесь автоматически по мере прослушивания и добавления музыки.",
     };
 }
