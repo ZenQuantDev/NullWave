@@ -5,6 +5,7 @@ using Avalonia.Input.Platform;
 using NullWave.Services;
 using NullWave.ViewModels;
 using NullWave.Models; 
+using NullWave.Helpers.Diagnostics;
 
 namespace NullWave.Views.Settings;
 
@@ -18,13 +19,15 @@ public partial class HelpTab : UserControl
     private async void OnCopyLogClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is SettingsViewModel vm)
-            await CopyAsync(vm.LogViewer.FilteredLog);
+            // Redact paths from the filtered log view
+            await CopyAsync(DiagnosticsRedactor.RedactText(vm.LogViewer.FilteredLog));
     }
 
     private async void OnCopyDiagnosticsClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is SettingsViewModel vm)
-            await CopyAsync(vm.BuildDiagnosticsText());
+            // Redact paths from the full diagnostics dump
+            await CopyAsync(DiagnosticsRedactor.RedactText(vm.BuildDiagnosticsText()));
     }
 
     private async Task CopyAsync(string text)
@@ -33,6 +36,6 @@ public partial class HelpTab : UserControl
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard == null) return;
         await clipboard.SetTextAsync(text);
-        ToastService.Instance.Show("Copied to clipboard.", ToastType.Success);
+        ToastService.Instance.Show(LocalizationService.Instance["Help_CopiedRedacted"], ToastType.Success);
     }
 }

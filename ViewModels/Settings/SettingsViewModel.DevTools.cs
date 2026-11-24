@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -17,7 +18,6 @@ using NullWave.Models;
 using NullWave.Services;
 using NullWave.Views;
 using Serilog;
-
 namespace NullWave.ViewModels;
 
 /// <summary>One row in the DevTools binary health grid.</summary>
@@ -208,14 +208,44 @@ public partial class SettingsViewModel
             await File.WriteAllTextAsync(Path.Combine(tmp, "diagnostics.txt"), BuildDiagnosticsText());
 
             var prefsSrc = Path.Combine(NullWavePaths.DataDir, "prefs.json");
-            if (File.Exists(prefsSrc)) File.Copy(prefsSrc, Path.Combine(tmp, "prefs.json"), true);
+            if (File.Exists(prefsSrc))
+            {
+                var rawPrefs = File.ReadAllText(prefsSrc);
+                var safePrefs = Helpers.Diagnostics.DiagnosticsRedactor.RedactPreferencesJson(rawPrefs);
+                File.WriteAllText(Path.Combine(tmp, "prefs.json"), safePrefs);
+            }
 
             if (Directory.Exists(NullWavePaths.LogsDir))
             {
                 var logsTmp = Path.Combine(tmp, "logs");
                 Directory.CreateDirectory(logsTmp);
-                foreach (var f in Directory.GetFiles(NullWavePaths.LogsDir, "*.log").OrderByDescending(x => x).Take(6))
-                    File.Copy(f, Path.Combine(logsTmp, Path.GetFileName(f)), true);
+                foreach (var f in Directory.GetFiles(NullWavePaths.LogsDir, "*.log").OrderByDescending(x => File.GetLastWriteTimeUtc(x)).Take(6))
+                {
+                    var dest = Path.Combine(logsTmp, Path.GetFileName(f));
+
+                    try
+                    {
+                        using var src = new FileStream(
+                            f,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.ReadWrite | FileShare.Delete);
+
+                        using var reader = new StreamReader(src, Encoding.UTF8);
+                        using var writer = new StreamWriter(dest, false, new UTF8Encoding(false));
+
+                        string? line;
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            writer.WriteLine(Helpers.Diagnostics.DiagnosticsRedactor.RedactPaths(line));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        try { if (File.Exists(dest)) File.Delete(dest); } catch { }
+                        Log.Warning(ex, "[DevTools] Failed to redact log file {File}; omitting it from support bundle", f);
+                    }
+                }
             }
 
             if (File.Exists(file.Path.LocalPath)) File.Delete(file.Path.LocalPath);

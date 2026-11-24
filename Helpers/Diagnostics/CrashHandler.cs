@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using NullWave.Helpers.Diagnostics;
 using Serilog;
 
 namespace NullWave.Helpers;
@@ -28,21 +29,18 @@ public static class CrashHandler
             sb.AppendLine("---");
             sb.AppendLine();
             sb.AppendLine("```text");
-            sb.AppendLine(ex.ToString());
+            // REDACT PATHS FROM STACK TRACE
+            sb.AppendLine(DiagnosticsRedactor.RedactText(ex.ToString()));
             sb.AppendLine("```");
 
             var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             var crashFile = Path.Combine(desktop, "NullWave-Crash-Report.md");
             
-            // Append so we don't overwrite previous crashes if it loops
             File.AppendAllText(crashFile, sb.ToString() + Environment.NewLine + Environment.NewLine);
-            
-            // Open the file with the default OS application
             ShellHelper.OpenFile(crashFile);
         }
         catch (Exception handlerEx)
         {
-            // If even the crash handler fails, just try to write to a local file
             try { File.WriteAllText("CRASH_HANDLER_FAILED.txt", handlerEx.ToString() + "\n\n" + ex.ToString()); } catch { }
         }
         finally
