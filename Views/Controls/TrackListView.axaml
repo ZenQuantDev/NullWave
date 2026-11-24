@@ -122,7 +122,7 @@
                  Opacity="1">
             <ListBox.Transitions>
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationDip}" Easing="CubicEaseOut"/>
                 </Transitions>
             </ListBox.Transitions>
             <ListBox.Styles>

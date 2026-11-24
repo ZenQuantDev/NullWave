@@ -28,6 +28,7 @@
   -->
 
   <!-- ===== DURATIONS (mirror of current hardcodes) ===== -->
+  <sys:TimeSpan x:Key="DurationDip">0:0:0.1</sys:TimeSpan>
   <sys:TimeSpan x:Key="DurationMicro">0:0:0.06</sys:TimeSpan>     <!-- effects-minimal button opacity -->
   <sys:TimeSpan x:Key="DurationPress">0:0:0.12</sys:TimeSpan>     <!-- button RenderTransform scale  -->
   <sys:TimeSpan x:Key="DurationHoverReveal">0:0:0.12</sys:TimeSpan> <!-- sidebar row-action opacity reveal on hover -->

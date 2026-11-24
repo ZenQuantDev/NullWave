@@ -677,7 +677,7 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationBase}"/>
       </Transitions>
     </Setter>
   </Style>
@@ -858,7 +858,7 @@
   <Style Selector="ToggleSwitch /template/ Border#SwitchKnob">
     <Setter Property="Transitions">
       <Transitions>
-        <ThicknessTransition Property="Margin" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+        <ThicknessTransition Property="Margin" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>

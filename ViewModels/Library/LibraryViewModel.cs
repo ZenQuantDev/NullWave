@@ -32,6 +32,15 @@ public partial class LibraryViewModel : ObservableObject
     private MediaType? _mediaTypeFilter;
     private List<Track> _currentSelection = new();
 
+    // last values used by the previous TriggerRefresh, so we can tell a filter/view/source
+    // SWITCH (fade the list) from a SEARCH keystroke or a SORT change (stay instant).
+    private string _lastQuery = string.Empty;
+    private string? _lastArtistFilter;
+    private LibraryView _lastView = LibraryView.All;
+    private TrackSource? _lastSourceFilter;
+    private MediaType? _lastMediaTypeFilter;
+    private bool _listSwitchPending;
+
     public HashSet<MediaType> ExcludedMediaTypes { get; } = new();
 
     public MediaType? MediaTypeFilter
@@ -87,6 +96,22 @@ public partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasMultiSelection))]
     [NotifyPropertyChangedFor(nameof(SelectionCountLabel))]
     private int _selectionCount;
+
+    // ---- MATCH dip-dissolve state. The view drives the two legs; the VM defers the
+    // data swap to the trough so OLD fades out (visible) before NEW fades in (no blink).
+    // Invariant: a SWITCH bumps _switchSeq; an INSTANT refresh does NOT bump it, it only
+    // clears flags+pending. The view's scheduled callbacks compare their captured seq to
+    // the current seq to tell "superseded by a newer fade" (bail silently) from
+    // "aborted by an instant refresh" (snap visible). ----
+    public int ListSwitchSeq => _switchSeq;
+    private int _switchSeq;
+    private IList<Track>? _pendingSwitchList;
+    private Guid? _pendingPreviousSelectedId;
+    private bool _pendingWasSearch;
+    private string? _pendingSearchLog;
+
+    [ObservableProperty] private bool _isListFadingOut; // rising edge -> view fades CURRENT list 1->0
+    [ObservableProperty] private bool _isListFadingIn;  // rising edge -> view fades NEW list 0->1
 
     public bool HasMultiSelection => SelectionCount > 1;
     public string SelectionCountLabel => $"{SelectionCount} selected";
@@ -198,6 +223,66 @@ public partial class LibraryViewModel : ObservableObject
 
     public void Refresh() => TriggerRefresh(debounce: false);
 
+        /// <summary>Called by TrackListView when the OLD list has finished fading out (the trough).
+    /// Applies the deferred swap here — while opacity is 0 — then raises the fade-IN leg.</summary>
+    public void CompleteListFadeOut(int seq)
+    {
+        if (seq != _switchSeq || _pendingSwitchList is null) return; // superseded or already drained
+        var list = _pendingSwitchList;
+        _pendingSwitchList = null;
+        Tracks.ReplaceAll(list);
+        UpdateSourceCounts();
+        OnPropertyChanged(nameof(ResultCountLabel));
+        if (_pendingPreviousSelectedId.HasValue)
+        {
+            var ns = Tracks.FirstOrDefault(t => t.Id == _pendingPreviousSelectedId.Value);
+            if (ns != null) { SelectedTrack = null; SelectedTrack = ns; }
+        }
+        if (_pendingWasSearch) NullActionLogger.SearchPerformed(_pendingSearchLog ?? string.Empty, Tracks.Count, "LibraryViewModel");
+        _pendingPreviousSelectedId = null; _pendingWasSearch = false; _pendingSearchLog = null;
+        IsListFadingOut = false;
+        IsListFadingIn = true;   // view fades NEW in
+    }
+
+    /// <summary>Called by TrackListView when the NEW list has finished fading in. Clears the flag
+    /// so the next switch re-arms. Data was already applied at the trough.</summary>
+    public void CompleteListFadeIn(int seq)
+    {
+        if (seq != _switchSeq) return; // superseded by a newer dip
+        IsListFadingIn = false;
+    }
+
+    /// <summary>An instant refresh (search keystroke / sort / programmatic) that lands while a dip
+    /// is in flight must discard the pending swap and clear the flags WITHOUT bumping the seq,
+    /// so the view's scheduled callback can tell "aborted" (snap visible) from "superseded" (bail).</summary>
+    private void AbortInFlightFadeIfNeeded()
+    {
+        if (!IsListFadingOut && !IsListFadingIn && _pendingSwitchList is null) return;
+        _pendingSwitchList = null;
+        _pendingPreviousSelectedId = null; _pendingWasSearch = false; _pendingSearchLog = null;
+        IsListFadingOut = false;
+        IsListFadingIn = false;
+        // deliberately no _switchSeq++ : the in-flight view callback sees seq==current + flags cleared -> snaps.
+    }
+
+    /// <summary>Heal a dip that was orphaned because the view detached mid-animation (e.g. the user
+    /// navigated Library->Radio during a fade). Applies any pending swap instantly, bumps the seq so
+    /// the orphaned view's scheduled callbacks bail, and clears the flags. Called on (re)attach.</summary>
+    public void ForceResolvePendingFade()
+    {
+        if (_pendingSwitchList != null)
+        {
+            var list = _pendingSwitchList; _pendingSwitchList = null;
+            Tracks.ReplaceAll(list);
+            UpdateSourceCounts();
+            OnPropertyChanged(nameof(ResultCountLabel));
+        }
+        _pendingPreviousSelectedId = null; _pendingWasSearch = false; _pendingSearchLog = null;
+        _switchSeq++;            // invalidate any in-flight view callbacks
+        IsListFadingOut = false;
+        IsListFadingIn = false;
+    }
+
     private void TriggerRefresh(bool debounce = false)
     {
         try
@@ -221,6 +306,20 @@ public partial class LibraryViewModel : ObservableObject
         TrackSource? filter = ActiveSourceFilter;
         MediaType? mediaTypeFilter = MediaTypeFilter;
 
+        // A "switch" = view/source/mediatype/artist changed. Search text and sort direction
+        // deliberately do NOT count, so typing and re‑sorting stay instant.
+        _listSwitchPending =
+            view != _lastView ||
+            filter != _lastSourceFilter ||
+            mediaTypeFilter != _lastMediaTypeFilter ||
+            artistFilter != _lastArtistFilter;
+
+        _lastQuery = query;
+        _lastArtistFilter = artistFilter;
+        _lastView = view;
+        _lastSourceFilter = filter;
+        _lastMediaTypeFilter = mediaTypeFilter;
+
         _ = Task.Run(async () =>
         {
             try
@@ -243,6 +342,22 @@ public partial class LibraryViewModel : ObservableObject
                         OnPropertyChanged(nameof(ResultCountLabel));
                         return;
                     }
+
+                    if (_listSwitchPending)
+                    {
+                        // Defer the swap to the trough: keep OLD rendered so it can fade out.
+                        _listSwitchPending = false;
+                        _switchSeq++;
+                        _pendingSwitchList = list as IList<Track> ?? list?.ToList();
+                        _pendingPreviousSelectedId = SelectedTrack?.Id;
+                        _pendingWasSearch = wasSearch;
+                        _pendingSearchLog = wasSearch ? (query ?? artistFilter ?? string.Empty) : null;
+                        IsListFadingOut = true;   // view fades OLD out, then calls CompleteListFadeOut
+                        OnPropertyChanged(nameof(ListSwitchSeq)); // supersede signal: fires even when IsListFadingOut was already true
+                        return;                  // do NOT touch Tracks here
+                    }
+
+                    AbortInFlightFadeIfNeeded();  // a search/sort landing mid-dip must not leave opacity < 1
 
                     Guid? previousSelectedId = SelectedTrack?.Id;
                     Tracks.ReplaceAll(list);

@@ -25,7 +25,7 @@
     
     <Border.Transitions>
         <Transitions>
-            <DoubleTransition Property="Width" Duration="{DynamicResource DurationPage}" Easing="QuadraticEaseOut"/>
+            <DoubleTransition Property="Width" Duration="{DynamicResource DurationPage}" Easing="CubicEaseOut"/>
         </Transitions>
     </Border.Transitions>
 
@@ -438,6 +438,11 @@
 
         <Grid>
             <ScrollViewer Classes="side-scroll">
+                <!-- TODO(customize-sidebar): Filters/Sources/Folders/Unpinned are hardcoded StackPanel
+                    children. Making section ORDER user-configurable means promoting them to a
+                    data-bound section collection (like Nav.Items) + reusing the existing reorder
+                    commands/drag handlers. Post-v0.6.6; the current order (Filters+Sources above the
+                    variable-length folder tree) is the safe default that keeps sources always-visible. -->
                 <Grid>
                     <StackPanel Spacing="0">
                         <Grid Classes="expand-only" ColumnDefinitions="*,Auto,Auto" Margin="4,0,4,12" IsVisible="{Binding IsSidebarExpanded}">
