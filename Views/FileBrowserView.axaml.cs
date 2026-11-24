@@ -69,7 +69,22 @@ public partial class FileBrowserView : UserControl
         }
         else if (e.PropertyName == nameof(FileBrowserViewModel.CurrentPath))
         {
-            Dispatcher.UIThread.Post(() => BreadcrumbScroll.ScrollToEnd(), DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() =>
+            {
+                BreadcrumbScroll.ScrollToEnd();
+                BringActivePlaceIntoView();
+            }, DispatcherPriority.Background);
+        }
+    }
+
+    private void BringActivePlaceIntoView()
+    {
+        if (DataContext is not FileBrowserViewModel vm) return;
+        for (int i = 0; i < vm.Places.Count; i++)
+        {
+            if (!vm.Places[i].IsCurrentPlace) continue;
+            if (PlacesList.ContainerFromIndex(i) is Control c) c.BringIntoView();
+            return;
         }
     }
 

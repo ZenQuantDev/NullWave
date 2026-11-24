@@ -10,7 +10,7 @@ A personal music organizer with download, playback, AI-powered smart sorting, an
 
 ## Version
 
-v0.6.5-beta.2 "Oxeye Daisy"
+v0.6.5 "Oxeye Daisy"
 
 ## About
 

@@ -132,8 +132,8 @@
 
     <!-- Row 1: places on the left, sort on the right -->
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="12,8">
-      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-        <ItemsControl ItemsSource="{Binding Places}">
+      <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+        <ItemsControl x:Name="PlacesList" ItemsSource="{Binding Places}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>

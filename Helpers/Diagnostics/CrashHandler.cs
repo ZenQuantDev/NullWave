@@ -37,7 +37,7 @@ public static class CrashHandler
             var crashFile = Path.Combine(desktop, "NullWave-Crash-Report.md");
             
             File.AppendAllText(crashFile, sb.ToString() + Environment.NewLine + Environment.NewLine);
-            ShellHelper.OpenFile(crashFile);
+            ShellHelper.OpenDocument(crashFile);
         }
         catch (Exception handlerEx)
         {

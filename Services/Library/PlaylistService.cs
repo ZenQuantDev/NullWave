@@ -209,6 +209,7 @@ public class PlaylistService
                      .ToList())
         {
             var keep = group.OrderByDescending(p => p.Tracks.Count).First();
+            int mergedInGroup = 0;
             foreach (var dup in group.Where(p => p.Id != keep.Id).ToList())
             {
                 // 2.1 FIX: Merge unique tracks from the duplicate into the kept playlist
@@ -228,10 +229,10 @@ public class PlaylistService
                 removedPlaylists++;
             }
             
-            if (mergedTracks > 0)
+            if (mergedInGroup > 0)
             {
                 _db.SavePlaylist(keep);
-                Log.Information("[PlaylistService] Merged {Count} unique tracks from duplicate playlist '{Name}' into the primary copy.", mergedTracks, keep.Name);
+                Log.Information("[PlaylistService] Merged {Count} unique tracks from duplicate playlist '{Name}' into the primary copy.", mergedInGroup, keep.Name);
             }
         }
 

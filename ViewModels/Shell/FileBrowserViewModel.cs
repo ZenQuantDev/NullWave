@@ -666,7 +666,8 @@ public partial class FileBrowserViewModel : ObservableObject
     {
         _searchCts?.Cancel();
         Interlocked.Increment(ref _searchGeneration);
-        IsLoading = false;
+        if (!(SearchRecursive && !string.IsNullOrWhiteSpace(SearchQuery) && CurrentPath.Length > 0))
+            IsLoading = false; // recursive path owns the spinner until it finishes or is cancelled
 
         if (string.IsNullOrWhiteSpace(SearchQuery))
         {

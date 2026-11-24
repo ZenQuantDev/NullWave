@@ -37,6 +37,36 @@ public static class ShellHelper
         ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".opus", ".aac", ".wma", ".mp4", ".webm", ".mkv"
     };
 
+    private static readonly HashSet<string> AllowedDocumentExts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".md", ".txt", ".log"
+    };
+
+    /// <summary>
+    /// Opens a text document (crash reports, exported logs) with the default editor.
+    /// Kept separate from OpenFile so the media-only rule stays strict.
+    /// </summary>
+    public static void OpenDocument(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+
+        var ext = Path.GetExtension(path);
+        if (!AllowedDocumentExts.Contains(ext))
+        {
+            Log.Warning("[ShellHelper] Blocked document open of non-document file: {Path}", path);
+            return;
+        }
+        try
+        {
+            Launch(path, isUrl: false, isFolder: false);
+            Log.Information("[ShellHelper] Opened document: {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[ShellHelper] Failed to open document: {Path}", path);
+        }
+    }
+
     /// <summary>
     /// Opens a file with the system's default application.
     /// </summary>

@@ -140,3 +140,19 @@ public class LocaleSourceDuplicateTests
         Assert.Equal(@"C:\", FileBrowserViewModel.ParentOf(@"C:\Users"));
     }
 }
+
+public class LinuxRootCurationTests
+{
+    [Fact]
+    public void Linux_roots_exclude_pseudo_filesystems()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        var names = FileBrowserService.GetDriveNames();
+        Assert.Contains("/", names);
+        Assert.DoesNotContain(names, n => n.StartsWith("/proc", StringComparison.Ordinal));
+        Assert.DoesNotContain(names, n => n.StartsWith("/sys", StringComparison.Ordinal));
+        Assert.DoesNotContain(names, n => n.StartsWith("/dev", StringComparison.Ordinal));
+        Assert.DoesNotContain(names, n => n.StartsWith("/run", StringComparison.Ordinal));
+        Assert.True(names.Length <= 12);
+    }
+}

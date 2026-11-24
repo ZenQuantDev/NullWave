@@ -18,18 +18,18 @@
 
 ## Release Plan
 
-| Version     | Codename / Focus      | Key Deliverables                                                                                                                                       |
-| ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **v0.5.1**  | Stability             | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                    |
-| **v0.5.2**  | QoL & Polish          | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
-| **v0.6.0**  | "Oxeye Daisy"         | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
-| **v0.6.1**  | "Stability & Safety"  | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
-| **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
-| **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
-| **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
-| **v0.6.5**  | Hardening & File Safety | beta.1 31-Oct, beta.2 12-Nov; stable close-out adds Files Browser v1, EFS/locked playback guards, live EN/RU switching and diagnostics redaction. |
-| **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
-| **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
+| Version     | Codename / Focus        | Key Deliverables                                                                                                                                       |
+| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **v0.5.1**  | Stability               | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                    |
+| **v0.5.2**  | QoL & Polish            | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
+| **v0.6.0**  | "Oxeye Daisy"           | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
+| **v0.6.1**  | "Stability & Safety"    | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
+| **v0.6.2**  | Correctness             | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
+| **v0.6.3**  | Responsiveness          | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
+| **v0.6.4**  | "Foundations"           | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
+| **v0.6.5**  | Hardening & File Safety | beta.1 31-Oct, beta.2 12-Nov; stable close-out adds Files Browser v1, EFS/locked playback guards, live EN/RU switching and diagnostics redaction.      |
+| **v0.6.6**  | Launch Readiness        | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
+| **v0.7.0+** | Ecosystem               | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
 ---
 
@@ -510,7 +510,7 @@
 - ✅ **File safety N1–N6**: unified FileNamer, TagWriteMode, import modes, Recycle Bin removal, safe export pipeline; regression coverage included
 - 🔄 **Playback hardening**: native Stop off UI thread, consent-before-add, UI watchdog; manual smoke checks remain
 - ✅ **Settings reorganization**: Plugins+Sources merged into Integrations, Downloads tab, Maintenance absorbs diagnostics
-- 🔄 **CI matrix**: Windows + Ubuntu with banned-API gate; re-run on beta.2 close-out commits pending
+- ✅ **CI matrix**: Windows + Ubuntu with banned-API gate.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings)
 - 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, and virtualization audit remain open.
 - 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
@@ -618,13 +618,13 @@ main                ← always stable, builds clean
 
 ## Dependency Versions
 
-| Package                   | Version       | Notes                                   |
-| ------------------------- | ------------- | --------------------------------------- |
-| .NET                      | 10.0          | LTS (supported until Nov 2028)          |
-| Avalonia                  | 12.1.4        |                                         |
-| LibVLCSharp               | 3.10.2        | Fedora: symlinks to /usr/lib required   |
-| TagLib#                   | 2.3.0         |                                         |
-| Serilog                   | latest stable | + Serilog.Filters.Expressions           |
-| sqlite-net-pcl            | 1.9.172       | In use for all persistence              |
-| SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux        |
-| CommunityToolkit.Mvvm     | 8.4.2         | RelayCommand, ObservableProperty        |
+| Package                   | Version       | Notes                                 |
+| ------------------------- | ------------- | ------------------------------------- |
+| .NET                      | 10.0          | LTS (supported until Nov 2028)        |
+| Avalonia                  | 12.1.4        |                                       |
+| LibVLCSharp               | 3.10.2        | Fedora: symlinks to /usr/lib required |
+| TagLib#                   | 2.3.0         |                                       |
+| Serilog                   | latest stable | + Serilog.Filters.Expressions         |
+| sqlite-net-pcl            | 1.9.172       | In use for all persistence            |
+| SQLitePCLRaw.bundle_green | 2.1.11        | Native SQLite provider for Linux      |
+| CommunityToolkit.Mvvm     | 8.4.2         | RelayCommand, ObservableProperty      |

@@ -372,17 +372,7 @@ public class NavigationViewModel : ViewModelBase
     }
 
     private static string GetSmartDisplayName(SmartPlaylistDefinition def)
-    {
-        var loc = LocalizationService.Instance[def.NameKey];
-        if (!string.IsNullOrEmpty(loc) && !loc.StartsWith("[")) return loc;
-        return def.Id switch
-        {
-            "smart.recently-added"      => LocalizationService.Instance["Playlist_Smart_RecentlyAdded"],
-            "smart.most-played"         => LocalizationService.Instance["Playlist_Smart_MostPlayed"],
-            "smart.forgotten-favorites" => LocalizationService.Instance["Playlist_Smart_ForgottenFavorites"],
-            _ => def.NameKey
-        };
-    }
+        => LocalizationService.Instance[def.NameKey];
 
     private void MoveUp(NavItem? item)
     {

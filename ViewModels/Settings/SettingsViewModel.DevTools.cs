@@ -242,7 +242,13 @@ public partial class SettingsViewModel
                     }
                     catch (Exception ex)
                     {
-                        try { if (File.Exists(dest)) File.Delete(dest); } catch { }
+                        try 
+                        { 
+                            if (File.Exists(dest)) 
+                                File.Delete(dest); 
+                        } 
+                        catch { /* Best effort only */ }
+                        
                         Log.Warning(ex, "[DevTools] Failed to redact log file {File}; omitting it from support bundle", f);
                     }
                 }

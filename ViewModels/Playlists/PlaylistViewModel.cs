@@ -30,7 +30,7 @@ public class PlaylistViewModel : ViewModelBase
     public bool IsSmartPlaylistActive
     {
         get => _isSmartPlaylistActive;
-        set { _isSmartPlaylistActive = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasActivePlaylist)); }
+        set { _isSmartPlaylistActive = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasActivePlaylist)); OnPropertyChanged(nameof(HeaderTitle)); OnPropertyChanged(nameof(HeaderCount)); }
     }
 
     private string? _currentSmartPlaylistId;
@@ -47,6 +47,9 @@ public class PlaylistViewModel : ViewModelBase
         "smart.forgotten-favorites" => LocalizationService.Instance["Playlist_Smart_ForgottenFavorites"],
         _ => LocalizationService.Instance["Playlist_Smart_Generic"]
     };
+
+    public string HeaderTitle => IsSmartPlaylistActive ? SmartPlaylistTitle : SelectedPlaylist?.Name ?? string.Empty;
+    public int HeaderCount => IsSmartPlaylistActive ? FilteredTracks.Count : SelectedPlaylist?.Tracks.Count ?? 0;
 
     public async Task ImportM3uPlaylistAsync(M3uImportPreview preview, string playlistName)
     {
@@ -174,7 +177,7 @@ public class PlaylistViewModel : ViewModelBase
     public Playlist? SelectedPlaylist
     {
         get => _selectedPlaylist;
-        set { _selectedPlaylist = value; OnPropertyChanged(); RefreshFilteredTracks(); }
+        set { _selectedPlaylist = value; OnPropertyChanged(); OnPropertyChanged(nameof(HeaderTitle)); OnPropertyChanged(nameof(HeaderCount)); RefreshFilteredTracks(); }
     }
 
     public string RenameText
@@ -435,6 +438,7 @@ public class PlaylistViewModel : ViewModelBase
         var sorted = SortTracks(tracks, SelectedPlaylist, CurrentSort, SortAscending);
         FilteredTracks.ReplaceAll(sorted);
         OnPropertyChanged(nameof(ResultCountLabel));
+        OnPropertyChanged(nameof(HeaderCount));
         OnPropertyChanged(nameof(IsDragReorderEnabled));
     }
 

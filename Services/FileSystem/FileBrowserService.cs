@@ -20,7 +20,9 @@ public class FileBrowserService
     };
 
     public static string[] GetDriveNames() =>
-        DriveInfo.GetDrives().Select(d => d.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+        OperatingSystem.IsLinux()
+            ? LinuxMountRoots().Select(n => n.Path).OrderBy(n => n, StringComparer.Ordinal).ToArray()
+            : DriveInfo.GetDrives().Select(d => d.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public Task<List<FileSystemNode>> GetRootsAsync(CancellationToken ct = default)
     {
@@ -29,31 +31,11 @@ public class FileBrowserService
             var roots = new List<FileSystemNode>();
             var L = LocalizationService.Instance;
 
-            foreach (var drive in DriveInfo.GetDrives())
+            foreach (var node in EnumerateRootDrives(ct))
             {
-                ct.ThrowIfCancellationRequested();
-                bool ready;
-                try { ready = drive.IsReady; } catch { continue; }
-                if (!ready) continue;
-
-                long free = 0, total = 0;
-                try { free = drive.AvailableFreeSpace; total = drive.TotalSize; } catch { }
-
-                roots.Add(new FileSystemNode
-                {
-                    Path = drive.RootDirectory.FullName,
-                    Name = string.IsNullOrWhiteSpace(drive.VolumeLabel)
-                        ? drive.Name.TrimEnd('\\', '/')
-                        : $"{drive.VolumeLabel} ({drive.Name.TrimEnd('\\', '/')})",
-                    Type = FileSystemNodeType.Drive,
-                    DriveType = drive.DriveType.ToString(),
-                    FreeSpace = free,
-                    TotalSpace = total,
-                    LastModified = DateTime.UtcNow
-                });
+                roots.Add(node);
             }
-
-            var places = new[]
+var places = new[]
             {
                 (Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), L["Files_Places_Music"]),
                 (Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), L["Files_Places_Home"]),
@@ -70,7 +52,8 @@ public class FileBrowserService
                     Path = path,
                     Name = name,
                     Type = FileSystemNodeType.Folder,
-                    LastModified = Directory.GetLastWriteTimeUtc(path)
+                    LastModified = Directory.GetLastWriteTimeUtc(path),
+                    IsReparsePoint = GetIsReparsePoint(path)
                 });
             }
 
@@ -113,7 +96,7 @@ public class FileBrowserService
                         Name = info.Name,
                         Type = FileSystemNodeType.Folder,
                         LastModified = info.LastWriteTimeUtc,
-                        IsReparsePoint = GetIsReparsePoint(info.FullName)
+                        IsReparsePoint = (info.Attributes & FileAttributes.ReparsePoint) != 0
                     });
                 }
 
@@ -129,7 +112,8 @@ public class FileBrowserService
                         Name = Path.GetFileNameWithoutExtension(file),
                         Type = FileSystemNodeType.AudioFile,
                         Size = info.Length,
-                        LastModified = info.LastWriteTimeUtc
+                        LastModified = info.LastWriteTimeUtc,
+                        IsReparsePoint = (info.Attributes & FileAttributes.ReparsePoint) != 0
                     });
                 }
             }
@@ -253,6 +237,101 @@ public class FileBrowserService
         catch { return null; }
     }
 
+    private static IEnumerable<FileSystemNode> EnumerateRootDrives(CancellationToken ct)
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            foreach (var node in LinuxMountRoots())
+            {
+                ct.ThrowIfCancellationRequested();
+                yield return node;
+            }
+            yield break;
+        }
+
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            ct.ThrowIfCancellationRequested();
+            bool ready;
+            try { ready = drive.IsReady; } catch { continue; }
+            if (!ready) continue;
+
+            long free = 0, total = 0;
+            try { free = drive.AvailableFreeSpace; total = drive.TotalSize; } catch { }
+
+            yield return new FileSystemNode
+            {
+                Path = drive.RootDirectory.FullName,
+                Name = string.IsNullOrWhiteSpace(drive.VolumeLabel)
+                    ? drive.Name.TrimEnd('\\', '/')
+                    : $"{drive.VolumeLabel} ({drive.Name.TrimEnd('\\', '/')})",
+                Type = FileSystemNodeType.Drive,
+                DriveType = drive.DriveType.ToString(),
+                FreeSpace = free,
+                TotalSpace = total,
+                LastModified = DateTime.UtcNow
+            };
+        }
+    }
+
+    // Linux: /proc/mounts lists every pseudo-filesystem (sysfs, cgroupfs, tmpfs, gvfs/portals
+    // under /run), which floods the Places row. Keep only real storage mounts, capped.
+    private static readonly HashSet<string> LinuxRealFilesystems = new(StringComparer.Ordinal)
+    {
+        "ext2", "ext3", "ext4", "btrfs", "xfs", "f2fs", "jfs", "reiserfs", "erofs",
+        "vfat", "exfat", "ntfs", "ntfs3", "udf", "iso9666",
+        "zfs", "nfs", "nfs4", "cifs", "smbfs", "fuseblk", "fuse.sshfs"
+    };
+
+    private static readonly string[] LinuxSkipMountPrefixes =
+    {
+        "/proc", "/sys", "/dev", "/run", "/snap", "/var/lib/snapd", "/var/lib/docker",
+        "/var/lib/containers", "/var/lib/libvirt", "/var/tmp", "/tmp", "/boot/efi", "/efi"
+    };
+
+    private const int LinuxMaxRoots = 12;
+
+    private static IEnumerable<FileSystemNode> LinuxMountRoots()
+    {
+        if (!File.Exists("/proc/mounts")) yield break;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in File.ReadLines("/proc/mounts"))
+        {
+            var parts = raw.Split(' ', '\t');
+            if (parts.Length < 3) continue;
+            if (!LinuxRealFilesystems.Contains(parts[2])) continue;
+
+            var mp = UnescapeMountPath(parts[1]);
+            if (mp != "/" && LinuxSkipMountPrefixes.Any(p => mp == p || mp.StartsWith(p + "/", StringComparison.Ordinal))) continue;
+            if (!seen.Add(mp)) continue;
+            if (seen.Count > LinuxMaxRoots) yield break;
+
+            long free = 0, total = 0;
+            try
+            {
+                var di = new DriveInfo(mp);
+                if (!di.IsReady) continue;
+                free = di.AvailableFreeSpace;
+                total = di.TotalSize;
+            }
+            catch { continue; }
+
+            yield return new FileSystemNode
+            {
+                Path = mp,
+                Name = mp == "/" ? "/" : Path.GetFileName(mp.TrimEnd('/')),
+                Type = FileSystemNodeType.Drive,
+                DriveType = parts[2],
+                FreeSpace = free,
+                TotalSpace = total,
+                LastModified = DateTime.UtcNow
+            };
+        }
+    }
+
+    private static string UnescapeMountPath(string s) =>
+        s.Replace("\\040", " ").Replace("\\011", "\t").Replace("\\012", "\n").Replace("\\134", "\\");
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
     public static string FormatDuration(TimeSpan d) => d.TotalHours >= 1

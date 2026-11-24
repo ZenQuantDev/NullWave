@@ -71,14 +71,10 @@
                     <TextBlock Text="{loc:Loc Playlist_SmartBadge}" Foreground="{StaticResource BrushTextMuted}"
                                FontSize="{DynamicResource FontSizeXs}" FontWeight="SemiBold" LetterSpacing="1"
                                IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
-                    <TextBlock Text="{Binding Playlist.SelectedPlaylist.Name}" Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"
-                               IsVisible="{Binding !Playlist.IsSmartPlaylistActive}"/>
-                    <TextBlock Text="{Binding Playlist.SmartPlaylistTitle}" Foreground="{StaticResource BrushTextPrimary}"
-                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"
-                               IsVisible="{Binding Playlist.IsSmartPlaylistActive}"/>
+                    <TextBlock Text="{Binding Playlist.HeaderTitle}" Foreground="{StaticResource BrushTextPrimary}"
+                               FontSize="{DynamicResource FontSize3xl}" FontWeight="Black" TextTrimming="CharacterEllipsis"/>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{Binding Playlist.FilteredTracks.Count, Mode=OneWay}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
+                        <TextBlock Text="{Binding Playlist.HeaderCount, Mode=OneWay}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
                         <TextBlock Text="{loc:Loc Playlist_Label_Tracks}" Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
