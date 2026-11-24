@@ -581,6 +581,60 @@
                             </Grid>
                         </Button>
 
+                        <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
+                        <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
+
+                        <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
+                                    <material:MaterialIcon Kind="Star" Width="20" Height="20" Foreground="{StaticResource BrushAmber}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Filter_Favorites}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                            </Grid>
+                        </Button>
+
+                        <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Recent}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
+                                    <material:MaterialIcon Kind="History" Width="20" Height="20" Foreground="{StaticResource BrushBlue}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Filter_Recent}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
+                            </Grid>
+                        </Button>
+
+                        <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
+                        <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
+
+                        <ItemsControl ItemsSource="{Binding Library.SourceFilters}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SourceFilterViewModel">
+                                    <Button Classes="nav sidebar_nav"
+                                            Classes.active="{Binding IsActive}"
+                                            Command="{Binding FilterCommand}"
+                                            ToolTip.Tip="{Binding DisplayName}">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
+                                                <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20"
+                                                                       Foreground="{Binding IconColor}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Classes="expand-only" Orientation="Horizontal"
+                                                        VerticalAlignment="Center" Spacing="4"
+                                                        IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
+                                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding TrackCount}"
+                                                           Foreground="{StaticResource BrushTextMuted}"
+                                                           FontSize="{DynamicResource FontSizeXs}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <ItemsControl ItemsSource="{Binding Nav.FolderNodes}" Margin="0,8,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:SidebarFolderNode">
@@ -688,60 +742,6 @@
                                 </TextBlock>
                             </Panel>
                         </Border>
-
-                        <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
-                        <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Filters}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
-
-                        <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsFavoritesView}" Command="{Binding Library.ShowFavoritesCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Favorites}">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                                    <material:MaterialIcon Kind="Star" Width="20" Height="20" Foreground="{StaticResource BrushAmber}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Filter_Favorites}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                            </Grid>
-                        </Button>
-
-                        <Button Classes="nav sidebar_nav" Classes.active="{Binding Library.IsRecentView}" Command="{Binding Library.ShowRecentCommand}" ToolTip.Tip="{loc:Loc Sidebar_Filter_Recent}">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                                    <material:MaterialIcon Kind="History" Width="20" Height="20" Foreground="{StaticResource BrushBlue}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Classes="expand-only" Text="{loc:Loc Sidebar_Filter_Recent}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}"/>
-                            </Grid>
-                        </Button>
-
-                        <Border Classes="sidebar-sep" Height="1" Background="{StaticResource BrushBorder}" Margin="4,12,4,8"/>
-                        <TextBlock Classes="section-label expand-only" Text="{loc:Loc Sidebar_Section_Sources}" Margin="4,0,0,8" IsVisible="{Binding IsSidebarExpanded}"/>
-
-                        <ItemsControl ItemsSource="{Binding Library.SourceFilters}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:SourceFilterViewModel">
-                                    <Button Classes="nav sidebar_nav"
-                                            Classes.active="{Binding IsActive}"
-                                            Command="{Binding FilterCommand}"
-                                            ToolTip.Tip="{Binding DisplayName}">
-                                        <Grid ColumnDefinitions="Auto,*">
-                                            <Border Grid.Column="0" Classes="art-tile" Background="{StaticResource BrushSurface2}">
-                                                <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20"
-                                                                       Foreground="{Binding IconColor}"
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Classes="expand-only" Orientation="Horizontal"
-                                                        VerticalAlignment="Center" Spacing="4"
-                                                        IsVisible="{Binding $parent[controls:SidebarView].DataContext(vm:MainViewModel).IsSidebarExpanded}">
-                                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding TrackCount}"
-                                                           Foreground="{StaticResource BrushTextMuted}"
-                                                           FontSize="{DynamicResource FontSizeXs}"
-                                                           VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </StackPanel>
 
                     <!-- Bead lives INSIDE the scrolling content so it tracks scroll offset -->
