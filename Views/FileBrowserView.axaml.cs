@@ -18,6 +18,7 @@ namespace NullWave.Views;
 public partial class FileBrowserView : UserControl
 {
     public FileBrowserView() => InitializeComponent();
+    private bool _suppressNextListingFade;
 
     protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -25,6 +26,7 @@ public partial class FileBrowserView : UserControl
         if (DataContext is not FileBrowserViewModel vm) return;
         vm.PropertyChanged += OnVmPropertyChanged;
         vm.ClearSelectionRequested += OnClearSelectionRequested;
+        _suppressNextListingFade = true; // entrance is owned by PageHost's crossfade, not the listing self-fade
         try { await vm.EnsureInitializedAsync(); vm.StartDriveWatch(); }
         catch (Exception ex) { Log.Error(ex, "[FileBrowser] Initialization failed"); }
     }
@@ -57,6 +59,7 @@ public partial class FileBrowserView : UserControl
 
         if (e.PropertyName == nameof(FileBrowserViewModel.CurrentNodes))
         {
+            if (_suppressNextListingFade) { _suppressNextListingFade = false; return; } // skip the first (entrance) population; PageHost fades the whole view
             if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal) return;
             var t = ListingArea.Transitions;
             ListingArea.Transitions = null;
