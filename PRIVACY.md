@@ -52,6 +52,10 @@ All API keys are stored locally in an encrypted keystore on your device. Third-p
 
 AI-powered features (mood playlists, smart sorting) run locally on your device via Ollama. No audio, metadata, or listening habits are sent to external AI providers. All processing happens on your machine.
 
+## Diagnostics Exports
+
+Crash reports, copied logs and support bundles redact local directory paths and secret-like preference values before they leave the machine. Log files stored locally in the data directory are not redacted.
+
 ## Data Deletion
 
 You have full control over your local files:

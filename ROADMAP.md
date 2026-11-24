@@ -1,6 +1,6 @@
 # NullWave - Roadmap
 
-> Last updated: 11-Nov-2026
+> Last updated: 24-Nov-2026
 
 ---
 
@@ -27,8 +27,7 @@
 | **v0.6.2**  | Correctness           | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
 | **v0.6.3**  | Responsiveness        | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
 | **v0.6.4**  | "Foundations"         | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
-| **v0.6.5**  | Hardening & File Safety | beta.1 shipped 31-Oct; beta.2 close-out (tag-write policy, plugin packaging, docs/release truth, CI and smoke gates).                                |
-| **v0.6.5-beta.3** | Files Browser v1 | Planned read-only browser for external folders and removable media; beta.2 must close first. |
+| **v0.6.5**  | Hardening & File Safety | beta.1 31-Oct, beta.2 12-Nov; stable close-out adds Files Browser v1, EFS/locked playback guards, live EN/RU switching and diagnostics redaction. |
 | **v0.6.6**  | Launch Readiness      | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
 | **v0.7.0+** | Ecosystem             | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
 
@@ -524,7 +523,7 @@
 
 - 📋 **Documentation**: `/docs` folder (install, sources, Mood Mix, troubleshooting, architecture, privacy).
 - 🔄 **Repo Hygiene**: `THIRD-PARTY-NOTICES.md` exists; verify `.gitignore` and add issue templates asking for diagnostics.
-- 📋 **Release Packaging**: Windows Setup/Portable (Velopack), Linux AppImage/Flatpak.
+- 🔄 **Release Packaging**: Windows Setup/Portable via `scripts/build-release.ps1` (Velopack `full`/`fx` channels); Linux AppImage/Flatpak still planned.
 - 📋 **Feature Freeze**: 1-2 weeks before launch, bug fixes only, clean-machine install verification.
 - 📋 Portable-build audio verification: local mp3/flac/m4a, https radio, first-try YouTube import on a clean data dir.
 - 📋 Matroska/WebM demuxer decision for the VLC prune whitelist (local .webm/.mka unsupported in release builds).
@@ -559,15 +558,15 @@
 
 ---
 
-## Phase 31 - v0.6.5-beta.3 "Files Browser v1" 📋
+## Phase 31 - Files Browser v1 (shipped in v0.6.5) ✅
 
 **Goal:** Browse external folders and removable media without changing the file-safety
 invariant.
 
-- 📋 Browse drives, Music and pinned folders using the existing track-list UI.
-- 📋 Play, queue and add files to the library as references; no in-place edits.
-- 📋 Handle unavailable drives and removable-media disconnects without losing library data.
-- 📋 Verify drive-letter changes and read-only media behavior.
+- ✅ Browse drives, Music and pinned folders using the existing track-list UI.
+- ✅ Play, queue and add files to the library as references; no in-place edits.
+- ✅ Handle unavailable drives and removable-media disconnects without losing library data.
+- ✅ Verify drive-letter changes and read-only media behavior.
 
 ## Phase 32 - Files Browser v2 "Consent-first editing" 💡
 

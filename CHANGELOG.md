@@ -5,14 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **File Browser keep-in-place imports**: "Add to library" and bulk import from Files force the keep-in-place path, matching the UI promise.
+- **File Browser sorting & search**: Sort by name, date modified, size or type with a direction
+  toggle (folders stay on top in both directions); debounced, depth-limited recursive search that
+  skips junctions; view-options flyout (hidden files, search depth, pin folder); drive
+  connect/disconnect toasts; Backspace navigates up.
+- **Local File Browser**: A dedicated "Files" page to browse, play, and queue local audio files without importing them into the main library. Features breadcrumb navigation, a type-ahead path editor, back/forward/up history, and pinned quick-access folders.
+- **Thread-Safe Tag Enrichment**: The File Browser uses a two-phase load (instant directory listing, followed by background metadata extraction) with strict UI-thread marshalling to prevent race conditions.
+- **Honest Library Additions**: `LibraryService.Add` now returns a boolean. The UI accurately surfaces "Already in library", "Duplicate detected", or "Add failed" toasts instead of silently dropping tracks.
+- **Local File Detail Guards**: The Track Detail panel now hides "Relink" and "Share" buttons for local files that lack a streaming URL.
+- **File Browser bulk actions**: extended multi-select (Ctrl-click, Shift-click) with a floating bulk bar that queues or imports selected files through the shared import pipeline.
+- **File Browser toolbar**: the breadcrumb path now scrolls horizontally instead of clipping over the toolbar buttons on long paths.
+
 ### Changed
 
-- **Updates tab:** Dependencies check when the tab opens and show installed → latest for yt-dlp; the Update button appears only when an update is available or the latest version is unknown. The `.NET` row was removed.
-- **Localization:** Updates status text is localized in English and Russian; the FFmpeg row shows only the version.
+- **Diagnostics**: Crash reports, copied logs and support bundles (preferences and logs) have
+  local paths and secrets redacted before anything leaves the machine.
+- **Playback**: SetRate skips redundant native calls when the rate is unchanged.
+- **Sidebar & Settings Bead Animations**: Replaced off-screen Y-coordinate translations with opacity fades for the active-state "bead" indicators, eliminating visual sliding glitches across the rails.
+- **Effects Tier Gating**: The File Browser's listing fade-ins are now properly gated behind the `effects-minimal` tier to save battery on low-end hardware.
+- **Updates tab**: Dependencies check when the tab opens and show installed → latest for yt-dlp; the Update button appears only when an update is available or the latest version is unknown. The `.NET` row was removed.
+- **Localization**: Updates status text is localized in English and Russian; the FFmpeg row shows only the version. EN/RU localization added for the File Browser UI (import progress toasts still English).
 
 ### Fixed
 
-- **Updates tab:** A failed download no longer reports "No update available"; Check is disabled during a download, Download hides once staged, and download progress is shown.
+- **File Browser / Playback**: Encrypted (EFS) or locked audio files show a lock badge with a clear
+  reason; playback refuses unreadable local files up front - one toast, no auto-next cascade.
+  Crossfade no longer consumes a queued track whose file is unreadable.
+- **Localization**: Switching language now updates the sidebar, smart playlists, Settings and
+  profile defaults live in both directions, and persists immediately.
+- **Library**: Deleting a track removes every duplicate queue entry, not just the first.
+- **Updates tab**: A failed download no longer reports "No update available"; Check is disabled during a download, Download hides once staged, and download progress is shown.
 
 ## [0.6.5-beta.2] - 12-Nov-2026
 

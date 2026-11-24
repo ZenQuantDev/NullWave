@@ -37,6 +37,7 @@ NullWave lets you save, organize, download, and play music from YouTube, Last.fm
 - Library with search, sort, favorites, play tracking, and queue
 - **Multi-select bulk actions (Ctrl/Shift) with floating action bar**
 - Bulk folder import with subfolder support and duplicate detection
+- **Local File Browser**: a Files page to browse, play and queue local audio without importing it - breadcrumbs, path editor, pinned folders, depth-limited recursive search, multi-select bulk actions, and lock badges for encrypted (EFS) or unreadable files.
 - **Duplicate Import Guard**: YouTube tracking params (`&pp=`, `&si=`) are stripped on import; re-pasting an existing link shows an "already in your library" toast instead of downloading twice
 - Track detail panel with editable title, artist, notes, and tags
 - Playlist management and source filters (YouTube, Last.fm, SoundCloud, Local)
@@ -136,6 +137,15 @@ cd NullWave
 dotnet build
 dotnet run
 ```
+
+### Release packaging (Windows)
+
+```powershell
+.\scripts\build-release.ps1   # Velopack channels: full (self-contained) + fx (framework-dependent)
+.\scripts\measure-startup.ps1 -ExePath .\publish\full\NullWave.exe -Runs 7 -FreshProfile
+```
+
+Upload everything in `publish-artifacts/` to the GitHub Release. The `fx` installer fetches the .NET 10 Desktop Runtime; `full` bundles it. Bundled LibVLC is pruned to an audio-only plugin set, so local `.webm`/`.mka` files are not supported in release builds.
 
 ---
 
