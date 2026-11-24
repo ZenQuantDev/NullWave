@@ -23,7 +23,11 @@ public class NavigationViewModel : ViewModelBase
     private readonly SmartPlaylistService _smartPlaylists;
     private readonly Action<Guid> _navigateToPlaylist;
     private readonly Action<string>? _navigateToSmartPlaylist;
-    private readonly List<NavItem> _coreItems;
+
+    private readonly Func<ICommand> _navigateLibrary;
+    private readonly Func<ICommand> _navigateRadio;
+    private readonly Func<ICommand> _navigateAudiobooks;
+
     private List<string> _liveOrder = new();
 
     private SidebarPill _currentPill = SidebarPill.Playlists;
@@ -70,21 +74,9 @@ public class NavigationViewModel : ViewModelBase
         _navigateToPlaylist = navigateToPlaylist;
         _navigateToSmartPlaylist = navigateToSmartPlaylist;
 
-        _coreItems = new List<NavItem>
-        {
-            new("Library", "Library", MaterialIconKind.Bookshelf, NavItemType.Core)
-            {
-                Command = new RelayCommand(() => { navigateLibrary()?.Execute(null); SetActivePage("Library"); })
-            },
-            new("Radio", "Radio", MaterialIconKind.Radio, NavItemType.Core)
-            {
-                Command = new RelayCommand(() => { navigateRadio()?.Execute(null); SetActivePage("Radio"); })
-            },
-            new("Audiobooks", "Audiobooks", MaterialIconKind.BookOpenPageVariant, NavItemType.Core)
-            {
-                Command = new RelayCommand(() => { navigateAudiobooks()?.Execute(null); SetActivePage("Audiobooks"); })
-            },
-        };
+        _navigateLibrary = navigateLibrary;
+        _navigateRadio = navigateRadio;
+        _navigateAudiobooks = navigateAudiobooks;
 
         MoveUpCommand = new RelayCommand<NavItem>(MoveUp);
         MoveDownCommand = new RelayCommand<NavItem>(MoveDown);
@@ -130,6 +122,10 @@ public class NavigationViewModel : ViewModelBase
 
     public void Rebuild()
     {
+        var activeKey = Items.FirstOrDefault(i => i.IsActive) is { } active
+            ? NavKey(active)
+            : null;
+
         var pinnedData = _prefs.Current.PinnedItems;
         var pinnedItems = pinnedData.Select(ToNavItem).Where(i => i != null).Cast<NavItem>().ToList();
 
@@ -140,7 +136,7 @@ public class NavigationViewModel : ViewModelBase
         }
 
         // Core + pinned only. Smart playlists live inside the AI Playlists folder (see RefreshPlaylistLists).
-        var all = _coreItems.Concat(pinnedItems).ToList();
+        var all = BuildCoreItems().Concat(pinnedItems).ToList();
         var savedOrder = _liveOrder.Count > 0 ? _liveOrder : _prefs.Current.NavOrder;
 
         var ordered = savedOrder.Count > 0
@@ -154,14 +150,25 @@ public class NavigationViewModel : ViewModelBase
         Items.Clear();
         foreach (var item in ordered) Items.Add(item);
 
+        if (activeKey != null)
+        {
+            foreach (var item in Items)
+                item.IsActive = NavKey(item) == activeKey;
+        }
+
         RefreshPlaylistLists();
+    }
+
+    protected override void OnLocaleChanged()
+    {
+        Rebuild();
     }
 
     private void Decorate(NavItem item, Playlist? playlist)
     {
         item.Playlist = playlist;
         item.ArtPath = playlist?.ArtPath;
-        item.Subtitle = playlist == null ? null : $"Playlist • {playlist.Tracks.Count} tracks";
+        item.Subtitle = playlist == null ? null : string.Format(L("Nav_Subtitle_PlaylistTracks"), playlist.Tracks.Count);
         if (playlist != null && item.Type == NavItemType.PinnedPlaylist && item.Label != playlist.Name)
             item.Label = playlist.Name;
     }
@@ -180,6 +187,39 @@ public class NavigationViewModel : ViewModelBase
             return item;
         }
         return null;
+    }
+
+    private static string L(string key) => LocalizationService.Instance[key];
+
+    private List<NavItem> BuildCoreItems()
+    {
+        return new List<NavItem>
+        {
+            new("Library", L("Nav_Library"), MaterialIconKind.Bookshelf, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    _navigateLibrary()?.Execute(null);
+                    SetActivePage("Library");
+                })
+            },
+            new("Radio", L("Nav_Radio"), MaterialIconKind.Radio, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    _navigateRadio()?.Execute(null);
+                    SetActivePage("Radio");
+                })
+            },
+            new("Audiobooks", L("Nav_Audiobooks"), MaterialIconKind.BookOpenPageVariant, NavItemType.Core)
+            {
+                Command = new RelayCommand(() =>
+                {
+                    _navigateAudiobooks()?.Execute(null);
+                    SetActivePage("Audiobooks");
+                })
+            },
+        };
     }
 
     private NavItem? BuildAutoSuggestion()
@@ -321,7 +361,7 @@ public class NavigationViewModel : ViewModelBase
             {
                 Id = virtualId,
                 Name = GetSmartDisplayName(def),
-                Description = "Smart playlist · auto-updates"
+                Description = L("Playlist_Smart_Description")
             };
 
             foreach (var track in _smartPlaylists.Resolve(def))
@@ -337,9 +377,9 @@ public class NavigationViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(loc) && !loc.StartsWith("[")) return loc;
         return def.Id switch
         {
-            "smart.recently-added"      => "Recently Added",
-            "smart.most-played"         => "Most Played",
-            "smart.forgotten-favorites" => "Forgotten Favorites",
+            "smart.recently-added"      => LocalizationService.Instance["Playlist_Smart_RecentlyAdded"],
+            "smart.most-played"         => LocalizationService.Instance["Playlist_Smart_MostPlayed"],
+            "smart.forgotten-favorites" => LocalizationService.Instance["Playlist_Smart_ForgottenFavorites"],
             _ => def.NameKey
         };
     }
@@ -394,8 +434,8 @@ public class NavigationViewModel : ViewModelBase
         if (node == null) return;
 
         var dialog = new Views.ConfirmDialog(
-            "Delete Folder?",
-            $"Delete '{node.Folder.Name}'? Playlists inside move to the top level."
+            L("Dialog_DeleteFolder_Title"),
+            string.Format(L("Dialog_DeleteFolder_Message"), node.Folder.Name)
         );
         var ok = await DialogService.Instance.ShowDialogAsync<bool>(dialog);
 
@@ -411,10 +451,10 @@ public class NavigationViewModel : ViewModelBase
         RefreshPlaylistLists();
 
         ToastService.Instance.Show(
-            message: $"Folder '{folderSnapshot.Name}' deleted.",
+            message: string.Format(L("Toast_FolderDeleted"), folderSnapshot.Name),
             type: ToastType.Warning,
             durationMs: 8000,
-            actionText: "Undo",
+            actionText: L("Common_Undo"),
             actionCallback: () =>
             {
                 _playlists.RestoreFolder(folderSnapshot, memberIds);

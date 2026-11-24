@@ -154,14 +154,14 @@
                                 </StackPanel>
                                 <Button Grid.Column="2" Classes="icon-btn"
                                         Command="{Binding ToggleSettingsSidebarCommand}"
-                                        ToolTip.Tip="Collapse sidebar" VerticalAlignment="Center">
+                                        ToolTip.Tip="{loc:Loc Settings_CollapseSidebar}" VerticalAlignment="Center">
                                     <material:MaterialIcon Kind="{Binding SettingsSidebarCollapseIconKind}" Width="18" Height="18"/>
                                 </Button>
                             </Grid>
                             <Button HorizontalAlignment="Center" VerticalAlignment="Center"
                                     Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                                     Command="{Binding ToggleSettingsSidebarCommand}"
-                                    ToolTip.Tip="Expand sidebar"
+                                    ToolTip.Tip="{loc:Loc Settings_ExpandSidebar}"
                                     IsVisible="{Binding IsSettingsSidebarCollapsed}">
                                 <Border Width="28" Height="28" CornerRadius="{StaticResource RadiusMd}" ClipToBounds="True"
                                         Background="{StaticResource BrushAccentGradient}">

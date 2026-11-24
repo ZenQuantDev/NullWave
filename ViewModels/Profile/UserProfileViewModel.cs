@@ -37,22 +37,21 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     private readonly LibraryService? _library;
     private readonly PreferencesService _prefs;
     private readonly IdentityService _identity;
-    private readonly PropertyChangedEventHandler _langHandler;
     private readonly Action<HashSet<string>> _prefsHandler;
     private readonly string _badgesPath;
     private List<SignedBadge> _grantedBadges = new();
 
-    private string _username = "Listener";
-    private string _bio = "No bio yet";
+    private string _username = string.Empty;
+    private string _bio = string.Empty;
     private Bitmap? _avatar;
     private DateTime _createdAt;
-    private string _savedUsername = "Listener";
-    private string _savedBio = "No bio yet";
+    private string _savedUsername = string.Empty;
+    private string _savedBio = string.Empty;
     private bool _savedHasAvatar;
     private string? _savedAvatarPath;
     private string? _savedBannerImagePath;
     private bool _showSaveToast;
-    private string _toastMessage = "Saved";
+    private string _toastMessage = string.Empty;
     private string _installId = string.Empty;
     private string? _avatarPath;
     private string? _bannerImagePath;
@@ -126,10 +125,25 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         InitializeCommands();
 
         if (_library != null) _library.LibraryChanged += OnLibraryChanged;
-        _langHandler = (_, _) => Dispatcher.UIThread.Post(RefreshBadges);
-        LocalizationService.Instance.PropertyChanged += _langHandler;
         Dispatcher.UIThread.Post(UpdateStatistics);
     }
+
+    protected override void OnLocaleChanged()
+    {
+        Dispatcher.UIThread.Post(RefreshBadges);
+    }
+
+    private static string L(string key) => LocalizationService.Instance[key];
+
+    public string UsernameDisplay =>
+        string.IsNullOrWhiteSpace(_username)
+            ? L("Profile_Default_Username")
+            : _username;
+
+    public string BioDisplay =>
+        string.IsNullOrWhiteSpace(_bio)
+            ? L("Profile_Default_Bio")
+            : _bio;
 
     private bool _isSavingChanges;
     public bool IsSavingChanges { get => _isSavingChanges; private set { _isSavingChanges = value; OnPropertyChanged(); } }
@@ -145,9 +159,40 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public bool TrackSharingEnabled { get => _prefs.Current.EnableTrackSharing; set { _prefs.Update(p => p.EnableTrackSharing = value); OnPropertyChanged(); DebouncedSave(); } }
     public string InstallId => _installId;
     public string DataDirDisplay => NullWavePaths.DataDir;
-    public string ToastMessage { get => _toastMessage; private set { _toastMessage = value; OnPropertyChanged(); } }
-    public string Username { get => _username; set { _username = value; OnPropertyChanged(); MarkDirty(); DebouncedSave(); } }
-    public string Bio { get => _bio; set { _bio = value.Length > 160 ? value[..160] : value; OnPropertyChanged(); OnPropertyChanged(nameof(BioLength)); MarkDirty(); DebouncedSave(); } }
+    public string ToastMessage
+    {
+        get => string.IsNullOrWhiteSpace(_toastMessage) ? L("Profile_Saved") : _toastMessage;
+        private set
+        {
+            _toastMessage = value;
+            OnPropertyChanged();
+        }
+    }
+    public string Username
+    {
+        get => _username;
+        set
+        {
+            _username = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UsernameDisplay));
+            MarkDirty();
+            DebouncedSave();
+        }
+    }
+    public string Bio
+    {
+        get => _bio;
+        set
+        {
+            _bio = value.Length > 160 ? value[..160] : value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(BioLength));
+            OnPropertyChanged(nameof(BioDisplay));
+            MarkDirty();
+            DebouncedSave();
+        }
+    }
     public int BioLength => Bio?.Length ?? 0;
     public Bitmap? Avatar { get => _avatar; private set { _avatar = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasAvatar)); } }
     public bool HasAvatar => _avatar != null;
@@ -212,6 +257,9 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
                 if (data != null)
                 {
                     _username = data.Username; _bio = data.Bio; _createdAt = data.CreatedAt;
+                    // Legacy installs persisted the English defaults as real values; treat them as unset.
+                    if (_username == "Listener") _username = string.Empty;
+                    if (_bio == "No bio yet") _bio = string.Empty;
                     var rawAvatar = data.AvatarPath;
                     if (!string.IsNullOrEmpty(rawAvatar)) _avatarPath = Path.IsPathRooted(rawAvatar) && File.Exists(rawAvatar) ? rawAvatar : Path.Combine(GetProfileAssetsDirectory(), Path.GetFileName(rawAvatar));
                     var rawBanner = data.BannerImagePath;
@@ -254,7 +302,12 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
         finally { await Dispatcher.UIThread.InvokeAsync(() => IsSavingChanges = false); }
     }
 
-    private void MarkDirty() => OnPropertyChanged(nameof(IsDirty));
+    private void MarkDirty()
+    {
+        OnPropertyChanged(nameof(IsDirty));
+        OnPropertyChanged(nameof(UsernameDisplay));
+        OnPropertyChanged(nameof(BioDisplay));
+    }
 
     private void DebouncedSave()
     {
@@ -281,7 +334,6 @@ public partial class UserProfileViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _saveTimer?.Dispose();
-        LocalizationService.Instance.PropertyChanged -= _langHandler;
         _prefs.Changed -= _prefsHandler;
         if (_library != null) _library.LibraryChanged -= OnLibraryChanged;
         _statsTimer?.Stop();

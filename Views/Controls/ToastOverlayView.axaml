@@ -116,7 +116,7 @@
                                 <Button Grid.Column="2" Classes="icon-btn sm"
                                         Command="{Binding CloseCommand}"
                                         VerticalAlignment="Top"
-                                        ToolTip.Tip="{loc:Loc Toast_DismissAll}">
+                                        ToolTip.Tip="{loc:Loc Toast_Dismiss}">
                                     <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
                                 </Button>
                             </Grid>

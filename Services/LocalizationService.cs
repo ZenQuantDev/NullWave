@@ -16,30 +16,22 @@ public class LocalizationService : INotifyPropertyChanged
 
     private string _currentLanguage = "en-US";
     private Dictionary<string, string> _activeDictionary = Locales.English;
+    private int _version; // Bump on every language change to force binding re-evaluation
 
-    /// <summary>
-    /// Bound by UI selection controls (e.g. ComboBox). Automatically stays updated with all defined locales.
-    /// </summary>
-    public static List<KeyValuePair<string, string>> SupportedLanguages =>
+    public static List<KeyValuePair<string, string>> SupportedLanguages { get; } =
         Locales.Available.Select(l => new KeyValuePair<string, string>(l.Code, l.DisplayName)).ToList();
 
     public string CurrentLanguage => _currentLanguage;
+    public int Version => _version;
 
-    /// <summary>
-    /// Indexer used for dynamic localized string lookup in Avalonia XAML bindings.
-    /// </summary>
     public string this[string key]
     {
         get
         {
             if (_activeDictionary.TryGetValue(key, out var val))
                 return val;
-
-            // Fallback to English if missing in current active locale
             if (Locales.English.TryGetValue(key, out var englishVal))
                 return englishVal;
-
-            // Missing key placeholder
             return $"[{key}]";
         }
     }
@@ -51,16 +43,17 @@ public class LocalizationService : INotifyPropertyChanged
 
     public void SetLanguage(string languageCode)
     {
-        _currentLanguage = string.IsNullOrWhiteSpace(languageCode) ? "en-US" : languageCode;
+        var normalized = string.IsNullOrWhiteSpace(languageCode) ? "en-US" : languageCode;
+        if (_currentLanguage == normalized && _version > 0) return;
+
+        _currentLanguage = normalized;
         _activeDictionary = Locales.GetDictionary(_currentLanguage);
+        _version++;
+        Serilog.Log.Information("[Locale] SetLanguage {Code} v{Version}", normalized, _version);
 
-        // Notify Avalonia UI to refresh all active bindings on the indexer
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+        // Notify ALL indexer bindings. Avalonia re-evaluates [Key] paths on "Item[]" notification.
+        // We also fire a named property so any binding to Version (if used) updates too.
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Version)));
     }
 }

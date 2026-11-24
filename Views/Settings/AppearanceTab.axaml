@@ -197,7 +197,7 @@
             <Border Classes="settings-banner" Margin="0">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{StaticResource BrushAmberDark}" VerticalAlignment="Center"/>
-                <TextBlock Text="Profile frames use GPU-accelerated effects. Performance impact varies by hardware." 
+                <TextBlock Text="{loc:Loc Settings_Appearance_FramesPerfNote}" 
                            Foreground="{StaticResource BrushTextSecondary}" FontSize="{DynamicResource FontSizeXs}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>

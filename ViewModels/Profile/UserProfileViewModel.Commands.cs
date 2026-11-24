@@ -143,8 +143,8 @@ public partial class UserProfileViewModel
     public ProfileSharePayload BuildSharePayload() => new()
     {
         Code = ShareCode,
-        Name = Username,
-        Bio = Bio.Length > 80 ? Bio[..80] : Bio,
+        Name = UsernameDisplay,
+        Bio = BioDisplay.Length > 80 ? BioDisplay[..80] : BioDisplay,
         TopArtists = TopArtists.Take(3).Select(a => a.Name).ToList(),
         TopTags = TopTags.Take(5).Select(t => t.Tag).ToList(),
         TopTracks = _library?.GetAll().Where(t => t.PlayCount > 0).OrderByDescending(t => t.PlayCount).Take(5).Select(t => new ProfileSharePayload.SharedTrack(t.Title, t.Artist)).ToList() ?? new(),

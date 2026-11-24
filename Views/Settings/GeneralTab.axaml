@@ -19,24 +19,18 @@
                                    Foreground="{StaticResource BrushTextPrimary}"
                                    FontSize="{DynamicResource FontSizeBodyLarge}"
                                    FontWeight="SemiBold"/>
-                        <TextBlock Text="{loc:Loc Settings_General_Language_Desc}"
+                        <TextBlock Text="{loc:Loc Settings_General_Language_Desc}" TextWrapping="Wrap"
                                    Foreground="{StaticResource BrushTextMuted}"
                                    FontSize="{DynamicResource FontSizeSm}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <ComboBox ItemsSource="{Binding SupportedLanguages}"
-                                  SelectedValue="{Binding SelectedLanguage, Mode=TwoWay}"
                                   SelectedValueBinding="{Binding Key}"
                                   DisplayMemberBinding="{Binding Value}"
+                                  SelectedValue="{Binding SelectedLanguage, Mode=TwoWay}"
                                   MinWidth="200"
                                   VerticalAlignment="Center"/>
-
-                        <Button Classes="primary"
-                                Content="{loc:Loc Settings_General_Language_Confirm}"
-                                Command="{Binding ApplyLanguageCommand}"
-                                IsVisible="{Binding IsLanguageApplyVisible}"
-                                VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Border>

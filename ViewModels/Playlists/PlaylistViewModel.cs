@@ -42,10 +42,10 @@ public class PlaylistViewModel : ViewModelBase
 
     public string SmartPlaylistTitle => CurrentSmartPlaylistId switch
     {
-        "smart.recently-added"      => "Recently Added",
-        "smart.most-played"         => "Most Played",
-        "smart.forgotten-favorites" => "Forgotten Favorites",
-        _ => "Smart Playlist"
+        "smart.recently-added"      => LocalizationService.Instance["Playlist_Smart_RecentlyAdded"],
+        "smart.most-played"         => LocalizationService.Instance["Playlist_Smart_MostPlayed"],
+        "smart.forgotten-favorites" => LocalizationService.Instance["Playlist_Smart_ForgottenFavorites"],
+        _ => LocalizationService.Instance["Playlist_Smart_Generic"]
     };
 
     public async Task ImportM3uPlaylistAsync(M3uImportPreview preview, string playlistName)
@@ -138,7 +138,8 @@ public class PlaylistViewModel : ViewModelBase
     }
 
     public bool HasMultiSelection => SelectedTracks?.Count > 1;
-    public string SelectionCountLabel => $"{SelectedTracks?.Count ?? 0} selected";
+    public string SelectionCountLabel =>
+        string.Format(LocalizationService.Instance["Common_SelectedCount"], SelectedTracks?.Count ?? 0);
 
     public ICommand CreatePlaylistCommand { get; }
     public ICommand CreateFolderCommand { get; }

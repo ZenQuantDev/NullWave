@@ -7,8 +7,8 @@ namespace NullWave.Helpers.Localization;
 
 /// <summary>
 /// Usage: Text="{loc:Loc Some_Key}"
-/// Returns a live one-way binding to LocalizationService.Instance[Key],
-/// so every usage re-renders instantly when the language changes.
+/// Returns a live one-way binding to LocalizationService.Instance[Key].
+/// Re-renders instantly when the language changes via "Item[]" PropertyChanged.
 /// </summary>
 public class LocExtension : MarkupExtension
 {
