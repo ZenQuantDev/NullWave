@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly LocalAIService _localAI;
     private readonly PluginManager _plugins;
     private System.Threading.Timer? _aiHealthTimer;
+    private System.ComponentModel.PropertyChangedEventHandler? _localeHandler;
     public bool IntegrationsNeedsAttention => PluginRows.Any(r => r.NeedsAttention);
     public bool ApiKeysNeedsAttention => PluginRows.Any(r => r.NeedsAttention && r.SetupPage == "ApiKeys");
     #endregion
@@ -121,6 +123,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         Hub = new IntegrationsHubViewModel(PluginRows, new StaticPluginCatalog());
         _plugins.PluginRegistered += OnPluginRegistered;
         LogViewer = new LogViewerViewModel(_prefsService.Current.VerboseLogging, BuildSettingsSummary);
+
+        // SettingsViewModel is ObservableObject (not ViewModelBase), so it needs its own
+        // locale broadcast to refresh CurrentSettingsPageTitle/Description/Icon and every
+        // other computed label on the page.
+        _localeHandler = (_, e) =>
+        {
+            if (e.PropertyName is null or "Item[]") OnPropertyChanged((string?)null);
+        };
+        LocalizationService.Instance.PropertyChanged += _localeHandler;
     }
     #endregion
 
@@ -136,7 +147,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         sb.AppendLine($"Data Directory: {NullWavePaths.DataDir}");
         sb.AppendLine($"Logs Directory: {NullWavePaths.LogsDir}");
         sb.AppendLine($"Timestamp: {DateTime.UtcNow:dd-MM-yyyy HH:mm:ss} UTC");
-        return sb.ToString();
+        
+        // Redact all paths in the header text
+        return NullWave.Helpers.Diagnostics.DiagnosticsRedactor.RedactText(sb.ToString());
     }
 
     private void OnPluginRegistered(IPlugin plugin, PluginManifest? manifest)
@@ -248,10 +261,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     
     partial void OnSelectedLanguageChanged(string value)
     {
+        // A transient null/empty write-back from the ComboBox must never change the language.
+        if (string.IsNullOrWhiteSpace(value)) return;
+        // Swap live (fires "Item[]" -> the ctor broadcast refreshes every getter on this page),
+        // AND persist immediately so a restart never falls back to en-US.
         LocalizationService.Instance.SetLanguage(value);
-        OnPropertyChanged(nameof(GalleryItems));
-        OnPropertyChanged(nameof(TagWriteModeOptions));
+        _prefsService.Update(p => p.Language = value);
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
+        OnPropertyChanged(nameof(CurrentSettingsPageTitle));
+        OnPropertyChanged(nameof(CurrentSettingsPageDescription));
+        LanguageChangedRequested?.Invoke();
     }
 
     public bool HasCompletedOnboarding => _prefsService.Current.HasCompletedOnboarding;
@@ -282,6 +301,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #endregion
 
     #region Events
+    public event Action? LanguageChangedRequested;
     public event Action? ClearThumbnailsRequested;
     public event Action? GenerateMoodPlaylistRequested;
     public event Action? RefreshWeatherRequested;
@@ -332,7 +352,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LocalizationService.Instance.SetLanguage(SelectedLanguage);
         _prefsService.Update(p => p.Language = SelectedLanguage);
         OnPropertyChanged(nameof(IsLanguageApplyVisible));
-
+        LanguageChangedRequested?.Invoke();
         ToastService.Instance.Show(LocalizationService.Instance["Settings_General_Language_Updated"], ToastType.Success);
     }
 
@@ -374,6 +394,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     #region IDisposable
     public void Dispose()
     {
+        if (_localeHandler != null) LocalizationService.Instance.PropertyChanged -= _localeHandler;
         _plugins.PluginRegistered -= OnPluginRegistered;
         EffectsTierResolver.Shared.PropertyChanged -= OnEffectsTierResolverPropertyChanged;
         StopHealthCheck();

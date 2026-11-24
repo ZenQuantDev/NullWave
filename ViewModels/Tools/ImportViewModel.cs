@@ -17,6 +17,8 @@ using Serilog;
 
 namespace NullWave.ViewModels;
 
+public record ImportResult(int Added, int Skipped, int Failed);
+
 public class ImportViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
@@ -36,50 +38,45 @@ public class ImportViewModel : ViewModelBase
         ImportFolderCommand = new RelayCommand(async () => await ImportFolderAsync());
     }
 
-    private async Task ImportFolderAsync()
+    /// <summary>
+    /// The shared import pipeline. Used by both the Main Window's "Import Folder"
+    /// and the File Browser's "Add to Library" actions.
+    /// </summary>
+    public async Task<ImportResult> ImportFilesAsync(
+        IEnumerable<string> filePaths,
+        string sourceLabel = "LocalFiles",
+        bool? forceKeepInPlace = null)
     {
-        var folderPath = await DialogService.Instance.PickFolderAsync("Select Folder to Import");
-        if (string.IsNullOrEmpty(folderPath)) return;
+        var files = filePaths.ToList();
+        if (files.Count == 0) return new ImportResult(0, 0, 0);
+
+        // File Browser explicitly promises "file stays in place", so callers can force that.
+        // Normal folder import still honors the saved preference / Ask prompt.
+        bool copyToLibrary;
+        if (forceKeepInPlace.HasValue)
+            copyToLibrary = !forceKeepInPlace.Value;
+        else
+            copyToLibrary = await ResolveCopyDecisionAsync();
+
+        var destDir = copyToLibrary ? NullWavePaths.DownloadsDir : null;
+        if (copyToLibrary) Directory.CreateDirectory(destDir!);
 
         LiveNotification? activity = null;
-
-        try
+        if (files.Count > 1)
         {
-            NullActionLogger.ImportStarted(folderPath, "ImportViewModel");
-            var stopwatch = Stopwatch.StartNew();
-
-            var includeSubfolders = await AskIncludeSubfoldersAsync();
-            var searchOption = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-
-            var files = Directory.GetFiles(folderPath, "*.*", searchOption)
-                .Where(f => SupportedExtensions.Contains(Path.GetExtension(f).ToLower()))
-                .ToList();
-
-            if (files.Count == 0)
-            {
-                ToastService.Instance.Show("No supported audio files found in that folder.", ToastType.Warning);
-                NullActionLogger.ImportFailed(folderPath, "No supported audio files found.", "ImportViewModel");
-                return;
-            }
-
-            // Honor the saved preference; only prompt if ImportMode == "Ask".
-            var copyToLibrary = await ResolveCopyDecisionAsync();
-            var destDir = copyToLibrary ? NullWavePaths.DownloadsDir : null;
-            if (copyToLibrary) Directory.CreateDirectory(destDir!);
-
             activity = ToastService.Instance.StartLiveActivity(
-                "Importing Folder",
+                "Importing Files",
                 $"Importing 0/{files.Count}...",
                 isIndeterminate: false);
+        }
 
-            int added = 0, skipped = 0;
+        int added = 0, skipped = 0, failed = 0;
 
-            for (int i = 0; i < files.Count; i++)
+        for (int i = 0; i < files.Count; i++)
+        {
+            var originalPath = files[i];
+            try
             {
-                var originalPath = files[i];
-
-                // Read metadata from the ORIGINAL file first, so we can duplicate-check
-                // before doing any filesystem work.
                 var (rawTitle, rawArtist, duration) = _metadata.FetchFromLocalFile(originalPath);
                 string title = rawTitle;
                 string artist = rawArtist;
@@ -123,37 +120,78 @@ public class ImportViewModel : ViewModelBase
                         track.FilePath = targetPath;
                     }
 
-                    _library.Add(track);
-                    added++;
-                    NullActionLogger.TrackAdded(track.FilePath, "LocalFolder", "ImportViewModel");
-                }
+                    if (_library.Add(track)) added++;
+                    else failed++;
 
+                    NullActionLogger.TrackAdded(track.FilePath, sourceLabel, nameof(ImportViewModel));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[Import] Failed to process {Path}", originalPath);
+                failed++;
+            }
+
+            if (activity != null)
+            {
                 ToastService.Instance.UpdateLiveActivity(
                     activity,
                     message: $"Importing {i + 1}/{files.Count}... ({added} added, {skipped} skipped)",
                     progressValue: (i + 1) * 100.0 / files.Count,
                     isIndeterminate: false);
-
-                await Task.Delay(1);
             }
 
-            stopwatch.Stop();
+            if (files.Count > 1) await Task.Delay(1); // Yield to UI
+        }
+
+        if (activity != null)
+        {
             var modeText = copyToLibrary ? "copied to library" : "kept in place";
             ToastService.Instance.CompleteLiveActivity(
                 activity, $"Import complete ({modeText}) - {added} added, {skipped} skipped.");
+        }
 
-            NullActionLogger.ImportCompleted(folderPath, $"{added} tracks added", stopwatch.ElapsedMilliseconds, "ImportViewModel");
-            Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}", added, skipped, folderPath);
+        return new ImportResult(added, skipped, failed);
+    }
+
+    private async Task ImportFolderAsync()
+    {
+        var folderPath = await DialogService.Instance.PickFolderAsync("Select Folder to Import");
+        if (string.IsNullOrEmpty(folderPath)) return;
+
+        try
+        {
+            NullActionLogger.ImportStarted(folderPath, nameof(ImportViewModel));
+            var stopwatch = Stopwatch.StartNew();
+
+            var includeSubfolders = await AskIncludeSubfoldersAsync();
+            var searchOption = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+
+            var files = Directory.GetFiles(folderPath, "*.*", searchOption)
+                .Where(f => SupportedExtensions.Contains(Path.GetExtension(f).ToLower()))
+                .ToList();
+
+            if (files.Count == 0)
+            {
+                ToastService.Instance.Show("No supported audio files found in that folder.", ToastType.Warning);
+                NullActionLogger.ImportFailed(folderPath, "No supported audio files found.", nameof(ImportViewModel));
+                return;
+            }
+
+            // Delegate to the shared pipeline
+            var result = await ImportFilesAsync(files, "LocalFolder");
+
+            stopwatch.Stop();
+            NullActionLogger.ImportCompleted(folderPath, $"{result.Added} tracks added", stopwatch.ElapsedMilliseconds, nameof(ImportViewModel));
+            Log.Information("Folder import complete: {Added} added, {Skipped} skipped from {Path}", result.Added, result.Skipped, folderPath);
 
             ImportCompleted?.Invoke();
         }
         catch (Exception ex)
         {
-            if (activity != null) ToastService.Instance.Dismiss(activity);
             ToastService.Instance.Show($"Folder import failed: {ex.Message}", ToastType.Error);
-
-            NullActionLogger.ImportFailed(folderPath, ex.Message, "ImportViewModel");
-            NullActionLogger.Error("ImportViewModel", ex, $"Failed while executing folder batch processing layout for: {folderPath}");
+            NullActionLogger.ImportFailed(folderPath, ex.Message, nameof(ImportViewModel));
+            NullActionLogger.Error(nameof(ImportViewModel), ex, $"Failed while executing folder batch processing layout for: {folderPath}");
         }
     }
 

@@ -78,6 +78,7 @@ public partial class MainViewModel
             ApplyBatteryEffectsTier(_powerState.Current);
             _effectsTier.NotifyPreferencesChanged();
         };
+        Settings.LanguageChangedRequested += OnLanguageChanged;
 
         StartupTimeline.Mark("Critical services ready");
     }
@@ -170,7 +171,7 @@ public partial class MainViewModel
         
         Player = new PlayerViewModel(_playbackService, _downloadService, _library, Settings, _metadata);
 
-        FileBrowser = new FileBrowserViewModel(_fileBrowserService, _library, _prefsService);
+        FileBrowser = new FileBrowserViewModel(_fileBrowserService, _library, _prefsService, Import);
         FileBrowser.PlayTrackRequested += track => Player.PlayTrack(track);
 
         Profile = new UserProfileViewModel(_library, _prefsService, _identity);

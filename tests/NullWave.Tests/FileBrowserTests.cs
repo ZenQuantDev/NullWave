@@ -104,36 +104,39 @@ public class DriveDiffTests
 
 public class LocaleSourceDuplicateTests
 {
-    // Indexer-style dictionary initializers silently keep the LAST duplicate,
-    // so duplicates can only be caught at source level. This is the ratchet.
     [Theory]
     [InlineData("Helpers/Localization/Locales.cs")]
     [InlineData("Helpers/Localization/Locales.ru.cs")]
     public void Locale_sources_contain_no_duplicate_keys(string relative)
     {
-        // Go up 5 levels from bin/Debug/net10.0/ to reach the repo root
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relative));
-        
         var keys = Regex.Matches(File.ReadAllText(path), @"\[""([A-Za-z0-9_]+)""\]\s*=")
                         .Select(m => m.Groups[1].Value).ToList();
-                        
         var dupes = keys.GroupBy(k => k).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
         Assert.Empty(dupes);
     }
 
-[Fact] 
-public void Natural_compare_survives_huge_numbers()
-    => Assert.True(NaturalComparer.Instance.Compare("a" + new string('9', 30), "a1" + new string('9', 30)) < 0);
+    [Fact]
+    public void Natural_compare_survives_huge_numbers()
+        => Assert.True(NaturalComparer.Instance.Compare("a" + new string('9', 30), "a1" + new string('9', 30)) < 0);
 
-[Fact] 
-public void Duration_over_an_hour_keeps_hours()
-    => Assert.Equal("1:05:30", FileBrowserService.FormatDuration(TimeSpan.FromSeconds(3930)));
+    [Fact]
+    public void Natural_compare_orders_numbered_tracks()
+    {
+        var names = new[] { "10 - Outro", "02 - Song", "01 - Intro" };
+        Assert.Equal(new[] { "01 - Intro", "02 - Song", "10 - Outro" },
+            names.OrderBy(n => n, NaturalComparer.Instance).ToArray());
+    }
 
-[Fact] 
-public void ParentOf_root_goes_to_this_pc()
-{
-    if (!OperatingSystem.IsWindows()) return;
-    Assert.Equal(string.Empty, FileBrowserViewModel.ParentOf(@"C:\"));
-    Assert.Equal(@"C:\", FileBrowserViewModel.ParentOf(@"C:\Users"));
-}
+    [Fact]
+    public void Duration_over_an_hour_keeps_hours()
+        => Assert.Equal("1:05:30", FileBrowserService.FormatDuration(TimeSpan.FromSeconds(3930)));
+
+    [Fact]
+    public void ParentOf_root_goes_to_this_pc()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        Assert.Equal(string.Empty, FileBrowserViewModel.ParentOf(@"C:\"));
+        Assert.Equal(@"C:\", FileBrowserViewModel.ParentOf(@"C:\Users"));
+    }
 }

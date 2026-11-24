@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,6 +10,7 @@ using Avalonia.VisualTree;
 using NullWave.Models;
 using NullWave.Services;
 using NullWave.ViewModels;
+using NullWave.Models.FileSystem;
 using Serilog;
 
 namespace NullWave.Views;
@@ -22,6 +24,7 @@ public partial class FileBrowserView : UserControl
         base.OnAttachedToVisualTree(e);
         if (DataContext is not FileBrowserViewModel vm) return;
         vm.PropertyChanged += OnVmPropertyChanged;
+        vm.ClearSelectionRequested += OnClearSelectionRequested;
         try { await vm.EnsureInitializedAsync(); vm.StartDriveWatch(); }
         catch (Exception ex) { Log.Error(ex, "[FileBrowser] Initialization failed"); }
     }
@@ -31,14 +34,27 @@ public partial class FileBrowserView : UserControl
         if (DataContext is FileBrowserViewModel vm)
         {
             vm.PropertyChanged -= OnVmPropertyChanged;
+            vm.ClearSelectionRequested -= OnClearSelectionRequested;
             vm.StopDriveWatch();
         }
         base.OnDetachedFromVisualTree(e);
     }
 
+    private void OnClearSelectionRequested() => FileList.UnselectAll();
+
+    private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox lb && DataContext is FileBrowserViewModel vm)
+        {
+            var selected = lb.SelectedItems?.OfType<FileSystemNode>() ?? Enumerable.Empty<FileSystemNode>();
+            vm.UpdateSelection(selected);
+        }
+    }
+
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (DataContext is not FileBrowserViewModel vm) return;
+
         if (e.PropertyName == nameof(FileBrowserViewModel.CurrentNodes))
         {
             if (EffectsTierResolver.Shared.Current == EffectsTier.Minimal) return;
@@ -50,6 +66,10 @@ public partial class FileBrowserView : UserControl
         else if (e.PropertyName == nameof(FileBrowserViewModel.IsEditingPath) && vm.IsEditingPath)
         {
             Dispatcher.UIThread.Post(() => { PathBox.Focus(); PathBox.SelectAll(); }, DispatcherPriority.Input);
+        }
+        else if (e.PropertyName == nameof(FileBrowserViewModel.CurrentPath))
+        {
+            Dispatcher.UIThread.Post(() => BreadcrumbScroll.ScrollToEnd(), DispatcherPriority.Background);
         }
     }
 
@@ -65,7 +85,6 @@ public partial class FileBrowserView : UserControl
         switch (e.Key)
         {
             case Key.Enter: vm.OpenFileCommand.Execute(vm.SelectedNode); e.Handled = true; break;
-            case Key.Back: if (vm.CanGoUp) vm.GoUpCommand.Execute(null); e.Handled = true; break;
             case Key.F5: vm.RefreshCommand.Execute(null); e.Handled = true; break;
         }
     }
@@ -85,13 +104,22 @@ public partial class FileBrowserView : UserControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || e.Source is TextBox || DataContext is not FileBrowserViewModel vm) return;
+        if (DataContext is not FileBrowserViewModel vm) return;
+        if (e.Source is TextBox) return;
+
         bool alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
-        if (e.Key == Key.L && e.KeyModifiers.HasFlag(KeyModifiers.Control)) vm.StartEditPathCommand.Execute(null);
-        else if (alt && e.Key == Key.Left && vm.CanGoBack) vm.GoBackCommand.Execute(null);
-        else if (alt && e.Key == Key.Right && vm.CanGoForward) vm.GoForwardCommand.Execute(null);
-        else if (alt && e.Key == Key.Up && vm.CanGoUp) vm.GoUpCommand.Execute(null);
-        else return;
-        e.Handled = true;
+        bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+
+        if (e.Key == Key.Back && !ctrl && !alt && vm.CanGoUp)
+        {
+            vm.GoUpCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (alt && e.Key == Key.Left && vm.CanGoBack) { vm.GoBackCommand.Execute(null); e.Handled = true; }
+        else if (alt && e.Key == Key.Right && vm.CanGoForward) { vm.GoForwardCommand.Execute(null); e.Handled = true; }
+        else if (alt && e.Key == Key.Up && vm.CanGoUp) { vm.GoUpCommand.Execute(null); e.Handled = true; }
+        else if (ctrl && e.Key == Key.L) { vm.StartEditPathCommand.Execute(null); e.Handled = true; }
     }
 }

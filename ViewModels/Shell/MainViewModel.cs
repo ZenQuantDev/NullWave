@@ -107,6 +107,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _globalSearchQuery = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasGlobalSearchQuery));
+            if (CurrentPage == "FileBrowser" && FileBrowser != null) FileBrowser.SearchQuery = value;
             
             // Route only to the visible library page + playlists.
             ActiveLibraryVM.SearchQuery = value;
@@ -142,6 +143,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // 1.6: Re-apply the global query to the newly active page
             ActiveLibraryVM.SearchQuery = _globalSearchQuery;
             if (_currentPage == "Playlists") Playlist.SearchQuery = _globalSearchQuery;
+            if (_currentPage == "FileBrowser" && FileBrowser != null) FileBrowser.SearchQuery = _globalSearchQuery;
 
             // Reset the flag after the UI has processed the ItemsSource change
             Dispatcher.UIThread.Post(() => _isChangingPage = false, DispatcherPriority.Background);
@@ -149,6 +151,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _prefsService.Update(p => p.LastPage = value);
             Nav?.SetActivePage(value);
         }
+    }
+
+    public void OnLanguageChanged()
+    {
+        // Trigger refresh of all localized UI elements
+        OnPropertyChanged(nameof(CurrentPage));
+        OnPropertyChanged(nameof(IsOnLibraryPage));
+        OnPropertyChanged(nameof(IsOnRadioPage));
+        OnPropertyChanged(nameof(IsFileBrowserPage));
+        
+        // Refresh library views
+        Library?.Refresh();
+        RadioLibrary?.Refresh();
+        AudiobookLibrary?.Refresh();
+        Playlist?.Refresh();
     }
     public bool IsOnLibraryPage => CurrentPage == "Library";
     public bool IsOnRadioPage => CurrentPage == "Radio";

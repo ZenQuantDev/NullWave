@@ -11,8 +11,7 @@ using Serilog;
 namespace NullWave.Services.FileSystem;
 
 public sealed record FolderListing(IReadOnlyList<FileSystemNode> Nodes, bool AccessDenied);
-public sealed record TagInfo(string? Title, string? Artist, string? Album, string? Duration, string? Details);
-
+public sealed record TagInfo(string? Title, string? Artist, string? Album, string? Duration, string? Details, bool AccessDenied = false);
 public class FileBrowserService
 {
     private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -90,7 +89,7 @@ public class FileBrowserService
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
-                Log.Warning(ex, "[FileBrowser] Cannot open {Path}", folderPath);
+                Log.Debug("[FileBrowser] Cannot open {Path}: {Message}", folderPath, ex.Message);
                 return new FolderListing(Array.Empty<FileSystemNode>(), true);
             }
 
@@ -113,7 +112,8 @@ public class FileBrowserService
                         Path = info.FullName,
                         Name = info.Name,
                         Type = FileSystemNodeType.Folder,
-                        LastModified = info.LastWriteTimeUtc
+                        LastModified = info.LastWriteTimeUtc,
+                        IsReparsePoint = GetIsReparsePoint(info.FullName)
                     });
                 }
 
@@ -135,13 +135,26 @@ public class FileBrowserService
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "[FileBrowser] Enumeration failed for {Path}", folderPath);
+                Log.Debug("[FileBrowser] Enumeration failed for {Path}: {Message}", folderPath, ex.Message);
             }
 
-            var sorted = nodes
-                .OrderByDescending(n => n.Type == FileSystemNodeType.Folder)
-                .ThenBy(n => n.Name, NaturalComparer.Instance)
-                .ToList();
+            List<FileSystemNode> sorted;
+            try
+            {
+                sorted = nodes
+                    .OrderBy(n => n.IsFolderLike ? 0 : 1)
+                    .ThenBy(n => n.Name, NaturalComparer.Instance)
+                    .ToList();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning(ex, "[FileBrowser] Natural sort failed for {Path}; falling back to ordinal sort", folderPath);
+
+                sorted = nodes
+                    .OrderBy(n => n.IsFolderLike ? 0 : 1)
+                    .ThenBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
 
             return new FolderListing(sorted, false);
         }, ct);
@@ -151,7 +164,11 @@ public class FileBrowserService
     {
         try
         {
-            using var f = TagLib.File.Create(path, TagLib.ReadStyle.Average);
+            using var fs = OpenRead(path);
+            using var f = TagLib.File.Create(
+                new StreamAbstraction(Path.GetFileName(path), fs),
+                TagLib.ReadStyle.Average);
+
             var d = f.Properties.Duration;
             var details = string.Join(" · ", new[]
             {
@@ -167,9 +184,26 @@ public class FileBrowserService
                 d > TimeSpan.Zero ? FormatDuration(d) : null,
                 details.Length > 0 ? details : null);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            string reason;
+            try
+            {
+                var attrs = File.GetAttributes(path);
+                var L = NullWave.Services.LocalizationService.Instance;
+                reason = (attrs & FileAttributes.Encrypted) != 0
+                    ? L["Files_Encrypted"]
+                    : L["Files_AccessDeniedDetail"];
+            }
+                catch { reason = NullWave.Services.LocalizationService.Instance["Files_AccessDeniedDetail"]; }
+
+            Log.Debug("[FileBrowser] Tag read denied for {Path}: {Reason} ({Message})", path, reason, ex.Message);
+            // Non-null + AccessDenied so the row keeps its filename as title but shows a lock.
+            return new TagInfo(null, null, null, null, reason, AccessDenied: true);
+        }
         catch (Exception ex)
         {
-            Log.Debug(ex, "[FileBrowser] Tag read failed for {Path}", path);
+            Log.Debug("[FileBrowser] Tag read failed for {Path}: {Message}", path, ex.Message);
             return null;
         }
     }
@@ -178,10 +212,18 @@ public class FileBrowserService
     {
         try
         {
-            using var f = TagLib.File.Create(path, TagLib.ReadStyle.None);
+            using var fs = OpenRead(path);
+            using var f = TagLib.File.Create(
+                new StreamAbstraction(Path.GetFileName(path), fs),
+                TagLib.ReadStyle.None);
+
             return f.Tag.Pictures.FirstOrDefault()?.Data.Data;
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            Log.Debug("[FileBrowser] Cover art read failed for {Path}: {Message}", path, ex.Message);
+            return null;
+        }
     }
 
     public Task<bool> IsPathAccessibleAsync(string path, CancellationToken ct = default)
@@ -216,6 +258,33 @@ public class FileBrowserService
     public static string FormatDuration(TimeSpan d) => d.TotalHours >= 1
         ? $"{(int)d.TotalHours}:{d.Minutes:00}:{d.Seconds:00}"
         : $"{d.Minutes}:{d.Seconds:00}";
+
+    private static FileStream OpenRead(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    private sealed class StreamAbstraction : TagLib.File.IFileAbstraction
+    {
+        private readonly Stream _stream;
+
+        public StreamAbstraction(string name, Stream stream)
+        {
+            Name = name;
+            _stream = stream;
+        }
+
+        public string Name { get; }
+        public Stream ReadStream => _stream;
+        public Stream WriteStream => throw new NotSupportedException();
+        public void CloseStream(Stream stream) { /* outer using disposes the FileStream */ }
+    }
+
+    private static bool GetIsReparsePoint(string path)
+    {
+        try
+        { return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0; }
+        catch { return false; }
+    }
+
 }
 
 public sealed class NaturalComparer : IComparer<string>
