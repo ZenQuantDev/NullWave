@@ -93,7 +93,7 @@
         <Style Selector="Border.success, Border.error, Border.warning, Border.info">
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationToast}" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>

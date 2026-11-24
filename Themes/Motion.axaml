@@ -30,10 +30,11 @@
   <!-- ===== DURATIONS (mirror of current hardcodes) ===== -->
   <sys:TimeSpan x:Key="DurationMicro">0:0:0.06</sys:TimeSpan>     <!-- effects-minimal button opacity -->
   <sys:TimeSpan x:Key="DurationPress">0:0:0.12</sys:TimeSpan>     <!-- button RenderTransform scale  -->
+  <sys:TimeSpan x:Key="DurationHoverReveal">0:0:0.12</sys:TimeSpan> <!-- sidebar row-action opacity reveal on hover -->
   <sys:TimeSpan x:Key="DurationFast">0:0:0.15</sys:TimeSpan>      <!-- opacity fades, chrome, chips, knob brush -->
-  <sys:TimeSpan x:Key="DurationPage">0:0:0.18</sys:TimeSpan>      <!-- MainWindow PageHost CrossFade; toggle-knob margin (see conflict note) -->
+  <sys:TimeSpan x:Key="DurationPage">0:0:0.20</sys:TimeSpan>      <!-- structural surface swap: page crossfade + sidebar collapse (converged 180->200) -->
   <sys:TimeSpan x:Key="DurationBase">0:0:0.20</sys:TimeSpan>      <!-- TabControl CrossFade; ScrollBar opacity -->
-  <sys:TimeSpan x:Key="DurationPanel">0:0:0.22</sys:TimeSpan>     <!-- right detail/queue panel Width -->
+  <sys:TimeSpan x:Key="DurationPanel">0:0:0.20</sys:TimeSpan>     <!-- structural surface swap: right panel Width + sidebar bead (converged 220->200) -->
   <sys:TimeSpan x:Key="DurationToast">0:0:0.25</sys:TimeSpan>     <!-- toast border opacity -->
   <sys:TimeSpan x:Key="DurationProgress">0:0:0.30</sys:TimeSpan>  <!-- ProgressBar Value -->
   <sys:TimeSpan x:Key="DurationDim">0:0:0.80</sys:TimeSpan>       <!-- OLED/idle dimmable fade -->

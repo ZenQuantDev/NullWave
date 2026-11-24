@@ -25,7 +25,7 @@
     
     <Border.Transitions>
         <Transitions>
-            <DoubleTransition Property="Width" Duration="0:0:0.18" Easing="QuadraticEaseOut"/>
+            <DoubleTransition Property="Width" Duration="{DynamicResource DurationPage}" Easing="QuadraticEaseOut"/>
         </Transitions>
     </Border.Transitions>
 
@@ -156,7 +156,7 @@
             <Setter Property="Padding" Value="4"/>
             <Setter Property="Opacity" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions></Setter>
+            <Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="{DynamicResource DurationHoverReveal}"/></Transitions></Setter>
         </Style>
         <Style Selector="Border.playlist-row:pointerover Button.sidebar-action"><Setter Property="Opacity" Value="1"/></Style>
 
@@ -199,8 +199,8 @@
             <Setter Property="ClipToBounds" Value="True"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-                    <DoubleTransition Property="MaxHeight" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationBase}" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="MaxHeight" Duration="{DynamicResource DurationBase}" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -220,7 +220,7 @@
         <Style Selector="material|MaterialIcon#ChevronIcon">
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="{DynamicResource DurationBase}" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -752,8 +752,8 @@
                                 Opacity="0">
                             <Border.Transitions>
                                 <Transitions>
-                                    <DoubleTransition Property="Canvas.Top" Duration="0:0:0.22" Easing="CubicEaseOut"/>
-                                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                                    <DoubleTransition Property="Canvas.Top" Duration="{DynamicResource DurationPanel}" Easing="CubicEaseOut"/>
+                                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
                                 </Transitions>
                             </Border.Transitions>
                         </Border>

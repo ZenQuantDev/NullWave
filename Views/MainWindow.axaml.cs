@@ -77,7 +77,11 @@ public partial class MainWindow : Window
         else
         {
             Classes.Remove("effects-minimal");
-            PageHost.PageTransition = new CrossFade(TimeSpan.FromMilliseconds(180));
+            // Read the token so the code-set page transition converges with the XAML one
+            // (and with panels/tabs) whenever Motion.axaml changes. Pattern-match keeps
+            // startup safe if app resources aren't merged yet.
+            var pageDur = this.FindResource("DurationPage") is TimeSpan tp ? tp : TimeSpan.FromMilliseconds(200);
+            PageHost.PageTransition = new CrossFade(pageDur);
             RightPanelBorder.Transitions = _rightPanelTransitions;
         }
     }

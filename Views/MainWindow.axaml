@@ -29,7 +29,7 @@
         <Style Selector="Border.success, Border.error, Border.warning, Border.info">
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationToast}" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -50,7 +50,7 @@
         <Style Selector="Border.chrome">
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -163,14 +163,15 @@
                         </Grid>
                     </Border>
 
-                    <!-- Unified List Views with Cross-Fade -->
+                    <!-- Unified List Views with Cross-Fade.
+                         The page transition is owned by MainWindow.axaml.cs -> ApplyEffectsTier(),
+                         which reads the DurationPage token (and forces null under effects-minimal).
+                         CrossFade.Duration is a plain CLR property, so it cannot bind to a resource;
+                         and this XAML value was overwritten on startup by the code path anyway.
+                         Leaving it unset here makes the token the single source of truth. -->
                     <TransitioningContentControl x:Name="PageHost" Grid.Row="1"
                                                  HorizontalContentAlignment="Stretch"
-                                                 VerticalContentAlignment="Stretch">
-                        <TransitioningContentControl.PageTransition>
-                            <CrossFade Duration="0:0:0.18"/>
-                        </TransitioningContentControl.PageTransition>
-                    </TransitioningContentControl>
+                                                 VerticalContentAlignment="Stretch"/>
                 </Grid>
 
                 <!-- RIGHT: Detail / Queue Panel. -->
@@ -180,7 +181,7 @@
                         Classes="chrome">
                     <Border.Transitions>
                         <Transitions>
-                            <DoubleTransition Property="Width" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                            <DoubleTransition Property="Width" Duration="{DynamicResource DurationPanel}" Easing="CubicEaseOut"/>
                         </Transitions>
                     </Border.Transitions>
                     <Panel Width="{x:Static vm:MainViewModel.RightPanelWidth}" HorizontalAlignment="Right">
