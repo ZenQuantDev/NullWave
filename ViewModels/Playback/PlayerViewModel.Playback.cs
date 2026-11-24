@@ -122,7 +122,7 @@ public partial class PlayerViewModel
                 _playback.Play(track.FilePath);
                 t.Step("playFile");
                 if (track.MediaType == MediaType.Audiobook) _playback.SetRate(_playbackRate); else _playback.SetRate(1.0f);
-                
+                t.Step("rate");
                 // Patch D: marshal audiobook progress saves to the UI thread.
                 if (track.MediaType == MediaType.Audiobook) { _audiobookSaveTimer?.Dispose(); _audiobookSaveTimer = new System.Threading.Timer(_ => Dispatcher.UIThread.Post(SaveAudiobookProgress), null, 5000, 5000); }
                 else { _audiobookSaveTimer?.Dispose(); _audiobookSaveTimer = null; }
@@ -440,12 +440,13 @@ public partial class PlayerViewModel
         {
             _hasTriggeredCrossfade = true;
             Track? next = null;
+            bool nextFromQueue = false;
             var head = _library.GetQueue();
             if (head.Count > 0)
             {
+                nextFromQueue = true;
                 _queueInterrupt = head[0].IsManual;
                 next = head[0].Track;
-                _library.DequeueNext();
             }
             else if (_activePlaylist != null && _activePlaylist.Tracks.Count > 0)
             {
@@ -475,8 +476,12 @@ public partial class PlayerViewModel
             if (next != null && !string.IsNullOrEmpty(next.FilePath) && !File.Exists(next.FilePath))
                 _library.TryRelink(next);
 
-            if (next != null && !string.IsNullOrEmpty(next.FilePath) && File.Exists(next.FilePath))
+            if (next != null && !string.IsNullOrEmpty(next.FilePath)
+                && File.Exists(next.FilePath) && PlaybackService.CanOpenLocal(next.FilePath))
             {
+                if (nextFromQueue)
+                    _library.DequeueNext();
+
                 _isCrossfading = true;
                 var left = _currentTrack;
                 CurrentTrack = next;
@@ -511,6 +516,7 @@ public partial class PlayerViewModel
             }
             else
             {
+                _queueInterrupt = false;
                 Log.Debug("[PlayerViewModel] Approaching end of playlist or no valid next track. Crossfade bypassed.");
             }
         }

@@ -237,8 +237,8 @@ public partial class LibraryService : IDisposable
             _identityIndexVersion = StateVersion;
         }
 
-        var queueEntry = _queue.FirstOrDefault(e => e.Track.Id == id);
-        if (queueEntry != null) { _queue.Remove(queueEntry); QueueChanged?.Invoke(this, EventArgs.Empty); }
+        int removedFromQueue = _queue.RemoveAll(e => e.Track.Id == id);
+        if (removedFromQueue > 0) QueueChanged?.Invoke(this, EventArgs.Empty);
 
         _db.Delete(id);
         OnLibraryChanged();

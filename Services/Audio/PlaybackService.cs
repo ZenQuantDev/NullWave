@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ public class PlaybackService : IDisposable
     private volatile bool _ready;          // written last, after every engine field is assigned
     private string? _engineError;          // guarded by _initLock
     private float? _pendingRate;           // guarded by _initLock; applied when the engine comes up
+    private float _lastRate = 1.0f;
     private int _warmUpStarted;
     private string? _deferredPlayPath;
     private readonly object _standbyLock = new();
@@ -155,6 +157,34 @@ public class PlaybackService : IDisposable
         return media;
     }
 
+    /// <summary>Local files only: can this process actually open the bytes? EFS/locked => false.</summary>
+    public static bool CanOpenLocal(string path)
+    {
+        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return true; // streams are checked by LibVLC itself
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            return true;
+        }
+        catch (UnauthorizedAccessException) { return false; }
+        catch (IOException) { return false; }
+        catch { return false; }
+    }
+
+    private void FailLocalUnreadable(string path)
+    {
+        var failedTrack = CurrentTrack;
+        Log.Warning("[PlaybackService] Local file unreadable (EFS/locked), refusing to play: {Path}", path);
+        _uiPost(() =>
+        {
+            if (failedTrack != null) PlaybackFailed?.Invoke(failedTrack);
+            StateChanged?.Invoke(PlaybackState.Stopped);
+        });
+    }
+
     public event Action<bool>? BufferingChanged;
     private int _buffering;
 
@@ -199,7 +229,13 @@ public class PlaybackService : IDisposable
 
                 if (_pendingRate is float rate)
                 {
-                    try { _activePlayer.SetRate(rate); } catch { /* ignore native teardown */ }
+                    try
+                    {
+                        _activePlayer.SetRate(rate);
+                        _lastRate = rate;
+                    }
+                    catch { /* ignore native teardown */ }
+
                     _pendingRate = null;
                 }
 
@@ -228,7 +264,8 @@ public class PlaybackService : IDisposable
         _uiPost(() =>
         {
             StreamFailed?.Invoke(message);
-            if (failedTrack != null) PlaybackFailed?.Invoke(failedTrack);
+            if (failedTrack != null && failedTrack.MediaType != NullWave.Models.MediaType.Radio)
+                PlaybackFailed?.Invoke(failedTrack);
             StateChanged?.Invoke(PlaybackState.Stopped);
         });
     }
@@ -367,6 +404,9 @@ public class PlaybackService : IDisposable
             {
                 bool Stale() => _disposed || playRequest != Volatile.Read(ref _playRequestGeneration);
                 if (Stale()) return;
+
+                // EFS/locked local files never reach LibVLC: no phantom EndReached => no auto-next cascade.
+                if (!CanOpenLocal(path)) { FailLocalUnreadable(path); return; }
 
                 _activePlayer.Stop();
                 t.Step("stop");
@@ -540,10 +580,12 @@ public class PlaybackService : IDisposable
         {
             if (!_ready)
             {
-                _pendingRate = rate;     // applied by EnsureReady once the engine exists
+                _pendingRate = rate;
                 return;
             }
         }
+        if (Math.Abs(rate - _lastRate) < 0.001f) return;
+        _lastRate = rate;
         try { _activePlayer.SetRate(rate); } catch { /* ignore native teardown */ }
     }
 
@@ -651,6 +693,13 @@ public class PlaybackService : IDisposable
             incoming = _standbyPlayer;
             incoming.Stop();
             incoming.Media?.Dispose();
+            if (!CanOpenLocal(nextPath))
+            {
+                _isCrossfading = false;
+                Interlocked.Increment(ref _crossfadeGeneration);
+                Log.Warning("[PlaybackService] Crossfade skipped, unreadable: {Path}", nextPath);
+                return generation;
+            }
             incoming.Media = CreateMedia(nextPath);
         }
 

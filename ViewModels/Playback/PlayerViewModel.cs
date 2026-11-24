@@ -111,6 +111,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _playback.RadioMetadataChanged += OnRadioMetadataChanged;
         _playback.StreamFailed += OnStreamFailed;
         _playback.BufferingChanged += OnBufferingChanged;
+        _playback.PlaybackFailed += OnPlaybackFailed;
         
         _download.ProgressChanged += OnDownloadProgressChanged;
         _download.DownloadCompleted += OnDownloadCompleted;
@@ -128,6 +129,7 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
         _playback.RadioMetadataChanged -= OnRadioMetadataChanged;
         _playback.StreamFailed -= OnStreamFailed;
         _playback.BufferingChanged -= OnBufferingChanged;
+        _playback.PlaybackFailed -= OnPlaybackFailed;
         
         _download.ProgressChanged -= OnDownloadProgressChanged;
         _download.DownloadCompleted -= OnDownloadCompleted;
@@ -427,4 +429,14 @@ public partial class PlayerViewModel : ViewModelBase, IDisposable
             NowPlayingArtist = artist ?? string.Empty;
             if (HasNowPlaying) StatusText = NowPlayingDisplay;
         });
+
+    private void OnPlaybackFailed(Track track)
+    => Dispatcher.UIThread.Post(() =>
+    {
+        if (track.MediaType == MediaType.Radio) return; // radio already handled by OnStreamFailed
+        StatusText = string.Format(L("Player_PlaybackFailed"), track.Title);
+        ToastService.Instance.Show(StatusText, ToastType.Error, durationMs: 5000, scope: "playback-fail");
+        // Intentionally do NOT advance: the engine left us Stopped, and StartTrack
+        // refused the unreadable file, so there is no EndReached to chase.
+    });
 }
