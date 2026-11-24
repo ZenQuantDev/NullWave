@@ -16,6 +16,7 @@
                 <ResourceInclude Source="avares://NullWave/Themes/Colors.axaml"/>
                 <ResourceInclude Source="avares://NullWave/Themes/Typography.axaml"/>
                 <ResourceInclude Source="avares://NullWave/Themes/Shapes.axaml"/>
+                <ResourceInclude Source="avares://NullWave/Themes/Motion.axaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

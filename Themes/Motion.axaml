@@ -1,0 +1,47 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="using:System">
+
+  <!--
+    MOTION TOKENS — single source of truth for timing (Phase 33.2 / "premium look").
+
+    RULES:
+    • Consumers MUST reference these with {DynamicResource ...}, never StaticResource
+      and never a literal "0:0:0.x". DynamicResource is what lets ThemeService rewrite
+      durations at runtime (MotionScale / reduce-motion / effects-tier), exactly like it
+      already rewrites the Typography & Shapes density tokens.
+    • Easings are intentionally NOT tokenized here: every existing transition already
+      uses CubicEaseOut uniformly, so there is no inconsistency to fix. If we later want
+      per-context easing (entrance=decel / move=in-out / exit=accel), that is a Stage-3
+      addition and will instantiate Avalonia.Animation.Easings.* as resources then.
+    • DO NOT share a single Transitions collection as a resource across controls —
+      Avalonia transition collections are per-control stateful. Share the *durations*
+      (immutable TimeSpan, safe) and build a fresh <Transitions> per style from them.
+
+    STAGE-3 PLAN (two steps, so the unification is explicit and reviewable):
+      3a) Rebind every literal Duration in ControlStyles/MainWindow/SettingsWindow/
+          FileBrowserView to the matching token below  ->  ZERO visual change.
+      3b) Collapse the page/surface family to one value: set DurationPage,
+          DurationBase and DurationPanel all to 0:0:0.20  ->  this single 3-line edit
+          is what makes Library<->Radio<->Files<->panels crossfade identically.
+          (Done as a deliberate, visible change in Stage 3 — NOT hidden in Stage 1.)
+  -->
+
+  <!-- ===== DURATIONS (mirror of current hardcodes) ===== -->
+  <sys:TimeSpan x:Key="DurationMicro">0:0:0.06</sys:TimeSpan>     <!-- effects-minimal button opacity -->
+  <sys:TimeSpan x:Key="DurationPress">0:0:0.12</sys:TimeSpan>     <!-- button RenderTransform scale  -->
+  <sys:TimeSpan x:Key="DurationFast">0:0:0.15</sys:TimeSpan>      <!-- opacity fades, chrome, chips, knob brush -->
+  <sys:TimeSpan x:Key="DurationPage">0:0:0.18</sys:TimeSpan>      <!-- MainWindow PageHost CrossFade; toggle-knob margin (see conflict note) -->
+  <sys:TimeSpan x:Key="DurationBase">0:0:0.20</sys:TimeSpan>      <!-- TabControl CrossFade; ScrollBar opacity -->
+  <sys:TimeSpan x:Key="DurationPanel">0:0:0.22</sys:TimeSpan>     <!-- right detail/queue panel Width -->
+  <sys:TimeSpan x:Key="DurationToast">0:0:0.25</sys:TimeSpan>     <!-- toast border opacity -->
+  <sys:TimeSpan x:Key="DurationProgress">0:0:0.30</sys:TimeSpan>  <!-- ProgressBar Value -->
+  <sys:TimeSpan x:Key="DurationDim">0:0:0.80</sys:TimeSpan>       <!-- OLED/idle dimmable fade -->
+
+  <!-- ===== NEW: stagger + Doherty budget (no current equivalent) ===== -->
+  <sys:TimeSpan x:Key="DurationStagger">0:0:0.03</sys:TimeSpan>   <!-- per-item entrance offset (principle 3) -->
+  <x:Int32      x:Key="StaggerMaxItems">12</x:Int32>              <!-- cap visible stagger; rest snap (restraint) -->
+  <sys:TimeSpan x:Key="DurationPerceivedInstant">0:0:0.10</sys:TimeSpan> <!-- target for tap→feedback -->
+  <sys:TimeSpan x:Key="DurationInteractiveCeiling">0:0:0.40</sys:TimeSpan> <!-- Doherty hard ceiling (principle 6) -->
+
+</ResourceDictionary>
