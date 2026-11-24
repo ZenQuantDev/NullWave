@@ -3,7 +3,7 @@
 All notable changes to NullWave will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.6.5] - 24-Nov-2026
+## [0.6.5] - 25-Nov-2026
 
 ### Added
 
@@ -18,6 +18,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Local File Detail Guards**: The Track Detail panel now hides "Relink" and "Share" buttons for local files that lack a streaming URL.
 - **File Browser bulk actions**: extended multi-select (Ctrl-click, Shift-click) with a floating bulk bar that queues or imports selected files through the shared import pipeline.
 - **File Browser toolbar**: the breadcrumb path now scrolls horizontally instead of clipping over the toolbar buttons on long paths.
+- **Motion timing tokens**: `Themes/Motion.axaml` is now the single source for transition durations (micro/press/fast/page/base/panel/toast/progress/dim, plus a dedicated `DurationDip`), merged into `App.axaml`; consumers reference tokens instead of hand-written literals.
+- **Filter-switch dip-dissolve**: switching source / favorites / recency / view on the Library list now dims the current list and restores the new one over the same 200 ms / `CubicEaseOut` as the page crossfade (no blank frame). Typing in search and changing sort stay instant, and the `effects-minimal` tier swaps instantly.
+- **Sidebar Filters + Sources promoted**: the Favorites/Recent filters and the per-source chips now sit above the playlist/folder tree, so they stay visible without scrolling regardless of library size.
 
 ### Changed
 
@@ -28,6 +31,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Effects Tier Gating**: The File Browser's listing fade-ins are now properly gated behind the `effects-minimal` tier to save battery on low-end hardware.
 - **Updates tab**: Dependencies check when the tab opens and show installed → latest for yt-dlp; the Update button appears only when an update is available or the latest version is unknown. The `.NET` row was removed.
 - **Localization**: Updates status text is localized in English and Russian; the FFmpeg row shows only the version. EN/RU localization added for the File Browser UI (import progress toasts still English).
+- **Motion convergence**: page, right-panel and sidebar-collapse swaps, the Files-page entrance, and the remaining control transitions all read from the timing tokens; the sidebar collapse easing is unified to `CubicEaseOut` (it was the lone `QuadraticEaseOut`).
+- **Files page entrance fade** handed to the page host, so the track list no longer double-fades on first paint (matches Radio/Audiobooks).
+- **ControlStyles tokenized**: every remaining hardcoded transition duration in `ControlStyles.axaml` (scrollbar, toggle-knob, and the opacity/press/progress/dim/micro literals) rebound to the Motion tokens.
+- **README**: centered badge cluster (CI · license · release · DeepWiki · Windows/Linux · Discussions · feature-requests); license wording corrected to "MIT with attribution"; release-packaging commands fixed to the root `build-release.ps1` / `measure-startup.ps1 -Rid win-x64 -Iterations 7`.
 
 ### Fixed
 
@@ -38,6 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   profile defaults live in both directions, and persists immediately.
 - **Library**: Deleting a track removes every duplicate queue entry, not just the first.
 - **Updates tab**: A failed download no longer reports "No update available"; Check is disabled during a download, Download hides once staged, and download progress is shown.
+- **Stable-id test** made OS-aware (Linux keeps path case, Windows folds it), clearing the ubuntu-only failure without weakening production path identity.
 
 ## [0.6.5-beta.2] - 12-Nov-2026
 

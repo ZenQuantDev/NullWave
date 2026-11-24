@@ -18,18 +18,18 @@
 
 ## Release Plan
 
-| Version     | Codename / Focus        | Key Deliverables                                                                                                                                       |
-| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **v0.5.1**  | Stability               | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                    |
-| **v0.5.2**  | QoL & Polish            | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                              |
-| **v0.6.0**  | "Oxeye Daisy"           | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.             |
-| **v0.6.1**  | "Stability & Safety"    | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability. |
-| **v0.6.2**  | Correctness             | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                              |
-| **v0.6.3**  | Responsiveness          | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                               |
-| **v0.6.4**  | "Foundations"           | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.    |
-| **v0.6.5**  | Hardening & File Safety | beta.1 31-Oct, beta.2 12-Nov; stable close-out adds Files Browser v1, EFS/locked playback guards, live EN/RU switching and diagnostics redaction.      |
-| **v0.6.6**  | Launch Readiness        | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                 |
-| **v0.7.0+** | Ecosystem               | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                     |
+| Version     | Codename / Focus        | Key Deliverables                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v0.5.1**  | Stability               | Metadata fixes, playlist URL interception, skip-penalty decay, AI playlist padding.                                                                                                                                                                                                                                                                                                                   |
+| **v0.5.2**  | QoL & Polish            | Shipped 17-Aug-2026 (toasts, multi-select groundwork, proxy, onboarding).                                                                                                                                                                                                                                                                                                                             |
+| **v0.6.0**  | "Oxeye Daisy"           | Shipped 19-Sep-2026: light theme, audiobooks + radio, sleep timer, crossfade, profile badges, RU localization, backups, onboarding polish.                                                                                                                                                                                                                                                            |
+| **v0.6.1**  | "Stability & Safety"    | Shipped 23-Sep-2026: xUnit test foundation (196 tests), P0 data safety (atomic writes/quarantine), P0 security (badge pinning), P1 download stability.                                                                                                                                                                                                                                                |
+| **v0.6.2**  | Correctness             | Shipped 02-Oct-2026: DownloadService concurrency fixes, Mood AI prompt schema, unified TagTaxonomy, Spotify bridge fixes.                                                                                                                                                                                                                                                                             |
+| **v0.6.3**  | Responsiveness          | Shipped 11-Oct-2026: Async hardware detection, LibraryService hot-path optimization, clean-machine first-run onboarding.                                                                                                                                                                                                                                                                              |
+| **v0.6.4**  | "Foundations"           | Shipped 24-Oct-2026: Architecture overhaul, O(1) duplicate detection, strict UTC enforcement, badge catalog, radio hardening, download reliability.                                                                                                                                                                                                                                                   |
+| **v0.6.5**  | Hardening & File Safety | beta.1 31-Oct, beta.2 12-Nov; stable close-out adds Files Browser v1, EFS/locked playback guards, live EN/RU switching, diagnostics redaction, the Ubuntu overlay CI fix + smart-playlist header/name/window fixes, and the motion-consistency pass (timing tokens, page/panel/sidebar/Files convergence, sidebar Filters+Sources promotion, filter-switch dip-dissolve, ControlStyles tokenization). |
+| **v0.6.6**  | Launch Readiness        | Feature freeze, `/docs` wiki, Velopack installers, Reddit launch prep.                                                                                                                                                                                                                                                                                                                                |
+| **v0.7.0+** | Ecosystem               | Media keys (MPRIS/SMTC), macOS build, Subsonic server, multi-source search plugin.                                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -513,7 +513,12 @@
 - ✅ **CI matrix**: Windows + Ubuntu with banned-API gate.
 - 📋 **Effects Tier**: "Full" vs "Reduced" appearance setting (respects OS animation settings)
 - 🔄 **Visual Audit**: Display-size, HiDPI-aware async decoding, sidecars, and bitmap prewarming are in place. Blur, per-row shadows, and virtualization audit remain open.
-- 🔄 **Performance Budgets**: Define and hit targets for cold start, idle RAM, 5k track scroll smoothness, and zero >150ms UI stalls.
+- ✅ **Motion consistency pass (close-out)**: `Motion.axaml` timing tokens; page/panel/sidebar/Files convergence; sidebar Filters+Sources promotion; filter-switch dip-dissolve; `ControlStyles` fully tokenized + sidebar easing unified to `Cubic`.
+- ✅ **Ubuntu CI green**: overlay/overlayfs allowlist + OS-aware stable-id test.
+- ✅ **Smart-playlist correctness**: header gating, rename-reset, 30-day recency window, NameKey/locale parity (regression-tested).
+- ✅ **README badge cluster** + license/packaging wording.
+- 📋 **Deferred hardening (correctness, not gating 0.6.5)**: Linux path-identity — `LibraryService.GetIdentityKeys` lowercases paths unconditionally while the file-browser lookup is OS-aware, so a cross-OS library move can duplicate rows. Fix = make identity keys OS-aware like `StableIdForPath`.
+- 📋 **Recursive-search symlink-loop guard (Linux)**: `FileAttributes.ReparsePoint` is unreliable for symlinks on Unix; OR-in `File.IsSymbolicLink` on non-Windows so a symlinked music tree can't hang the crawl (and verify `IsReparsePoint` is actually populated in `FileBrowserService`).
 
 ---
 
@@ -526,7 +531,8 @@
 - 🔄 **Release Packaging**: Windows Setup/Portable via `scripts/build-release.ps1` (Velopack `full`/`fx` channels); Linux AppImage/Flatpak still planned.
 - 📋 **Feature Freeze**: 1-2 weeks before launch, bug fixes only, clean-machine install verification.
 - 📋 Portable-build audio verification: local mp3/flac/m4a, https radio, first-try YouTube import on a clean data dir.
-- 📋 Matroska/WebM demuxer decision for the VLC prune whitelist (local .webm/.mka unsupported in release builds).
+- ✅ _(motion + launch-hardening landed in v0.6.5; 0.6.6 is now docs / installers / freeze only)_
+- 📋 **Installer matrix**: Velopack is Windows-only by nature; Linux/macOS native artifacts (AppImage/Flatpak/.dmg) need a GitHub Actions matrix where each OS builds its own — do not attempt from a Windows host (the reverted `hdiutil`/`tar`/`packId` failures were exactly this).
 
 ---
 
@@ -543,7 +549,11 @@
 - ✅ YouTube Data API BadRequest fallback to yt-dlp embedded metadata shipped in beta.1.
 - 💡 Locked badges with progress bars and unlock toasts (persisted seen-set).
 - 💡 yt-dlp child-process kill watchdog on cancel (no leaked processes).
-- 💡 BadgeIssuer private key from env var or file instead of CLI argument.
+- 💡 **Sidebar section customization**: promote Filters/Sources/Folders/Unpinned to a data-bound section collection (like `Nav.Items`) reusing the existing reorder/drag commands, so users can reorder/hide sections (the in-code `TODO(customize-sidebar)`).
+- 💡 **True two-layer filter crossfade**: the shipped dip is a floored pulse; a literal old+new overlap needs re-instantiating the list per filter (throws away scroll/selection/realization) — only if the pulse still reads off after living with it.
+- 💡 **MotionScale preference** (0 reduced / 1 normal / 1.5 relaxed) wired through `EffectsTierResolver`, respecting OS reduce-motion.
+- 💡 **Stagger + follow-through + peak-end principles** (3, 11, 19): per-item entrance offset via a `StaggerStep` token; a small completion pulse on undo / "added to library".
+- 💡 **Ctrl+K command palette** (jump to any track/playlist/folder/command).
 
 ---
 
