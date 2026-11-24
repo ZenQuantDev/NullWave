@@ -4,7 +4,18 @@
   <img alt="NullWave - Oxeye Daisy" src="Assets/Art/banner.png" width="100%">
 </p>
 
-[![CI](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml/badge.svg)](https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml)
+<p align="center">
+  <a href="https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ZenQuantDev/NullWave/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT%20%C2%B7%20attribution-green?style=flat-square"></a>
+  <a href="https://github.com/ZenQuantDev/NullWave/releases"><img alt="release" src="https://img.shields.io/github/v/release/ZenQuantDev/NullWave?include_prereleases&label=release&color=blue&style=flat-square"></a>
+  <a href="https://deepwiki.com/ZenQuantDev/NullWave"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg"></a>
+</p>
+<p align="center">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white&style=flat-square">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black&style=flat-square">
+  <a href="https://github.com/ZenQuantDev/NullWave/discussions"><img alt="discussions" src="https://img.shields.io/github/discussions/ZenQuantDev/NullWave?label=discussions&logo=github&style=flat-square"></a>
+  <a href="https://github.com/ZenQuantDev/NullWave/discussions/categories/ideas"><img alt="feature requests" src="https://img.shields.io/badge/feature%20requests-open-brightgreen?style=flat-square"></a>
+</p>
 
 A personal music organizer with download, playback, AI-powered smart sorting, and an extensible plugin system, built with C#/.NET 10 and Avalonia UI.
 
@@ -141,8 +152,8 @@ dotnet run
 ### Release packaging (Windows)
 
 ```powershell
-.\scripts\build-release.ps1   # Velopack channels: full (self-contained) + fx (framework-dependent)
-.\scripts\measure-startup.ps1 -ExePath .\publish\full\NullWave.exe -Runs 7 -FreshProfile
+.\build-release.ps1                         # win-x64, v0.6.5, full + fx
+.\measure-startup.ps1 -Rid win-x64 -Iterations 7
 ```
 
 Upload everything in `publish-artifacts/` to the GitHub Release. The `fx` installer fetches the .NET 10 Desktop Runtime; `full` bundles it. Bundled LibVLC is pruned to an audio-only plugin set, so local `.webm`/`.mka` files are not supported in release builds.
@@ -215,4 +226,4 @@ ZenQuant
 
 ## License
 
-MIT - see [LICENSE](LICENSE). Third-party notices are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). See [DISCLAIMER.md](DISCLAIMER.md) for terms of use.
+MIT with attribution - see [LICENSE](LICENSE). Third-party notices are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). See [DISCLAIMER.md](DISCLAIMER.md) for terms of use.
