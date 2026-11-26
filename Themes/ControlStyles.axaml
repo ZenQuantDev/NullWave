@@ -384,7 +384,7 @@
     <Setter Property="Opacity"      Value="1"/>
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -399,8 +399,8 @@
   <Style Selector="Border.draggable-row">
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-        <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
+        <BrushTransition Property="Background" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -414,7 +414,7 @@
   <Style Selector="Grid.draggable-row">
     <Setter Property="Transitions">
       <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+        <BrushTransition Property="Background" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -459,7 +459,7 @@
     <Setter Property="CornerRadius"  Value="{StaticResource RadiusFull}"/>
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Value" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Value" Duration="{DynamicResource DurationProgress}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -551,8 +551,8 @@
                   BorderThickness="1">
             <Border.Transitions>
               <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                <BrushTransition Property="Background" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
+                <BrushTransition Property="BorderBrush" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
               </Transitions>
             </Border.Transitions>
             <Panel>
@@ -566,8 +566,8 @@
                       Margin="3,0,0,0">
                 <Border.Transitions>
                   <Transitions>
-                    <ThicknessTransition Property="Margin" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <ThicknessTransition Property="Margin" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
                   </Transitions>
                 </Border.Transitions>
               </Border>
@@ -652,8 +652,8 @@
     <Setter Property="CornerRadius" Value="{StaticResource RadiusFull}"/>
     <Setter Property="Transitions">
       <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+        <BrushTransition Property="Background" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
+        <BrushTransition Property="BorderBrush" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -761,7 +761,7 @@
     <Setter Property="Opacity" Value="1.0"/>
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationDim}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -794,8 +794,8 @@
   <Style Selector="Button">
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
-        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationFast}" Easing="CubicEaseOut"/>
+        <TransformOperationsTransition Property="RenderTransform" Duration="{DynamicResource DurationPress}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -827,7 +827,7 @@
   <Style Selector="Window.effects-minimal Button">
     <Setter Property="Transitions">
       <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.06" Easing="CubicEaseOut"/>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource DurationMicro}" Easing="CubicEaseOut"/>
       </Transitions>
     </Setter>
   </Style>
@@ -849,7 +849,7 @@
   <Style Selector="TabControl">
     <Setter Property="PageTransition">
       <Setter.Value>
-        <CrossFade Duration="0:0:0.2"/>
+        <CrossFade Duration="0:0:0.2"/> <!-- CLR-prop Duration: cannot bind a resource; value already == DurationPage/Base -->
       </Setter.Value>
     </Setter>
   </Style>
